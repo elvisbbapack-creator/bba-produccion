@@ -691,6 +691,9 @@ if (pantalla === "otDetalle") {
   return (
     <div style={{
       padding: 20,
+      display: "grid",
+      gridTemplateColumns: "300px 1fr",
+      gap: 20,
       background: "#f4f6f8",
       minHeight: "100vh",
       fontFamily: "Arial"
@@ -734,17 +737,19 @@ if (pantalla === "otDetalle") {
         </div>
       ))}
 
-      <h2>📊 Dashboard Producción</h2>
+      <div>
+        <h2>📊 Dashboard Producción</h2>
 
-      <h1>{promedio.toFixed(1)}%</h1>
+        <h1>{promedio.toFixed(1)}%</h1>
 
-      <h3>Últimos registros</h3>
+        <h3>Últimos registros</h3>
+      </div>
 
 {!esMobile && (
       <div
   style={{
     display: "grid",
-    gridTemplateColumns: "80px 1fr 1fr 1fr 100px 80px",
+    gridTemplateColumns: "60px 1fr 1fr 1fr 1fr 100px 80px",
     fontWeight: "bold",
     marginBottom: 10
   }}
@@ -753,6 +758,7 @@ if (pantalla === "otDetalle") {
   <div>Operario</div>
   <div>Proceso</div>
   <div>Subproceso</div>
+  <div>Detalle</div>
   <div>Cantidad</div>
   <div>%</div>
 </div>
@@ -808,8 +814,9 @@ if (pantalla === "otDetalle") {
       <div><b>{r.usuario}</b></div>
       <div>{r.proceso}</div>
       <div>{r.subproceso}</div>
+      <div>{r.detalle || "-"}</div>
       <div>{r.cantidad_ok} un</div>
-      <div><b>{r.eficiencia}%</b></div>
+      <div>{r.eficiencia}%</div>
     </div>
 
   )
@@ -824,9 +831,24 @@ if (pantalla === "otDetalle") {
 
       <br /><br />
 
-      <button onClick={() => setPantalla("home")}>
-        Volver
+    <div style={{ textAlign: "center", marginTop: 30 }}>
+      <button
+        onClick={() => setPantalla("home")}
+        style={{
+          padding: "15px 40px",
+          fontSize: 18,
+          borderRadius: 12,
+          border: "none",
+          background: "#1976D2",
+          color: "white",
+          fontWeight: "bold",
+          cursor: "pointer",
+          boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
+        }}
+      >
+        ⬅ Volver al Inicio
       </button>
+    </div>
 
     </div>
   );
