@@ -88,7 +88,7 @@ function App() {
         const estSnap = await getDocs(collection(db, "estandares"));
         setEstandares(estSnap.docs.map(doc => doc.data()));
 
-        console.log("SUBPROCESOS:", subprocesos);
+        console.log("SUBPROCESOS:", subSnap.docs.map(doc => doc.data()));
 
       } catch (error) {
         console.error("ERROR:", error);
