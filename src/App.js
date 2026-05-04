@@ -647,7 +647,7 @@ if (pantalla === "otDetalle") {
 
   if (pantalla === "dashboard") {
 
-  const esMobile = window.innerWidth < 768;  
+  const esMobile = window.innerWidth < 768;
 
   const promedio =
     dashboard.length > 0
@@ -659,17 +659,13 @@ if (pantalla === "otDetalle") {
       if (!r.usuario) return acc;
 
       if (!acc[r.usuario]) {
-        acc[r.usuario] = {
-          usuario: r.usuario,
-          total: 0,
-          count: 0
-        };
+        acc[r.usuario] = { usuario: r.usuario, total: 0, count: 0 };
       }
 
       acc[r.usuario].total += r.eficiencia || 0;
       acc[r.usuario].count += 1;
 
-      return acc; // ✅ AQUÍ termina el reduce
+      return acc;
     }, {})
   )
   .map(r => ({
@@ -680,175 +676,141 @@ if (pantalla === "otDetalle") {
 
   const top1 = ranking[0];
 
-  let colorTop = "#333";
-
-  if (top1) {
-    if (top1.promedio >= 90) colorTop = "#4CAF50";
-    else if (top1.promedio >= 70) colorTop = "#FFC107";
-    else colorTop = "#F44336";
-  }
-
   return (
     <div style={{
       padding: 20,
-      display: "grid",
-      gridTemplateColumns: "300px 1fr",
-      gap: 20,
       background: "#f4f6f8",
       minHeight: "100vh",
       fontFamily: "Arial"
     }}>
 
-      <div style={{ textAlign: "center", marginBottom: 10 }}>
-  🔴 EN VIVO
-</div>
+      {/* 🧠 LAYOUT PRINCIPAL */}
+      <div style={{
+        display: esMobile ? "block" : "grid",
+        gridTemplateColumns: "300px 1fr",
+        gap: 20
+      }}>
 
-      {top1 && (
-        <div
-          className={top1.promedio < 70 ? "parpadeo" : ""}
+        {/* IZQUIERDA */}
+        <div>
+
+          <div style={{ marginBottom: 10 }}>🔴 EN VIVO</div>
+
+          {top1 && (
+            <div style={{
+              background: "#4CAF50",
+              color: "white",
+              padding: 20,
+              borderRadius: 12,
+              textAlign: "center",
+              marginBottom: 20
+            }}>
+              <h3>🥇 MEJOR OPERARIO</h3>
+              <h1>{top1.usuario}</h1>
+              <h2>{top1.promedio.toFixed(1)}%</h2>
+            </div>
+          )}
+
+          <h3>🏆 Ranking</h3>
+
+          {ranking.map((r, i) => (
+            <div key={i} style={{
+              padding: 10,
+              marginBottom: 8,
+              background: "white",
+              borderRadius: 8
+            }}>
+              {i + 1}. {r.usuario} — {r.promedio.toFixed(1)}%
+            </div>
+          ))}
+
+        </div>
+
+        {/* DERECHA */}
+        <div>
+
+          <h2>📊 Dashboard</h2>
+          <h1>{promedio.toFixed(1)}%</h1>
+
+          <h3>Últimos registros</h3>
+
+          {/* DESKTOP */}
+          {!esMobile && (
+            <>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "60px 1fr 1fr 1fr 1fr 100px 80px",
+                fontWeight: "bold",
+                marginBottom: 10
+              }}>
+                <div>Estado</div>
+                <div>Operario</div>
+                <div>Proceso</div>
+                <div>Subproceso</div>
+                <div>Detalle</div>
+                <div>Cantidad</div>
+                <div>%</div>
+              </div>
+
+              {dashboard.slice(-10).reverse().map((r, i) => (
+                <div key={i} style={{
+                  display: "grid",
+                  gridTemplateColumns: "60px 1fr 1fr 1fr 1fr 100px 80px",
+                  padding: 10,
+                  background: "white",
+                  borderRadius: 8,
+                  marginBottom: 8
+                }}>
+                  <div>{r.estado_eficiencia}</div>
+                  <div><b>{r.usuario}</b></div>
+                  <div>{r.proceso}</div>
+                  <div>{r.subproceso}</div>
+                  <div>{r.detalle || "-"}</div>
+                  <div>{r.cantidad_ok} un</div>
+                  <div>{r.eficiencia}%</div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* MOBILE */}
+          {esMobile && dashboard.slice(-10).reverse().map((r, i) => (
+            <div key={i} style={{
+              background: "white",
+              padding: 15,
+              borderRadius: 12,
+              marginBottom: 12
+            }}>
+              <b>{r.estado_eficiencia} {r.usuario}</b>
+              <div>{r.proceso} → {r.subproceso}</div>
+              <div style={{ fontSize: 13 }}>{r.detalle}</div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span>{r.cantidad_ok} un</span>
+                <b>{r.eficiencia}%</b>
+              </div>
+            </div>
+          ))}
+
+        </div>
+      </div>
+
+      {/* BOTÓN */}
+      <div style={{ textAlign: "center", marginTop: 30 }}>
+        <button
+          onClick={() => setPantalla("home")}
           style={{
-            background: colorTop,
-            color: "white",
-            padding: 25,
+            padding: "15px 40px",
+            fontSize: 18,
             borderRadius: 12,
-            marginBottom: 20,
-            textAlign: "center",
-            boxShadow: "0px 4px 10px rgba(0,0,0,0.3)"
+            border: "none",
+            background: "#1976D2",
+            color: "white",
+            fontWeight: "bold"
           }}
         >
-          <h2>🥇 MEJOR OPERARIO</h2>
-          <h1 style={{ fontSize: 45, margin: 10 }}>
-            {top1.usuario}
-          </h1>
-          <h2>{top1.promedio.toFixed(1)}%</h2>
-        </div>
-      )}
-
-      <h3>🏆 Ranking Operarios</h3>
-
-      {ranking.map((r, i) => (
-        <div key={i} style={{
-          padding: 10,
-          marginBottom: 8,
-          border: "1px solid #ccc",
-          borderRadius: 5
-        }}>
-          <b>{i + 1}. {r.usuario}</b> — {r.promedio.toFixed(1)}%
-        </div>
-      ))}
-
-      <div>
-        <h2>📊 Dashboard Producción</h2>
-
-        <h1>{promedio.toFixed(1)}%</h1>
-
-        <h3>Últimos registros</h3>
+          ⬅ Volver al Inicio
+        </button>
       </div>
-
-{!esMobile && (
-      <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "60px 1fr 1fr 1fr 1fr 100px 80px",
-    fontWeight: "bold",
-    marginBottom: 10
-  }}
->
-  <div>Estado</div>
-  <div>Operario</div>
-  <div>Proceso</div>
-  <div>Subproceso</div>
-  <div>Detalle</div>
-  <div>Cantidad</div>
-  <div>%</div>
-</div>
-)}
-
-      {dashboard.slice(-10).reverse().map((r, i) => (
-
-  esMobile ? (
-
-    <div
-      key={i}
-      style={{
-        background: "white",
-        padding: 12,
-        borderRadius: 10,
-        marginBottom: 10,
-        boxShadow: "0 2px 6px rgba(0,0,0,0.1)"
-      }}
-    >
-      <div style={{ fontSize: 18 }}>
-        {r.estado_eficiencia} <b>{r.usuario}</b>
-      </div>
-
-      <div style={{ fontSize: 14, color: "#555" }}>
-        {r.proceso} → {r.subproceso}
-      </div>
-
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        marginTop: 6
-      }}>
-        <span>{r.cantidad_ok} un</span>
-        <b>{r.eficiencia}%</b>
-      </div>
-    </div>
-
-  ) : (
-
-    <div
-      key={i}
-      style={{
-        display: "grid",
-        gridTemplateColumns: "80px 1fr 1fr 1fr 100px 80px",
-        padding: "10px",
-        marginBottom: "6px",
-        background: "white",
-        borderRadius: 6,
-        alignItems: "center"
-      }}
-    >
-      <div>{r.estado_eficiencia}</div>
-      <div><b>{r.usuario}</b></div>
-      <div>{r.proceso}</div>
-      <div>{r.subproceso}</div>
-      <div>{r.detalle || "-"}</div>
-      <div>{r.cantidad_ok} un</div>
-      <div>{r.eficiencia}%</div>
-    </div>
-
-  )
-
-))}
-
-      <br />
-
-      <button onClick={cargarDashboard}>
-        🔄 Actualizar
-      </button>
-
-      <br /><br />
-
-    <div style={{ textAlign: "center", marginTop: 30 }}>
-      <button
-        onClick={() => setPantalla("home")}
-        style={{
-          padding: "15px 40px",
-          fontSize: 18,
-          borderRadius: 12,
-          border: "none",
-          background: "#1976D2",
-          color: "white",
-          fontWeight: "bold",
-          cursor: "pointer",
-          boxShadow: "0 4px 10px rgba(0,0,0,0.2)"
-        }}
-      >
-        ⬅ Volver al Inicio
-      </button>
-    </div>
 
     </div>
   );
