@@ -3,6 +3,7 @@ import { db } from "./firebase";
 import { collection, addDoc, getDocs } from "firebase/firestore";
 
 function App() {
+  /* eslint-disable no-unused-vars */
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
@@ -95,7 +96,7 @@ function App() {
     }
 
     cargarDatos();
-  }, []);
+  }, []); // déjalo así (correcto)
   
   useEffect(() => {
     if (pantalla === "dashboard") {
