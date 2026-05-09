@@ -216,8 +216,6 @@ function App() {
     setCantidad("");
     setSubprocesoSeleccionado("");
     setDetalleSeleccionado("");
-    setInicioProduccion(null);
-    setFinProduccion(null);
 
   } catch (error) {
     console.error("ERROR:", error);
@@ -530,71 +528,63 @@ if (pantalla === "registro") {
             ))}
         </select>
 
-        {/* BOTONES TIEMPO */}
-        <button
-          onClick={async () => {
+<button
+  onClick={async () => {
 
-            if (
-              !operarioSeleccionado ||
-              !procesoSeleccionado ||
-              !subprocesoSeleccionado
-            ) {
-              alert("Faltan datos");
-              return;
-            }
+    if (
+      !operarioSeleccionado ||
+      !procesoSeleccionado ||
+      !subprocesoSeleccionado
+    ) {
+      alert("Faltan datos");
+      return;
+    }
 
-            try {
+    try {
 
-              await addDoc(
-                collection(db, "produccion_activa"),
-                {
-                  operario: operarioSeleccionado,
-                  proceso: procesoSeleccionado,
-                  subproceso: subprocesoSeleccionado,
-                  detalle: detalleSeleccionado,
+      await addDoc(
+        collection(db, "produccion_activa"),
+        {
+          operario: operarioSeleccionado,
+          proceso: procesoSeleccionado,
+          subproceso: subprocesoSeleccionado,
+          detalle: detalleSeleccionado,
 
-                  ot: otSeleccionada,
+          ot: otSeleccionada,
 
-                  iniciado_por:
-                    usuarioSeleccionado?.nombre,
+          iniciado_por:
+            usuarioSeleccionado?.nombre,
 
-                  inicio: new Date(),
+          inicio: new Date(),
 
-                  estado: "activo"
-                }
-              );
+          estado: "activo"
+        }
+      );
 
-              alert("Producción iniciada ✅");
+      alert("Producción iniciada ✅");
 
-              cargarDatos();
+      const activaSnap = await getDocs(
+        collection(db, "produccion_activa")
+      );
 
-            } catch (error) {
-              console.error(error);
-            }
-          }}
-          style={{
-            ...botonVerde,
-            background: inicioProduccion ? "#1B5E20" : "#4CAF50",
-            fontSize: 18
-          }}
-        >
-          {inicioProduccion
-            ? "🟢 Producción en curso"
-            : "▶️ Iniciar Producción"}
-        </button>
-        
-        {inicioProduccion && (
-          <div style={{
-            marginBottom: 10,
-            color: "#1B5E20",
-            fontWeight: "bold",
-            textAlign: "center"
-          }}>
-            Inicio:
-            {" "}
-            {inicioProduccion.toLocaleTimeString()}
-          </div>
-        )}
+      setProduccionActiva(
+        activaSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+      );
+
+    } catch (error) {
+      console.error(error);
+    }
+  }}
+  style={{
+    ...botonVerde,
+    fontSize: 18
+  }}
+>
+  ▶️ Iniciar Producción
+</button>
 
         <button
           onClick={() => {
