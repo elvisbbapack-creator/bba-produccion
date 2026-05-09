@@ -71,6 +71,14 @@ function App() {
   };
 
   useEffect(() => {
+    const inicioGuardado =
+      localStorage.getItem("inicioProduccion");
+
+    if (inicioGuardado) {
+      setInicioProduccion(new Date(inicioGuardado));
+    }
+  }, []);
+  useEffect(() => {
     async function cargarDatos() {
       try {
         const otSnap = await getDocs(collection(db, "ordenes_trabajo"));
@@ -194,6 +202,7 @@ function App() {
     setSubprocesoSeleccionado("");
     setDetalleSeleccionado("");
     setInicioProduccion(null);
+    localStorage.removeItem("inicioProduccion");
     setFinProduccion(null);
 
   } catch (error) {
@@ -481,18 +490,73 @@ if (pantalla === "registro") {
 
         {/* BOTONES TIEMPO */}
         <button
-          onClick={() => setInicioProduccion(new Date())}
-          style={botonVerde}
+          onClick={() => {
+            const inicio = new Date();
+
+            setInicioProduccion(inicio);
+
+            localStorage.setItem(
+              "inicioProduccion",
+              inicio.toISOString()
+            );
+
+            alert("Producción iniciada ✅");
+          }}
+          style={{
+            ...botonVerde,
+            background: inicioProduccion ? "#1B5E20" : "#4CAF50",
+            fontSize: 18
+          }}
         >
-          ▶️ Iniciar Producción
+          {inicioProduccion
+            ? "🟢 Producción en curso"
+            : "▶️ Iniciar Producción"}
         </button>
+        
+        {inicioProduccion && (
+          <div style={{
+            marginBottom: 10,
+            color: "#1B5E20",
+            fontWeight: "bold",
+            textAlign: "center"
+          }}>
+            Inicio:
+            {" "}
+            {inicioProduccion.toLocaleTimeString()}
+          </div>
+        )}
 
         <button
-          onClick={() => setFinProduccion(new Date())}
-          style={botonRojo}
+          onClick={() => {
+            const fin = new Date();
+
+            setFinProduccion(fin);
+
+            alert("Producción finalizada ✅");
+          }}
+          style={{
+            ...botonRojo,
+            background: finProduccion ? "#B71C1C" : "#F44336",
+            fontSize: 18
+          }}
         >
-          ⏹ Finalizar Producción
+          {finProduccion
+            ? "🔴 Producción finalizada"
+            : "⏹ Finalizar Producción"}
         </button>
+        
+        {finProduccion && (
+          <div style={{
+            marginBottom: 10,
+            color: "#B71C1C",
+            fontWeight: "bold",
+            textAlign: "center"
+          }}>
+            Fin:
+            {" "}
+            {finProduccion.toLocaleTimeString()}
+          </div>
+        )}
 
         {/* INPUT */}
         <input
