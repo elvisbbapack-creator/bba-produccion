@@ -8,8 +8,6 @@ function App() {
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
 
-  const [operarioSeleccionado, setOperarioSeleccionado] = useState("");
-
   const [ots, setOts] = useState([]);
   const [procesos, setProcesos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
@@ -100,9 +98,6 @@ function App() {
           operSnap.docs.map(doc => doc.data())
         );
 
-        const operSnap = await getDocs(collection(db, "operarios"));
-        setOperarios(operSnap.docs.map(doc => doc.data()));
-
         const subSnap = await getDocs(collection(db, "subprocesos"));
         setSubprocesos(subSnap.docs.map(doc => doc.data()));
 
@@ -134,7 +129,13 @@ function App() {
 
   async function guardar() {
   // 1. Validación estricta inicial
-  if (!usuarioSeleccionado || !procesoSeleccionado || !cantidad || !subprocesoSeleccionado) {
+  if (
+  !usuarioSeleccionado ||
+  !operarioSeleccionado ||
+  !procesoSeleccionado ||
+  !cantidad ||
+  !subprocesoSeleccionado
+  ) {
     alert("Faltan datos críticos para el cálculo de eficiencia.");
     return;
   }
@@ -764,20 +765,26 @@ if (pantalla === "otDetalle") {
 
   const ranking = Object.values(
     dashboard.reduce((acc, r) => {
-      if (!r.usuario) return acc;
 
-      if (!acc[r.usuario]) {
-        acc[r.usuario] = { usuario: r.usuario, total: 0, count: 0 };
+      if (!r.operario) return acc;
+
+      if (!acc[r.operario]) {
+        acc[r.operario] = {
+          operario: r.operario,
+          total: 0,
+          count: 0
+        };
       }
 
-      acc[r.usuario].total += r.eficiencia || 0;
-      acc[r.usuario].count += 1;
+      acc[r.operario].total += r.eficiencia || 0;
+      acc[r.operario].count += 1;
 
       return acc;
+
     }, {})
   )
   .map(r => ({
-    usuario: r.usuario,
+    operario: r.operario,
     promedio: r.total / r.count
   }))
   .sort((a, b) => b.promedio - a.promedio);
@@ -802,7 +809,9 @@ if (pantalla === "otDetalle") {
         {/* IZQUIERDA */}
         <div>
 
-          <div style={{ marginBottom: 10 }}>🔴 EN VIVO</div>
+          <div style={{ marginBottom: 10 }}>
+            🔴 EN VIVO
+          </div>
 
           {top1 && (
             <div style={{
@@ -814,21 +823,30 @@ if (pantalla === "otDetalle") {
               marginBottom: 20
             }}>
               <h3>🥇 MEJOR OPERARIO</h3>
-              <h1>{top1.usuario}</h1>
-              <h2>{top1.promedio.toFixed(1)}%</h2>
+
+              <h1>
+                {top1.operario}
+              </h1>
+
+              <h2>
+                {top1.promedio.toFixed(1)}%
+              </h2>
             </div>
           )}
 
           <h3>🏆 Ranking</h3>
 
           {ranking.map((r, i) => (
-            <div key={i} style={{
-              padding: 10,
-              marginBottom: 8,
-              background: "white",
-              borderRadius: 8
-            }}>
-              {i + 1}. {r.usuario} — {r.promedio.toFixed(1)}%
+            <div
+              key={i}
+              style={{
+                padding: 10,
+                marginBottom: 8,
+                background: "white",
+                borderRadius: 8
+              }}
+            >
+              {i + 1}. {r.operario} — {r.promedio.toFixed(1)}%
             </div>
           ))}
 
@@ -876,7 +894,7 @@ if (pantalla === "otDetalle") {
                       : "-"}
                   </div>
                   <div>{r.estado_eficiencia}</div>
-                  <div><b>{r.usuario}</b></div>
+                  <div><b>{r.operario}</b></div>
                   <div>{r.proceso}</div>
                   <div>{r.subproceso}</div>
                   <div>{r.detalle || "-"}</div>
@@ -904,7 +922,7 @@ if (pantalla === "otDetalle") {
                   ? r.fecha.toDate().toLocaleString()
                   : "-"}
               </div>
-              <b>{r.estado_eficiencia} {r.usuario}</b>
+              <b>{r.estado_eficiencia} {r.operario}</b>
               <div>{r.proceso} → {r.subproceso}</div>
               <div style={{ fontSize: 13 }}>{r.detalle}</div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
