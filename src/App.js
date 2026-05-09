@@ -739,10 +739,11 @@ if (pantalla === "otDetalle") {
             <>
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "60px 1fr 1fr 1fr 1fr 100px 80px",
+                gridTemplateColumns: "140px 60px 1fr 1fr 1fr 1fr 100px 80px",
                 fontWeight: "bold",
                 marginBottom: 10
               }}>
+                <div>Fecha</div>
                 <div>Estado</div>
                 <div>Operario</div>
                 <div>Proceso</div>
@@ -755,12 +756,17 @@ if (pantalla === "otDetalle") {
               {dashboard.slice(-10).reverse().map((r, i) => (
                 <div key={i} style={{
                   display: "grid",
-                  gridTemplateColumns: "60px 1fr 1fr 1fr 1fr 100px 80px",
+                  gridTemplateColumns: "140px 60px 1fr 1fr 1fr 1fr 100px 80px",
                   padding: 10,
                   background: "white",
                   borderRadius: 8,
                   marginBottom: 8
                 }}>
+                  <div>
+                    {r.fecha?.toDate
+                      ? r.fecha.toDate().toLocaleString()
+                      : "-"}
+                  </div>
                   <div>{r.estado_eficiencia}</div>
                   <div><b>{r.usuario}</b></div>
                   <div>{r.proceso}</div>
@@ -781,6 +787,15 @@ if (pantalla === "otDetalle") {
               borderRadius: 12,
               marginBottom: 12
             }}>
+              <div style={{
+                fontSize: 12,
+                color: "#777",
+                marginBottom: 5
+              }}>
+                {r.fecha?.toDate
+                  ? r.fecha.toDate().toLocaleString()
+                  : "-"}
+              </div>
               <b>{r.estado_eficiencia} {r.usuario}</b>
               <div>{r.proceso} → {r.subproceso}</div>
               <div style={{ fontSize: 13 }}>{r.detalle}</div>
