@@ -33,9 +33,6 @@ function App() {
   const [estandares, setEstandares] = useState([]);
   const [dashboard, setDashboard] = useState([]);
 
-  const [inicioProduccion, setInicioProduccion] = useState(null);
-  const [finProduccion, setFinProduccion] = useState(null);
-
   const [otDetalle, setOtDetalle] = useState(null);
 
   const estiloInput = {
@@ -80,14 +77,6 @@ function App() {
     marginBottom: 12
   };
 
-  useEffect(() => {
-    const inicioGuardado =
-      localStorage.getItem("inicioProduccion");
-
-    if (inicioGuardado) {
-      setInicioProduccion(new Date(inicioGuardado));
-    }
-  }, []);
   useEffect(() => {
     async function cargarDatos() {
       try {
@@ -160,13 +149,6 @@ function App() {
   }
 
   // 2. Cálculo de tiempo (Asegurar que existan marcas de tiempo)
-  let tiempoHoras = 0;
-  if (inicioProduccion && finProduccion) {
-    tiempoHoras = (finProduccion - inicioProduccion) / (1000 * 60 * 60);
-  } else {
-    alert("Debes marcar Inicio y Fin de producción");
-    return;
-  }
 
   // 3. Normalización segura
   const normalizar = (txt) => 
@@ -196,10 +178,10 @@ function App() {
 
   // 5. Cálculo de eficiencia
   let eficiencia = 0;
-  if (estandar.unidades_por_hora > 0 && tiempoHoras > 0) {
-    const produccionEsperada = estandar.unidades_por_hora * tiempoHoras;
-    eficiencia = (Number(cantidad) / produccionEsperada) * 100;
-  }
+  // TEMPORAL
+  // mientras migramos a producción_activa
+
+  eficiencia = 100;
 
   eficiencia = Math.min(eficiencia, 150);
 
@@ -223,9 +205,6 @@ function App() {
       proceso: procesoSeleccionado,
       subproceso: subprocesoSeleccionado,
       detalle: detalleSeleccionado,
-      inicio: inicioProduccion,
-      fin: finProduccion,
-      tiempo_horas: tiempoHoras,
       cantidad_ok: Number(cantidad),
       eficiencia: Math.round(eficiencia),
       estado_eficiencia: colorEficiencia,
@@ -238,7 +217,6 @@ function App() {
     setSubprocesoSeleccionado("");
     setDetalleSeleccionado("");
     setInicioProduccion(null);
-    localStorage.removeItem("inicioProduccion");
     setFinProduccion(null);
 
   } catch (error) {
