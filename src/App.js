@@ -8,9 +8,13 @@ function App() {
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
 
+  const [operarioSeleccionado, setOperarioSeleccionado] = useState("");
+
   const [ots, setOts] = useState([]);
   const [procesos, setProcesos] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
+  const [operarios, setOperarios] = useState([]);
+  const [operarioSeleccionado, setOperarioSeleccionado] = useState("");
 
   const [otSeleccionada, setOtSeleccionada] = useState("");
   const [procesoSeleccionado, setProcesoSeleccionado] = useState("");
@@ -89,6 +93,15 @@ function App() {
 
         const userSnap = await getDocs(collection(db, "usuarios"));
         setUsuarios(userSnap.docs.map(doc => doc.data()));
+
+        const operSnap = await getDocs(collection(db, "operarios"));
+
+        setOperarios(
+          operSnap.docs.map(doc => doc.data())
+        );
+
+        const operSnap = await getDocs(collection(db, "operarios"));
+        setOperarios(operSnap.docs.map(doc => doc.data()));
 
         const subSnap = await getDocs(collection(db, "subprocesos"));
         setSubprocesos(subSnap.docs.map(doc => doc.data()));
@@ -181,7 +194,10 @@ function App() {
 
   try {
     await addDoc(collection(db, "registros_produccion"), {
-      usuario: usuarioSeleccionado?.nombre || "SIN USUARIO",
+      iniciado_por:
+        usuarioSeleccionado?.nombre || "SIN USUARIO",
+
+      operario: operarioSeleccionado,
       rol: usuarioSeleccionado.rol,
       ot: otSeleccionada,
       proceso: procesoSeleccionado,
@@ -429,19 +445,47 @@ if (pantalla === "registro") {
           ))}
         </select>
 
-        {/* USUARIO */}
-        <select
-          onChange={(e) => {
-            const index = e.target.value;
-            setUsuarioSeleccionado(usuarios[index]);
+        {/* USUARIO LOGUEADO */}
+        <div
+          style={{
+            marginBottom: 12,
+            padding: 12,
+            background: "#E3F2FD",
+            borderRadius: 8,
+            fontWeight: "bold",
+            color: "#1976D2"
           }}
+        >
+          👤 Usuario:
+          {" "}
+          {usuarioSeleccionado?.nombre}
+     
+          <div style={{
+            fontSize: 13,
+            marginTop: 4,
+            color: "#555"
+          }}>
+            Rol: {usuarioSeleccionado?.rol}
+          </div>
+        </div>
+
+        {/* OPERARIO */}
+        <select
+          onChange={(e) =>
+            setOperarioSeleccionado(e.target.value)
+          }
           style={estiloInput}
         >
-          <option value="">Seleccionar Usuario</option>
-          {usuarios.map((u, i) => (
-            <option key={i} value={i}>
-              {u.nombre} ({u.rol})
-            </option>
+          <option value="">
+            Seleccionar Operario
+          </option>
+
+          {operarios
+            .filter(o => o.activo)
+            .map((o, i) => (
+              <option key={i} value={o.nombre}>
+            {o.nombre}
+              </option>
           ))}
         </select>
 
