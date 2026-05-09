@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import { db } from "./firebase";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc
+} from "firebase/firestore";
 
 function App() {
   /* eslint-disable no-unused-vars */
@@ -21,6 +27,8 @@ function App() {
   const [subprocesos, setSubprocesos] = useState([]);
   const [subprocesoSeleccionado, setSubprocesoSeleccionado] = useState("");
   const [detalleSeleccionado, setDetalleSeleccionado] = useState("");
+
+  const [produccionActiva, setProduccionActiva] = useState([]);
 
   const [estandares, setEstandares] = useState([]);
   const [dashboard, setDashboard] = useState([]);
@@ -83,6 +91,17 @@ function App() {
   useEffect(() => {
     async function cargarDatos() {
       try {
+        const activaSnap = await getDocs(
+          collection(db, "produccion_activa")
+        );
+
+        setProduccionActiva(
+          activaSnap.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }))
+        );
+
         const otSnap = await getDocs(collection(db, "ordenes_trabajo"));
         setOts(otSnap.docs.map(doc => doc.data()));
 
@@ -535,17 +554,45 @@ if (pantalla === "registro") {
 
         {/* BOTONES TIEMPO */}
         <button
-          onClick={() => {
-            const inicio = new Date();
+          onClick={async () => {
 
-            setInicioProduccion(inicio);
+            if (
+              !operarioSeleccionado ||
+              !procesoSeleccionado ||
+              !subprocesoSeleccionado
+            ) {
+              alert("Faltan datos");
+              return;
+            }
 
-            localStorage.setItem(
-              "inicioProduccion",
-              inicio.toISOString()
-            );
+            try {
 
-            alert("Producción iniciada ✅");
+              await addDoc(
+                collection(db, "produccion_activa"),
+                {
+                  operario: operarioSeleccionado,
+                  proceso: procesoSeleccionado,
+                  subproceso: subprocesoSeleccionado,
+                  detalle: detalleSeleccionado,
+
+                  ot: otSeleccionada,
+
+                  iniciado_por:
+                    usuarioSeleccionado?.nombre,
+
+                  inicio: new Date(),
+
+                  estado: "activo"
+                }
+              );
+
+              alert("Producción iniciada ✅");
+
+              cargarDatos();
+
+            } catch (error) {
+              console.error(error);
+            }
           }}
           style={{
             ...botonVerde,
