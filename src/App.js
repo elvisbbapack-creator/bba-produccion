@@ -729,6 +729,28 @@ if (pantalla === "registro") {
             colorEficiencia = "🟢";
           }
 
+          const yaExiste =
+            produccionActiva.find(p =>
+
+              p.operario ===
+                operarioSeleccionado &&
+
+              p.proceso ===
+                procesoSeleccionado &&
+
+              p.subproceso ===
+                subprocesoSeleccionado
+            );
+
+          if (yaExiste) {
+
+            alert(
+              "Este operario ya tiene este proceso iniciado"
+            );
+
+            return;
+          }
+
           await addDoc(
             collection(db, "registros_produccion"),
             {
