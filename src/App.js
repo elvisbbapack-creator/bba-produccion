@@ -651,6 +651,84 @@ if (pantalla === "registro") {
 
         try {
 
+          const fin = new Date();
+
+          const inicio =
+            p.inicio?.toDate();
+
+          const tiempoHoras =
+            (fin - inicio) /
+            (1000 * 60 * 60);
+
+          const cantidadOK =
+            Number(p.cantidadFinal || 0);
+
+          const normalizar = (txt) =>
+  txt
+    ? txt.toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ")
+    : "";
+
+          const estandar =
+            estandares.find(e => {
+
+              const matchProc =
+                normalizar(e.proceso) ===
+                normalizar(p.proceso);
+
+              const matchSub =
+                normalizar(e.subproceso) ===
+                normalizar(p.subproceso);
+
+              const matchDet =
+                !e.detalle ||
+                normalizar(e.detalle) ===
+                normalizar(p.detalle);
+
+              return (
+                matchProc &&
+                matchSub &&
+                matchDet
+              );
+            });
+
+          let eficiencia = 0;
+
+          if (
+            estandar &&
+            estandar.unidades_por_hora > 0 &&
+            tiempoHoras > 0
+          ) {
+
+            const produccionEsperada =
+              estandar.unidades_por_hora *
+              tiempoHoras;
+
+            eficiencia =
+              (cantidadOK /
+                produccionEsperada) * 100;
+          }
+
+          eficiencia =
+            Math.min(
+              Math.round(eficiencia),
+              150
+            );
+
+          let colorEficiencia = "";
+
+          if (eficiencia < 70) {
+            colorEficiencia = "🔴";
+          }
+          else if (eficiencia < 90) {
+            colorEficiencia = "🟡";
+          }
+          else {
+            colorEficiencia = "🟢";
+          }
+
           await addDoc(
             collection(db, "registros_produccion"),
             {
@@ -665,11 +743,13 @@ if (pantalla === "registro") {
               inicio: p.inicio,
               fin: new Date(),
 
-              tiempo_horas: 1,
+              tiempo_horas:
+                Number(tiempoHoras.toFixed(2)),
 
-              eficiencia: 100,
-              
-              estado_eficiencia: "🟢",
+              eficiencia,
+
+              estado_eficiencia:
+                colorEficiencia,
 
               fecha: new Date(),
 
