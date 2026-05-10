@@ -668,6 +668,8 @@ if (pantalla === "registro") {
               tiempo_horas: 1,
 
               eficiencia: 100,
+              
+              estado_eficiencia: "🟢",
 
               fecha: new Date(),
 
