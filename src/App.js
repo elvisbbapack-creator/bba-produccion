@@ -528,64 +528,6 @@ if (pantalla === "registro") {
             ))}
         </select>
 
-<button
-  onClick={async () => {
-
-    if (
-      !operarioSeleccionado ||
-      !procesoSeleccionado ||
-      !subprocesoSeleccionado
-    ) {
-      alert("Faltan datos");
-      return;
-    }
-
-    try {
-
-      await addDoc(
-        collection(db, "produccion_activa"),
-        {
-          operario: operarioSeleccionado,
-          proceso: procesoSeleccionado,
-          subproceso: subprocesoSeleccionado,
-          detalle: detalleSeleccionado,
-
-          ot: otSeleccionada,
-
-          iniciado_por:
-            usuarioSeleccionado?.nombre,
-
-          inicio: new Date(),
-
-          estado: "activo"
-        }
-      );
-
-      alert("Producción iniciada ✅");
-
-      const activaSnap = await getDocs(
-        collection(db, "produccion_activa")
-      );
-
-      setProduccionActiva(
-        activaSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-      );
-
-    } catch (error) {
-      console.error(error);
-    }
-  }}
-  style={{
-    ...botonVerde,
-    fontSize: 18
-  }}
->
-  ▶️ Iniciar Producción
-</button>
-
 {/* INICIAR PRODUCCIÓN */}
 <button
   onClick={async () => {
