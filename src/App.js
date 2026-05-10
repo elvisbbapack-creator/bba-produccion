@@ -417,9 +417,6 @@ if (pantalla === "registro") {
       <div style={{ textAlign: "center", marginBottom: 20 }}>
         <img src="/logo-bba.png" alt="BBA" style={{ width: 80 }} />
         <h2 style={{ marginTop: 10 }}>🏭 Registrar Producción</h2>
-        <div style={{ color: "red", fontWeight: "bold" }}>
-          VERSION NUEVA 999
-        </div>
       </div>
 
       {/* CARD PRINCIPAL */}
