@@ -35,6 +35,10 @@ function App() {
 
   const [otDetalle, setOtDetalle] = useState(null);
 
+  const [ahora, setAhora] = useState(
+    new Date()
+  );
+  
   const estiloInput = {
   width: "100%",
   padding: 12,
@@ -123,7 +127,19 @@ useEffect(() => {
   cargarDatos();
 }, []);
   
-  useEffect(() => {
+useEffect(() => {
+
+  const intervalo = setInterval(() => {
+
+    setAhora(new Date());
+
+  }, 1000);
+
+  return () => clearInterval(intervalo);
+
+}, []);
+
+useEffect(() => {
     if (pantalla === "dashboard") {
 
       cargarDashboard(); // carga inicial
@@ -651,6 +667,57 @@ if (pantalla === "registro") {
       {p.inicio?.toDate
         ? p.inicio.toDate().toLocaleString()
         : "-"}
+    </div>
+
+    <div style={{
+      marginTop: 6,
+      fontWeight: "bold",
+      color: "#D32F2F"
+    }}>
+      ⏱ {
+
+        (() => {
+
+          if (!p.inicio?.toDate)
+            return "00:00:00";
+
+          const inicio =
+            p.inicio.toDate();
+
+          const diferencia =
+            ahora - inicio;
+
+          const horas =
+            Math.floor(
+              diferencia / 3600000
+            );
+
+          const minutos =
+            Math.floor(
+              (diferencia % 3600000)
+              / 60000
+            );
+
+          const segundos =
+            Math.floor(
+              (diferencia % 60000)
+              / 1000
+            );
+
+          return `
+            ${String(horas)
+              .padStart(2, "0")}
+            :
+            ${String(minutos)
+              .padStart(2, "0")}
+            :
+            ${String(segundos)
+              .padStart(2, "0")}
+          `;
+
+        })()
+
+      }
     </div>
 
     <input
