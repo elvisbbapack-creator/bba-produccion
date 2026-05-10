@@ -586,38 +586,6 @@ if (pantalla === "registro") {
   ▶️ Iniciar Producción
 </button>
 
-        <button
-          onClick={() => {
-            const fin = new Date();
-
-            setFinProduccion(fin);
-
-            alert("Producción finalizada ✅");
-          }}
-          style={{
-            ...botonRojo,
-            background: finProduccion ? "#B71C1C" : "#F44336",
-            fontSize: 18
-          }}
-        >
-          {finProduccion
-            ? "🔴 Producción finalizada"
-            : "⏹ Finalizar Producción"}
-        </button>
-        
-        {finProduccion && (
-          <div style={{
-            marginBottom: 10,
-            color: "#B71C1C",
-            fontWeight: "bold",
-            textAlign: "center"
-          }}>
-            Fin:
-            {" "}
-            {finProduccion.toLocaleTimeString()}
-          </div>
-        )}
-
         {/* INPUT */}
         <input
           placeholder="Cantidad OK"
