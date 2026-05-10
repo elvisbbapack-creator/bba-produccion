@@ -5,7 +5,8 @@ import {
   addDoc,
   getDocs,
   deleteDoc,
-  doc
+  doc,
+  updateDoc
 } from "firebase/firestore";
 
 function App() {
@@ -659,6 +660,124 @@ if (pantalla === "registro") {
     </div>
 
     <div style={{
+      marginTop: 8
+    }}>
+      📦 Actual:
+      {" "}
+      <b>
+        {p.cantidad_actual || 0}
+      </b>
+    </div>
+
+    <div style={{
+      display: "flex",
+      gap: 5,
+      marginTop: 8
+    }}>
+
+      <button
+        onClick={async () => {
+
+          try {
+
+            await updateDoc(
+              doc(
+                db,
+                "produccion_activa",
+                p.id
+              ),
+              {
+                cantidad_actual:
+                  (p.cantidad_actual || 0) + 100
+              }
+            );
+
+            const activaSnap =
+              await getDocs(
+                collection(
+                  db,
+                  "produccion_activa"
+                )
+              );
+
+            setProduccionActiva(
+              activaSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }))
+            );
+
+          } catch (error) {
+            console.error(error);
+          }
+
+        }}
+        style={{
+          flex: 1,
+          padding: 8,
+          border: "none",
+          borderRadius: 6,
+          background: "#1976D2",
+          color: "white",
+          fontWeight: "bold"
+        }}
+      >
+        +100
+      </button>
+
+      <button
+        onClick={async () => {
+
+          try {
+
+            await updateDoc(
+              doc(
+                db,
+                "produccion_activa",
+                p.id
+              ),
+              {
+                cantidad_actual:
+                  (p.cantidad_actual || 0) + 500
+              }
+            );
+
+            const activaSnap =
+              await getDocs(
+                collection(
+                  db,
+                  "produccion_activa"
+                )
+              );
+
+            setProduccionActiva(
+              activaSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }))
+            );
+
+          } catch (error) {
+            console.error(error);
+          }
+
+        }}
+        style={{
+          flex: 1,
+          padding: 8,
+          border: "none",
+          borderRadius: 6,
+          background: "#4CAF50",
+          color: "white",
+          fontWeight: "bold"
+        }}
+      >
+        +500
+      </button>
+
+    </div>
+
+    <div style={{
       fontSize: 12,
       color: "#555"
     }}>
@@ -825,6 +944,9 @@ if (pantalla === "registro") {
               proceso: p.proceso,
               subproceso: p.subproceso,
               detalle: p.detalle,
+
+              cantidad_actual: 0,
+
               ot: p.ot,
 
               cantidad_ok: Number(p.cantidadFinal || 0),
