@@ -638,12 +638,82 @@ if (pantalla === "registro") {
   🟢 Producciones Activas
 </h3>
 
-{produccionActiva.map((p, i) => (
+{produccionActiva.map((p, i) => {
+
+  const inicio =
+  p.inicio?.toDate();
+
+const tiempoHoras =
+  inicio
+    ? (ahora - inicio) / 3600000
+    : 0;
+
+const normalizar = (txt) =>
+  txt
+    ? txt.toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ")
+    : "";
+
+const estandar =
+  estandares.find(e => {
+
+    const matchProc =
+      normalizar(e.proceso) ===
+      normalizar(p.proceso);
+
+    const matchSub =
+      normalizar(e.subproceso) ===
+      normalizar(p.subproceso);
+
+    const matchDet =
+      !e.detalle ||
+      normalizar(e.detalle) ===
+      normalizar(p.detalle);
+
+    return (
+      matchProc &&
+      matchSub &&
+      matchDet
+    );
+  });
+
+const esperado =
+  estandar
+    ? Math.round(
+        estandar.unidades_por_hora *
+        tiempoHoras
+      )
+    : 0;
+
+const real =
+  p.cantidad_actual || 0;
+
+let eficiencia = 0;
+
+if (esperado > 0) {
+  eficiencia =
+    Math.round(
+      (real / esperado) * 100
+    );
+}
+
+let color = "#E8F5E9";
+
+if (eficiencia < 70) {
+  color = "#FFCDD2";
+}
+else if (eficiencia < 90) {
+  color = "#FFF9C4";
+}
+
+return (
 
   <div
     key={i}
     style={{
-      background: "#E8F5E9",
+      background: color,
       padding: 10,
       borderRadius: 8,
       marginBottom: 10
@@ -839,6 +909,35 @@ if (pantalla === "registro") {
       }
     </div>
 
+    <div style={{
+      marginTop: 8
+    }}>
+      🎯 Esperado:
+      {" "}
+      <b>{esperado}</b>
+    </div>
+
+    <div>
+      📦 Real:
+      {" "}
+      <b>{real}</b>
+    </div>
+
+    <div style={{
+      marginTop: 8,
+      fontSize: 20,
+      fontWeight: "bold"
+    }}>
+      eficiencia >= 90
+        ? "🟢"
+        : eficiencia >= 70
+        ? "🟡"
+        : "🔴"}
+
+      {" "}
+      {eficiencia}%
+    </div>
+
     <input
       type="number"
       placeholder="Cantidad OK"
@@ -1006,7 +1105,8 @@ if (pantalla === "registro") {
 
   </div>
 
-))}
+  );
+})}
 
       </div>
 
