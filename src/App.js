@@ -586,6 +586,105 @@ if (pantalla === "registro") {
   ▶️ Iniciar Producción
 </button>
 
+{/* INICIAR PRODUCCIÓN */}
+<button
+  onClick={async () => {
+
+    if (
+      !operarioSeleccionado ||
+      !procesoSeleccionado ||
+      !subprocesoSeleccionado
+    ) {
+      alert("Faltan datos");
+      return;
+    }
+
+    try {
+
+      await addDoc(
+        collection(db, "produccion_activa"),
+        {
+          operario: operarioSeleccionado,
+          proceso: procesoSeleccionado,
+          subproceso: subprocesoSeleccionado,
+          detalle: detalleSeleccionado,
+          ot: otSeleccionada,
+
+          iniciado_por:
+            usuarioSeleccionado?.nombre,
+
+          inicio: new Date(),
+
+          estado: "activo"
+        }
+      );
+
+      alert("Producción iniciada ✅");
+
+      const activaSnap = await getDocs(
+        collection(db, "produccion_activa")
+      );
+
+      setProduccionActiva(
+        activaSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+      );
+
+    } catch (error) {
+      console.error(error);
+    }
+
+  }}
+  style={{
+    ...botonVerde,
+    fontSize: 18
+  }}
+>
+  ▶️ Iniciar Producción
+</button>
+
+<h3 style={{ marginTop: 20 }}>
+  🟢 Producciones Activas
+</h3>
+
+{produccionActiva.map((p, i) => (
+
+  <div
+    key={i}
+    style={{
+      background: "#E8F5E9",
+      padding: 10,
+      borderRadius: 8,
+      marginBottom: 10
+    }}
+  >
+    <div>
+      👤 <b>{p.operario}</b>
+    </div>
+
+    <div>
+      {p.proceso}
+      {" → "}
+      {p.subproceso}
+    </div>
+
+    <div style={{
+      fontSize: 12,
+      color: "#555"
+    }}>
+      Inicio:
+      {" "}
+      {p.inicio?.toDate
+        ? p.inicio.toDate().toLocaleString()
+        : "-"}
+    </div>
+
+  </div>
+
+))}
+
         {/* INPUT */}
         <input
           placeholder="Cantidad OK"
