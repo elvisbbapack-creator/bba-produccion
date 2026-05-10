@@ -551,6 +551,28 @@ if (pantalla === "registro") {
 
     try {
 
+      const yaExiste =
+            produccionActiva.find(p =>
+
+              p.operario ===
+                operarioSeleccionado &&
+
+              p.proceso ===
+                procesoSeleccionado &&
+
+              p.subproceso ===
+                subprocesoSeleccionado
+            );
+
+          if (yaExiste) {
+
+            alert(
+              "Este operario ya tiene este proceso iniciado"
+            );
+
+            return;
+          }
+
       await addDoc(
         collection(db, "produccion_activa"),
         {
@@ -727,28 +749,6 @@ if (pantalla === "registro") {
           }
           else {
             colorEficiencia = "🟢";
-          }
-
-          const yaExiste =
-            produccionActiva.find(p =>
-
-              p.operario ===
-                operarioSeleccionado &&
-
-              p.proceso ===
-                procesoSeleccionado &&
-
-              p.subproceso ===
-                subprocesoSeleccionado
-            );
-
-          if (yaExiste) {
-
-            alert(
-              "Este operario ya tiene este proceso iniciado"
-            );
-
-            return;
           }
 
           await addDoc(
