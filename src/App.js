@@ -684,22 +684,6 @@ if (pantalla === "registro") {
 
 ))}
 
-        {/* INPUT */}
-        <input
-          placeholder="Cantidad OK"
-          value={cantidad}
-          onChange={(e) => setCantidad(e.target.value)}
-          style={estiloInput}
-        />
-
-        {/* GUARDAR */}
-        <button
-          onClick={guardar}
-          style={botonAzul}
-        >
-          💾 Guardar Producción
-        </button>
-
       </div>
 
       {/* VOLVER */}
