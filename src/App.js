@@ -626,6 +626,47 @@ if (pantalla === "registro") {
         ? p.inicio.toDate().toLocaleString()
         : "-"}
     </div>
+
+    <button
+      onClick={async () => {
+
+        try {
+
+          await deleteDoc(
+            doc(db, "produccion_activa", p.id)
+          );
+
+          const activaSnap = await getDocs(
+            collection(db, "produccion_activa")
+          );
+
+          setProduccionActiva(
+            activaSnap.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+          );
+
+          alert("Producción finalizada ✅");
+
+        } catch (error) {
+          console.error(error);
+        }
+
+      }}
+      style={{
+        marginTop: 10,
+        width: "100%",
+        padding: 10,
+        border: "none",
+        borderRadius: 8,
+        background: "#F44336",
+        color: "white",
+        fontWeight: "bold"
+      }}
+    >
+      ⛔ Finalizar Producción
+    </button>
     
     <button
     onClick={async () => {
