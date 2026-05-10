@@ -3,9 +3,7 @@ import { db } from "./firebase";
 import {
   collection,
   addDoc,
-  getDocs,
-  deleteDoc,
-  doc
+  getDocs
 } from "firebase/firestore";
 
 function App() {
