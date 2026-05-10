@@ -624,6 +624,38 @@ if (pantalla === "registro") {
         ? p.inicio.toDate().toLocaleString()
         : "-"}
     </div>
+    
+    <button
+    onClick={async () => {
+
+      try {
+
+        await deleteDoc(
+          doc(db, "produccion_activa", p.id)
+        );
+
+        alert("Producción finalizada ✅");
+
+        cargarDatos();
+
+      } catch (error) {
+        console.error(error);
+      }
+
+    }}
+    style={{
+      marginTop: 10,
+      padding: 8,
+      width: "100%",
+      border: "none",
+      borderRadius: 6,
+      background: "#F44336",
+      color: "white",
+      fontWeight: "bold"
+    }}
+  >
+    ⏹ Finalizar
+  </button>
 
   </div>
 
