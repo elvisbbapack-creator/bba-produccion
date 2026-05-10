@@ -77,50 +77,51 @@ function App() {
     marginBottom: 12
   };
 
-  useEffect(() => {
-    async function cargarDatos() {
-      try {
-        const activaSnap = await getDocs(
-          collection(db, "produccion_activa")
-        );
+async function cargarDatos() {
 
-        setProduccionActiva(
-          activaSnap.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }))
-        );
+  try {
 
-        const otSnap = await getDocs(collection(db, "ordenes_trabajo"));
-        setOts(otSnap.docs.map(doc => doc.data()));
+    const activaSnap = await getDocs(
+      collection(db, "produccion_activa")
+    );
 
-        const procSnap = await getDocs(collection(db, "procesos"));
-        setProcesos(procSnap.docs.map(doc => doc.data()));
+    setProduccionActiva(
+      activaSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    );
 
-        const userSnap = await getDocs(collection(db, "usuarios"));
-        setUsuarios(userSnap.docs.map(doc => doc.data()));
+    const otSnap = await getDocs(collection(db, "ordenes_trabajo"));
+    setOts(otSnap.docs.map(doc => doc.data()));
 
-        const operSnap = await getDocs(collection(db, "operarios"));
+    const procSnap = await getDocs(collection(db, "procesos"));
+    setProcesos(procSnap.docs.map(doc => doc.data()));
 
-        setOperarios(
-          operSnap.docs.map(doc => doc.data())
-        );
+    const userSnap = await getDocs(collection(db, "usuarios"));
+    setUsuarios(userSnap.docs.map(doc => doc.data()));
 
-        const subSnap = await getDocs(collection(db, "subprocesos"));
-        setSubprocesos(subSnap.docs.map(doc => doc.data()));
+    const operSnap = await getDocs(collection(db, "operarios"));
 
-        const estSnap = await getDocs(collection(db, "estandares"));
-        setEstandares(estSnap.docs.map(doc => doc.data()));
+    setOperarios(
+      operSnap.docs.map(doc => doc.data())
+    );
 
-        console.log("SUBPROCESOS:", subSnap.docs.map(doc => doc.data()));
+    const subSnap = await getDocs(collection(db, "subprocesos"));
+    setSubprocesos(subSnap.docs.map(doc => doc.data()));
 
-      } catch (error) {
-        console.error("ERROR:", error);
-      }
-    }
+    const estSnap = await getDocs(collection(db, "estandares"));
+    setEstandares(estSnap.docs.map(doc => doc.data()));
 
-    cargarDatos();
-  }, []); // déjalo así (correcto)
+  } catch (error) {
+    console.error("ERROR:", error);
+  }
+
+}
+
+useEffect(() => {
+  cargarDatos();
+}, []);
   
   useEffect(() => {
     if (pantalla === "dashboard") {
