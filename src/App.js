@@ -928,11 +928,13 @@ return (
       fontSize: 20,
       fontWeight: "bold"
     }}>
-      eficiencia >= 90
-        ? "🟢"
-        : eficiencia >= 70
-        ? "🟡"
-        : "🔴"}
+      {
+        eficiencia >= 90
+          ? "🟢"
+          : eficiencia >= 70
+          ? "🟡"
+          : "🔴"
+      }
 
       {" "}
       {eficiencia}%
