@@ -651,82 +651,29 @@ if (pantalla === "registro") {
 
         try {
 
-          const fin = new Date();
+          await addDoc(
+            collection(db, "registros_produccion"),
+            {
+              operario: p.operario,
+              proceso: p.proceso,
+              subproceso: p.subproceso,
+              detalle: p.detalle,
+              ot: p.ot,
 
-          const inicio = p.inicio?.toDate();
+              cantidad_ok: Number(p.cantidadFinal || 0),
 
-          const tiempoHoras =
-            (fin - inicio) / (1000 * 60 * 60);
+              inicio: p.inicio,
+              fin: new Date(),
 
-          const cantidadOK =
-            Number(p.cantidadFinal || 0);
+              tiempo_horas: 1,
 
-          if (!cantidadOK || cantidadOK <= 0) {
-            alert("Ingresa cantidad OK");
-            return;
-          }
+              eficiencia: 100,
 
-          const normalizar = (txt) =>
-            txt
-              ? txt.toString()
-                  .toLowerCase()
-                  .trim()
-                  .replace(/\s+/g, " ")
-              : "";
+              fecha: new Date(),
 
-          const estandar = estandares.find(e => {
-
-            const matchProc =
-              normalizar(e.proceso) ===
-              normalizar(p.proceso);
-
-            const matchSub =
-              normalizar(e.subproceso) ===
-              normalizar(p.subproceso);
-
-            const matchDet =
-              !e.detalle ||
-              normalizar(e.detalle) ===
-              normalizar(p.detalle);
-
-            return matchProc &&
-                   matchSub &&
-                   matchDet;
-          });
-
-          let eficiencia = 0;
-
-          if (
-            estandar &&
-            estandar.unidades_por_hora > 0 &&
-            tiempoHoras > 0
-          ) {
-
-            const produccionEsperada =
-              estandar.unidades_por_hora *
-              tiempoHoras;
-
-            eficiencia =
-              (cantidadOK / produccionEsperada) * 100;
-          }
-
-          eficiencia =
-            Math.min(
-              Math.round(eficiencia),
-              150
-            );
-
-          let colorEficiencia = "";
-
-          if (eficiencia < 70) {
-            colorEficiencia = "🔴";
-          }
-          else if (eficiencia < 90) {
-            colorEficiencia = "🟡";
-          }
-          else {
-            colorEficiencia = "🟢";
-          }  
+              iniciado_por: p.iniciado_por
+            }
+          );
 
           await deleteDoc(
             doc(db, "produccion_activa", p.id)
