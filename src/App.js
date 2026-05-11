@@ -1428,6 +1428,14 @@ if (pantalla === "otDetalle") {
             🟢 Producciones Activas
           </h3>
 
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(320px, 1fr))",
+            gap: 15,
+            marginTop: 15
+          }}>
+          
           {produccionActiva.map((p, i) => {
 
             const inicio =
@@ -1626,6 +1634,7 @@ if (pantalla === "otDetalle") {
 
             );
           })}
+          </div>
 
           <h1>{promedio.toFixed(1)}%</h1>
 
