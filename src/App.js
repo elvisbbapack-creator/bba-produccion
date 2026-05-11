@@ -848,6 +848,80 @@ return (
     </div>
 
     <div style={{
+      display: "flex",
+      gap: 5,
+      marginTop: 10
+    }}>
+
+      <input
+        type="number"
+        placeholder="Cantidad"
+        onChange={(e) => {
+          p.nuevaCantidad =
+            Number(e.target.value);
+        }}
+        style={{
+          flex: 1,
+          padding: 10,
+          borderRadius: 6,
+          border: "1px solid #ccc"
+        }}
+      />
+
+      <button
+        onClick={async () => {
+
+          try {
+
+            await updateDoc(
+              doc(
+                db,
+                "produccion_activa",
+                p.id
+              ),
+              {
+                cantidad_actual:
+                  Number(
+                    p.nuevaCantidad || 0
+                  )
+              }
+            );
+
+            const activaSnap =
+              await getDocs(
+                collection(
+                  db,
+                  "produccion_activa"
+                )
+              );
+
+            setProduccionActiva(
+              activaSnap.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+              }))
+            );
+
+          } catch (error) {
+            console.error(error);
+          }
+
+        }}
+        style={{
+          padding: "10px 15px",
+          border: "none",
+          borderRadius: 6,
+          background: "#212121",
+          color: "white",
+          fontWeight: "bold"
+        }}
+      >
+        Actualizar
+      </button>
+
+    </div>
+
+    <div style={{
       fontSize: 12,
       color: "#555"
     }}>
