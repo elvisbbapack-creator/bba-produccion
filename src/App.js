@@ -1025,7 +1025,8 @@ return (
         padding: 10,
         marginTop: 10,
         borderRadius: 6,
-        border: "1px solid #ccc"
+        border: "1px solid #ccc",
+        boxSizing: "border-box"
       }}
     />
 
