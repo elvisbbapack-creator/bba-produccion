@@ -1653,7 +1653,7 @@ if (pantalla === "otDetalle") {
             <>
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "160px 60px 150px 180px 160px 180px 160px 120px 70px",
+                gridTemplateColumns: "160px 60px 150px 200px 160px 180px 160px 120px 70px",
                 fontWeight: "bold",
                 marginBottom: 10
               }}>
@@ -1671,7 +1671,7 @@ if (pantalla === "otDetalle") {
               {dashboard.slice(-10).reverse().map((r, i) => (
                 <div key={i} style={{
                   display: "grid",
-                  gridTemplateColumns: "160px 60px 150px 180px 160px 180px 160px 120px 70px",
+                  gridTemplateColumns: "160px 60px 150px 200px 160px 180px 160px 120px 70px",
                   padding: 5,
                   background: "white",
                   borderRadius: 8,
