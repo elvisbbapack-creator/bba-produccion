@@ -864,7 +864,8 @@ return (
           flex: 1,
           padding: 10,
           borderRadius: 6,
-          border: "1px solid #ccc"
+          border: "1px solid #ccc",
+          boxSizing: "border-box"
         }}
       />
 
