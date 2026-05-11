@@ -730,6 +730,17 @@ return (
     </div>
 
     <div style={{
+      fontSize: 12,
+      fontWeight: "bold",
+      color: "#333",
+      marginTop: 4
+    }}>
+      📋 OT:
+      {" "}
+      {p.ot || "-"}
+    </div>
+
+    <div style={{
       marginTop: 8
     }}>
       📦 Actual:
