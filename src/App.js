@@ -1404,7 +1404,7 @@ if (pantalla === "otDetalle") {
             <div
               key={i}
               style={{
-                padding: 10,
+                padding: 6,
                 marginBottom: 8,
                 background: "white",
                 borderRadius: 8
@@ -1428,7 +1428,7 @@ if (pantalla === "otDetalle") {
           <div style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(220px, 1fr))",
+              "repeat(auto-fit, minmax(180px, 1fr))",
             gap: 15,
             marginTop: 15
           }}>
@@ -1509,7 +1509,7 @@ if (pantalla === "otDetalle") {
               key={i}
               style={{
                 background: color,
-                padding: 10,
+                padding: 6,
                 borderRadius: 8,
                 marginBottom: 10
               }}
@@ -1612,7 +1612,7 @@ if (pantalla === "otDetalle") {
 
               <div style={{
                 marginTop: 8,
-                fontSize: 20,
+                fontSize: 16,
                 fontWeight: "bold"
               }}>
                 {
@@ -1660,7 +1660,7 @@ if (pantalla === "otDetalle") {
                 <div key={i} style={{
                   display: "grid",
                   gridTemplateColumns: "140px 60px 1fr 1fr 1fr 1fr 100px 80px",
-                  padding: 10,
+                  padding: 5,
                   background: "white",
                   borderRadius: 8,
                   marginBottom: 8
