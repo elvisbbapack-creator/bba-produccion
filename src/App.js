@@ -1428,7 +1428,7 @@ if (pantalla === "otDetalle") {
           <div style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(320px, 1fr))",
+              "repeat(auto-fit, minmax(220px, 1fr))",
             gap: 15,
             marginTop: 15
           }}>
