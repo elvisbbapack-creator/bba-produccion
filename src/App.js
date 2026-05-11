@@ -417,8 +417,10 @@ const cargarDashboard = async () => {
             marginTop: 10
           }}
         >
-          📋 Ver Órdenes de Trabajo
-          <button
+          📋 Ver Órdenes de Trabajo 
+        </button>
+
+        <button
             onClick={() => setPantalla("avanceOT")}
             style={{
               padding: "15px",
@@ -433,7 +435,6 @@ const cargarDashboard = async () => {
           >
             📋 Avance OT
           </button>
-        </button>
 
       </div>
     </div>
