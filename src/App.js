@@ -1399,6 +1399,83 @@ if (pantalla === "otDetalle") {
               📦 {otDetalle.nombre}
             </h3>
 
+            {(() => {
+
+              const avances = otDetalle.procesos?.map((p) => {
+
+                const registrosProceso =
+                  dashboard.filter(r =>
+                    r.ot === otDetalle.nombre &&
+                    r.proceso === p.nombre
+                  );
+
+                const producido =
+                  registrosProceso.reduce(
+                    (acc, r) =>
+                      acc + (r.cantidad_ok || 0),
+                    0
+                  );
+
+                const objetivo =
+                  otDetalle.cantidad || 1;
+
+                const avance =
+                  Math.round(
+                    (producido / objetivo) * 100
+                  );
+
+                return {
+                  proceso: p.nombre,
+                  avance
+                };
+
+              });
+
+              const cuello =
+                avances.reduce((min, actual) =>
+                  actual.avance < min.avance
+                    ? actual
+                    : min
+                );
+
+              return (
+
+                <div style={{
+                  background: "#FFCDD2",
+                  padding: 15,
+                  borderRadius: 10,
+                  marginBottom: 20
+                }}>
+
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#C62828"
+                  }}>
+                    🚨 Cuello de Botella
+                  </div>
+
+                  <div style={{
+                    marginTop: 10,
+                    fontSize: 18
+                  }}>
+                    🔧 {cuello.proceso}
+                  </div>
+
+                  <div style={{
+                    fontSize: 30,
+                    fontWeight: "bold",
+                    marginTop: 10
+                  }}>
+                    🔴 {cuello.avance}%
+                  </div>
+
+                </div>
+
+              );
+
+            })()}
+
             {otDetalle.procesos?.map((p, i) => {
 
               const registrosProceso =
