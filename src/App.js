@@ -1660,9 +1660,9 @@ if (pantalla === "otDetalle") {
                 <div>Fecha</div>
                 <div>Estado</div>
                 <div>Operario</div>
+                <div>OT</div>
                 <div>Proceso</div>
                 <div>Subproceso</div>
-                <div>OT</div>
                 <div>Detalle</div>
                 <div>Cantidad</div>
                 <div>%</div>
@@ -1684,9 +1684,9 @@ if (pantalla === "otDetalle") {
                   </div>
                   <div>{r.estado_eficiencia}</div>
                   <div><b>{r.operario}</b></div>
+                  <div>{r.ot || "-"}</div>
                   <div>{r.proceso}</div>
                   <div>{r.subproceso}</div>
-                  <div>{r.ot || "-"}</div>
                   <div>{r.detalle || "-"}</div>
                   <div>{r.cantidad_ok} un</div>
                   <div>{r.eficiencia}%</div>
