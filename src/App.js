@@ -418,6 +418,21 @@ const cargarDashboard = async () => {
           }}
         >
           📋 Ver Órdenes de Trabajo
+          <button
+            onClick={() => setPantalla("avanceOT")}
+            style={{
+              padding: "15px",
+              borderRadius: 10,
+              border: "none",
+              background: "#FF9800",
+              color: "white",
+              fontSize: 16,
+              fontWeight: "bold",
+              cursor: "pointer"
+            }}
+          >
+            📋 Avance OT
+          </button>
         </button>
 
       </div>
@@ -1328,6 +1343,172 @@ if (pantalla === "otDetalle") {
     </div>
   );
 }
+
+  if (pantalla === "avanceOT") {
+
+    return (
+
+      <div style={{
+        padding: 20,
+        background: "#f4f6f8",
+        minHeight: "100vh",
+        fontFamily: "Arial"
+      }}>
+
+        <h2>📋 Avance OT</h2>
+
+        <select
+          onChange={(e) => {
+
+            const ot = ots.find(
+              o => o.nombre === e.target.value
+            );
+
+            setOtDetalle(ot);
+
+          }}
+          style={{
+            width: "100%",
+            padding: 12,
+            borderRadius: 8,
+            border: "1px solid #ccc",
+            marginBottom: 20
+          }}
+        >
+          <option value="">
+            Seleccionar OT
+          </option>
+
+          {ots.map((ot, i) => (
+            <option
+              key={i}
+              value={ot.nombre}
+            >
+              {ot.nombre}
+            </option>
+          ))}
+
+        </select>
+
+        {otDetalle && (
+
+          <div>
+
+            <h3>
+              📦 {otDetalle.nombre}
+            </h3>
+
+            {otDetalle.procesos?.map((p, i) => {
+
+              const registrosProceso =
+                dashboard.filter(r =>
+                  r.ot === otDetalle.nombre &&
+                  r.proceso === p.nombre
+                );
+
+              const producido =
+                registrosProceso.reduce(
+                  (acc, r) =>
+                    acc + (r.cantidad_ok || 0),
+                  0
+                );
+
+              const objetivo =
+                otDetalle.cantidad || 1;
+
+              const avance =
+                Math.round(
+                  (producido / objetivo) * 100
+                );
+
+              let color = "#E8F5E9";
+
+              if (avance < 70) {
+                color = "#FFCDD2";
+              }
+              else if (avance < 90) {
+                color = "#FFF9C4";
+              }
+
+              return (
+
+                <div
+                  key={i}
+                  style={{
+                    background: color,
+                    padding: 15,
+                    borderRadius: 10,
+                    marginBottom: 12
+                  }}
+                >
+
+                  <div style={{
+                    fontWeight: "bold",
+                    fontSize: 18
+                  }}>
+                    🔧 {p.nombre}
+                  </div>
+
+                  <div style={{
+                    marginTop: 8
+                  }}>
+                    🎯 Objetivo:
+                    {" "}
+                    <b>{objetivo}</b>
+                  </div>
+
+                  <div>
+                    📦 Producido:
+                    {" "}
+                    <b>{producido}</b>
+                  </div>
+
+                  <div style={{
+                    marginTop: 10,
+                    fontSize: 24,
+                    fontWeight: "bold"
+                  }}>
+                    {
+                      avance >= 90
+                        ? "🟢"
+                        : avance >= 70
+                        ? "🟡"
+                        : "🔴"
+                    }
+
+                    {" "}
+                    {avance}%
+                  </div>
+
+                </div>
+
+              );
+
+            })}
+
+          </div>
+
+        )}
+
+        <button
+          onClick={() => setPantalla("home")}
+          style={{
+            marginTop: 20,
+            padding: "15px 30px",
+            borderRadius: 10,
+            border: "none",
+            background: "#1976D2",
+            color: "white",
+            fontWeight: "bold"
+          }}
+        >
+          ⬅ Volver
+        </button>
+
+      </div>
+
+    );
+  }
 
   if (pantalla === "dashboard") {
 
