@@ -968,16 +968,13 @@ return (
               / 1000
             );
 
-          return `
-            ${String(horas)
-              .padStart(2, "0")}
-            :
-            ${String(minutos)
-              .padStart(2, "0")}
-            :
-            ${String(segundos)
-              .padStart(2, "0")}
-          `;
+          return (
+            String(horas).padStart(2, "0") +
+            ":" +
+            String(minutos).padStart(2, "0") +
+            ":" +
+            String(segundos).padStart(2, "0")
+          );
 
         })()
 
