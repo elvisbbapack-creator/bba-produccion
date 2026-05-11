@@ -1423,6 +1423,559 @@ if (pantalla === "otDetalle") {
         <div>
 
           <h2>📊 Dashboard</h2>
+
+          <h3 style={{ marginTop: 20 }}>
+            🟢 Producciones Activas
+          </h3>
+
+          {produccionActiva.map((p, i) => {
+
+            const inicio =
+            p.inicio?.toDate();
+
+          const tiempoHoras =
+            inicio
+              ? (ahora - inicio) / 3600000
+              : 0;
+
+          const normalizar = (txt) =>
+            txt
+              ? txt.toString()
+                   .toLowerCase()
+                   .trim()
+                   .replace(/\s+/g, " ")
+              : "";
+
+          const estandar =
+            estandares.find(e => {
+
+              const matchProc =
+                normalizar(e.proceso) ===
+                normalizar(p.proceso);
+
+              const matchSub =
+                normalizar(e.subproceso) ===
+                normalizar(p.subproceso);
+
+              const matchDet =
+                !e.detalle ||
+                normalizar(e.detalle) ===
+                normalizar(p.detalle);
+
+              return (
+                matchProc &&
+                matchSub &&
+                matchDet
+              );
+            });
+
+          const esperado =
+            estandar
+              ? Math.round(
+                  estandar.unidades_por_hora *
+                  tiempoHoras
+              )
+              : 0;
+
+          const real =
+            p.cantidad_actual || 0;
+
+          let eficiencia = 0;
+
+          if (esperado > 0) {
+            eficiencia =
+              Math.round(
+                (real / esperado) * 100
+              );
+          }
+
+          let color = "#E8F5E9";
+
+          if (eficiencia < 70) {
+            color = "#FFCDD2";
+          }
+          else if (eficiencia < 90) {
+            color = "#FFF9C4";
+          }
+
+          return (
+
+            <div
+              key={i}
+              style={{
+                background: color,
+                padding: 10,
+                borderRadius: 8,
+                marginBottom: 10
+              }}
+            >
+              <div>
+                👤 <b>{p.operario}</b>
+              </div>
+
+              <div>
+                {p.proceso}
+                {" → "}
+                {p.subproceso}
+              </div>
+
+              <div style={{
+                marginTop: 8
+              }}>
+                📦 Actual:
+                {" "}
+                <b>
+                  {p.cantidad_actual || 0}
+                </b>
+              </div>
+
+              <div style={{
+                display: "flex",
+                gap: 5,
+                marginTop: 8
+              }}>
+
+                <button
+                  onClick={async () => {
+
+                    try {
+
+                      await updateDoc(
+                        doc(
+                          db,
+                          "produccion_activa",
+                          p.id
+                        ),
+                        {
+                          cantidad_actual:
+                            (p.cantidad_actual || 0) + 100
+                        }
+                      );
+
+                      const activaSnap =
+                        await getDocs(
+                          collection(
+                            db,
+                            "produccion_activa"
+                          )
+                        );
+
+                      setProduccionActiva(
+                        activaSnap.docs.map(doc => ({
+                          id: doc.id,
+                          ...doc.data()
+                        }))
+                      );
+
+                    } catch (error) {
+                      console.error(error);
+                    }
+
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: 8,
+                    border: "none",
+                    borderRadius: 6,
+                    background: "#1976D2",
+                    color: "white",
+                    fontWeight: "bold"
+                  }}
+                >
+                  +100
+                </button>
+
+                <button
+                  onClick={async () => {
+
+                    try {
+
+                      await updateDoc(
+                        doc(
+                          db,
+                          "produccion_activa",
+                          p.id
+                        ),
+                        {
+                          cantidad_actual:
+                            (p.cantidad_actual || 0) + 500
+                        }
+                      );
+
+                      const activaSnap =
+                        await getDocs(
+                          collection(
+                            db,
+                            "produccion_activa"
+                          )
+                        );
+
+                      setProduccionActiva(
+                        activaSnap.docs.map(doc => ({
+                          id: doc.id,
+                          ...doc.data()
+                        }))
+                      );
+
+                    } catch (error) {
+                      console.error(error);
+                    }
+
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: 8,
+                    border: "none",
+                    borderRadius: 6,
+                    background: "#4CAF50",
+                    color: "white",
+                    fontWeight: "bold"
+                  }}
+                >
+                  +500
+                </button>
+
+              </div>
+
+              <div style={{
+                display: "flex",
+                gap: 5,
+                marginTop: 10
+              }}>
+
+                <input
+                  type="number"
+                  placeholder="Cantidad"
+                  onChange={(e) => {
+                    p.nuevaCantidad =
+                      Number(e.target.value);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: 10,
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                    boxSizing: "border-box"
+                  }}
+                />
+
+                <button
+                  onClick={async () => {
+
+                   try {
+
+                      await updateDoc(
+                        doc(
+                          db,
+                          "produccion_activa",
+                          p.id
+                        ),
+                        {
+                          cantidad_actual:
+                            Number(
+                              p.nuevaCantidad || 0
+                            )
+                        }
+                      );
+
+                      const activaSnap =
+                        await getDocs(
+                          collection(
+                            db,
+                           "produccion_activa"
+                         )
+                        );
+
+                      setProduccionActiva(
+                        activaSnap.docs.map(doc => ({
+                          id: doc.id,
+                          ...doc.data()
+                        }))
+                      );
+
+                    } catch (error) {
+                      console.error(error);
+                    }
+
+                  }}
+                  style={{
+                    padding: "10px 15px",
+                    border: "none",
+                    borderRadius: 6,
+                    background: "#212121",
+                    color: "white",
+                    fontWeight: "bold"
+                  }}
+                >
+                  Actualizar
+                </button>
+
+              </div>
+
+              <div style={{
+                fontSize: 12,
+                color: "#555"
+              }}>
+                Inicio:
+                {" "}
+                {p.inicio?.toDate
+                  ? p.inicio.toDate().toLocaleString()
+                  : "-"}
+              </div>
+
+              <div style={{
+                marginTop: 6,
+                fontWeight: "bold",
+                color: "#D32F2F"
+              }}>
+                ⏱ {
+
+                  (() => {
+
+                    if (!p.inicio?.toDate)
+                      return "00:00:00";
+
+                    const inicio =
+                      p.inicio.toDate();
+
+                    const diferencia =
+                      ahora - inicio;
+
+                    const horas =
+                      Math.floor(
+                        diferencia / 3600000
+                      );
+
+                    const minutos =
+                      Math.floor(
+                        (diferencia % 3600000)
+                        / 60000
+                      );
+
+                    const segundos =
+                      Math.floor(
+                        (diferencia % 60000)
+                        / 1000
+                      );
+
+                    return `
+                      ${String(horas)
+                        .padStart(2, "0")}
+                      :
+                      ${String(minutos)
+                        .padStart(2, "0")}
+                      :
+                      ${String(segundos)
+                        .padStart(2, "0")}
+                    `;
+
+                  })()
+
+                }
+              </div>
+
+              <div style={{
+                marginTop: 8
+              }}>
+                🎯 Esperado:
+                {" "}
+                <b>{esperado}</b>
+              </div>
+
+              <div>
+                📦 Real:
+                {" "}
+                <b>{real}</b>
+              </div>
+
+              <div style={{
+                marginTop: 8,
+                fontSize: 20,
+                fontWeight: "bold"
+              }}>
+                {
+                   eficiencia >= 90
+                    ? "🟢"
+                    : eficiencia >= 70
+                    ? "🟡"
+                    : "🔴"
+                }
+
+                {" "}
+                {eficiencia}%
+              </div>
+
+              <input
+                type="number"
+                placeholder="Cantidad OK"
+                onChange={(e) => {
+                  p.cantidadFinal = e.target.value;
+                }}
+                style={{
+                  width: "100%",
+                  padding: 10,
+                  marginTop: 10,
+                  borderRadius: 6,
+                  border: "1px solid #ccc",
+                  boxSizing: "border-box"
+                }}
+              />
+
+    <button
+      onClick={async () => {
+
+        try {
+
+          const fin = new Date();
+
+          const inicio =
+            p.inicio?.toDate();
+
+          const tiempoHoras =
+            (fin - inicio) /
+            (1000 * 60 * 60);
+
+          const cantidadOK =
+            Number(p.cantidadFinal || 0);
+
+          const normalizar = (txt) =>
+  txt
+    ? txt.toString()
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ")
+    : "";
+
+          const estandar =
+            estandares.find(e => {
+
+              const matchProc =
+                normalizar(e.proceso) ===
+                normalizar(p.proceso);
+
+              const matchSub =
+                normalizar(e.subproceso) ===
+                normalizar(p.subproceso);
+
+              const matchDet =
+                !e.detalle ||
+                normalizar(e.detalle) ===
+                normalizar(p.detalle);
+
+              return (
+                matchProc &&
+                matchSub &&
+                matchDet
+              );
+            });
+
+          let eficiencia = 0;
+
+          if (
+            estandar &&
+            estandar.unidades_por_hora > 0 &&
+            tiempoHoras > 0
+          ) {
+
+            const produccionEsperada =
+              estandar.unidades_por_hora *
+              tiempoHoras;
+
+            eficiencia =
+              (cantidadOK /
+                produccionEsperada) * 100;
+          }
+
+          eficiencia =
+            Math.min(
+              Math.round(eficiencia),
+              150
+            );
+
+          let colorEficiencia = "";
+
+          if (eficiencia < 70) {
+            colorEficiencia = "🔴";
+          }
+          else if (eficiencia < 90) {
+            colorEficiencia = "🟡";
+          }
+          else {
+            colorEficiencia = "🟢";
+          }
+
+          await addDoc(
+            collection(db, "registros_produccion"),
+            {
+              operario: p.operario,
+              proceso: p.proceso,
+              subproceso: p.subproceso,
+              detalle: p.detalle,
+
+              cantidad_actual: 0,
+
+              ot: p.ot,
+
+              cantidad_ok: Number(p.cantidadFinal || 0),
+
+              inicio: p.inicio,
+              fin: new Date(),
+
+              tiempo_horas:
+                Number(tiempoHoras.toFixed(2)),
+
+              eficiencia,
+
+              estado_eficiencia:
+                colorEficiencia,
+
+              fecha: new Date(),
+
+              iniciado_por: p.iniciado_por
+            }
+          );
+
+          await deleteDoc(
+            doc(db, "produccion_activa", p.id)
+          );
+
+          const activaSnap = await getDocs(
+            collection(db, "produccion_activa")
+          );
+
+          setProduccionActiva(
+            activaSnap.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }))
+          );
+
+          alert("Producción finalizada ✅");
+
+        } catch (error) {
+          console.error(error);
+        }
+
+      }}
+      style={{
+        marginTop: 10,
+        width: "100%",
+        padding: 10,
+        border: "none",
+        borderRadius: 8,
+        background: "#F44336",
+        color: "white",
+        fontWeight: "bold"
+      }}
+    >
+      ⛔ Finalizar Producción
+    </button>
+
+  </div>
+
+  );
+})}
+
           <h1>{promedio.toFixed(1)}%</h1>
 
           <h3>Últimos registros</h3>
