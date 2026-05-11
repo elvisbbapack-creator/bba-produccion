@@ -1621,22 +1621,6 @@ if (pantalla === "otDetalle") {
                 {" "}
                 {eficiencia}%
               </div>
-
-              <input
-                type="number"
-                placeholder="Cantidad OK"
-                onChange={(e) => {
-                  p.cantidadFinal = e.target.value;
-                }}
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  marginTop: 10,
-                  borderRadius: 6,
-                  border: "1px solid #ccc",
-                  boxSizing: "border-box"
-                }}
-              />
   
             </div>
 
