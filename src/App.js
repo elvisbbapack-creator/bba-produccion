@@ -1525,6 +1525,17 @@ if (pantalla === "otDetalle") {
               </div>
 
               <div style={{
+                fontSize: 12,
+                fontWeight: "bold",
+                color: "#333",
+                marginTop: 4
+              }}>
+                📋 OT:
+                {" "}
+                {p.ot || "-"}
+              </div>
+
+              <div style={{
                 marginTop: 8
               }}>
                 📦 Actual:
@@ -1651,6 +1662,7 @@ if (pantalla === "otDetalle") {
                 <div>Operario</div>
                 <div>Proceso</div>
                 <div>Subproceso</div>
+                <div>OT</div>
                 <div>Detalle</div>
                 <div>Cantidad</div>
                 <div>%</div>
@@ -1659,7 +1671,7 @@ if (pantalla === "otDetalle") {
               {dashboard.slice(-10).reverse().map((r, i) => (
                 <div key={i} style={{
                   display: "grid",
-                  gridTemplateColumns: "140px 60px 1fr 1fr 1fr 1fr 100px 80px",
+                  gridTemplateColumns: "140px 60px 1fr 1fr 1fr 1fr 1fr 100px 80px",
                   padding: 5,
                   background: "white",
                   borderRadius: 8,
@@ -1674,6 +1686,7 @@ if (pantalla === "otDetalle") {
                   <div><b>{r.operario}</b></div>
                   <div>{r.proceso}</div>
                   <div>{r.subproceso}</div>
+                  <div>{r.ot || "-"}</div>
                   <div>{r.detalle || "-"}</div>
                   <div>{r.cantidad_ok} un</div>
                   <div>{r.eficiencia}%</div>
@@ -1700,7 +1713,20 @@ if (pantalla === "otDetalle") {
                   : "-"}
               </div>
               <b>{r.estado_eficiencia} {r.operario}</b>
-              <div>{r.proceso} → {r.subproceso}</div>
+              <div>
+                {r.proceso}
+                {" → "}
+                {r.subproceso}
+              </div>
+
+              <div style={{
+                fontSize: 12,
+                marginTop: 3
+              }}>
+                📋 OT:
+                {" "}
+                {r.ot || "-"}
+              </div>
               <div style={{ fontSize: 13 }}>{r.detalle}</div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span>{r.cantidad_ok} un</span>
