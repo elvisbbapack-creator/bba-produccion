@@ -1536,7 +1536,7 @@ if (pantalla === "otDetalle") {
               </div>
 
               <div style={{
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: "bold",
                 color: "#333",
                 marginTop: 4
