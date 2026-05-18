@@ -1283,6 +1283,8 @@ if (pantalla === "ot") {
 
 if (pantalla === "otDetalle") {
 
+  const esMobile = window.innerWidth < 768;
+
   if (dashboard.length === 0) {
 
     return (
@@ -1305,7 +1307,9 @@ if (pantalla === "otDetalle") {
 
     <div style={{
       display: "grid",
-      gridTemplateColumns: "260px 1fr",
+      gridTemplateColumns: esMobile
+      ? "1fr"
+      : "260px 1fr",
       minHeight: "100vh",
       background: "#f4f6f8",
       fontFamily: "Arial"
@@ -1316,7 +1320,7 @@ if (pantalla === "otDetalle") {
     <div style={{
       background: "#111827",
       color: "white",
-      padding: 20
+      padding: esMobile ? 12 : 20
     }}>
 
       <h2 style={{
@@ -1372,7 +1376,7 @@ if (pantalla === "otDetalle") {
     }}>
 
       <h2 style={{
-        fontSize: 34,
+        fontSize: esMobile ? 22 : 34,
         marginBottom: 10
       }}>
         📦 Detalle Orden de Trabajo
@@ -1381,7 +1385,7 @@ if (pantalla === "otDetalle") {
       {otDetalle && (
         <>
           <h3 style={{
-            fontSize: 28,
+            fontSize: esMobile ? 18 : 28,
             marginBottom: 10,
             marginTop: 10,
             color: "#212121"
@@ -1728,7 +1732,7 @@ console.log(dashboard[0]);
                 </div>
 
                 <div style={{
-                  marginTop: 16
+                  marginTop: esMobile ? 8 : 16,
                 }}>
 
                   {/* TEXTO */}
@@ -2010,7 +2014,7 @@ console.log(dashboard[0]);
               <div
                 key={i}
                 style={{
-                  marginBottom: 15,
+                  marginBottom: esMobile ? 8 : 15,
                   padding: 12,
                   background: "#f4f6f8",
                   borderRadius: 8
@@ -2032,7 +2036,7 @@ console.log(dashboard[0]);
                 background: "#FFFFFF",
                 padding: 12,
                 borderRadius: 12,
-                marginBottom: 20,
+                marginBottom: esMobile ? 8 : 20,
                 cursor: "pointer",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
                 border: "1px solid #E0E0E0"
@@ -2094,8 +2098,9 @@ console.log(dashboard[0]);
 
           <div style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(420px, 1fr))",
+            gridTemplateColumns: esMobile
+              ? "1fr"
+              : "repeat(auto-fit, minmax(420px, 1fr))",
             gap: 16,
             marginTop: 10
           }}>
@@ -2174,9 +2179,12 @@ console.log(dashboard[0]);
               key={j}
               style={{
                 background: "#FFFFFF",
-                padding: 12,
+                padding: esMobile ? 8 : 12,
                 borderRadius: 18,
-                marginBottom: 6,
+                width: esMobile ? "95%" : "100%",
+                maxWidth: esMobile ? 380 : "100%",
+                margin: esMobile ? "0 auto" : "0",
+                marginBottom: esMobile ? 2 : 6,
 
                 borderLeft: `8px solid ${
                   avanceSubproceso >= 90
@@ -2194,14 +2202,17 @@ console.log(dashboard[0]);
 
               <div style={{
                 display: "flex",
+                flexDirection: esMobile ? "column" : "row",
                 justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 6
+                alignItems: esMobile ? "flex-start" : "center",
+                marginBottom: 6,
+                gap: esMobile ? 6 : 0
               }}>
 
                 <div style={{
-                  fontWeight: "bold",
-                  fontSize: 18
+                   fontWeight: "bold",
+                   fontSize: esMobile ? 16 : 18,
+                   alignSelf: esMobile ? "flex-end" : "auto"
                 }}>
                   ⚙ {s.nombre}
                 </div>
@@ -2285,10 +2296,12 @@ console.log(dashboard[0]);
                    key={k}
                    style={{
                      background: colorAvance,
-                     padding: 8,
+                     padding: esMobile ? 2 : 8,
                      borderRadius: 14,
                      marginBottom: 6,
-                     width: 220,
+                     width: esMobile ? "92%" : 220,
+                     maxWidth: esMobile ? 320 : 220,
+                     margin: esMobile ? "0 auto" : "0",
                      border: "1px solid rgba(0,0,0,0.08)",
                      boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
                   }}
@@ -2296,7 +2309,7 @@ console.log(dashboard[0]);
 
                   <div>
                     <div style={{
-                      fontSize: 20,
+                      fontSize: esMobile ? 11 : 20,
                       fontWeight: "bold",
                       marginBottom: 8
                     }}>
@@ -2304,22 +2317,20 @@ console.log(dashboard[0]);
                     </div>
                   </div>
 
-                  <div>
-                    🧱 Material:
-                    {" "}
-                    {d.material || "-"}
-                  </div>
-
-                  <div>
-                    📏 Medida:
-                    {" "}
-                   {d.medida || "-"}
+                  <div style={{
+                    marginTop: 6,
+                    fontSize: esMobile ? 13 : 16,
+                    color: "#333"
+                  }}>
+                    🧱 {d.material || "-"}
+                    {" • "}
+                    📏 {d.medida || "-"}
                   </div>
 
                   <div style={{
                     display: "flex",
                     justifyContent: "flex-start",
-                    gap: 20,
+                    gap: esMobile ? 10 : 20,
                     marginTop: 10
                   }}>
 
@@ -2358,12 +2369,12 @@ console.log(dashboard[0]);
                   </div>
 
                   <div style={{
-                    marginTop: 16,
+                    marginTop: esMobile ? 8 : 16,
                     display: "flex",
                     justifyContent: "flex-start",
                     alignItems: "center",
-                    gap: 10,
-                    fontSize: 24,
+                    gap: esMobile ? 4 : 10,
+                    fontSize: esMobile ? 14 : 24,
                     fontWeight: "bold"
                   }}>
 
@@ -2407,8 +2418,11 @@ console.log(dashboard[0]);
       <button
   onClick={() => setPantalla("ot")}
   style={{
-    padding: "15px 40px",
-    fontSize: 18,
+    padding: esMobile ? "10px 18px" : "15px 40px",
+    fontSize: esMobile ? 14 : 18,
+    width: esMobile ? "auto" : "auto",
+    minWidth: esMobile ? 140 : 220,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
     borderRadius: 12,
     border: "none",
     background: "#1976D2",
