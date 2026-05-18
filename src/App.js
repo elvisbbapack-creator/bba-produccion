@@ -6,13 +6,22 @@ import {
   getDocs,
   deleteDoc,
   doc,
-  updateDoc
+  updateDoc,
+  query,
+  orderBy
 } from "firebase/firestore";
 
 function App() {
   /* eslint-disable no-unused-vars */
+  const normalizar = (txt) =>
+  (txt || "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
+
   const [cantidad, setCantidad] = useState("");
 
   const [ots, setOts] = useState([]);
@@ -30,6 +39,9 @@ function App() {
   const [detalleSeleccionado, setDetalleSeleccionado] = useState("");
 
   const [produccionActiva, setProduccionActiva] = useState([]);
+
+  const [procesoAbierto, setProcesoAbierto] =
+  useState(null);
 
   const [estandares, setEstandares] = useState([]);
   const [dashboard, setDashboard] = useState([]);
@@ -141,17 +153,18 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-    if (pantalla === "dashboard") {
 
-      cargarDashboard(); // carga inicial
+  cargarDashboard();
 
-      const intervalo = setInterval(() => {
-      cargarDashboard();
-      }, 5000); // cada 5 segundos
+  const intervalo = setInterval(() => {
 
-      return () => clearInterval(intervalo);
-    }
-  }, [pantalla]);
+    cargarDashboard();
+
+  }, 5000);
+
+  return () => clearInterval(intervalo);
+
+}, []);
 
   async function guardar() {
   // 1. Validación estricta inicial
@@ -167,10 +180,6 @@ useEffect(() => {
   }
 
   // 2. Cálculo de tiempo (Asegurar que existan marcas de tiempo)
-
-  // 3. Normalización segura
-  const normalizar = (txt) => 
-    txt ? txt.toString().toLowerCase().trim().replace(/\s+/g, " ") : "";
 
   // 4. Búsqueda del estándar con LOGS de depuración
   const estandar = estandares.find(e => {
@@ -248,7 +257,12 @@ useEffect(() => {
 }
 const cargarDashboard = async () => {
   try {
-    const snap = await getDocs(collection(db, "registros_produccion"));
+    const q = query(
+      collection(db, "registros_produccion"),
+      orderBy("fecha", "desc")
+    );
+
+    const snap = await getDocs(q);
     const data = snap.docs.map(doc => doc.data());
     setDashboard(data);
   } catch (error) {
@@ -664,14 +678,6 @@ const tiempoHoras =
     ? (ahora - inicio) / 3600000
     : 0;
 
-const normalizar = (txt) =>
-  txt
-    ? txt.toString()
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, " ")
-    : "";
-
 const estandar =
   estandares.find(e => {
 
@@ -1072,14 +1078,6 @@ return (
           const cantidadOK =
             Number(p.cantidadFinal || 0);
 
-          const normalizar = (txt) =>
-  txt
-    ? txt.toString()
-        .toLowerCase()
-        .trim()
-        .replace(/\s+/g, " ")
-    : "";
-
           const estandar =
             estandares.find(e => {
 
@@ -1214,18 +1212,21 @@ return (
 
       {/* VOLVER */}
       <button
-        onClick={() => setPantalla("home")}
-        style={{
-          marginTop: 20,
-          background: "transparent",
-          border: "none",
-          color: "#1976D2",
-          fontWeight: "bold",
-          cursor: "pointer"
-        }}
-      >
-        ⬅ Volver
-      </button>
+  onClick={() => setPantalla("home")}
+  style={{
+    padding: "15px 40px",
+    fontSize: 18,
+    borderRadius: 12,
+    border: "none",
+    background: "#1976D2",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    marginTop: 30
+  }}
+>
+  ⬅ Volver
+</button>
 
     </div>
   );
@@ -1259,23 +1260,666 @@ if (pantalla === "ot") {
         </div>
       ))}
 
-      <button onClick={() => setPantalla("home")}>
-        ⬅ Volver
-      </button>
+      <button
+  onClick={() => setPantalla("home")}
+  style={{
+    padding: "15px 40px",
+    fontSize: 18,
+    borderRadius: 12,
+    border: "none",
+    background: "#1976D2",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    marginTop: 30
+  }}
+>
+  ⬅ Volver
+</button>
 
     </div>
   );
 }
 
 if (pantalla === "otDetalle") {
-  return (
-    <div style={{ padding: 20 }}>
 
-      <h2>📦 Detalle OT</h2>
+  if (dashboard.length === 0) {
+
+    return (
+
+      <div style={{
+        padding: 40,
+        fontSize: 24,
+        fontWeight: "bold"
+      }}>
+
+        ⏳ Cargando datos...
+
+      </div>
+
+    );
+
+  }
+
+  return (
+
+    <div style={{
+      display: "grid",
+      gridTemplateColumns: "260px 1fr",
+      minHeight: "100vh",
+      background: "#f4f6f8",
+      fontFamily: "Arial"
+    }}>
+
+    {/* SIDEBAR */}
+
+    <div style={{
+      background: "#111827",
+      color: "white",
+      padding: 20
+    }}>
+
+      <h2 style={{
+        marginBottom: 30
+      }}>
+        📋 BBA MES
+      </h2>
+
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12
+      }}>
+
+        <button
+          onClick={() => setPantalla("home")}
+          style={{
+            padding: 14,
+            borderRadius: 10,
+            border: "none",
+            background: "#1976D2",
+            color: "white",
+            fontWeight: "bold",
+            cursor: "pointer"
+          }}
+        >
+          🏠 Inicio
+        </button>
+
+        <button
+          onClick={() => setPantalla("ot")}
+          style={{
+            padding: 14,
+            borderRadius: 10,
+            border: "none",
+            background: "#374151",
+            color: "white",
+            fontWeight: "bold",
+            cursor: "pointer"
+          }}
+        >
+          📋 OT
+        </button>
+
+      </div>
+
+    </div>
+
+    {/* CONTENIDO */}
+
+    <div style={{
+      padding: 20
+    }}>
+
+      <h2 style={{
+        fontSize: 34,
+        marginBottom: 10
+      }}>
+        📦 Detalle Orden de Trabajo
+      </h2>
 
       {otDetalle && (
         <>
-          <h3>{otDetalle.nombre}</h3>
+          <h3 style={{
+            fontSize: 28,
+            marginBottom: 10,
+            marginTop: 10,
+            color: "#212121"
+          }}>
+            {otDetalle.nombre}
+          </h3>
+
+          {(() => {
+
+          const objetivoOT =
+            otDetalle.cantidad || 1;
+
+          const registrosOT =
+            dashboard.filter(
+              r =>
+                normalizar(r.ot) ===
+                normalizar(otDetalle.nombre)
+            );  
+          
+            const avancesProcesos =
+            otDetalle.procesos?.map((p) => {
+
+              const subprocesos =
+                p.subproceso || [];
+
+              const avancesSubprocesos =
+                subprocesos.map((s) => {
+
+                  const detalles =
+                    s.detalles || [];
+
+                  const avancesDetalles =
+                    detalles.map((d) => {
+
+                      const registros =
+                        dashboard.filter(r =>
+
+                          normalizar(r.ot) ===
+                          normalizar(otDetalle.nombre)
+
+                          &&
+
+                          normalizar(r.proceso) ===
+                          normalizar(p.nombre)
+
+                          &&
+
+                          normalizar(r.subproceso) ===
+                          normalizar(s.nombre)
+
+                          &&
+
+                          normalizar(r.detalle) ===
+                          normalizar(d.nombre)
+
+                        );
+
+                      const producido =
+                        registros.reduce(
+                          (acc, r) =>
+                           acc + (r.cantidad_ok || 0),
+                          0
+                        );
+
+                      const objetivo =
+                        d.cantidad_objetivo || 1;
+
+                      const avance =
+                        (producido / objetivo) * 100;
+
+                      return Math.min(avance, 100);
+
+                    });
+
+                  if (avancesDetalles.length === 0) {
+                    return 0;
+                  }
+
+                  return (
+                    avancesDetalles.reduce(
+                      (a, b) => a + b,
+                     0
+                    ) / avancesDetalles.length
+                  );
+
+                });
+
+              if (avancesSubprocesos.length === 0) {
+                return 0;
+              }
+
+              return (
+                avancesSubprocesos.reduce(
+                  (a, b) => a + b,
+                  0
+                ) / avancesSubprocesos.length
+              );
+
+            }) || [];
+
+          const avanceOT =
+            avancesProcesos.length > 0
+              ? Math.round(
+
+                  avancesProcesos.reduce(
+                    (a, b) => a + b,
+                    0
+                  ) / avancesProcesos.length
+
+                )
+              : 0;
+
+          const producidoOT =
+            Math.round(
+              (avanceOT / 100) * objetivoOT
+            );
+
+          const pendienteOT =
+            objetivoOT - producidoOT;
+
+          // PRIMER REGISTRO DE LA OT
+
+          const registrosOrdenados =
+            registrosOT
+              .filter(r => r.fecha?.toDate)
+              .sort(
+                (a, b) =>
+                  a.fecha.toDate() -
+                  b.fecha.toDate()
+              );
+
+          const primerRegistro =
+            registrosOrdenados[0];
+
+          // HORAS TRABAJADAS
+
+          let horasTrabajadas = 0;
+
+          if (primerRegistro?.fecha?.toDate) {
+
+  horasTrabajadas =
+    (
+      new Date() -
+      primerRegistro.fecha.toDate()
+    ) / 3600000;
+
+          }
+
+          // VELOCIDAD REAL
+
+          const velocidadHora =
+            horasTrabajadas > 0
+              ? producidoOT / horasTrabajadas
+              : 0;
+
+          // HORAS RESTANTES
+
+          const horasRestantes =
+            velocidadHora > 0
+              ? pendienteOT / velocidadHora
+              : 0;
+
+          // FECHA ESTIMADA
+
+          let etaTexto = "Sin datos";
+
+          if (
+            velocidadHora > 0 &&
+            isFinite(horasRestantes)
+          ) {
+
+          const fechaEstimada =
+            new Date(
+              Date.now() +
+              horasRestantes * 3600000
+            );
+
+            etaTexto =
+              fechaEstimada.toLocaleString();
+
+          }
+
+          const procesoCritico =
+            otDetalle.procesos?.map((p) => {
+
+              const subprocesos =
+                p.subproceso || [];
+
+              const avancesSubprocesos =
+                subprocesos.map((s) => {
+
+                  const detalles =
+                    s.detalles || [];
+
+                  const avancesDetalles =
+                    detalles.map((d) => {
+
+                      console.log("REGISTRO REAL DASHBOARD");
+console.log(dashboard[0]);
+                      
+                      const registros =
+                        dashboard.filter(r =>
+
+                          normalizar(r.ot) ===
+                          normalizar(otDetalle.nombre)
+
+                          &&
+
+                          normalizar(r.proceso) ===
+                          normalizar(p.nombre)
+
+                          &&
+
+                          normalizar(r.subproceso) ===
+                          normalizar(s.nombre)
+
+                          &&
+
+                          normalizar(r.detalle) ===
+                          normalizar(d.nombre)
+
+                        );
+
+                      const producido =
+                        registros.reduce(
+                          (acc, r) =>
+                            acc + (r.cantidad_ok || 0),
+                          0
+                        );
+
+                      const objetivo =
+                        d.cantidad_objetivo || 1;
+
+                      return Math.min(
+                        (producido / objetivo) * 100,
+                        100
+                      );
+
+                    });
+
+                  if (avancesDetalles.length === 0) {
+                    return 0;
+                  }
+
+                  return (
+                    avancesDetalles.reduce(
+                      (a, b) => a + b,
+                      0
+                    ) / avancesDetalles.length
+                  );
+
+                });
+
+              const avanceProceso =
+                avancesSubprocesos.length > 0
+                  ? avancesSubprocesos.reduce(
+                      (a, b) => a + b,
+                      0
+                    ) / avancesSubprocesos.length
+                  : 0;
+
+              return {
+                proceso: p.nombre,
+                avance: Math.round(avanceProceso)
+              };
+
+            })
+
+            .sort((a, b) =>
+              a.avance - b.avance
+            )[0];
+          
+            let colorOT = "#E8F5E9";
+
+          if (avanceOT < 70) {
+            colorOT = "#FFCDD2";
+          }
+          else if (avanceOT < 90) {
+            colorOT = "#FFF9C4";
+          }
+
+          let estadoOT = "🟢 En Tiempo";
+
+          if (avanceOT < 50) {
+            estadoOT = "🔴 Atrasada";
+          }
+          else if (avanceOT < 80) {
+            estadoOT = "🟡 En Riesgo";
+          }
+
+          return (
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: 16,
+              marginTop: 20,
+              marginBottom: 25
+            }}>
+
+              {/* AVANCE */}
+              <div style={{
+                background: colorOT,
+                padding: 18,
+                borderRadius: 18,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+              }}>
+
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center"
+                }}>
+
+                  <div style={{
+                    fontSize: 14,
+                    color: "#666"
+                  }}>
+                    Avance General
+                  </div>
+
+                  <div style={{
+                    fontSize: 13,
+                    fontWeight: "bold",
+                    padding: "4px 10px",
+                    borderRadius: 20,
+                    background:
+                      avanceOT >= 80
+                        ? "#C8E6C9"
+                        : avanceOT >= 50
+                        ? "#FFF9C4"
+                        : "#FFCDD2",
+                    color:
+                      avanceOT >= 80
+                        ? "#2E7D32"
+                        : avanceOT >= 50
+                        ? "#F57F17"
+                        : "#C62828"
+                  }}>
+                    {estadoOT}
+                  </div>
+
+                </div>
+
+                <div style={{
+                  marginTop: 16
+                }}>
+
+                  {/* TEXTO */}
+                  <div style={{
+                    fontSize: 34,
+                    fontWeight: "bold",
+                    marginBottom: 10
+                  }}>
+                    {
+                      avanceOT >= 90
+                        ? "🟢"
+                        : avanceOT >= 70
+                        ? "🟡"
+                        : "🔴"
+                    }
+
+                    {" "}
+                    {avanceOT}%
+                  </div>
+
+                  {/* BARRA */}
+                  <div style={{
+                    width: "100%",
+                    height: 18,
+                    background: "#E0E0E0",
+                    borderRadius: 20,
+                    overflow: "hidden"
+                  }}>
+
+                    <div style={{
+                      width: `${avanceOT}%`,
+                      height: "100%",
+                      borderRadius: 20,
+                      transition: "0.4s",
+
+                      background:
+                        avanceOT >= 90
+                          ? "#4CAF50"
+                          : avanceOT >= 70
+                          ? "#FFC107"
+                          : "#F44336"
+                    }} />
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* CUELLO DE BOTELLA */}
+              <div style={{
+                background: "#FFEBEE",
+                padding: 18,
+                borderRadius: 18,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+              }}>
+
+                <div style={{
+                  fontSize: 14,
+                  color: "#666"
+                }}>
+                  🚨 Proceso Crítico
+                </div>
+
+                <div style={{
+                  marginTop: 10,
+                  fontSize: 22,
+                  fontWeight: "bold",
+                  color: "#C62828"
+                }}>
+                  {procesoCritico?.proceso || "-"}
+                </div>
+
+                <div style={{
+                  marginTop: 8,
+                  fontSize: 30,
+                  fontWeight: "bold"
+                }}>
+                  🔴 {procesoCritico?.avance || 0}%
+                </div>
+
+              </div>
+              
+              {/* OBJETIVO */}
+              <div style={{
+                background: "#FFFFFF",
+                padding: 18,
+                borderRadius: 18,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+              }}>
+
+                <div style={{
+                  fontSize: 14,
+                  color: "#666"
+                }}>
+                  Objetivo
+                </div>
+
+                <div style={{
+                  marginTop: 10,
+                  fontSize: 34,
+                  fontWeight: "bold"
+                }}>
+                  {objetivoOT}
+                </div>
+
+              </div>
+
+              {/* PRODUCIDO */}
+              <div style={{
+                background: "#E8F5E9",
+                padding: 18,
+                borderRadius: 18,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+              }}>
+
+                <div style={{
+                  fontSize: 14,
+                  color: "#666"
+                }}>
+                  Producido
+                </div>
+
+                <div style={{
+                  marginTop: 10,
+                  fontSize: 34,
+                  fontWeight: "bold",
+                  color: "#2E7D32"
+                }}>
+                  {producidoOT}
+                </div>
+
+              </div>
+
+              {/* FALTANTE */}
+              <div style={{
+                background: "#FFEBEE",
+                padding: 18,
+                borderRadius: 18,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+              }}>
+
+                <div style={{
+                  fontSize: 14,
+                  color: "#666"
+                }}>
+                  Pendiente
+                </div>
+
+                <div style={{
+                  marginTop: 10,
+                  fontSize: 34,
+                  fontWeight: "bold",
+                  color: "#C62828"
+                }}>
+                  {pendienteOT}
+                </div>
+
+              </div>
+
+              {/* ETA */}
+              <div style={{
+                background: "#E3F2FD",
+                padding: 18,
+                borderRadius: 18,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+              }}>
+
+                <div style={{
+                  fontSize: 14,
+                  color: "#666"
+                }}>
+                  ETA Producción
+                </div>
+
+                <div style={{
+                  marginTop: 10,
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  color: "#1565C0"
+                }}>
+                  ⏳ {etaTexto}
+                </div>
+
+              </div>
+
+            </div>
+
+          );
+
+        })()}
 
           <p><b>Cantidad:</b> {otDetalle.cantidad}</p>
           <p>
@@ -1285,61 +1929,497 @@ if (pantalla === "otDetalle") {
 
           <h3>Procesos</h3>
 
-          {otDetalle.procesos?.map((p, i) => (
-  <div
-    key={i}
-    style={{
-      marginBottom: 15,
-      padding: 12,
-      background: "#f4f6f8",
-      borderRadius: 8
-    }}
-  >
-    {/* PROCESO */}
-    <div style={{ fontWeight: "bold", marginBottom: 6 }}>
-      🔧 {p.nombre}
-    </div>
+          {otDetalle.procesos?.map((p, i) => {
 
-    {/* SUBPROCESOS */}
-    {p.subprocesos?.map((sp, j) => (
-      <div
-        key={j}
-        style={{
-          marginLeft: 10,
-          padding: 6,
-          background: "white",
-          borderRadius: 6,
-          marginBottom: 6
-        }}
-      >
-        <div>
-          🧩 {sp.nombre} — <b>{sp.cantidad}</b>
-        </div>
+            const subprocesosProceso =
+              p.subproceso || [];
 
-        {/* DETALLE (SI EXISTE) */}
-        {sp.detalles?.map((d, k) => (
-          <div
-            key={k}
-            style={{
-              marginLeft: 10,
-              fontSize: 13,
-              color: "#555"
-            }}
-          >
-            ▸ {d}
+            const objetivoProceso =
+              subprocesosProceso.reduce((acc, s) => {
+
+                const detalles =
+                  s.detalles || [];
+
+                const total =
+                  detalles.reduce(
+                    (a, d) =>
+                      a + (d.cantidad_objetivo || 0),
+                    0
+                  );
+
+                return acc + total;
+
+              }, 0);
+
+            const producidoProceso =
+              subprocesosProceso.reduce((acc, s) => {
+
+                const detalles =
+                  s.detalles || [];
+
+                const total =
+                  detalles.reduce((a, d) => {
+
+                    const registros =
+                      dashboard.filter(r =>
+
+                        normalizar(r.ot) ===
+                        normalizar(otDetalle.nombre)
+
+                        &&
+
+                        normalizar(r.proceso) ===
+                        normalizar(p.nombre)
+
+                        &&
+
+                        normalizar(r.subproceso) ===
+                        normalizar(s.nombre)
+
+                        &&
+
+                        normalizar(r.detalle) ===
+                        normalizar(d.nombre)
+
+                      );
+
+                    const producido =
+                      registros.reduce(
+                        (x, r) =>
+                          x + (r.cantidad_ok || 0),
+                        0
+                      );
+
+                    return a + producido;
+
+                  }, 0);
+
+                return acc + total;
+
+              }, 0);
+
+            const avanceProceso =
+              objetivoProceso > 0
+                ? Math.round(
+                    (producidoProceso / objetivoProceso) * 100
+                  )
+                : 0;
+
+            return (
+
+              <div
+                key={i}
+                style={{
+                  marginBottom: 15,
+                  padding: 12,
+                  background: "#f4f6f8",
+                  borderRadius: 8
+                }}
+              >
+
+        {/* PROCESO */}
+        <div
+              onClick={() => {
+
+                if (procesoAbierto === i) {
+                  setProcesoAbierto(null);
+                } else {
+                  setProcesoAbierto(i);
+                }
+
+              }}
+              style={{
+                background: "#FFFFFF",
+                padding: 12,
+                borderRadius: 12,
+                marginBottom: 20,
+                cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                border: "1px solid #E0E0E0"
+              }}
+            >
+
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 14
+            }}>
+
+              <div>
+
+                <div style={{
+                  fontWeight: "bold",
+                  fontSize: 24,
+                  color: "#212121"
+                }}>
+                  🔧 {p.nombre}
+                </div>
+
+                <div style={{
+                  marginTop: 4,
+                  fontSize: 13,
+                  color: "#666"
+                }}>
+                  Objetivo: {objetivoProceso}
+                  {" • "}
+                  Producido: {producidoProceso}
+                </div>
+
+              </div>
+
+              <div style={{
+                fontWeight: "bold",
+                fontSize: 24
+              }}>
+                {
+                  avanceProceso >= 90
+                    ? "🟢"
+                    : avanceProceso >= 70
+                    ? "🟡"
+                    : "🔴"
+                }
+
+                {" "}
+                {avanceProceso}%
+              </div>
+
+            </div>
+
+      {procesoAbierto === i && (
+
+        <div style={{
+          marginTop: 15
+        }}>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(420px, 1fr))",
+            gap: 16,
+            marginTop: 10
+          }}>
+
+            {p.subproceso?.map((s, j) => {
+
+              const detalles =
+                s.detalles || [];
+
+              const totalObjetivo =
+                detalles.reduce(
+                  (acc, d) =>
+                    acc + (d.cantidad_objetivo || 0),
+                  0
+                );
+              if (!s.detalles || s.detalles.length === 0) {
+                return null;
+              }
+
+              const totalProducido =
+                detalles.reduce((acc, d) => {
+
+                  const registros =
+                    dashboard.filter(r =>
+
+                      normalizar(r.ot) ===
+                      normalizar(otDetalle.nombre)
+
+                      &&
+
+                      normalizar(r.proceso) ===
+                      normalizar(p.nombre)
+
+                      &&
+
+                      normalizar(r.subproceso) ===
+                      normalizar(s.nombre)
+
+                      &&
+
+                      normalizar(r.detalle) ===
+                      normalizar(d.nombre)
+
+                    );
+
+                  const producido =
+                    registros.reduce(
+                      (a, r) =>
+                        a + (r.cantidad_ok || 0),
+                      0
+                    );
+
+                  return acc + producido;
+
+                }, 0);
+
+              const avanceSubproceso =
+                totalObjetivo > 0
+                  ? Math.round(
+                      (totalProducido / totalObjetivo) * 100
+                    )
+                  : 0;
+
+              let colorSubproceso = "#E8F5E9";
+
+              if (avanceSubproceso < 70) {
+                colorSubproceso = "#FFCDD2";
+              }
+              else if (avanceSubproceso < 90) {
+                colorSubproceso = "#FFF9C4";
+              }
+
+            return (
+
+            <div
+              key={j}
+              style={{
+                background: "#FFFFFF",
+                padding: 12,
+                borderRadius: 18,
+                marginBottom: 6,
+
+                borderLeft: `8px solid ${
+                  avanceSubproceso >= 90
+                    ? "#4CAF50"
+                    : avanceSubproceso >= 70
+                    ? "#FFC107"
+                    : "#F44336"
+                }`,
+
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+
+                transition: "0.2s"
+              }}
+            >
+
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 6
+              }}>
+
+                <div style={{
+                  fontWeight: "bold",
+                  fontSize: 18
+                }}>
+                  ⚙ {s.nombre}
+                </div>
+
+                <div style={{
+                   fontWeight: "bold",
+                   fontSize: 18
+                }}>
+                  {
+                    avanceSubproceso >= 90
+                      ? "🟢"
+                      : avanceSubproceso >= 70
+                      ? "🟡"
+                      : "🔴"
+                  }
+  
+                  {" "}
+                  {avanceSubproceso}%
+                </div>
+
+              </div>
+
+              <div style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 12
+              }}>
+  
+              {s.detalles?.map((d, k) => {  
+
+                const registrosDetalle =
+                  dashboard.filter(r =>
+
+                    normalizar(r.ot) ===
+                    normalizar(otDetalle.nombre)
+
+                    &&
+
+                    normalizar(r.proceso) ===
+                    normalizar(p.nombre)
+
+                    &&
+
+                    normalizar(r.subproceso) ===
+                    normalizar(s.nombre)
+
+                    &&
+
+                    normalizar(r.detalle) ===
+                    normalizar(d.nombre)    
+
+                  );
+
+                const producido =
+                  registrosDetalle.reduce(
+                    (acc, r) =>
+                      acc + (r.cantidad_ok || 0),
+                    0
+                  );
+
+                const objetivo =
+                  d.cantidad_objetivo || 1;
+
+                const avance =
+                  Math.round(
+                    (producido / objetivo) * 100
+                  );
+
+                let colorAvance = "#E8F5E9";
+
+                if (avance < 70) {
+                  colorAvance = "#FFCDD2";
+                }
+                else if (avance < 90) {
+                  colorAvance = "#FFF9C4";
+                }
+
+                return (
+
+                <div
+                   key={k}
+                   style={{
+                     background: colorAvance,
+                     padding: 8,
+                     borderRadius: 14,
+                     marginBottom: 6,
+                     width: 220,
+                     border: "1px solid rgba(0,0,0,0.08)",
+                     boxShadow: "0 1px 4px rgba(0,0,0,0.05)"
+                  }}
+                >
+
+                  <div>
+                    <div style={{
+                      fontSize: 20,
+                      fontWeight: "bold",
+                      marginBottom: 8
+                    }}>
+                      📦 {d.nombre}
+                    </div>
+                  </div>
+
+                  <div>
+                    🧱 Material:
+                    {" "}
+                    {d.material || "-"}
+                  </div>
+
+                  <div>
+                    📏 Medida:
+                    {" "}
+                   {d.medida || "-"}
+                  </div>
+
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "flex-start",
+                    gap: 20,
+                    marginTop: 10
+                  }}>
+
+                  <div>
+                    <div style={{
+                      fontSize: 12,
+                      color: "#666"
+                    }}>
+                      Objetivo
+                    </div>
+
+                    <div style={{
+                      fontWeight: "bold",
+                      fontSize: 18
+                    }}>
+                      {objetivo}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{
+                      fontSize: 12,
+                      color: "#666"
+                    }}>
+                      Producido
+                    </div>
+
+                    <div style={{
+                      fontWeight: "bold",
+                      fontSize: 18
+                    }}>
+                     {producido}
+                    </div>
+                  </div>
+
+                  </div>
+
+                  <div style={{
+                    marginTop: 16,
+                    display: "flex",
+                    justifyContent: "flex-start",
+                    alignItems: "center",
+                    gap: 10,
+                    fontSize: 24,
+                    fontWeight: "bold"
+                  }}>
+
+                  <span>
+                    {
+                      avance >= 90
+                        ? "🟢"
+                        : avance >= 70
+                        ? "🟡"
+                        : "🔴"
+                    }
+                  </span>
+
+                    <span>
+                    Avance {avance}%
+                    </span>
+
+                  </div>
+                </div>
+
+                );
+              })}
+
+              </div>
+
+            </div>
+            );
+            })}
           </div>
-        ))}
-      </div>
-    ))}
-  </div>
-))}
-
-        </>
+        </div>
       )}
+        </div>
+              </div>
+            );
+})}    
 
-      <button onClick={() => setPantalla("ot")}>
-        ⬅ Volver
-      </button>
+      </>
+
+      )}
+</div>
+      <button
+  onClick={() => setPantalla("ot")}
+  style={{
+    padding: "15px 40px",
+    fontSize: 18,
+    borderRadius: 12,
+    border: "none",
+    background: "#1976D2",
+    color: "white",
+    fontWeight: "bold",
+    cursor: "pointer",
+    marginTop: 30
+  }}
+>
+  ⬅ Volver
+</button>
 
     </div>
   );
@@ -1405,8 +2485,11 @@ if (pantalla === "otDetalle") {
 
                 const registrosProceso =
                   dashboard.filter(r =>
-                    r.ot === otDetalle.nombre &&
-                    r.proceso === p.nombre
+                    normalizar(r.ot) ===
+                    normalizar(otDetalle.nombre) &&
+
+                    normalizar(r.proceso) ===
+                    normalizar(p.nombre)
                   );
 
                 const producido =
@@ -1478,10 +2561,87 @@ if (pantalla === "otDetalle") {
 
             {otDetalle.procesos?.map((p, i) => {
 
+              const subprocesosProceso =
+              p.subproceso || [];
+
+            const objetivoProceso =
+              subprocesosProceso.reduce((acc, s) => {
+
+                const detalles =
+                  s.detalles || [];
+
+    const total =
+      detalles.reduce(
+        (a, d) =>
+          a + (d.cantidad_objetivo || 0),
+        0
+      );
+
+    return acc + total;
+
+  }, 0);
+
+const producidoProceso =
+  subprocesosProceso.reduce((acc, s) => {
+
+    const detalles =
+      s.detalles || [];
+
+    const total =
+      detalles.reduce((a, d) => {
+
+        const registros =
+          dashboard.filter(r =>
+
+            normalizar(r.ot) ===
+            normalizar(otDetalle.nombre)
+
+            &&
+
+            normalizar(r.proceso) ===
+            normalizar(p.nombre)
+
+            &&
+
+            normalizar(r.subproceso) ===
+            normalizar(s.nombre)
+
+            &&
+
+            normalizar(r.detalle) ===
+            normalizar(d.nombre)
+
+          );
+
+        const producido =
+          registros.reduce(
+            (x, r) =>
+              x + (r.cantidad_ok || 0),
+            0
+          );
+
+        return a + producido;
+
+      }, 0);
+
+    return acc + total;
+
+  }, 0);
+
+const avanceProceso =
+  objetivoProceso > 0
+    ? Math.round(
+        (producidoProceso / objetivoProceso) * 100
+      )
+    : 0;
+
               const registrosProceso =
                 dashboard.filter(r =>
-                  r.ot === otDetalle.nombre &&
-                  r.proceso === p.nombre
+                  normalizar(r.ot) ===
+                  normalizar(otDetalle.nombre) &&
+
+                  normalizar(r.proceso) ===
+                  normalizar(p.nombre)
                 );
 
               const producido =
@@ -1559,9 +2719,7 @@ if (pantalla === "otDetalle") {
                   </div>
 
                 </div>
-
               );
-
             })}
 
           </div>
@@ -1588,6 +2746,8 @@ if (pantalla === "otDetalle") {
     );
   }
 
+  
+
   if (pantalla === "dashboard") {
 
   const esMobile = window.innerWidth < 768;
@@ -1597,31 +2757,66 @@ if (pantalla === "otDetalle") {
       ? dashboard.reduce((a, b) => a + (b.eficiencia || 0), 0) / dashboard.length
       : 0;
 
-  const ranking = Object.values(
-    dashboard.reduce((acc, r) => {
+  const hace7Dias = new Date();
 
-      if (!r.operario) return acc;
+  hace7Dias.setDate(
+  hace7Dias.getDate() - 7
+  );
+
+  const registrosSemana =
+    dashboard.filter(r => {
+
+      if (!r.fecha?.toDate)
+        return false;
+
+      return (
+        r.fecha.toDate() >= hace7Dias
+      );
+
+    });
+
+  const ranking = Object.values(
+
+    registrosSemana.reduce((acc, r) => {
+
+      if (!r.operario)
+        return acc;
 
       if (!acc[r.operario]) {
+
         acc[r.operario] = {
           operario: r.operario,
           total: 0,
           count: 0
         };
+
       }
 
-      acc[r.operario].total += r.eficiencia || 0;
+      acc[r.operario].total +=
+        r.eficiencia || 0;
+
       acc[r.operario].count += 1;
 
       return acc;
 
     }, {})
+
   )
+
   .map(r => ({
+
     operario: r.operario,
-    promedio: r.total / r.count
+
+    promedio:
+     r.count > 0
+        ? r.total / r.count
+        : 0
+
   }))
-  .sort((a, b) => b.promedio - a.promedio);
+
+  .sort((a, b) =>
+    b.promedio - a.promedio
+  );
 
   const top1 = ranking[0];
 
@@ -1712,14 +2907,6 @@ if (pantalla === "otDetalle") {
             inicio
               ? (ahora - inicio) / 3600000
               : 0;
-
-          const normalizar = (txt) =>
-            txt
-              ? txt.toString()
-                   .toLowerCase()
-                   .trim()
-                   .replace(/\s+/g, " ")
-              : "";
 
           const estandar =
             estandares.find(e => {
@@ -1938,7 +3125,7 @@ if (pantalla === "otDetalle") {
                 <div>%</div>
               </div>
 
-              {dashboard.slice(-10).reverse().map((r, i) => (
+              {dashboard.slice(0, 10).map((r, i) => (
                 <div key={i} style={{
                   display: "grid",
                   gridTemplateColumns: "160px 60px 150px 200px 160px 180px 160px 120px 70px",
@@ -1966,7 +3153,7 @@ if (pantalla === "otDetalle") {
           )}
 
           {/* MOBILE */}
-          {esMobile && dashboard.slice(-10).reverse().map((r, i) => (
+          {esMobile && dashboard.slice(0, 10).map((r, i) => (
             <div key={i} style={{
               background: "white",
               padding: 15,
