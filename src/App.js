@@ -749,6 +749,13 @@ return (
       {p.proceso}
       {" → "}
       {p.subproceso}
+
+      {p.detalle && (
+        <>
+          {" → "}
+          {p.detalle}
+        </>
+      )}
     </div>
 
     <div style={{
@@ -2993,6 +3000,13 @@ const avanceProceso =
                 {p.proceso}
                 {" → "}
                 {p.subproceso}
+
+                {p.detalle && (
+                  <>
+                    {" → "}
+                    {p.detalle}
+                  </>
+                )}
               </div>
 
               <div style={{
