@@ -1,4 +1,8 @@
-import { useState, useEffect } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback
+} from "react";
 import { db } from "./firebase";
 import {
   collection,
@@ -121,7 +125,7 @@ function App() {
     marginBottom: 12
   };
 
-async function cargarDatos() {
+const cargarDatos = useCallback(async () => {
 
   try {
 
@@ -152,19 +156,13 @@ async function cargarDatos() {
     console.error("ERROR:", error);
   }
 
-}
+}, []);
 
 useEffect(() => {
 
-  const iniciar = async () => {
+  cargarDatos();
 
-    await cargarDatos();
-
-  };
-
-  iniciar();
-
-}, []);
+}, [cargarDatos]);
   
 useEffect(() => {
 
