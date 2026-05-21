@@ -154,10 +154,15 @@ async function cargarDatos() {
 
 }
 
- // eslint-disable-next-line
 useEffect(() => {
 
-  cargarDatos();
+  const iniciar = async () => {
+
+    await cargarDatos();
+
+  };
+
+  iniciar();
 
 }, []);
   
