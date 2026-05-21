@@ -154,10 +154,10 @@ async function cargarDatos() {
 
 }
 
+ // eslint-disable-next-line
 useEffect(() => {
-  cargarDatos();
 
-// eslint-disable-next-line
+  cargarDatos();
 
 }, []);
   
