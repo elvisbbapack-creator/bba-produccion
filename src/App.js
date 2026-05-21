@@ -8,7 +8,6 @@ import {
   doc,
   updateDoc,
   query,
-  where,
   orderBy,
 } from "firebase/firestore";
 
@@ -157,6 +156,9 @@ async function cargarDatos() {
 
 useEffect(() => {
   cargarDatos();
+
+// eslint-disable-next-line
+
 }, []);
   
 useEffect(() => {
