@@ -8,7 +8,8 @@ import {
   doc,
   updateDoc,
   query,
-  orderBy
+  where,
+  orderBy,
 } from "firebase/firestore";
 
 function App() {
@@ -46,11 +47,38 @@ function App() {
   const [estandares, setEstandares] = useState([]);
   const [dashboard, setDashboard] = useState([]);
 
+  const [paroActivo, setParoActivo] = useState(false);
+
+  const [paroActivoProduccion, setParoActivoProduccion] = useState(null);
+
+  const [motivoParo, setMotivoParo] = useState("");
+
+  const [parosActivos, setParosActivos] = useState([]);
+
+  const [todosLosParos, setTodosLosParos] = useState([]);
+
+  const [produccionSeleccionada, setProduccionSeleccionada] = useState(null);
+
   const [otDetalle, setOtDetalle] = useState(null);
 
   const [ahora, setAhora] = useState(
     new Date()
   );
+
+  const cargarProduccionActiva = async () => {
+
+  const snap = await getDocs(
+    collection(db, "produccion_activa")
+  );
+
+  const data = snap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  setProduccionActiva(data);
+
+  };
   
   const estiloInput = {
   width: "100%",
@@ -98,16 +126,7 @@ async function cargarDatos() {
 
   try {
 
-    const activaSnap = await getDocs(
-      collection(db, "produccion_activa")
-    );
-
-    setProduccionActiva(
-      activaSnap.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-    );
+    await cargarProduccionActiva();
 
     const otSnap = await getDocs(collection(db, "ordenes_trabajo"));
     setOts(otSnap.docs.map(doc => doc.data()));
@@ -155,6 +174,8 @@ useEffect(() => {
 useEffect(() => {
 
   cargarDashboard();
+
+  cargarParosActivos();
 
   const intervalo = setInterval(() => {
 
@@ -223,6 +244,8 @@ useEffect(() => {
 
   try {
 
+    console.log("GUARDANDO PARO");
+    
     await addDoc(collection(db, "registros_produccion"), {
       iniciado_por:
         usuarioSeleccionado?.nombre || "SIN USUARIO",
@@ -269,6 +292,38 @@ const cargarDashboard = async () => {
     console.error("ERROR dashboard:", error);
   }
 };
+
+const cargarParosActivos = async () => {
+
+  try {
+
+    const snap = await getDocs(
+      collection(db, "paros_produccion")
+    );
+
+    const data =
+      snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+    setTodosLosParos(data);
+
+    const activos =
+      data.filter(p =>
+        p.estado === "activo"
+      );
+
+    setParosActivos(activos);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
+
   if (pantalla === "login") {
   return (
     <div style={{
@@ -670,13 +725,118 @@ if (pantalla === "registro") {
 
 {produccionActiva.map((p, i) => {
 
+const paroActivoProduccion =
+  parosActivos.find(paro =>
+    paro.operario === p.operario &&
+    paro.ot === p.ot &&
+    paro.proceso === p.proceso &&
+    paro.subproceso === p.subproceso &&
+    paro.estado === "activo"
+  );
+
   const inicio =
   p.inicio?.toDate();
 
-const tiempoHoras =
+const parosDeEstaProduccion =
+  todosLosParos.filter(paro =>
+
+    paro.operario === p.operario &&
+    paro.ot === p.ot &&
+    paro.proceso === p.proceso &&
+    paro.subproceso === p.subproceso
+
+  );
+
+let tiempoDetenidoTotal = 0;
+
+parosDeEstaProduccion.forEach(paro => {
+
+  if (
+    paro.inicio_paro?.toDate &&
+    paro.fin_paro?.toDate
+  ) {
+
+    const inicio =
+      paro.inicio_paro.toDate();
+
+    const fin =
+      paro.fin_paro.toDate();
+
+    tiempoDetenidoTotal +=
+      fin - inicio;
+
+  }
+
+});
+
+const horasDet =
+  Math.floor(
+    tiempoDetenidoTotal / 3600000
+  );
+
+const minutosDet =
+  Math.floor(
+    (tiempoDetenidoTotal % 3600000)
+    / 60000
+  );
+
+const segundosDet =
+  Math.floor(
+    (tiempoDetenidoTotal % 60000)
+    / 1000
+  );
+
+const tiempoDetenidoFormateado = `
+  ${String(horasDet).padStart(2, "0")}
+  :
+  ${String(minutosDet).padStart(2, "0")}
+  :
+  ${String(segundosDet).padStart(2, "0")}
+`;
+
+  const tiempoHoras =
   inicio
     ? (ahora - inicio) / 3600000
     : 0;
+
+  const tiempoDetenidoMs =
+    parosDeEstaProduccion.reduce(
+      (total, paro) => {
+
+        if (!paro.inicio_paro)
+          return total;
+
+        const inicioParo =
+          paro.inicio_paro.toDate
+            ? paro.inicio_paro.toDate()
+            : new Date(paro.inicio_paro);
+
+        let finParo = new Date();
+
+        if (paro.fin_paro) {
+
+          finParo =
+            paro.fin_paro.toDate
+              ? paro.fin_paro.toDate()
+              : new Date(paro.fin_paro);
+
+        }
+
+        return (
+          total +
+          (finParo - inicioParo)
+        );
+
+      },
+      0
+    );
+
+const tiempoProductivoHoras =
+  Math.max(
+    0,
+    tiempoHoras -
+    (tiempoDetenidoMs / 3600000)
+  );
 
 const estandar =
   estandares.find(e => {
@@ -705,14 +865,55 @@ const esperado =
   estandar
     ? Math.round(
         estandar.unidades_por_hora *
-        tiempoHoras
-      )
+        tiempoProductivoHoras
+    )
     : 0;
 
 const real =
   p.cantidad_actual || 0;
 
 let eficiencia = 0;
+
+let tiempoDetenido = "";
+
+if (
+  paroActivoProduccion
+  &&
+  p.inicio_paro?.toDate
+) {
+
+  const inicioParo =
+    p.inicio_paro.toDate();
+
+  const diferencia =
+    ahora - inicioParo;
+
+  const horas =
+    Math.floor(
+      diferencia / 3600000
+    );
+
+  const minutos =
+    Math.floor(
+      (diferencia % 3600000)
+      / 60000
+    );
+
+  const segundos =
+    Math.floor(
+      (diferencia % 60000)
+      / 1000
+    );
+
+  tiempoDetenido = `
+    ${String(horas).padStart(2, "0")}
+    :
+    ${String(minutos).padStart(2, "0")}
+    :
+    ${String(segundos).padStart(2, "0")}
+  `;
+
+}
 
 if (esperado > 0) {
   eficiencia =
@@ -743,6 +944,58 @@ return (
   >
     <div>
       👤 <b>{p.operario}</b>
+    </div>
+
+    {paroActivoProduccion && (
+
+      <div style={{
+        marginTop: 6,
+        background: "#D32F2F",
+        color: "white",
+        padding: "4px 8px",
+        borderRadius: 6,
+        fontWeight: "bold",
+        display: "inline-block"
+      }}>
+
+        ⛔ DETENIDO
+
+      </div>
+
+    )}
+
+    <div style={{
+      marginTop: 6,
+      fontSize: 12,
+      fontWeight: "normal"
+    }}>
+
+      ⏱ {tiempoDetenido}
+
+    </div>
+
+    <div style={{
+      marginTop: 6,
+      fontSize: 12
+    }}>
+
+      ⏸ Acumulado:
+      {" "}
+      {tiempoDetenidoFormateado}
+
+    </div>
+
+    <div style={{
+      fontSize: 12,
+      marginTop: 4
+    }}>
+
+      ⚙ Productivo:
+      {" "}
+
+      {tiempoProductivoHoras.toFixed(2)}
+      h
+
     </div>
 
     <div>
@@ -1209,6 +1462,308 @@ return (
     >
       ⛔ Finalizar Producción
     </button>
+
+    {!paroActivoProduccion && (
+      <button
+        onClick={async () => {
+
+          setParoActivo(true);
+
+          setProduccionSeleccionada(p);
+
+        }}
+        style={{
+          marginTop: 10,
+          padding: "8px 12px",
+          border: "none",
+          borderRadius: 8,
+          background: "#D32F2F",
+          color: "white",
+          fontWeight: "bold",
+          cursor: "pointer",
+          width: "100%"
+        }}
+      >
+        ⛔ Detener
+      </button>
+    )}
+
+    {paroActivoProduccion && (
+
+      <button
+
+        onClick={async () => {
+
+          if (paroActivoProduccion) {
+
+  await updateDoc(
+
+    doc(
+      db,
+      "paros_produccion",
+      paroActivoProduccion.id
+    ),
+
+    {
+      estado: "finalizado",
+      fin_paro: new Date()
+    }
+
+  );
+
+}
+
+await updateDoc(
+  doc(
+    db,
+    "produccion_activa",
+    p.id
+  ),
+  {
+    estado: "activo",
+    motivo_paro: "",
+    inicio_paro: null
+  }
+);
+
+await cargarParosActivos();
+
+await cargarProduccionActiva();
+
+          await updateDoc(
+            doc(
+              db,
+              "produccion_activa",
+              p.id
+            ),
+            {
+              estado: "activo",
+              motivo_paro: "",
+              inicio_paro: null
+            }
+          );
+
+          setProduccionActiva(prev =>
+            prev.map(prod =>
+              prod.id === produccionSeleccionada.id
+                ? {
+                    ...prod,
+                    estado: "detenido",
+                    motivo_paro: motivoParo,
+                    inicio_paro: {
+                    toDate: () => new Date()
+                    }
+                  }
+                : prod
+            )
+          );
+
+        }}
+
+        style={{
+
+          marginTop: 8,
+          width: "100%",
+          padding: 10,
+          borderRadius: 8,
+          border: "none",
+          background: "#2E7D32",
+          color: "white",
+          fontWeight: "bold",
+          cursor: "pointer"
+
+        }}
+
+      >
+
+        ▶️ Reanudar
+
+      </button>
+
+    )}
+
+    {paroActivo && produccionSeleccionada?.operario === p.operario && (
+
+      <div style={{
+        marginTop: 15,
+        background: "white",
+        padding: 15,
+        borderRadius: 12,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+      }}>
+
+        <div style={{
+          fontWeight: "bold",
+          marginBottom: 10
+        }}>
+          ⛔ Registrar Paro
+        </div>
+
+        <select
+          value={motivoParo}
+          onChange={(e) =>
+            setMotivoParo(e.target.value)
+          }
+          style={{
+            width: "100%",
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ccc"
+          }}
+        >
+
+          <option value="">
+            Seleccionar motivo
+          </option>
+
+          <option>
+            Falla de máquina
+          </option>
+
+          <option>
+            Falta de energía
+          </option>
+
+          <option>
+            Cambio de material
+          </option>
+
+          <option>
+            Espera suministro
+          </option>
+ 
+          <option>
+            Ajuste / calibración
+          </option>
+
+          <option>
+            Limpieza
+          </option>
+
+          <option>
+            Mantención
+          </option>
+
+          <option>
+            Otros
+          </option>
+
+        </select>
+
+        <div style={{
+          display: "flex",
+          gap: 10,
+          marginTop: 12
+        }}>
+
+          <button
+            onClick={() => {
+
+              setParoActivo(false);
+
+              setMotivoParo("");
+
+            }}
+            style={{
+              flex: 1,
+              padding: 10,
+              borderRadius: 8,
+              border: "none",
+              background: "#BDBDBD",
+              color: "white",
+              fontWeight: "bold"
+            }}
+          >
+            Cancelar
+          </button>
+
+          <button
+            onClick={async () => {
+
+              if (!motivoParo) {
+
+                alert("Selecciona motivo");
+
+                return;
+
+              }
+
+              await addDoc(
+
+                collection(db, "paros_produccion"),
+
+                {
+
+                  operario:
+                    produccionSeleccionada.operario,
+
+                  ot:
+                    produccionSeleccionada.ot,
+
+                  proceso:
+                    produccionSeleccionada.proceso,
+
+                  subproceso:
+                    produccionSeleccionada.subproceso,
+
+                  detalle:
+                    produccionSeleccionada.detalle || "",
+
+                  motivo:
+                    motivoParo,
+
+                  inicio_paro:
+                    new Date(),
+
+                  estado:
+                    "activo"
+
+                }
+
+              );
+
+              await updateDoc(
+                doc(
+                  db,
+                  "produccion_activa",
+                  produccionSeleccionada.id
+                ),
+                {
+                  estado: "detenido",
+
+                  motivo_paro: motivoParo,
+
+                  inicio_paro: new Date()
+                }
+              );
+
+              await cargarProduccionActiva();
+
+              await cargarParosActivos();
+
+              setParoActivo(false);
+
+              setMotivoParo("");
+
+            }}
+            style={{
+              flex: 1,
+              padding: 10,
+              borderRadius: 8,
+              border: "none",
+              background: "#D32F2F",
+              color: "white",
+              fontWeight: "bold"
+            }}
+          >
+            Guardar
+          </button>
+
+        </div>
+
+      </div>
+
+    )}
 
   </div>
 
@@ -2203,7 +2758,7 @@ console.log(dashboard[0]);
 
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
 
-                transition: "0.2s"
+                transition: "all 0.25s ease"
               }}
             >
 
@@ -2974,11 +3529,24 @@ const avanceProceso =
 
           let color = "#E8F5E9";
 
-          if (eficiencia < 70) {
+          let textoColor = "#000";
+
+          if (paroActivoProduccion) {
+
+            color = "#B71C1C";
+
+            textoColor = "white";
+
+          }
+          else if (eficiencia < 70) {
+
             color = "#FFCDD2";
+
           }
           else if (eficiencia < 90) {
+
             color = "#FFF9C4";
+
           }
 
           return (
@@ -2987,6 +3555,7 @@ const avanceProceso =
               key={i}
               style={{
                 background: color,
+                color: textoColor,
                 padding: 6,
                 borderRadius: 8,
                 marginBottom: 10
@@ -3106,6 +3675,31 @@ const avanceProceso =
                 <b>{real}</b>
               </div>
 
+              {paroActivoProduccion && (
+
+                <div style={{
+                  marginTop: 10,
+                  padding: 10,
+                  borderRadius: 10,
+                  background: "#D32F2F",
+                  color: "white",
+                  fontWeight: "bold",
+                  textAlign: "center"
+                }}>
+
+                  ⛔ PRODUCCIÓN DETENIDA
+
+                  <div style={{
+                    fontSize: 12,
+                    marginTop: 4
+                  }}>
+                    {paroActivoProduccion.motivo}
+                  </div>
+
+                </div>
+
+              )}
+
               <div style={{
                 marginTop: 8,
                 fontSize: 16,
@@ -3221,7 +3815,7 @@ const avanceProceso =
           ))}
 
         </div>
-      </div>
+      </div> 
 
       {/* BOTÓN */}
       <div style={{ textAlign: "center", marginTop: 30 }}>
