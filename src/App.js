@@ -14,6 +14,15 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell
+} from "recharts";
 
 function App() {
   /* eslint-disable no-unused-vars */
@@ -56,6 +65,8 @@ function App() {
 
   const [motivoParo, setMotivoParo] = useState("");
 
+  const [responsableAjuste, setResponsableAjuste] = useState("");
+
   const [parosActivos, setParosActivos] = useState([]);
 
   const [todosLosParos, setTodosLosParos] = useState([]);
@@ -84,11 +95,12 @@ function App() {
   };
   
   const estiloInput = {
-  width: "100%",
-  padding: 12,
-  marginBottom: 12,
-  borderRadius: 8,
-  border: "1px solid #ccc"
+    width: "100%",
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 8,
+    border: "1px solid #ccc",
+    boxSizing: "border-box"
   };
 
   const botonAzul = {
@@ -182,6 +194,8 @@ useEffect(() => {
 
   cargarParosActivos();
 
+  cargarTodosLosParos();
+
   const intervalo = setInterval(() => {
 
     cargarDashboard();
@@ -261,6 +275,8 @@ useEffect(() => {
       proceso: procesoSeleccionado,
       subproceso: subprocesoSeleccionado,
       detalle: detalleSeleccionado,
+      responsable_ajuste: responsableAjuste,
+      tipo_ajuste: "Corrección Gerencial",
       cantidad_ok: Number(cantidad),
       eficiencia: Math.round(eficiencia),
       estado_eficiencia: colorEficiencia,
@@ -320,6 +336,30 @@ const cargarParosActivos = async () => {
       );
 
     setParosActivos(activos);
+
+  } catch (error) {
+
+    console.error(error);
+
+  }
+
+};
+
+const cargarTodosLosParos = async () => {
+
+  try {
+
+    const snap = await getDocs(
+      collection(db, "paros_produccion")
+    );
+
+    const data =
+      snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+    setTodosLosParos(data);
 
   } catch (error) {
 
@@ -479,6 +519,15 @@ const cargarParosActivos = async () => {
         </button>
 
         <button
+          onClick={() =>
+            setPantalla("historialParos")
+          }
+          style={botonAzul}
+        >
+          📋 Historial de Paros
+        </button>
+
+        <button
           onClick={() => setPantalla("ot")}
           style={{
             padding: "15px",
@@ -508,6 +557,17 @@ const cargarParosActivos = async () => {
             }}
           >
             📋 Avance OT
+          </button>
+
+          <button
+            onClick={() =>
+              setPantalla("ajusteGerencial")
+            }
+            style={botonAzul}
+          >
+
+            🛠 Ajuste Gerencial
+
           </button>
 
       </div>
@@ -742,16 +802,6 @@ const paroActivoProduccion =
   const inicio =
   p.inicio?.toDate();
 
-const parosDeEstaProduccion =
-  todosLosParos.filter(paro =>
-
-    paro.operario === p.operario &&
-    paro.ot === p.ot &&
-    paro.proceso === p.proceso &&
-    paro.subproceso === p.subproceso
-
-  );
-
 let tiempoDetenidoTotal = 0;
 
 parosDeEstaProduccion.forEach(paro => {
@@ -799,9 +849,51 @@ const tiempoDetenidoFormateado = `
   ${String(segundosDet).padStart(2, "0")}
 `;
 
-  const tiempoHoras =
+  let tiempoPausasMs = 0;
+
+const parosDeEstaProduccion =
+  todosLosParos.filter(paro =>
+
+    paro.operario === p.operario &&
+    paro.ot === p.ot &&
+    paro.proceso === p.proceso &&
+    paro.subproceso === p.subproceso
+
+  );
+
+parosDeEstaProduccion.forEach(paro => {
+
+  if (paro.inicio_paro) {
+
+    const inicioParo =
+      paro.inicio_paro.toDate
+        ? paro.inicio_paro.toDate()
+        : new Date(paro.inicio_paro);
+
+    const finParo =
+      paro.fin_paro
+        ? (
+            paro.fin_paro.toDate
+              ? paro.fin_paro.toDate()
+              : new Date(paro.fin_paro)
+          )
+        : ahora;
+
+    tiempoPausasMs +=
+      finParo - inicioParo;
+
+  }
+
+});
+
+const tiempoHoras =
   inicio
-    ? (ahora - inicio) / 3600000
+    ? (
+        (
+          (ahora - inicio)
+          - tiempoPausasMs
+        ) / 3600000
+      )
     : 0;
 
   const tiempoDetenidoMs =
@@ -2151,7 +2243,7 @@ if (pantalla === "otDetalle") {
                     detalles.map((d) => {
 
                       console.log("REGISTRO REAL DASHBOARD");
-console.log(dashboard[0]);
+                      console.log(dashboard[0]);
                       
                       const registros =
                         dashboard.filter(r =>
@@ -3327,7 +3419,1797 @@ const avanceProceso =
     );
   }
 
+  if (pantalla === "historialAjustes") {
+
+    const ajustes =
+      dashboard.filter(r =>
+
+        r.tipo ===
+        "ajuste_gerencial"
+
+      );
+
+    const ajustesPorDia = Object.values(
+
+      ajustes.reduce((acc, a) => {
+
+        const fecha =
+          a.fecha?.toDate
+            ? a.fecha
+                .toDate()
+                .toLocaleDateString()
+            : "-";
+
+        if (!acc[fecha]) {
+
+          acc[fecha] = {
+
+            fecha,
+
+            cantidad: 0
+
+          };
+
+        }
+
+        acc[fecha].cantidad +=
+          a.cantidad_ok || 0;
+
+        return acc;
+
+      }, {})
+
+    );
+
+    const alertasGerenciales = [];
+
+    const totalProduccion =
+      dashboard.reduce(
+        (acc, r) =>
+
+          acc + (r.cantidad_ok || 0),
+
+        0
+      );
+
+    const totalAjustes =
+      ajustes.reduce(
+        (acc, a) =>
+
+          acc + (a.cantidad_ok || 0),
+
+        0
+      );
+
+    const porcentajeAjustes =
+      totalProduccion > 0
+
+        ? (
+            totalAjustes /
+            totalProduccion
+          ) * 100
+
+        : 0;
+
+    if (porcentajeAjustes > 5) {
+
+      alertasGerenciales.push({
+
+        tipo: "critico",
+
+        mensaje:
+          `🚨 Ajustes superan ${porcentajeAjustes.toFixed(1)}% de la producción`
+
+      });
+
+    }
+
+    const operarioCritico =
+      Object.entries(
+
+        ajustes.reduce((acc, a) => {
+
+          const op =
+            a.operario || "-";
+
+          acc[op] =
+            (acc[op] || 0)
+            +
+            (a.cantidad_ok || 0);
+
+          return acc;
+
+        }, {})
+
+      )
+
+      .sort((a, b) =>
+        b[1] - a[1]
+      )[0];
+
+    if (
+
+      operarioCritico
+
+      &&
+
+      operarioCritico[1] > 50
+
+    ) {
+
+      alertasGerenciales.push({
+
+        tipo: "warning",
+
+        mensaje:
+          `⚠️ ${operarioCritico[0]} supera 50 unidades ajustadas`
+
+      });
+
+    }
+
+    return (
+
+      <div style={{
+        padding: 20
+      }}>
+
+        <h2>
+          🛠 Historial Ajustes
+        </h2>
+
+        {alertasGerenciales.length > 0 && (
+
+          <div style={{
+            marginTop: 20,
+            marginBottom: 20
+          }}>
+
+            {alertasGerenciales.map((a, i) => (
+
+              <div
+                key={i}
+                style={{
+                  background:
+
+                    a.tipo === "critico"
+
+                      ? "#B71C1C"
+
+                      : "#F9A825",
+
+                  color: "white",
+
+                  padding: 15,
+
+                  borderRadius: 12,
+
+                  marginBottom: 10,
+
+                 fontWeight: "bold",
+
+                 fontSize: 16
+                }}
+              >
+
+                {a.mensaje}
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 15,
+          marginTop: 20,
+          marginBottom: 25
+        }}>  
+
+          {/* TOTAL AJUSTADO */}
+
+          <div style={{
+            background: "white",
+            padding: 20,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+
+            <div style={{
+              fontSize: 14,
+              color: "#666"
+          }}>
+
+              🛠 Total Ajustado
+
+            </div>
+
+            <h1 style={{
+              margin: "10px 0 0 0",
+              color: "#6A1B9A"
+            }}>
+
+              {
+
+                ajustes.reduce(
+                  (acc, a) =>
+
+                    acc + (a.cantidad_ok || 0),
+
+                  0
+                )
+
+              }
+
+            </h1>
+
+          </div>
+
+          {/* % AJUSTE */}
+
+          <div style={{
+            background: "white",
+            padding: 20,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+
+            <div style={{
+              fontSize: 14,
+              color: "#666"
+            }}>
+
+              📦 % Ajuste
+
+            </div>
+
+            <h1 style={{
+              margin: "10px 0 0 0",
+              color: "#D32F2F"
+            }}>
+
+              {
+
+                (() => {
+
+                  const totalProduccion =
+                    dashboard.reduce(
+                      (acc, r) =>
+
+                        acc +
+                        (r.cantidad_ok || 0),
+
+                      0
+                    );
+
+                  const totalAjustes =
+                    ajustes.reduce(
+                      (acc, a) =>
+
+                        acc +
+                        (a.cantidad_ok || 0),
+
+                      0
+                    );
+
+                  const porcentaje =
+                    totalProduccion > 0
+
+                      ? (
+                          totalAjustes /
+                          totalProduccion
+                        ) * 100
+
+                      : 0;
+
+                  return `
+                    ${porcentaje.toFixed(1)}%
+                  `;
+
+                })()
+
+              }
+
+            </h1>
+
+          </div>
+
+          {/* OPERARIO MÁS AJUSTADO */}
+
+          <div style={{
+            background: "white",
+            padding: 20,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+
+            <div style={{
+              fontSize: 14,
+              color: "#666"
+            }}>
+
+              👤 Operario Más Ajustado
+
+            </div>
+
+            <h2 style={{
+              margin: "10px 0 0 0",
+              color: "#1976D2"
+            }}>
+
+              {
+
+                Object.entries(
+
+                  ajustes.reduce((acc, a) => {
+
+                    const op =
+                      a.operario || "-";
+
+                    acc[op] =
+                      (acc[op] || 0)
+                      +
+                      (a.cantidad_ok || 0);
+
+                    return acc;
+
+                  }, {})
+
+                )
+
+                .sort((a, b) =>
+                  b[1] - a[1]
+                )[0]?.[0]
+
+                || "-"
+
+              }
+
+            </h2>
+
+          </div>
+
+          {/* PROCESO MÁS CORREGIDO */}
+
+          <div style={{
+            background: "white",
+            padding: 20,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+
+            <div style={{
+              fontSize: 14,
+              color: "#666"
+            }}>
+
+              ⚙️ Proceso Más Corregido
+
+            </div>
+
+            <h2 style={{
+              margin: "10px 0 0 0",
+              color: "#F57C00"
+            }}>
+
+              {
+
+                Object.entries(
+
+                  ajustes.reduce((acc, a) => {
+
+                    const proc =
+                      a.proceso || "-";
+
+                    acc[proc] =
+                      (acc[proc] || 0)
+                      +
+                      (a.cantidad_ok || 0);
+
+                    return acc;
+
+                  }, {})
+
+                )
+
+                .sort((a, b) =>
+                  b[1] - a[1]
+                )[0]?.[0]
+
+                || "-"
+
+              }
+
+            </h2>
+
+          </div>
+
+        </div>
+
+        <div style={{
+  background: "white",
+  padding: 20,
+  borderRadius: 14,
+  marginBottom: 25
+}}>
+
+  <h3>
+    📈 Tendencia Ajustes
+  </h3>
+
+  <div style={{
+    width: "100%",
+    height: 300
+  }}>
+
+    <ResponsiveContainer>
+
+      <BarChart
+        data={ajustesPorDia}
+      >
+
+        <XAxis
+          dataKey="fecha"
+        />
+
+        <YAxis />
+
+        <Tooltip />
+
+        <Bar
+          dataKey="cantidad"
+          fill="#6A1B9A"
+        />
+
+      </BarChart>
+
+    </ResponsiveContainer>
+
+  </div>
+
+</div>
+
+        <div style={{
+          overflowX: "auto"
+        }}>
+
+          <table style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            background: "white"
+          }}>
+
+            <thead>
+
+              <tr style={{
+                background: "#6A1B9A",
+                color: "white"
+              }}>
+
+                <th style={{ padding: 10 }}>
+                  Fecha
+                </th>
+
+                <th style={{ padding: 10 }}>
+                  Responsable
+                </th>
+
+                <th style={{ padding: 10 }}>
+                  OT
+                </th>
+
+                <th style={{ padding: 10 }}>
+                  Operario
+                </th>
+
+                <th style={{ padding: 10 }}>
+                  Proceso
+                </th>
+
+                <th style={{ padding: 10 }}>
+                  Subproceso
+                </th>
+
+                <th style={{ padding: 10 }}>
+                  Detalle
+                </th>
+
+                <th style={{ padding: 10 }}>
+                  Cantidad
+                </th>
+
+                <th style={{ padding: 10 }}>
+                  Motivo
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              {ajustes.map((a, i) => (
+
+                <tr
+                  key={i}
+                  style={{
+                    borderBottom:
+                      "1px solid #ddd"
+                  }}
+                >
+
+                  <td style={{ padding: 10 }}>
+
+                    {
+                      a.fecha?.toDate
+                        ? a.fecha
+                            .toDate()
+                            .toLocaleString()
+                        : "-"
+                    }
+
+                  </td>
+
+                  <td style={{ padding: 10 }}>
+
+                    {
+                      a.responsable_ajuste
+                      || "-"
+                    }
+
+                  </td>
+
+                  <td style={{ padding: 10 }}>
+                    {a.ot}
+                  </td>
+
+                  <td style={{ padding: 10 }}>
+                    {a.operario}
+                  </td>
+
+                  <td style={{ padding: 10 }}>
+                    {a.proceso}
+                  </td>
+
+                  <td style={{ padding: 10 }}>
+                    {a.subproceso}
+                  </td>
   
+                  <td style={{ padding: 10 }}>
+                    {a.detalle}
+                  </td>
+
+                  <td style={{
+                    padding: 10,
+                    fontWeight: "bold",
+                    color: "#2E7D32"
+                  }}>
+
+                    +{a.cantidad_ok}
+
+                  </td>
+
+                  <td style={{ padding: 10 }}>
+
+                    {
+                      a.motivo_ajuste
+                      || "-"
+                    }
+
+                  </td>
+
+                </tr>
+ 
+              ))}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+        <button
+          onClick={() =>
+            setPantalla("dashboard")
+          }
+          style={{
+            ...botonAzul,
+            marginTop: 20
+          }}
+        >
+
+          ← Volver
+
+        </button>
+
+      </div>
+
+    );
+
+  }
+  
+  if (pantalla === "historialParos") { 
+  
+    const promedio =
+      dashboard.length > 0
+        ? dashboard.reduce(
+            (a, b) =>
+              a + (b.eficiencia || 0),
+            0
+          ) / dashboard.length
+        : 0;
+
+  const datosParos =
+    Object.entries(
+      todosLosParos.reduce((acc, paro) => {
+
+        const motivo =
+          paro.motivo || "Sin motivo";
+
+        acc[motivo] =
+          (acc[motivo] || 0) + 1;
+
+        return acc;
+
+      }, {})
+    )
+
+    .map(([motivo, cantidad]) => ({
+      motivo,
+      cantidad
+    }))
+
+    .sort((a, b) =>
+      b.cantidad - a.cantidad
+    );
+
+  return (
+
+    <div style={{ padding: 20 }}>
+
+      <h2>
+        📋 Historial de Paros
+      </h2>
+
+      <div style={{
+        background: "#FFF3E0",
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20
+      }}>
+
+      <h3>
+        🔴 Pareto de Paros
+      </h3>
+
+      <div style={{
+        width: "100%",
+        height: 300
+      }}>
+
+        <ResponsiveContainer>
+
+          <BarChart data={datosParos}>
+
+            <XAxis dataKey="motivo" />
+
+            <YAxis />
+
+            <Tooltip />
+
+            <Bar dataKey="cantidad">
+
+              {datosParos.map((entry, index) => (
+
+                  <Cell
+                  key={`paro-${index}`}
+                  fill="#F44336"
+                />
+
+              ))}
+
+            </Bar>
+
+          </BarChart>
+
+        </ResponsiveContainer>
+
+      </div>  
+
+        <h3>
+          ⏱ Tiempo Total Perdido
+        </h3>
+
+        <h1 style={{
+          color: "#E65100",
+          margin: 0
+        }}>
+
+          {
+
+            (() => {
+
+              let totalMs = 0;
+
+              todosLosParos.forEach(paro => {
+
+                const inicio =
+                  paro.inicio_paro?.toDate
+                    ? paro.inicio_paro.toDate()
+                    : new Date(paro.inicio_paro);
+
+                const fin =
+                  paro.fin_paro
+                    ? (
+                        paro.fin_paro.toDate
+                          ? paro.fin_paro.toDate()
+                          : new Date(paro.fin_paro)
+                      )
+                    : ahora;
+
+                totalMs +=
+                  fin - inicio;
+
+              });
+
+              const horas =
+                Math.floor(
+                  totalMs / 3600000
+                );
+
+              const minutos =
+                Math.floor(
+                  (totalMs % 3600000)
+                  / 60000
+                );
+
+              return `
+                ${horas}h ${minutos}m
+              `;
+
+            })()
+
+          }
+
+        </h1>
+
+      </div>
+
+      <div style={{
+        background: "#E3F2FD",
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20
+      }}>
+
+        <h3>
+          📊 Top Motivos de Paro
+        </h3>
+
+        {
+
+          Object.entries(
+
+            todosLosParos.reduce((acc, paro) => {
+
+              const motivo =
+                paro.motivo || "SIN MOTIVO";
+
+              acc[motivo] =
+                (acc[motivo] || 0) + 1;
+
+              return acc;
+
+            }, {})
+
+          )
+
+          .sort((a, b) => b[1] - a[1])
+
+          .slice(0, 5)
+
+          .map(([motivo, cantidad], i) => (
+
+            <div
+              key={i}
+              style={{
+                marginBottom: 10,
+                background: "white",
+                padding: 10,
+                borderRadius: 8
+              }}
+            >
+
+              <b>
+                {i + 1}. {motivo}
+              </b>
+
+              <div style={{
+                marginTop: 4,
+                color: "#555"
+              }}>
+                {cantidad} detenciones
+              </div>
+
+            </div>
+
+          ))
+
+        }
+
+      </div>
+
+      {/* TOP OPERARIOS */}
+
+      <div style={{
+        background: "#F3E5F5",
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20
+      }}>
+
+        <h3>
+          👷 Operarios con Más Detenciones
+        </h3>
+
+        {
+
+          Object.entries(
+
+            todosLosParos.reduce((acc, paro) => {
+
+              const operario =
+                paro.operario || "SIN OPERARIO";
+
+              acc[operario] =
+                (acc[operario] || 0) + 1;
+
+              return acc;
+
+            }, {})
+
+          )
+
+          .sort((a, b) => b[1] - a[1])
+
+          .slice(0, 5)
+
+          .map(([operario, cantidad], i) => (
+
+            <div
+              key={i}
+              style={{
+                marginBottom: 10,
+                background: "white",
+                padding: 10,
+                borderRadius: 8
+              }}
+            >
+
+              <b>
+                {i + 1}. {operario}
+              </b>
+
+              <div style={{
+                marginTop: 4,
+                color: "#555"
+              }}>
+                {cantidad} detenciones
+              </div>
+
+            </div>
+
+          ))
+
+        }
+
+      </div>
+
+      {/* TOP OTs */}
+
+      <div style={{
+        background: "#E8F5E9",
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20
+      }}>
+
+        <h3>
+          📋 OTs con Más Tiempo Perdido
+        </h3>
+
+        {
+
+          Object.entries(
+
+            todosLosParos.reduce((acc, paro) => {
+
+              const ot =
+                paro.ot || "SIN OT";
+
+              const inicio =
+                paro.inicio_paro?.toDate
+                  ? paro.inicio_paro.toDate()
+                  : new Date(paro.inicio_paro);
+
+              const fin =
+                paro.fin_paro
+                  ? (
+                      paro.fin_paro.toDate
+                        ? paro.fin_paro.toDate()
+                        : new Date(paro.fin_paro)
+                    )
+                  : ahora;
+
+              const tiempo =
+                fin - inicio;
+
+              acc[ot] =
+                (acc[ot] || 0) + tiempo;
+
+              return acc;
+
+            }, {})
+
+          )
+
+          .sort((a, b) => b[1] - a[1])
+
+          .slice(0, 5)
+
+          .map(([ot, tiempo], i) => {
+
+            const horas =
+              Math.floor(
+                tiempo / 3600000
+              );
+
+            const minutos =
+              Math.floor(
+                (tiempo % 3600000)
+                / 60000
+              );
+
+            return (
+
+              <div
+                key={i}
+                style={{
+                  marginBottom: 10,
+                  background: "white",
+                  padding: 10,
+                  borderRadius: 8
+                }}
+              >
+
+                <b>
+                  {i + 1}. {ot}
+                </b>
+
+                <div style={{
+                  marginTop: 4,
+                  color: "#555"
+                }}>
+
+                  {horas}h {minutos}m perdidos
+
+                </div>
+
+              </div>
+
+            );
+
+          })
+
+        }
+
+      </div>
+
+      {/* DISPONIBILIDAD */}
+
+      <div style={{
+        background: "#FFF8E1",
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20
+      }}>
+
+        <h3>
+          ⚙️ Disponibilidad General
+        </h3>
+
+        {
+
+          (() => {
+
+            let tiempoTotalMs = 0;
+
+            let tiempoPausasMs = 0;
+
+            produccionActiva.forEach(p => {
+
+              if (!p.inicio?.toDate)
+                return;
+
+              const inicio =
+                p.inicio.toDate();
+
+              tiempoTotalMs +=
+                ahora - inicio;
+
+            });
+
+            todosLosParos.forEach(paro => {
+
+              const inicio =
+                paro.inicio_paro?.toDate
+                  ? paro.inicio_paro.toDate()
+                  : new Date(paro.inicio_paro);
+
+              const fin =
+                paro.fin_paro
+                  ? (
+                      paro.fin_paro.toDate
+                        ? paro.fin_paro.toDate()
+                        : new Date(paro.fin_paro)
+                    )
+                  : ahora;
+
+              tiempoPausasMs +=
+                fin - inicio;
+
+            });
+
+            const disponibilidad =
+              tiempoTotalMs > 0
+                ? (
+                    (
+                      tiempoTotalMs -
+                      tiempoPausasMs
+                    )
+                    / tiempoTotalMs
+                  ) * 100
+                : 0;
+
+            return (
+
+              <div>
+
+                <h1 style={{
+                  margin: 0,
+                  color:
+                    disponibilidad >= 90
+                      ? "#2E7D32"
+                      : disponibilidad >= 75
+                      ? "#F9A825"
+                      : "#C62828"
+                }}>
+
+                  {disponibilidad.toFixed(1)}%
+
+                </h1>
+
+                <div style={{
+                  marginTop: 8,
+                  color: "#555"
+                }}>
+      
+                  {
+
+                    disponibilidad >= 90
+                      ? "🟢 Excelente"
+                      : disponibilidad >= 75
+                      ? "🟡 Riesgo"
+                      : "🔴 Crítico"
+
+                  }
+
+                </div>
+
+              </div>
+
+            );
+
+          })()
+
+        }
+
+      </div>
+
+      {/* OEE */}
+
+      <div style={{
+        background: "#ECEFF1",
+        padding: 20,
+        borderRadius: 12,
+        marginBottom: 20
+      }}>
+
+        <h3>
+          🏭 OEE General
+        </h3>
+
+        {
+
+          (() => {
+
+            let tiempoTotalMs = 0;
+
+            let tiempoPausasMs = 0;
+
+            produccionActiva.forEach(p => {
+
+              if (!p.inicio?.toDate)
+                return;
+
+              const inicio =
+                p.inicio.toDate();
+
+              tiempoTotalMs +=
+                ahora - inicio;
+
+            });
+
+            todosLosParos.forEach(paro => {
+
+              const inicio =
+                paro.inicio_paro?.toDate
+                  ? paro.inicio_paro.toDate()
+                  : new Date(paro.inicio_paro);
+
+              const fin =
+                paro.fin_paro
+                  ? (
+                      paro.fin_paro.toDate
+                        ? paro.fin_paro.toDate()
+                        : new Date(paro.fin_paro)
+                    )
+                  : ahora;
+
+              tiempoPausasMs +=
+                fin - inicio;
+
+            });
+
+            const disponibilidad =
+              tiempoTotalMs > 0
+                ? (
+                    (
+                      tiempoTotalMs -
+                      tiempoPausasMs
+                    )
+                    / tiempoTotalMs
+                  ) * 100
+                : 0;
+
+            const rendimiento =
+              promedio || 0;
+
+            const calidad = 100;
+
+            const oee =
+              (
+                disponibilidad / 100
+              ) *
+              (
+                rendimiento / 100
+              ) *
+              (
+                calidad / 100
+              ) * 100;
+
+            return (
+
+              <div>
+
+                <h1 style={{
+                  margin: 0,
+                  color:
+                    oee >= 85
+                      ? "#2E7D32"
+                      : oee >= 60
+                      ? "#F9A825"
+                      : "#C62828"
+                }}>
+
+                  {oee.toFixed(1)}%
+
+                </h1>
+
+                <div style={{
+                  marginTop: 10,
+                  color: "#555"
+                }}>
+
+                  Disponibilidad:
+                  {" "}
+                  {disponibilidad.toFixed(1)}%
+
+                  <br />
+
+                  Rendimiento:
+                  {" "}
+                  {rendimiento.toFixed(1)}%
+
+                  <br />
+
+                  Calidad:
+                  {" "}
+                  {calidad}%
+
+                </div>
+
+              </div>
+
+            );
+
+          })()
+
+        }
+
+      </div>
+
+      <table style={{
+        width: "100%",
+        borderCollapse: "collapse"
+      }}>
+
+        <thead>
+
+          <tr style={{
+            background: "#222",
+            color: "white"
+          }}>
+
+            <th>Operario</th>
+            <th>OT</th>
+            <th>Motivo</th>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Duración</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {todosLosParos.map(paro => {
+
+            const inicio =
+              paro.inicio_paro?.toDate
+                ? paro.inicio_paro.toDate()
+                : new Date(paro.inicio_paro);
+
+            const fin =
+              paro.fin_paro
+                ? (
+                    paro.fin_paro.toDate
+                      ? paro.fin_paro.toDate()
+                      : new Date(paro.fin_paro)
+                  )
+                : ahora;
+
+            const duracionMs =
+              fin - inicio;
+
+            const horas =
+              Math.floor(
+                duracionMs / 3600000
+              );
+
+            const minutos =
+              Math.floor(
+                (duracionMs % 3600000)
+                / 60000
+              );
+
+            return (
+
+              <tr
+                key={paro.id}
+                style={{
+                  borderBottom:
+                    "1px solid #ccc"
+                }}
+              >
+
+                <td>{paro.operario}</td>
+
+                <td>{paro.ot}</td>
+
+                <td>{paro.motivo}</td>
+
+                <td>
+                  {inicio.toLocaleString()}
+                </td>
+
+                <td>
+                  {
+                    paro.fin_paro
+                      ? fin.toLocaleString()
+                      : "ACTIVO"
+                  }
+                </td>
+
+                <td>
+                  {horas}h {minutos}m
+                </td>
+
+              </tr>
+
+            );
+
+          })}
+
+        </tbody>
+
+      </table>
+
+      <button
+        onClick={() =>
+          setPantalla("dashboard")
+        }
+        style={{
+          ...botonAzul,
+          marginTop: 20
+        }}
+      >
+        ← Volver
+      </button>
+
+    </div>
+
+  );
+
+}
+
+  if (pantalla === "ajusteGerencial") {
+
+    const responsablesAjuste =
+      usuarios.filter(u => {
+
+        const rol =
+          normalizar(u.rol);
+
+        return (
+
+          rol === "jefe"
+
+          ||
+
+          rol === "gerencia"
+
+        );
+
+      });
+    
+    return (
+
+      <div style={{
+        padding: 20,
+        maxWidth: 500,
+        margin: "0 auto"
+      }}>
+
+        <h2>
+          🛠 Ajuste Gerencial
+        </h2>
+
+        <select
+          style={estiloInput}
+          value={otSeleccionada}
+          onChange={(e) =>
+            setOtSeleccionada(
+              e.target.value
+            )
+          }
+        >
+
+          <option value="">
+            Seleccionar OT
+          </option>
+
+          {ots.map((o, i) => (
+
+            <option
+              key={i}
+              value={o.nombre}
+            >
+
+              {o.nombre}
+
+            </option>
+
+          ))}
+
+        </select>
+
+        <select
+          style={estiloInput}
+          value={operarioSeleccionado}
+          onChange={(e) =>
+            setOperarioSeleccionado(
+              e.target.value
+            )
+          }
+        >
+
+          <option value="">
+            Operario
+          </option>
+
+          {operarios.map((o, i) => (
+
+            <option
+              key={i}
+              value={o.nombre}
+            >
+
+              {o.nombre}
+
+            </option>
+
+          ))}
+
+        </select>
+
+        <select
+  style={estiloInput}
+  value={operarioSeleccionado}
+  onChange={(e) =>
+    setOperarioSeleccionado(
+      e.target.value
+    )
+  }
+>
+
+  <option value="">
+    Responsable Ajuste
+  </option>
+
+  {responsablesAjuste.map((u, i) => (
+
+    <option
+      key={i}
+      value={u.nombre}
+    >
+
+      {u.nombre}
+      {" — "}
+      {u.rol}
+
+    </option>
+
+  ))}
+
+</select>
+
+<select
+  style={estiloInput}
+  value={procesoSeleccionado}
+  onChange={(e) =>
+    setProcesoSeleccionado(
+      e.target.value
+    )
+  }
+>
+
+  <option value="">
+    Proceso
+  </option>
+
+  {procesos.map((p, i) => (
+
+    <option
+      key={i}
+      value={p.nombre}
+    >
+
+      {p.nombre}
+
+    </option>
+
+  ))}
+
+</select>
+
+<select
+  style={estiloInput}
+  value={subprocesoSeleccionado}
+  onChange={(e) =>
+    setSubprocesoSeleccionado(
+      e.target.value
+    )
+  }
+>
+
+  <option value="">
+    Subproceso
+  </option>
+
+  {
+
+    subprocesos
+
+    .filter(s =>
+
+      normalizar(s.proceso)
+      ===
+      normalizar(
+        procesoSeleccionado
+      )
+
+    )
+
+    .map((s, i) => (
+
+      <option
+        key={i}
+        value={s.nombre}
+      >
+
+        {s.nombre}
+
+      </option>
+
+    ))
+
+  }
+
+</select>
+
+<select
+  style={estiloInput}
+  value={detalleSeleccionado}
+  onChange={(e) =>
+    setDetalleSeleccionado(
+      e.target.value
+    )
+  }
+>
+
+  <option value="">
+    Detalle
+  </option>
+
+  {
+
+    subprocesos
+
+    .find(s =>
+
+      normalizar(s.nombre)
+      ===
+      normalizar(
+        subprocesoSeleccionado
+      )
+
+    )
+
+    ?.detalles
+
+    ?.map((d, i) => {
+
+      const nombreDetalle =
+        typeof d === "string"
+          ? d
+          : d.nombre;
+
+      return (
+
+        <option
+          key={i}
+          value={nombreDetalle}
+        >
+
+          {nombreDetalle}
+
+        </option>
+
+      );
+
+    })
+
+  }
+
+</select>
+
+        <input
+          type="number"
+          placeholder="Cantidad ajuste"
+          style={estiloInput}
+          value={cantidad}
+          onChange={(e) =>
+            setCantidad(e.target.value)
+          }
+        />
+
+        <input
+          type="text"
+          placeholder="Motivo ajuste"
+          style={estiloInput}
+          value={motivoParo}
+          onChange={(e) =>
+            setMotivoParo(e.target.value)
+          }
+        />
+
+        <button
+          style={botonVerde}
+          onClick={async () => {
+
+            if (
+
+              !otSeleccionada ||
+
+              !operarioSeleccionado ||
+
+              !responsableAjuste ||
+
+              !procesoSeleccionado ||
+
+              !subprocesoSeleccionado ||
+
+              !cantidad ||
+
+              !motivoParo
+
+            ) {
+
+              alert(
+                "Completa los datos"
+              );
+
+              return;
+
+            }
+
+            try {
+
+              await addDoc(
+                collection(
+                  db,
+                  "registros_produccion"
+                ),
+                {
+
+                  tipo:
+                    "ajuste_gerencial",
+
+                  ot:
+                    otSeleccionada,
+
+                  operario:
+                    operarioSeleccionado,
+
+                  cantidad_ok:
+                    Number(cantidad),
+
+                  motivo_ajuste:
+                    motivoParo,
+
+                  ajustado_por:
+                    usuarioSeleccionado?.nombre
+                    || "GERENCIA",
+
+                  fecha:
+                    new Date(),
+
+                  eficiencia: 100,
+
+                  estado_eficiencia:
+                    "🟢"
+
+                }
+              );
+
+              const prodActiva =
+                produccionActiva.find(p =>
+
+                  normalizar(p.ot)
+                  ===
+                  normalizar(
+                    otSeleccionada
+                  )
+
+                  &&
+
+                  normalizar(
+                    p.operario
+                  )
+                  ===
+                  normalizar(
+                    operarioSeleccionado
+                  )
+
+                );
+
+              if (prodActiva) {
+
+                await updateDoc(
+
+                  doc(
+                    db,
+                    "produccion_activa",
+                    prodActiva.id
+                  ),
+
+                  {
+
+                    cantidad_actual:
+
+                      (
+                        prodActiva.cantidad_actual
+                        || 0
+                      )
+
+                      +
+
+                      Number(cantidad)
+
+                  }
+
+                );
+
+              }
+
+              alert(
+                "✅ Ajuste aplicado"
+              );
+
+              setCantidad("");
+
+              setMotivoParo("");
+
+              await cargarDashboard();
+
+              await cargarProduccionActiva();
+
+            }
+
+            catch (error) {
+
+              console.error(error);
+
+              alert(
+                "Error ajuste"
+              );
+
+            }
+
+          }}
+        >
+
+          ✅ Aplicar Ajuste
+
+        </button>
+
+        <button
+          style={botonAzul}
+          onClick={() =>
+            setPantalla("home")
+          }
+        >
+
+          ⬅ Volver
+
+        </button>
+
+      </div>
+
+    );
+
+  }
 
   if (pantalla === "dashboard") {
 
@@ -3401,7 +5283,116 @@ const avanceProceso =
 
   const top1 = ranking[0];
 
+  const alertas = [];
+
+if (parosActivos.length > 0) {
+
+  alertas.push({
+    tipo: "error",
+    mensaje:
+      `⛔ Hay ${parosActivos.length} paro(s) activo(s)`
+  });
+
+}
+
+if (promedio < 60) {
+
+  alertas.push({
+    tipo: "critico",
+    mensaje:
+      "📉 Eficiencia general crítica"
+  });
+
+}
+
+produccionActiva.forEach(p => {
+
+  if (!p.inicio?.toDate)
+    return;
+
+  const horas =
+    (ahora - p.inicio.toDate())
+    / 3600000;
+
+  if (horas >= 4) {
+
+    alertas.push({
+      tipo: "warning",
+      mensaje:
+        `🕒 ${p.operario} lleva más de 4h en producción`
+    });
+
+  }
+
+});
+
+  const datosGrafico =
+  ranking.map(r => ({
+
+    nombre: r.operario,
+
+    eficiencia:
+      Number(
+        r.promedio.toFixed(1)
+      )
+
+  }));
+
+  const datosParos = Object.entries(
+
+    todosLosParos.reduce((acc, paro) => {
+
+      const motivo =
+        paro.motivo || "SIN MOTIVO";
+
+      acc[motivo] =
+        (acc[motivo] || 0) + 1;
+
+      return acc;
+
+    }, {})
+
+  )
+
+  .map(([motivo, cantidad]) => ({
+
+    motivo,
+
+    cantidad
+
+  }))
+
+  .sort((a, b) =>
+    b.cantidad - a.cantidad
+  )
+
+  .slice(0, 5);
+
   return (
+  <>
+
+    <style>
+    {`
+
+      @keyframes blink {
+
+        0% {
+          opacity: 1;
+        }
+
+        50% {
+          opacity: 0.3;
+        }
+
+        100% {
+          opacity: 1;
+        }
+
+      }
+
+    `}
+    </style>
+
     <div style={{
       padding: 20,
       background: "#f4f6f8",
@@ -3465,7 +5456,315 @@ const avanceProceso =
         {/* DERECHA */}
         <div>
 
-          <h2>📊 Dashboard</h2>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 15
+          }}>
+
+            <div>
+
+              <h2 style={{
+                margin: 0
+              }}>
+                📊 Dashboard
+              </h2>
+
+              <div style={{
+                marginTop: 5,
+                fontSize: 14,
+                color: "#555",
+                fontWeight: "bold"
+              }}>
+
+                🕒 {
+
+                  ahora.toLocaleString()
+
+                }
+
+              </div>
+
+            </div>
+
+            <button
+              onClick={() => {
+
+                if (
+                  !document.fullscreenElement
+                ) {
+
+                  document.documentElement
+                    .requestFullscreen();
+
+                }
+                else {
+
+                  document.exitFullscreen();
+
+                }
+
+              }}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 10,
+                border: "none",
+                background: "#111",
+                color: "white",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              📺 Modo TV
+            </button>
+
+          </div>
+
+          {alertas.length > 0 && (
+
+            <div style={{
+              marginTop: 20,
+              marginBottom: 20
+            }}>
+
+              {alertas.map((a, i) => (
+
+                <div
+                  key={i}
+                  style={{
+                    background:
+                      a.tipo === "critico"
+                        ? "#B71C1C"
+                        : a.tipo === "error"
+                        ? "#D32F2F"
+                        : "#F9A825",
+
+                    color: "white",
+
+                    padding: 15,
+
+                    borderRadius: 12,
+
+                    marginBottom: 10,
+
+                    fontWeight: "bold",
+
+                    fontSize: 16,
+
+                    animation:
+                      a.tipo === "critico"
+                        ? "blink 1s infinite"
+                        : "none"
+
+                  }}
+                >
+
+                  🚨 {a.mensaje}
+
+                </div>
+
+              ))}
+
+            </div>
+
+          )}
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: 15,
+            marginTop: 20,
+            marginBottom: 25
+          }}>
+
+            {/* PRODUCCIÓN TOTAL */}
+            <div style={{
+              background: "white",
+              padding: 20,
+              borderRadius: 14,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+            }}>
+
+              <div style={{
+                fontSize: 14,
+                color: "#666"
+              }}>
+                📦 Producción Total
+              </div>
+
+              <h1 style={{
+                margin: "10px 0 0 0",
+                color: "#1976D2"
+              }}>
+                {
+                  dashboard.reduce(
+                    (acc, r) =>
+                      acc + (r.cantidad_ok || 0),
+                    0
+                  )
+                }
+              </h1>
+
+            </div>
+
+            {/* OPERARIOS ACTIVOS */}
+            <div style={{
+              background: "white",
+              padding: 20,
+              borderRadius: 14,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+            }}>
+
+              <div style={{
+                fontSize: 14,
+                color: "#666"
+              }}>
+                👷 Operarios Activos
+              </div>
+
+              <h1 style={{
+                margin: "10px 0 0 0",
+                color: "#2E7D32"
+              }}>
+                {produccionActiva.length}
+              </h1>
+
+            </div>
+
+            {/* PAROS ACTIVOS */}
+            <div style={{
+              background: "white",
+              padding: 20,
+              borderRadius: 14,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+            }}>
+
+              <div style={{
+                fontSize: 14,
+                color: "#666"
+              }}>
+                ⛔ Paros Activos
+              </div>
+
+              <h1 style={{
+                margin: "10px 0 0 0",
+                color:
+                  parosActivos.length > 0
+                    ? "#C62828"
+                    : "#2E7D32"
+              }}>
+                {parosActivos.length}
+              </h1>
+
+            </div>
+
+            {/* EFICIENCIA */}
+            <div style={{
+              background: "white",
+              padding: 20,
+              borderRadius: 14,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
+            }}>
+
+              <div style={{
+                fontSize: 14,
+                color: "#666"
+              }}>
+                ⚙️ Eficiencia General
+              </div>
+
+              <h1 style={{
+                margin: "10px 0 0 0",
+                color:
+                  promedio >= 90
+                    ? "#2E7D32"
+                    : promedio >= 70
+                    ? "#F9A825"
+                    : "#C62828"
+              }}>
+                {promedio.toFixed(1)}%
+              </h1>
+
+            </div>
+
+          </div>
+
+          <div style={{
+            background: "white",
+            padding: 20,
+            borderRadius: 12,
+            marginTop: 20,
+            marginBottom: 20
+          }}>
+
+            <h3>
+              📈 Eficiencia por Operario
+            </h3>
+
+            <div style={{
+              background: "white",
+              padding: 20,
+              borderRadius: 12,
+              marginTop: 20,
+              marginBottom: 20
+            }}>
+
+            </div>
+
+            <div style={{
+              width: "100%",
+              height: 300
+            }}>
+
+              <ResponsiveContainer>
+
+                <BarChart data={datosGrafico}>
+
+                  <XAxis dataKey="nombre" />
+
+                  <YAxis />
+
+                  <Tooltip />
+
+                  <Bar dataKey="eficiencia">
+
+                    {datosGrafico.map((entry, index) => {
+
+                      let color = "#4CAF50";
+
+                      if (entry.eficiencia < 70) {
+
+                        color = "#F44336";
+
+                      }
+                      else if (entry.eficiencia < 90) {
+
+                        color = "#FFC107";
+
+                      }
+
+                      return (
+
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={color}
+                        />
+
+                      );
+
+                    })}
+
+                  </Bar>
+
+                </BarChart>
+
+              </ResponsiveContainer>
+
+            </div>
+
+          </div>
 
           <h3 style={{ marginTop: 20 }}>
             🟢 Producciones Activas
@@ -3482,79 +5781,138 @@ const avanceProceso =
           {produccionActiva.map((p, i) => {
 
             const inicio =
-            p.inicio?.toDate();
+              p.inicio?.toDate();
 
-          const tiempoHoras =
-            inicio
-              ? (ahora - inicio) / 3600000
-              : 0;
+            let tiempoPausasMs = 0;
 
-          const estandar =
-            estandares.find(e => {
+            const parosDeEstaProduccion =
+              todosLosParos.filter(paro =>
 
-              const matchProc =
-                normalizar(e.proceso) ===
-                normalizar(p.proceso);
+                normalizar(paro.operario) ===
+                normalizar(p.operario)
 
-              const matchSub =
-                normalizar(e.subproceso) ===
-                normalizar(p.subproceso);
+                &&
 
-              const matchDet =
-                !e.detalle ||
-                normalizar(e.detalle) ===
-                normalizar(p.detalle);
+                normalizar(paro.proceso) ===
+                normalizar(p.proceso)
 
-              return (
-                matchProc &&
-                matchSub &&
-                matchDet
-              );
+                );
+
+            parosDeEstaProduccion.forEach(paro => {
+
+              if (paro.inicio_paro) {
+
+                const inicioParo =
+                  paro.inicio_paro.toDate
+                    ? paro.inicio_paro.toDate()
+                    : new Date(paro.inicio_paro);
+
+                const finParo =
+                  paro.fin_paro
+                    ? (
+                        paro.fin_paro.toDate
+                          ? paro.fin_paro.toDate()
+                          : new Date(paro.fin_paro)
+                      )
+                    : ahora;
+
+                tiempoPausasMs +=
+                  finParo - inicioParo;
+
+              }
+
             });
 
-          const esperado =
-            estandar
-              ? Math.round(
-                  estandar.unidades_por_hora *
-                  tiempoHoras
-              )
-              : 0;
+            const tiempoRealMs =
+              inicio
+                ? (
+                    (ahora - inicio)
+                    - tiempoPausasMs
+                  )
+                : 0;
 
-          const real =
-            p.cantidad_actual || 0;
+            const tiempoHoras =
+              tiempoRealMs / 3600000;
 
-          let eficiencia = 0;
+            const estandar =
+              estandares.find(e => {
 
-          if (esperado > 0) {
-            eficiencia =
-              Math.round(
-                (real / esperado) * 100
+                const matchProc =
+                  normalizar(e.proceso) ===
+                  normalizar(p.proceso);
+
+                const matchSub =
+                  normalizar(e.subproceso) ===
+                  normalizar(p.subproceso);
+
+                const matchDet =
+                  !e.detalle ||
+                  normalizar(e.detalle) ===
+                  normalizar(p.detalle);
+
+                return (
+                  matchProc &&
+                  matchSub &&
+                  matchDet
+                );
+              });
+
+            const esperado =
+              estandar
+                ? Math.round(
+                    estandar.unidades_por_hora *
+                    tiempoHoras
+                )
+                : 0;
+
+            const real =
+              p.cantidad_actual || 0;
+
+            let eficiencia = 0;
+
+            if (esperado > 0) {
+              eficiencia =
+                Math.round(
+                  (real / esperado) * 100
+                );
+            }
+
+            const paroDeEstaProduccion =
+              parosActivos.find(paro =>
+
+                normalizar(paro.operario) ===
+                normalizar(p.operario)
+
+                 &&
+
+                normalizar(paro.proceso) ===
+                normalizar(p.proceso)
+
               );
-          }
 
-          let color = "#E8F5E9";
+            let color = "#E8F5E9";
 
-          let textoColor = "#000";
+            let textoColor = "#000";
 
-          if (paroActivoProduccion) {
+            if (paroDeEstaProduccion) {
 
-            color = "#B71C1C";
+              color = "#B71C1C";
 
-            textoColor = "white";
+              textoColor = "white";
 
-          }
-          else if (eficiencia < 70) {
+            }
+            else if (eficiencia < 70) {
 
-            color = "#FFCDD2";
+              color = "#FFCDD2";
 
-          }
-          else if (eficiencia < 90) {
+            }
+            else if (eficiencia < 90) {
 
-            color = "#FFF9C4";
+              color = "#FFF9C4";
 
-          }
+            }
 
-          return (
+            return (
 
             <div
               key={i}
@@ -3631,7 +5989,7 @@ const avanceProceso =
                       p.inicio.toDate();
 
                     const diferencia =
-                      ahora - inicio;
+                      tiempoRealMs;
 
                     const horas =
                       Math.floor(
@@ -3680,7 +6038,7 @@ const avanceProceso =
                 <b>{real}</b>
               </div>
 
-              {paroActivoProduccion && (
+              {paroDeEstaProduccion && (
 
                 <div style={{
                   marginTop: 10,
@@ -3822,6 +6180,52 @@ const avanceProceso =
         </div>
       </div> 
 
+      <div style={{
+        marginTop: 20,
+        marginBottom: 20
+      }}>
+
+        <button
+          onClick={() =>
+            setPantalla("historialParos")
+          }
+          style={{
+            padding: "12px 25px",
+            borderRadius: 10,
+            border: "none",
+            background: "#455A64",
+            color: "white",
+            fontWeight: "bold",
+            cursor: "pointer"
+          }}
+        >
+          📋 Historial de Paros
+        </button>
+
+        <button
+          onClick={() =>
+            setPantalla(
+              "historialAjustes"
+            )
+          }
+          style={{
+            padding: "12px 25px",
+            borderRadius: 10,
+            border: "none",
+            background: "#6A1B9A",
+            color: "white",
+            fontWeight: "bold",
+            cursor: "pointer",
+            marginLeft: 10
+          }}
+        >
+
+          🛠 Historial Ajustes
+
+        </button>
+
+      </div>
+
       {/* BOTÓN */}
       <div style={{ textAlign: "center", marginTop: 30 }}>
         <button
@@ -3841,7 +6245,9 @@ const avanceProceso =
       </div>
 
     </div>
-  );
+
+    </>
+    );
 }
 }
 
