@@ -790,6 +790,41 @@ if (pantalla === "registro") {
 
 {produccionActiva.map((p, i) => {
 
+const parosDeEstaProduccion =
+  todosLosParos.filter(paro =>
+
+    paro.operario === p.operario &&
+    paro.ot === p.ot &&
+    paro.proceso === p.proceso &&
+    paro.subproceso === p.subproceso
+
+  );
+
+parosDeEstaProduccion.forEach(paro => {
+
+  if (paro.inicio_paro) {
+
+    const inicioParo =
+      paro.inicio_paro.toDate
+        ? paro.inicio_paro.toDate()
+        : new Date(paro.inicio_paro);
+
+    const finParo =
+      paro.fin_paro
+        ? (
+            paro.fin_paro.toDate
+              ? paro.fin_paro.toDate()
+              : new Date(paro.fin_paro)
+          )
+        : ahora;
+
+    tiempoPausasMs +=
+      finParo - inicioParo;
+
+  }
+
+});  
+
 const paroActivoProduccion =
   parosActivos.find(paro =>
     paro.operario === p.operario &&
@@ -850,41 +885,6 @@ const tiempoDetenidoFormateado = `
 `;
 
   let tiempoPausasMs = 0;
-
-const parosDeEstaProduccion =
-  todosLosParos.filter(paro =>
-
-    paro.operario === p.operario &&
-    paro.ot === p.ot &&
-    paro.proceso === p.proceso &&
-    paro.subproceso === p.subproceso
-
-  );
-
-parosDeEstaProduccion.forEach(paro => {
-
-  if (paro.inicio_paro) {
-
-    const inicioParo =
-      paro.inicio_paro.toDate
-        ? paro.inicio_paro.toDate()
-        : new Date(paro.inicio_paro);
-
-    const finParo =
-      paro.fin_paro
-        ? (
-            paro.fin_paro.toDate
-              ? paro.fin_paro.toDate()
-              : new Date(paro.fin_paro)
-          )
-        : ahora;
-
-    tiempoPausasMs +=
-      finParo - inicioParo;
-
-  }
-
-});
 
 const tiempoHoras =
   inicio
