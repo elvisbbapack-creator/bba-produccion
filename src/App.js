@@ -4672,6 +4672,9 @@ const avanceProceso =
 
             <th>Operario</th>
             <th>OT</th>
+            <th>Proceso</th>
+            <th>Subproceso</th>
+            <th>Detalle</th>
             <th>Motivo</th>
             <th>Inicio</th>
             <th>Fin</th>
@@ -4726,6 +4729,12 @@ const avanceProceso =
                 <td>{paro.operario}</td>
 
                 <td>{paro.ot}</td>
+
+                <td>{paro.proceso}</td>
+
+                <td>{paro.subproceso || "-"}</td>
+
+                <td>{paro.detalle || "-"}</td>
 
                 <td>{paro.motivo}</td>
 
