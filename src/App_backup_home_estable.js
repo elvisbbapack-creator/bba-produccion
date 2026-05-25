@@ -25,8 +25,6 @@ import {
 } from "recharts";
 
 function App() {
-  const esMobile =
-    window.innerWidth < 768;
   /* eslint-disable no-unused-vars */
   const normalizar = (txt) =>
   (txt || "")
@@ -34,16 +32,6 @@ function App() {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
-  const registroFueAjustado = (
-    registroId
-  ) => {
-    return ajustesProduccion.some(
-      a =>
-        a.produccion_id
-        ===
-        registroId
-    );
-  };
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
@@ -145,16 +133,8 @@ const [unidadesHoraOperacionProducto,
 
   const [responsableAjuste, setResponsableAjuste] = useState("");
 
-  const [registroAjuste, setRegistroAjuste] = useState(null);
-  const [nuevaHoraInicio, setNuevaHoraInicio] = useState("");
-  const [nuevaHoraFin, setNuevaHoraFin] = useState("");
-  const [nuevaCantidad, setNuevaCantidad] = useState("");
-  const [motivoAjuste, setMotivoAjuste] = useState("");
-
   const [parosActivos, setParosActivos] = useState([]);
   const [todosLosParos, setTodosLosParos] = useState([]);
-
-  const [ajustesProduccion, setAjustesProduccion] = useState([]);
 
   const [produccionSeleccionada, setProduccionSeleccionada] = useState(null);
 
@@ -220,25 +200,6 @@ const [unidadesHoraOperacionProducto,
     marginBottom: 12
   };
 
-  const cardHome = {
-    border: "none",
-    borderRadius: 18,
-    padding: "22px 18px",
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 22,
-    cursor: "pointer",
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.15)",
-    width: "100%",
-    minHeight: 140,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    transition: "0.25s"
-  };
-
 const cargarDatos = useCallback(async () => {
 
   try {
@@ -288,46 +249,6 @@ const cargarDatos = useCallback(async () => {
       }))
 
     );
-
-    const ajustesSnap =
-  await getDocs(
-    collection(
-      db,
-      "ajustes_produccion"
-    )
-  );
-
-setAjustesProduccion(
-
-  ajustesSnap.docs.map(doc => ({
-
-    id: doc.id,
-
-    ...doc.data()
-
-  }))
-
-);
-
-const registrosSnap =
-  await getDocs(
-    collection(
-      db,
-      "registros_produccion"
-    )
-  );
-
-setRegistros(
-
-  registrosSnap.docs.map(doc => ({
-
-    id: doc.id,
-
-    ...doc.data()
-
-  }))
-
-);
 
   } catch (error) {
     console.error("ERROR:", error);
@@ -385,143 +306,6 @@ useEffect(() => {
   }
 
   // 2. Cálculo de tiempo (Asegurar que existan marcas de tiempo)
-const produccionActual =
-
-  produccionActiva.find(p =>
-
-    normalizar(p.operario)
-    ===
-    normalizar(
-      operarioSeleccionado
-    )
-
-    &&
-
-    normalizar(p.ot)
-    ===
-    normalizar(
-      otSeleccionada
-    )
-
-    &&
-
-    normalizar(p.proceso)
-    ===
-    normalizar(
-      procesoSeleccionado
-    )
-
-    &&
-
-    normalizar(p.subproceso)
-    ===
-    normalizar(
-      subprocesoSeleccionado
-    )
-
-  );
-
-  if (!produccionActual?.inicio) {
-
-  alert(
-    "No existe inicio de producción."
-  );
-
-  return;
-
-}
-
-const inicioProduccion =
-
-  produccionActual.inicio.toDate
-    ? produccionActual.inicio.toDate()
-    : new Date(
-        produccionActual.inicio
-      );
-
-const ahoraTiempo =
-  new Date();
-
-const tiempoTotalMs =
-  ahoraTiempo - inicioProduccion;
-
-let tiempoPausasMs = 0;
-
-const parosProduccion =
-
-  todosLosParos.filter(paro =>
-
-    normalizar(paro.operario)
-    ===
-    normalizar(
-      operarioSeleccionado
-    )
-
-    &&
-
-    normalizar(paro.ot)
-    ===
-    normalizar(
-      otSeleccionada
-    )
-
-    &&
-
-    normalizar(paro.proceso)
-    ===
-    normalizar(
-      procesoSeleccionado
-    )
-
-    &&
-
-    normalizar(paro.subproceso)
-    ===
-    normalizar(
-      subprocesoSeleccionado
-    )
-
-  );
-
-parosProduccion.forEach(paro => {
-
-  if (paro.inicio_paro) {
-
-    const inicioParo =
-      paro.inicio_paro.toDate
-        ? paro.inicio_paro.toDate()
-        : new Date(
-            paro.inicio_paro
-          );
-
-    const finParo =
-      paro.fin_paro
-
-        ? (
-            paro.fin_paro.toDate
-              ? paro.fin_paro.toDate()
-              : new Date(
-                  paro.fin_paro
-                )
-          )
-
-        : ahoraTiempo;
-
-    tiempoPausasMs +=
-      finParo - inicioParo;
-
-  }
-
-});
-
-const tiempoNetoMs =
-
-  tiempoTotalMs
-  - tiempoPausasMs;
-
-const horasTrabajadas =
-
-  tiempoNetoMs / 3600000;
 
   // 4. Búsqueda del estándar con LOGS de depuración
   const estandar = estandares.find(e => {
@@ -550,23 +334,7 @@ const horasTrabajadas =
   // TEMPORAL
   // mientras migramos a producción_activa
 
-  const esperado =
-
-  horasTrabajadas
-  *
-  estandar.unidades_hora;
-
-eficiencia =
-
-  esperado > 0
-
-    ? (
-        Number(cantidad)
-        /
-        esperado
-      ) * 100
-
-    : 0;
+  eficiencia = 100;
 
   eficiencia = Math.min(eficiencia, 150);
 
@@ -583,12 +351,6 @@ eficiencia =
 
     console.log("GUARDANDO PARO");
     
-    const horaInicioReal =
-      inicioProduccion;
-
-    const horaFinReal =
-      ahoraTiempo;
-
     await addDoc(collection(db, "registros_produccion"), {
       iniciado_por:
         usuarioSeleccionado?.nombre || "SIN USUARIO",
@@ -599,9 +361,6 @@ eficiencia =
       proceso: procesoSeleccionado,
       subproceso: subprocesoSeleccionado,
       detalle: detalleSeleccionado,
-      hora_inicio: horaInicioReal,
-      hora_fin: horaFinReal,
-      horas_trabajadas: horasTrabajadas,
       responsable_ajuste: responsableAjuste,
       tipo_ajuste: "Corrección Gerencial",
       cantidad_ok: Number(cantidad),
@@ -788,15 +547,11 @@ const cargarTodosLosParos = async () => {
       padding: 30,
       background: "#f4f6f8",
       minHeight: "100vh",
-      fontFamily: "Arial",
-
-      maxWidth: 1400,
-
-      margin: "0 auto"
+      fontFamily: "Arial"
     }}>
 
       {/* LOGO */}
-      <div style={{ textAlign: "center", marginBottom: 10 }}>
+      <div style={{ textAlign: "center", marginBottom: 30 }}>
         <img 
           src="/logo-bba.png" 
           alt="BBA" 
@@ -806,205 +561,23 @@ const cargarTodosLosParos = async () => {
       </div>
 
       {/* BOTONES */}
-
- {/* KPI SUPERIOR */}
-
-<div style={{
-
-  display: "grid",
-
-  gridTemplateColumns:
-    esMobile
-      ? "1fr 1fr"
-      : "repeat(4, 1fr)",
-
-  gap: 20,
-
-  marginBottom: 40
-
-}}>
-
-  {/* OTS ACTIVAS */}
-
-  <div style={{
-    background: "#E3F2FD",
-    color: "#1565C0",
-    padding: 18,
-    borderRadius: 20,
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.12)"
-  }}>
-
-    <div style={{
-      fontSize: 14,
-      opacity: 0.9
-    }}>
-
-      📋 OTs Activas
-
-    </div>
-
-    <div style={{
-      fontSize: 32,
-      fontWeight: "bold",
-      marginTop: 10
-    }}>
-
-      {
-
-        ots.filter(
-          o =>
-            o.estado ===
-            "activa"
-        ).length
-
-      }
-
-    </div>
-
-  </div>
-
-  {/* PRODUCCIÓN */}
-
-  <div style={{
-    background: "#E8F5E9",
-    color: "#2E7D32",
-    padding: 18,
-    borderRadius: 20,
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.12)"
-  }}>
-
-    <div style={{
-      fontSize: 14,
-      opacity: 0.9
-    }}>
-
-      🏭 Producción Activa
-
-    </div>
-
-    <div style={{
-      fontSize: 32,
-      fontWeight: "bold",
-      marginTop: 10
-    }}>
-
-      {produccionActiva.length}
-
-    </div>
-
-  </div>
-
-  {/* PAROS */}
-
-  <div style={{
-    background: "#FFF3E0",
-    color: "#EF6C00",
-    padding: 18,
-    borderRadius: 20,
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.12)"
-  }}>
-
-    <div style={{
-      fontSize: 14,
-      opacity: 0.9
-    }}>
-
-      ⏸️ Paros Activos
-
-    </div>
-
-    <div style={{
-      fontSize: 32,
-      fontWeight: "bold",
-      marginTop: 10
-    }}>
-
-      {parosActivos.length}
-
-    </div>
-
-  </div>
-
-  {/* OPERACIONES */}
-
-  <div style={{
-    background: "#ECEFF1",
-    color: "#455A64",
-    padding: 18,
-    borderRadius: 20,
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.12)"
-  }}>
-
-    <div style={{
-      fontSize: 14,
-      opacity: 0.9
-    }}>
-
-      ⚙️ Operaciones
-
-    </div>
-
-    <div style={{
-      fontSize: 32,
-      fontWeight: "bold",
-      marginTop: 10
-    }}>
-
-      {operacionesMaestras.length}
-
-    </div>
-
-  </div>
-
-</div>     
-
       <div style={{
-
-        display: "grid",
-
-        gridTemplateColumns:
-          esMobile
-            ? "1fr"
-            : "1.4fr 1fr 1fr",
-
-        gap: 40,
-
-        marginTop: 40,
-
-        alignItems: "start"
-
+        display: "flex",
+        flexDirection: "column",
+        gap: 15,
+        maxWidth: 300,
+        margin: "0 auto"
       }}>
-
-      <div>
 
         <h3 style={{
           marginTop: 30,
           marginBottom: 15,
           color: "#555"
         }}>
+
           📊 Operación
+
         </h3>
-
-        <div style={{
-
-          display: "grid",
-
-          gridTemplateColumns:
-            esMobile
-              ? "1fr"
-              : "repeat(2, 1fr)",
-
-          gap: 22,
-
-          marginTop: 38,
-
-          marginBottom: 30
-
-        }}>
 
         <button
           onClick={() => {
@@ -1012,55 +585,46 @@ const cargarTodosLosParos = async () => {
             cargarDashboard();
           }}
           style={{
-            ...cardHome,
-            background: "#1976D2"
+            padding: "15px",
+            borderRadius: 10,
+            border: "none",
+            background: "#1976D2",
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            cursor: "pointer"
           }}
         >
           📊 Ver Dashboard
         </button>
 
         <button
-          onClick={() => setPantalla("crearOT")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
+          onClick={() =>
+            setPantalla("crearOT")
+          }
+          style={botonAzul}
         >
+
           📋 Crear OT
+
         </button>
 
         <button
           onClick={() => setPantalla("registro")}
           style={{
-            ...cardHome,
-            background: "#1976D2"
+            padding: "15px",
+            borderRadius: 10,
+            border: "none",
+            background: "#4CAF50",
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            cursor: "pointer"
           }}
         >
           🏭 Registrar Producción
         </button>
 
-         <button
-          onClick={() => setPantalla("ot")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          📋 Ver Órdenes de Trabajo 
-        </button>
-
-        </div>
-</div>
-
-<div style={{
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
         <h3 style={{
           marginTop: 30,
           marginBottom: 15,
@@ -1072,35 +636,41 @@ const cargarTodosLosParos = async () => {
         </h3>
 
         <button
-          onClick={() => setPantalla("historialParos")}
-          style={{
-            ...cardHome,
-            background: "#F57C00"
-          }}
+          onClick={() =>
+            setPantalla("historialParos")
+          }
+          style={botonAzul}
         >
           📋 Historial de Paros
         </button>
 
+        <button
+          onClick={() => setPantalla("ot")}
+          style={{
+            padding: "15px",
+            borderRadius: 10,
+            border: "none",
+            background: "#9C27B0",
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            marginTop: 10
+          }}
+        >
+          📋 Ver Órdenes de Trabajo 
+        </button>
+
           <button
-            onClick={() => setPantalla("ajusteGerencial")}
-            style={{
-              ...cardHome,
-              background: "#EF6C00"
-            }}
+            onClick={() =>
+              setPantalla("ajusteGerencial")
+            }
+            style={botonAzul}
           >
+
             🛠 Ajuste Gerencial
+
           </button>
-</div>
 
-<div style={{
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
           <h3 style={{
             marginTop: 30,
             marginBottom: 15,
@@ -1112,35 +682,31 @@ const cargarTodosLosParos = async () => {
           </h3>
 
           <button
-            onClick={() => setPantalla("configProduccion")}
-            style={{
-              ...cardHome,
-              background: "#455A64"
-            }}
+            onClick={() =>
+              setPantalla(
+                "configProduccion"
+              )
+            }
+            style={botonAzul}
           >
+
             ⚙️ Configuración Producción
+
           </button>
 
           <button
-            onClick={() => setPantalla("configProductos")}
-            style={{
-              ...cardHome,
-              background: "#546E7A"
-            }}
+            onClick={() =>
+              setPantalla(
+                "configProductos"
+              )
+            }
+            style={botonAzul}
           >
+
             📦 Configuración Productos
+
           </button>
 
-          <button
-            onClick={() => setPantalla("operacionesMaestras")}
-            style={{
-              ...cardHome,
-              background: "#607D8B"
-            }}
-          >
-            ⚙️ Operaciones Maestras
-          </button>
-</div>
       </div>
     </div>
   );
@@ -6182,291 +5748,6 @@ const avanceProceso =
           ✅ Aplicar Ajuste
 
         </button>
-
-<hr style={{
-  marginTop: 40,
-  marginBottom: 30
-}} />
-
-<h3>
-  ✏️ Corrección Registros
-</h3>
-
-<div style={{
-  marginTop: 20
-}}>
-
-  {
-
-    registros
-
-    .slice(0, 10)
-
-    .map((r, i) => (
-
-      <div
-        key={i}
-        style={{
-          background: "white",
-          padding: 14,
-          borderRadius: 14,
-          marginBottom: 14,
-          boxShadow:
-            "0 2px 6px rgba(0,0,0,0.06)"
-        }}
-      >
-
-        <div>
-          👷 {r.operario}
-        </div>
-
-        {
-          registroFueAjustado(r.id)
-          &&
-          (
-            <div style={{
-              marginTop: 6,
-              background: "#FFF3E0",
-              color: "#E65100",
-              padding: "4px 10px",
-              borderRadius: 20,
-              display: "inline-block",
-              fontSize: 12,
-               fontWeight: "bold"
-            }}>
-              ✏️ Ajustado Gerencia
-            </div>
-          )
-        }
-
-        <div>
-          📋 {r.ot}
-        </div>
-
-        <div>
-          ⚙️ {r.detalle}
-        </div>
-
-        <div>
-          🕒 Inicio:
-          {" "}
-          {r.hora_inicio || "-"}
-        </div>
-
-        <div>
-          🕒 Fin:
-          {" "}
-          {r.hora_fin || "-"}
-        </div>
-
-        <div>
-          🔢 Cantidad:
-          {" "}
-          {r.cantidad_ok || 0}
-        </div>
-
-        <button
-
-          style={{
-            ...botonAzul,
-            marginTop: 10
-          }}
-
-          onClick={() => {
-
-            setRegistroAjuste(r);
-
-            setNuevaHoraInicio(
-              r.hora_inicio || ""
-            );
-
-            setNuevaHoraFin(
-              r.hora_fin || ""
-            );
-
-            setNuevaCantidad(
-              r.cantidad_ok || ""
-            );
-
-          }}
-
-        >
-
-          ✏️ Corregir Registro
-
-        </button>
-
-      </div>
-
-    ))
-
-  }
-
-</div>
-
-{
-
-  registroAjuste && (
-
-    <div style={{
-      background: "#FFF8E1",
-      padding: 20,
-      borderRadius: 16,
-      marginTop: 30,
-      border:
-        "2px solid #FFE082"
-    }}>
-
-      <h3>
-        ✏️ Corregir Registro
-      </h3>
-
-      <div style={{
-        marginBottom: 12
-      }}>
-
-        👷 {registroAjuste.operario}
-
-      </div>
-
-      <input
-        type="text"
-        placeholder="Nueva Hora Inicio"
-        style={estiloInput}
-        value={nuevaHoraInicio}
-        onChange={(e) =>
-          setNuevaHoraInicio(
-            e.target.value
-          )
-        }
-      />
-
-      <input
-        type="text"
-        placeholder="Nueva Hora Fin"
-        style={estiloInput}
-        value={nuevaHoraFin}
-        onChange={(e) =>
-          setNuevaHoraFin(
-            e.target.value
-          )
-        }
-      />
-
-      <input
-        type="number"
-        placeholder="Nueva Cantidad"
-        style={estiloInput}
-        value={nuevaCantidad}
-        onChange={(e) =>
-          setNuevaCantidad(
-            e.target.value
-          )
-        }
-      />
-
-      <input
-        type="text"
-        placeholder="Motivo corrección"
-        style={estiloInput}
-        value={motivoAjuste}
-        onChange={(e) =>
-          setMotivoAjuste(
-            e.target.value
-          )
-        }
-      />
-
-      <button
-
-        style={botonVerde}
-
-        onClick={async () => {
-
-          try {
-
-            await addDoc(
-
-              collection(
-                db,
-                "ajustes_produccion"
-              ),
-
-              {
-
-                produccion_id:
-                  registroAjuste.id,
-
-                hora_inicio_original:
-                  registroAjuste.hora_inicio
-                  || "",
-
-                hora_inicio_nueva:
-                  nuevaHoraInicio,
-
-                hora_fin_original:
-                  registroAjuste.hora_fin
-                  || "",
-
-                hora_fin_nueva:
-                  nuevaHoraFin,
-
-                cantidad_original:
-                  registroAjuste.cantidad_ok
-                  || 0,
-
-                cantidad_nueva:
-                  Number(
-                    nuevaCantidad
-                  ),
-
-                motivo:
-                  motivoAjuste,
-
-                responsable:
-                  usuarioSeleccionado?.nombre
-                  || "GERENCIA",
-
-                fecha_ajuste:
-                  new Date()
-
-              }
-
-            );
-
-            alert(
-              "✅ Corrección guardada"
-            );
-
-            setRegistroAjuste(null);
-
-            setMotivoAjuste("");
-
-          }
-
-          catch (error) {
-
-            console.error(error);
-
-            alert(
-              "Error guardando corrección"
-            );
-
-          }
-
-        }}
-
-      >
-
-        💾 Guardar Corrección
-
-      </button>
-
-    </div>
-
-  )
-
-}
 
         <button
           style={botonAzul}

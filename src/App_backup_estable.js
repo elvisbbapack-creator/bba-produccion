@@ -25,8 +25,6 @@ import {
 } from "recharts";
 
 function App() {
-  const esMobile =
-    window.innerWidth < 768;
   /* eslint-disable no-unused-vars */
   const normalizar = (txt) =>
   (txt || "")
@@ -34,16 +32,6 @@ function App() {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
-  const registroFueAjustado = (
-    registroId
-  ) => {
-    return ajustesProduccion.some(
-      a =>
-        a.produccion_id
-        ===
-        registroId
-    );
-  };
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
@@ -92,52 +80,7 @@ function App() {
   const [objetivoDetalle, setObjetivoDetalle] = useState("");
 
   const [productosConfig, setProductosConfig] = useState([]);
-
-  const [operacionesMaestras,
-  setOperacionesMaestras] =
-  useState([]);
-
-  const [codigoOperacion,
-  setCodigoOperacion] =
-  useState("");
-
-  const [nombreOperacion,
-    setNombreOperacion] =
-    useState("");
-
-  const [procesoOperacion,
-    setProcesoOperacion] =
-    useState("");
-
-  const [subprocesoOperacion,
-    setSubprocesoOperacion] =
-    useState("");
-
-  const [nuevoProducto, setNuevoProducto] =useState("");
-
-  const [productoSeleccionadoOperacion,
-  setProductoSeleccionadoOperacion] =
-  useState("");
-
-const [operacionSeleccionadaProducto,
-  setOperacionSeleccionadaProducto] =
-  useState("");
-
-const [materialOperacionProducto,
-  setMaterialOperacionProducto] =
-  useState("");
-
-const [medidaOperacionProducto,
-  setMedidaOperacionProducto] =
-  useState("");
-
-const [cantidadOperacionProducto,
-  setCantidadOperacionProducto] =
-  useState("");
-
-const [unidadesHoraOperacionProducto,
-  setUnidadesHoraOperacionProducto] =
-  useState("");
+  const [nuevoProducto, setNuevoProducto] = useState("");
 
   const [paroActivo, setParoActivo] = useState(false);
   const [paroActivoProduccion, setParoActivoProduccion] = useState(null);
@@ -145,16 +88,8 @@ const [unidadesHoraOperacionProducto,
 
   const [responsableAjuste, setResponsableAjuste] = useState("");
 
-  const [registroAjuste, setRegistroAjuste] = useState(null);
-  const [nuevaHoraInicio, setNuevaHoraInicio] = useState("");
-  const [nuevaHoraFin, setNuevaHoraFin] = useState("");
-  const [nuevaCantidad, setNuevaCantidad] = useState("");
-  const [motivoAjuste, setMotivoAjuste] = useState("");
-
   const [parosActivos, setParosActivos] = useState([]);
   const [todosLosParos, setTodosLosParos] = useState([]);
-
-  const [ajustesProduccion, setAjustesProduccion] = useState([]);
 
   const [produccionSeleccionada, setProduccionSeleccionada] = useState(null);
 
@@ -220,25 +155,6 @@ const [unidadesHoraOperacionProducto,
     marginBottom: 12
   };
 
-  const cardHome = {
-    border: "none",
-    borderRadius: 18,
-    padding: "22px 18px",
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 22,
-    cursor: "pointer",
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.15)",
-    width: "100%",
-    minHeight: 140,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    textAlign: "center",
-    transition: "0.25s"
-  };
-
 const cargarDatos = useCallback(async () => {
 
   try {
@@ -268,66 +184,6 @@ const cargarDatos = useCallback(async () => {
 
     const configProcSnap = await getDocs(collection(db, "config_procesos"));
     setProcesosConfig(configProcSnap.docs.map(doc => ({id: doc.id, ...doc.data()})));
-
-    const operacionesSnap =
-      await getDocs(
-        collection(
-          db,
-          "operaciones_maestras"
-        )
-      );
-
-    setOperacionesMaestras(
-
-      operacionesSnap.docs.map(doc => ({
-
-        id: doc.id,
-
-        ...doc.data()
-
-      }))
-
-    );
-
-    const ajustesSnap =
-  await getDocs(
-    collection(
-      db,
-      "ajustes_produccion"
-    )
-  );
-
-setAjustesProduccion(
-
-  ajustesSnap.docs.map(doc => ({
-
-    id: doc.id,
-
-    ...doc.data()
-
-  }))
-
-);
-
-const registrosSnap =
-  await getDocs(
-    collection(
-      db,
-      "registros_produccion"
-    )
-  );
-
-setRegistros(
-
-  registrosSnap.docs.map(doc => ({
-
-    id: doc.id,
-
-    ...doc.data()
-
-  }))
-
-);
 
   } catch (error) {
     console.error("ERROR:", error);
@@ -385,143 +241,6 @@ useEffect(() => {
   }
 
   // 2. Cálculo de tiempo (Asegurar que existan marcas de tiempo)
-const produccionActual =
-
-  produccionActiva.find(p =>
-
-    normalizar(p.operario)
-    ===
-    normalizar(
-      operarioSeleccionado
-    )
-
-    &&
-
-    normalizar(p.ot)
-    ===
-    normalizar(
-      otSeleccionada
-    )
-
-    &&
-
-    normalizar(p.proceso)
-    ===
-    normalizar(
-      procesoSeleccionado
-    )
-
-    &&
-
-    normalizar(p.subproceso)
-    ===
-    normalizar(
-      subprocesoSeleccionado
-    )
-
-  );
-
-  if (!produccionActual?.inicio) {
-
-  alert(
-    "No existe inicio de producción."
-  );
-
-  return;
-
-}
-
-const inicioProduccion =
-
-  produccionActual.inicio.toDate
-    ? produccionActual.inicio.toDate()
-    : new Date(
-        produccionActual.inicio
-      );
-
-const ahoraTiempo =
-  new Date();
-
-const tiempoTotalMs =
-  ahoraTiempo - inicioProduccion;
-
-let tiempoPausasMs = 0;
-
-const parosProduccion =
-
-  todosLosParos.filter(paro =>
-
-    normalizar(paro.operario)
-    ===
-    normalizar(
-      operarioSeleccionado
-    )
-
-    &&
-
-    normalizar(paro.ot)
-    ===
-    normalizar(
-      otSeleccionada
-    )
-
-    &&
-
-    normalizar(paro.proceso)
-    ===
-    normalizar(
-      procesoSeleccionado
-    )
-
-    &&
-
-    normalizar(paro.subproceso)
-    ===
-    normalizar(
-      subprocesoSeleccionado
-    )
-
-  );
-
-parosProduccion.forEach(paro => {
-
-  if (paro.inicio_paro) {
-
-    const inicioParo =
-      paro.inicio_paro.toDate
-        ? paro.inicio_paro.toDate()
-        : new Date(
-            paro.inicio_paro
-          );
-
-    const finParo =
-      paro.fin_paro
-
-        ? (
-            paro.fin_paro.toDate
-              ? paro.fin_paro.toDate()
-              : new Date(
-                  paro.fin_paro
-                )
-          )
-
-        : ahoraTiempo;
-
-    tiempoPausasMs +=
-      finParo - inicioParo;
-
-  }
-
-});
-
-const tiempoNetoMs =
-
-  tiempoTotalMs
-  - tiempoPausasMs;
-
-const horasTrabajadas =
-
-  tiempoNetoMs / 3600000;
 
   // 4. Búsqueda del estándar con LOGS de depuración
   const estandar = estandares.find(e => {
@@ -550,23 +269,7 @@ const horasTrabajadas =
   // TEMPORAL
   // mientras migramos a producción_activa
 
-  const esperado =
-
-  horasTrabajadas
-  *
-  estandar.unidades_hora;
-
-eficiencia =
-
-  esperado > 0
-
-    ? (
-        Number(cantidad)
-        /
-        esperado
-      ) * 100
-
-    : 0;
+  eficiencia = 100;
 
   eficiencia = Math.min(eficiencia, 150);
 
@@ -583,12 +286,6 @@ eficiencia =
 
     console.log("GUARDANDO PARO");
     
-    const horaInicioReal =
-      inicioProduccion;
-
-    const horaFinReal =
-      ahoraTiempo;
-
     await addDoc(collection(db, "registros_produccion"), {
       iniciado_por:
         usuarioSeleccionado?.nombre || "SIN USUARIO",
@@ -599,9 +296,6 @@ eficiencia =
       proceso: procesoSeleccionado,
       subproceso: subprocesoSeleccionado,
       detalle: detalleSeleccionado,
-      hora_inicio: horaInicioReal,
-      hora_fin: horaFinReal,
-      horas_trabajadas: horasTrabajadas,
       responsable_ajuste: responsableAjuste,
       tipo_ajuste: "Corrección Gerencial",
       cantidad_ok: Number(cantidad),
@@ -788,15 +482,11 @@ const cargarTodosLosParos = async () => {
       padding: 30,
       background: "#f4f6f8",
       minHeight: "100vh",
-      fontFamily: "Arial",
-
-      maxWidth: 1400,
-
-      margin: "0 auto"
+      fontFamily: "Arial"
     }}>
 
       {/* LOGO */}
-      <div style={{ textAlign: "center", marginBottom: 10 }}>
+      <div style={{ textAlign: "center", marginBottom: 30 }}>
         <img 
           src="/logo-bba.png" 
           alt="BBA" 
@@ -806,205 +496,13 @@ const cargarTodosLosParos = async () => {
       </div>
 
       {/* BOTONES */}
-
- {/* KPI SUPERIOR */}
-
-<div style={{
-
-  display: "grid",
-
-  gridTemplateColumns:
-    esMobile
-      ? "1fr 1fr"
-      : "repeat(4, 1fr)",
-
-  gap: 20,
-
-  marginBottom: 40
-
-}}>
-
-  {/* OTS ACTIVAS */}
-
-  <div style={{
-    background: "#E3F2FD",
-    color: "#1565C0",
-    padding: 18,
-    borderRadius: 20,
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.12)"
-  }}>
-
-    <div style={{
-      fontSize: 14,
-      opacity: 0.9
-    }}>
-
-      📋 OTs Activas
-
-    </div>
-
-    <div style={{
-      fontSize: 32,
-      fontWeight: "bold",
-      marginTop: 10
-    }}>
-
-      {
-
-        ots.filter(
-          o =>
-            o.estado ===
-            "activa"
-        ).length
-
-      }
-
-    </div>
-
-  </div>
-
-  {/* PRODUCCIÓN */}
-
-  <div style={{
-    background: "#E8F5E9",
-    color: "#2E7D32",
-    padding: 18,
-    borderRadius: 20,
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.12)"
-  }}>
-
-    <div style={{
-      fontSize: 14,
-      opacity: 0.9
-    }}>
-
-      🏭 Producción Activa
-
-    </div>
-
-    <div style={{
-      fontSize: 32,
-      fontWeight: "bold",
-      marginTop: 10
-    }}>
-
-      {produccionActiva.length}
-
-    </div>
-
-  </div>
-
-  {/* PAROS */}
-
-  <div style={{
-    background: "#FFF3E0",
-    color: "#EF6C00",
-    padding: 18,
-    borderRadius: 20,
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.12)"
-  }}>
-
-    <div style={{
-      fontSize: 14,
-      opacity: 0.9
-    }}>
-
-      ⏸️ Paros Activos
-
-    </div>
-
-    <div style={{
-      fontSize: 32,
-      fontWeight: "bold",
-      marginTop: 10
-    }}>
-
-      {parosActivos.length}
-
-    </div>
-
-  </div>
-
-  {/* OPERACIONES */}
-
-  <div style={{
-    background: "#ECEFF1",
-    color: "#455A64",
-    padding: 18,
-    borderRadius: 20,
-    boxShadow:
-      "0 4px 12px rgba(0,0,0,0.12)"
-  }}>
-
-    <div style={{
-      fontSize: 14,
-      opacity: 0.9
-    }}>
-
-      ⚙️ Operaciones
-
-    </div>
-
-    <div style={{
-      fontSize: 32,
-      fontWeight: "bold",
-      marginTop: 10
-    }}>
-
-      {operacionesMaestras.length}
-
-    </div>
-
-  </div>
-
-</div>     
-
       <div style={{
-
-        display: "grid",
-
-        gridTemplateColumns:
-          esMobile
-            ? "1fr"
-            : "1.4fr 1fr 1fr",
-
-        gap: 40,
-
-        marginTop: 40,
-
-        alignItems: "start"
-
+        display: "flex",
+        flexDirection: "column",
+        gap: 15,
+        maxWidth: 300,
+        margin: "0 auto"
       }}>
-
-      <div>
-
-        <h3 style={{
-          marginTop: 30,
-          marginBottom: 15,
-          color: "#555"
-        }}>
-          📊 Operación
-        </h3>
-
-        <div style={{
-
-          display: "grid",
-
-          gridTemplateColumns:
-            esMobile
-              ? "1fr"
-              : "repeat(2, 1fr)",
-
-          gap: 22,
-
-          marginTop: 38,
-
-          marginBottom: 30
-
-        }}>
 
         <button
           onClick={() => {
@@ -1012,135 +510,124 @@ const cargarTodosLosParos = async () => {
             cargarDashboard();
           }}
           style={{
-            ...cardHome,
-            background: "#1976D2"
+            padding: "15px",
+            borderRadius: 10,
+            border: "none",
+            background: "#1976D2",
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            cursor: "pointer"
           }}
         >
           📊 Ver Dashboard
         </button>
 
         <button
-          onClick={() => setPantalla("crearOT")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
+          onClick={() =>
+            setPantalla("crearOT")
+          }
+          style={botonAzul}
         >
+
           📋 Crear OT
+
         </button>
 
         <button
           onClick={() => setPantalla("registro")}
           style={{
-            ...cardHome,
-            background: "#1976D2"
+            padding: "15px",
+            borderRadius: 10,
+            border: "none",
+            background: "#4CAF50",
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            cursor: "pointer"
           }}
         >
           🏭 Registrar Producción
         </button>
 
-         <button
+        <button
+          onClick={() =>
+            setPantalla("historialParos")
+          }
+          style={botonAzul}
+        >
+          📋 Historial de Paros
+        </button>
+
+        <button
           onClick={() => setPantalla("ot")}
           style={{
-            ...cardHome,
-            background: "#1976D2"
+            padding: "15px",
+            borderRadius: 10,
+            border: "none",
+            background: "#9C27B0",
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
+            marginTop: 10
           }}
         >
           📋 Ver Órdenes de Trabajo 
         </button>
 
-        </div>
-</div>
-
-<div style={{
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
-        <h3 style={{
-          marginTop: 30,
-          marginBottom: 15,
-          color: "#555"
-        }}>
-
-          ⚠️ Control
-
-        </h3>
-
         <button
-          onClick={() => setPantalla("historialParos")}
-          style={{
-            ...cardHome,
-            background: "#F57C00"
-          }}
-        >
-          📋 Historial de Paros
-        </button>
-
-          <button
-            onClick={() => setPantalla("ajusteGerencial")}
+            onClick={() => setPantalla("avanceOT")}
             style={{
-              ...cardHome,
-              background: "#EF6C00"
+              padding: "15px",
+              borderRadius: 10,
+              border: "none",
+              background: "#FF9800",
+              color: "white",
+              fontSize: 16,
+              fontWeight: "bold",
+              cursor: "pointer"
             }}
           >
+            📋 Avance OT
+          </button>
+
+          <button
+            onClick={() =>
+              setPantalla("ajusteGerencial")
+            }
+            style={botonAzul}
+          >
+
             🛠 Ajuste Gerencial
+
           </button>
-</div>
-
-<div style={{
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
-          <h3 style={{
-            marginTop: 30,
-            marginBottom: 15,
-            color: "#555"
-          }}>
-
-            ⚙️ Ingeniería
-
-          </h3>
 
           <button
-            onClick={() => setPantalla("configProduccion")}
-            style={{
-              ...cardHome,
-              background: "#455A64"
-            }}
+            onClick={() =>
+              setPantalla(
+                "configProduccion"
+              )
+            }
+            style={botonAzul}
           >
+
             ⚙️ Configuración Producción
+
           </button>
 
           <button
-            onClick={() => setPantalla("configProductos")}
-            style={{
-              ...cardHome,
-              background: "#546E7A"
-            }}
+            onClick={() =>
+              setPantalla(
+                "configProductos"
+              )
+            }
+            style={botonAzul}
           >
+
             📦 Configuración Productos
+
           </button>
 
-          <button
-            onClick={() => setPantalla("operacionesMaestras")}
-            style={{
-              ...cardHome,
-              background: "#607D8B"
-            }}
-          >
-            ⚙️ Operaciones Maestras
-          </button>
-</div>
       </div>
     </div>
   );
@@ -1259,12 +746,12 @@ if (pantalla === "registro") {
             ))}
         </select>
 
-        {/* OPERACIÓN */}
+        {/* DETALLE */}
         <select
           onChange={(e) => setDetalleSeleccionado(e.target.value)}
           style={estiloInput}
         >
-          <option value="">Seleccionar Operación</option>
+          <option value="">Seleccionar Detalle</option>
           {subprocesos
             .find(sp => sp.nombre === subprocesoSeleccionado)
             ?.detalles?.map((d, i) => (
@@ -3316,118 +2803,6 @@ if (pantalla === "otDetalle") {
         })()}
 
           <p><b>Cantidad:</b> {otDetalle.cantidad}</p>
-
-<div style={{
-  marginTop: 25
-}}>
-
-  <h3>
-    🧩 Estructura Producto
-  </h3>
-
-  {
-
-    Array.isArray(
-      otDetalle.estructura_producto
-    )
-
-    &&
-
-    otDetalle.estructura_producto.length > 0
-
-      ? (
-
-        otDetalle.estructura_producto.map(
-          (e, i) => (
-
-            <div
-              key={i}
-              style={{
-                background: "#FFFFFF",
-                padding: 14,
-                borderRadius: 14,
-                marginBottom: 12,
-                boxShadow:
-                  "0 2px 6px rgba(0,0,0,0.06)"
-              }}
-            >
-
-              <div style={{
-                fontWeight: "bold",
-                fontSize: 18
-              }}>
-                ⚙️ {e.operacion}
-              </div>
-
-              <div style={{
-                marginTop: 8,
-                color: "#555"
-              }}>
-
-                🧱 Material:
-                {" "}
-                {e.material || "-"}
-
-              </div>
-
-              <div style={{
-                marginTop: 6,
-                color: "#555"
-              }}>
-
-                📏 Medida:
-                {" "}
-                {e.medida || "-"}
-
-              </div>
-
-              <div style={{
-                marginTop: 6,
-                color: "#555"
-              }}>
-
-                🔢 Cantidad:
-                {" "}
-                {e.cantidad || 0}
-
-              </div>
-
-              <div style={{
-                marginTop: 6,
-                color: "#555"
-              }}>
-
-                ⚡ Unidades/Hora:
-                {" "}
-                {e.unidades_hora || 0}
-
-              </div>
-
-            </div>
-
-          )
-
-        )
-
-      )
-
-      : (
-
-        <div style={{
-          color: "#999",
-          marginTop: 10
-        }}>
-
-          Sin estructura definida
-
-        </div>
-
-      )
-
-  }
-
-</div>
-
           <p>
             <b>Fecha Entrega:</b>{" "}
             {otDetalle.fecha_de_entrega?.toDate().toLocaleDateString()}
@@ -5968,7 +5343,7 @@ const avanceProceso =
 >
 
   <option value="">
-    Operación
+    Detalle
   </option>
 
   {
@@ -6183,291 +5558,6 @@ const avanceProceso =
 
         </button>
 
-<hr style={{
-  marginTop: 40,
-  marginBottom: 30
-}} />
-
-<h3>
-  ✏️ Corrección Registros
-</h3>
-
-<div style={{
-  marginTop: 20
-}}>
-
-  {
-
-    registros
-
-    .slice(0, 10)
-
-    .map((r, i) => (
-
-      <div
-        key={i}
-        style={{
-          background: "white",
-          padding: 14,
-          borderRadius: 14,
-          marginBottom: 14,
-          boxShadow:
-            "0 2px 6px rgba(0,0,0,0.06)"
-        }}
-      >
-
-        <div>
-          👷 {r.operario}
-        </div>
-
-        {
-          registroFueAjustado(r.id)
-          &&
-          (
-            <div style={{
-              marginTop: 6,
-              background: "#FFF3E0",
-              color: "#E65100",
-              padding: "4px 10px",
-              borderRadius: 20,
-              display: "inline-block",
-              fontSize: 12,
-               fontWeight: "bold"
-            }}>
-              ✏️ Ajustado Gerencia
-            </div>
-          )
-        }
-
-        <div>
-          📋 {r.ot}
-        </div>
-
-        <div>
-          ⚙️ {r.detalle}
-        </div>
-
-        <div>
-          🕒 Inicio:
-          {" "}
-          {r.hora_inicio || "-"}
-        </div>
-
-        <div>
-          🕒 Fin:
-          {" "}
-          {r.hora_fin || "-"}
-        </div>
-
-        <div>
-          🔢 Cantidad:
-          {" "}
-          {r.cantidad_ok || 0}
-        </div>
-
-        <button
-
-          style={{
-            ...botonAzul,
-            marginTop: 10
-          }}
-
-          onClick={() => {
-
-            setRegistroAjuste(r);
-
-            setNuevaHoraInicio(
-              r.hora_inicio || ""
-            );
-
-            setNuevaHoraFin(
-              r.hora_fin || ""
-            );
-
-            setNuevaCantidad(
-              r.cantidad_ok || ""
-            );
-
-          }}
-
-        >
-
-          ✏️ Corregir Registro
-
-        </button>
-
-      </div>
-
-    ))
-
-  }
-
-</div>
-
-{
-
-  registroAjuste && (
-
-    <div style={{
-      background: "#FFF8E1",
-      padding: 20,
-      borderRadius: 16,
-      marginTop: 30,
-      border:
-        "2px solid #FFE082"
-    }}>
-
-      <h3>
-        ✏️ Corregir Registro
-      </h3>
-
-      <div style={{
-        marginBottom: 12
-      }}>
-
-        👷 {registroAjuste.operario}
-
-      </div>
-
-      <input
-        type="text"
-        placeholder="Nueva Hora Inicio"
-        style={estiloInput}
-        value={nuevaHoraInicio}
-        onChange={(e) =>
-          setNuevaHoraInicio(
-            e.target.value
-          )
-        }
-      />
-
-      <input
-        type="text"
-        placeholder="Nueva Hora Fin"
-        style={estiloInput}
-        value={nuevaHoraFin}
-        onChange={(e) =>
-          setNuevaHoraFin(
-            e.target.value
-          )
-        }
-      />
-
-      <input
-        type="number"
-        placeholder="Nueva Cantidad"
-        style={estiloInput}
-        value={nuevaCantidad}
-        onChange={(e) =>
-          setNuevaCantidad(
-            e.target.value
-          )
-        }
-      />
-
-      <input
-        type="text"
-        placeholder="Motivo corrección"
-        style={estiloInput}
-        value={motivoAjuste}
-        onChange={(e) =>
-          setMotivoAjuste(
-            e.target.value
-          )
-        }
-      />
-
-      <button
-
-        style={botonVerde}
-
-        onClick={async () => {
-
-          try {
-
-            await addDoc(
-
-              collection(
-                db,
-                "ajustes_produccion"
-              ),
-
-              {
-
-                produccion_id:
-                  registroAjuste.id,
-
-                hora_inicio_original:
-                  registroAjuste.hora_inicio
-                  || "",
-
-                hora_inicio_nueva:
-                  nuevaHoraInicio,
-
-                hora_fin_original:
-                  registroAjuste.hora_fin
-                  || "",
-
-                hora_fin_nueva:
-                  nuevaHoraFin,
-
-                cantidad_original:
-                  registroAjuste.cantidad_ok
-                  || 0,
-
-                cantidad_nueva:
-                  Number(
-                    nuevaCantidad
-                  ),
-
-                motivo:
-                  motivoAjuste,
-
-                responsable:
-                  usuarioSeleccionado?.nombre
-                  || "GERENCIA",
-
-                fecha_ajuste:
-                  new Date()
-
-              }
-
-            );
-
-            alert(
-              "✅ Corrección guardada"
-            );
-
-            setRegistroAjuste(null);
-
-            setMotivoAjuste("");
-
-          }
-
-          catch (error) {
-
-            console.error(error);
-
-            alert(
-              "Error guardando corrección"
-            );
-
-          }
-
-        }}
-
-      >
-
-        💾 Guardar Corrección
-
-      </button>
-
-    </div>
-
-  )
-
-}
-
         <button
           style={botonAzul}
           onClick={() =>
@@ -6647,25 +5737,12 @@ const avanceProceso =
 
             try {
 
-              const productoSeleccionado =
-
-                productosConfig.find(
-                  p =>
-                    p.nombre ===
-                    productoOT
-                );
-
-              const estructuraProducto =
-
-                productoSeleccionado?.estructura || [];
-
               await addDoc(
                 collection(db, "ordenes_trabajo"),
                 {
                   nombre: otSeleccionada,
                   cliente: clienteOT,
                   producto: productoOT,
-                  estructura_producto: estructuraProducto,
                   cantidad: Number(cantidad),
                   fecha_inicio: fechaInicioOT,
                   fecha_entrega: fechaEntregaOT,
@@ -7008,7 +6085,7 @@ const avanceProceso =
 }}>
 
   <h3>
-    ⚙️ Crear Operación Base
+    📦 Crear Detalle
   </h3>
 
   {/* PROCESO */}
@@ -7086,7 +6163,7 @@ const avanceProceso =
 
   <input
     type="text"
-    placeholder="Código operación"
+    placeholder="Nombre detalle"
     style={estiloInput}
     value={nuevoDetalle}
     onChange={(e) =>
@@ -7100,7 +6177,7 @@ const avanceProceso =
 
   <input
     type="text"
-    placeholder="Material ejemplo"
+    placeholder="Material"
     style={estiloInput}
     value={materialDetalle}
     onChange={(e) =>
@@ -7114,7 +6191,7 @@ const avanceProceso =
 
   <input
     type="text"
-    placeholder="Medida ejemplo mm"
+    placeholder="Medida"
     style={estiloInput}
     value={medidaDetalle}
     onChange={(e) =>
@@ -7200,6 +6277,11 @@ const avanceProceso =
                     medida:
                       medidaDetalle,
 
+                    cantidad_objetivo:
+                      Number(
+                        objetivoDetalle
+                      ),
+
                     activo: true
 
                   }
@@ -7232,7 +6314,7 @@ const avanceProceso =
         );
 
         alert(
-          "✅ Operación creada"
+          "✅ Detalle creado"
         );
 
         setNuevoDetalle("");
@@ -7241,7 +6323,7 @@ const avanceProceso =
 
         setMedidaDetalle("");
 
-        // setObjetivoDetalle("");
+        setObjetivoDetalle("");
 
         setSubprocesoSeleccionadoConfig("");
 
@@ -7254,7 +6336,7 @@ const avanceProceso =
         console.error(error);
 
         alert(
-          "Error creando operación"
+          "Error creando detalle"
         );
 
       }
@@ -7262,7 +6344,7 @@ const avanceProceso =
     }}
   >
 
-    ✅ Guardar Operación
+    ✅ Guardar Detalle
 
   </button>
 
@@ -7319,761 +6401,6 @@ const avanceProceso =
           </div>
 
         ))}
-
-      </div>
-
-      <button
-        style={botonAzul}
-        onClick={() =>
-          setPantalla("home")
-        }
-      >
-
-        ⬅ Volver
-
-      </button>
-
-    </div>
-
-  );
-
-}
-
-if (pantalla === "configProductos") {
-
-  return (
-
-    <div style={{
-      padding: 20,
-      maxWidth: 900,
-      margin: "0 auto"
-    }}>
-
-      <h2>
-        📦 Configuración Productos
-      </h2>
-
-      {/* CREAR PRODUCTO */}
-
-      <div style={{
-        background: "white",
-        padding: 20,
-        borderRadius: 14,
-        marginTop: 20,
-        boxShadow:
-          "0 2px 8px rgba(0,0,0,0.08)"
-      }}>
-
-        <h3>
-          ➕ Crear Producto
-        </h3>
-
-        <input
-          type="text"
-          placeholder="Nombre producto"
-          style={estiloInput}
-          value={nuevoProducto}
-          onChange={(e) =>
-            setNuevoProducto(
-              e.target.value
-            )
-          }
-        />
-
-        <button
-          style={botonVerde}
-
-          onClick={async () => {
-
-            if (!nuevoProducto) {
-
-              alert(
-                "Ingresa nombre producto"
-              );
-
-              return;
-
-            }
-
-            try {
-
-              await addDoc(
-
-                collection(
-                  db,
-                  "config_productos"
-                ),
-
-                {
-
-                  nombre:
-                    nuevoProducto,
-
-                  activo: true,
-
-                  estructura: [],
-
-                  fecha_creacion:
-                    new Date()
-
-                }
-
-              );
-
-              alert(
-                "✅ Producto creado"
-              );
-
-              setNuevoProducto("");
-
-              cargarDatos();
-
-            }
-
-            catch (error) {
-
-              console.error(error);
-
-              alert(
-                "Error creando producto"
-              );
-
-            }
-
-          }}
-        >
-
-          ✅ Guardar Producto
-
-        </button>
-
-      </div>
-
-      <div style={{
-  background: "white",
-  padding: 20,
-  borderRadius: 14,
-  marginTop: 20,
-  boxShadow:
-    "0 2px 8px rgba(0,0,0,0.08)"
-}}>
-
-  <h3>
-    🧩 Agregar Operación al Producto
-  </h3>
-
-  {/* PRODUCTO */}
-
-  <select
-    style={estiloInput}
-    value={productoSeleccionadoOperacion}
-    onChange={(e) =>
-      setProductoSeleccionadoOperacion(
-        e.target.value
-      )
-    }
-  >
-
-    <option value="">
-      Seleccionar producto
-    </option>
-
-    {productosConfig.map((p) => (
-
-      <option
-        key={p.id}
-        value={p.id}
-      >
-
-        {p.nombre}
-
-      </option>
-
-    ))}
-
-  </select>
-
-  {/* OPERACIÓN */}
-
-  <select
-    style={estiloInput}
-    value={operacionSeleccionadaProducto}
-    onChange={(e) =>
-      setOperacionSeleccionadaProducto(
-        e.target.value
-      )
-    }
-  >
-
-    <option value="">
-      Seleccionar operación
-    </option>
-
-    {Array.isArray(operacionesMaestras) &&
-
-      operacionesMaestras.map((o) => (
-
-        <option
-          key={o.id}
-          value={o.codigo}
-        >
-
-          {o.codigo}
-          {" • "}
-          {o.nombre}
-
-        </option>
-
-      ))
-
-    }
-
-  </select>
-
-  {/* MATERIAL */}
-
-  <input
-    type="text"
-    placeholder="Material"
-    style={estiloInput}
-    value={materialOperacionProducto}
-    onChange={(e) =>
-      setMaterialOperacionProducto(
-        e.target.value
-      )
-    }
-  />
-
-  {/* MEDIDA */}
-
-  <input
-    type="text"
-    placeholder="Medida mm"
-    style={estiloInput}
-    value={medidaOperacionProducto}
-    onChange={(e) =>
-      setMedidaOperacionProducto(
-        e.target.value
-      )
-    }
-  />
-
-  {/* CANTIDAD */}
-
-  <input
-    type="number"
-    placeholder="Cantidad requerida"
-    style={estiloInput}
-    value={cantidadOperacionProducto}
-    onChange={(e) =>
-      setCantidadOperacionProducto(
-        e.target.value
-      )
-    }
-  />
-
-  {/* UNIDADES HORA */}
-
-  <input
-    type="number"
-    placeholder="Unidades por hora"
-    style={estiloInput}
-    value={unidadesHoraOperacionProducto}
-    onChange={(e) =>
-      setUnidadesHoraOperacionProducto(
-        e.target.value
-      )
-    }
-  />
-
-  <button
-    style={botonVerde}
-
-    onClick={async () => {
-
-      if (
-
-        !productoSeleccionadoOperacion ||
-
-        !operacionSeleccionadaProducto
-
-      ) {
-
-        alert(
-          "Completa datos"
-        );
-
-        return;
-
-      }
-
-      try {
-
-        const productoDoc =
-          productosConfig.find(
-            p =>
-              p.id ===
-              productoSeleccionadoOperacion
-          );
-
-        const estructuraActual =
-          productoDoc.estructura || [];
-
-        await updateDoc(
-
-          doc(
-            db,
-            "config_productos",
-            productoSeleccionadoOperacion
-          ),
-
-          {
-
-            estructura: [
-
-              ...estructuraActual,
-
-              {
-
-                operacion:
-                  operacionSeleccionadaProducto,
-
-                material:
-                  materialOperacionProducto,
-
-                medida:
-                  medidaOperacionProducto,
-
-                cantidad:
-                  Number(
-                    cantidadOperacionProducto
-                  ),
-
-                unidades_hora:
-                  Number(
-                    unidadesHoraOperacionProducto
-                  )
-
-              }
-
-            ]
-
-          }
-
-        );
-
-        alert(
-          "✅ Operación agregada"
-        );
-
-        setOperacionSeleccionadaProducto("");
-
-        setMaterialOperacionProducto("");
-
-        setMedidaOperacionProducto("");
-
-        setCantidadOperacionProducto("");
-
-        setUnidadesHoraOperacionProducto("");
-
-        cargarDatos();
-
-      }
-
-      catch (error) {
-
-        console.error(error);
-
-        alert(
-          "Error agregando operación"
-        );
-
-      }
-
-    }}
-  >
-
-    ✅ Guardar Operación
-
-  </button>
-
-</div>
-
-      {/* LISTADO */}
-
-      <div style={{
-        marginTop: 30
-      }}>
-
-        <h3>
-          📚 Productos
-        </h3>
-
-        {Array.isArray(productosConfig) &&
-
-          productosConfig.map((p) => (
-
-            <div
-              key={p.id}
-              style={{
-                background: "white",
-                padding: 18,
-                borderRadius: 14,
-                marginBottom: 14,
-                boxShadow:
-                  "0 2px 6px rgba(0,0,0,0.06)"
-              }}
-            >
-
-              <div style={{
-                display: "flex",
-                justifyContent:
-                  "space-between",
-                alignItems: "center"
-              }}>
-
-                <div style={{
-                  fontWeight: "bold",
-                  fontSize: 20
-                }}>
-                  📦 {p.nombre}
-                </div>
-
-                <div>
-
-                  {
-                    p.activo
-                      ? "🟢 Activo"
-                      : "⚫ Inactivo"
-                  }
-
-                </div>
-
-              </div>
-
-              <div style={{
-                marginTop: 10,
-                color: "#666"
-              }}>
-
-                🧩 Componentes:
-                {" "}
-
-                {
-                  Array.isArray(p.estructura)
-                    ? p.estructura.length
-                    : 0
-                }
-
-              </div>
-
-            </div>
-
-          ))
-
-        }
-
-      </div>
-
-      <button
-        style={botonAzul}
-        onClick={() =>
-          setPantalla("home")
-        }
-      >
-
-        ⬅ Volver
-
-      </button>
-
-    </div>
-
-  );
-
-}
-
-if (pantalla === "operacionesMaestras") {
-
-  return (
-
-    <div style={{
-      padding: 20,
-      maxWidth: 900,
-      margin: "0 auto"
-    }}>
-
-      <h2>
-        ⚙️ Operaciones Maestras
-      </h2>
-
-      {/* CREAR */}
-
-      <div style={{
-        background: "white",
-        padding: 20,
-        borderRadius: 14,
-        marginTop: 20,
-        boxShadow:
-          "0 2px 8px rgba(0,0,0,0.08)"
-      }}>
-
-        <h3>
-          ➕ Crear Operación
-        </h3>
-
-        {/* CÓDIGO */}
-
-        <input
-          type="text"
-          placeholder="Código operación"
-          style={estiloInput}
-          value={codigoOperacion}
-          onChange={(e) =>
-            setCodigoOperacion(
-              e.target.value
-            )
-          }
-        />
-
-        {/* NOMBRE */}
-
-        <input
-          type="text"
-          placeholder="Nombre operación"
-          style={estiloInput}
-          value={nombreOperacion}
-          onChange={(e) =>
-            setNombreOperacion(
-              e.target.value
-            )
-          }
-        />
-
-        {/* PROCESO */}
-
-        <select
-          style={estiloInput}
-          value={procesoOperacion}
-          onChange={(e) =>
-            setProcesoOperacion(
-              e.target.value
-            )
-          }
-        >
-
-          <option value="">
-            Seleccionar proceso
-          </option>
-
-          {procesosConfig.map((p) => (
-
-            <option
-              key={p.id}
-              value={p.nombre}
-            >
-
-              {p.nombre}
-
-            </option>
-
-          ))}
-
-        </select>
-
-        {/* SUBPROCESO */}
-
-        <select
-          style={estiloInput}
-          value={subprocesoOperacion}
-          onChange={(e) =>
-            setSubprocesoOperacion(
-              e.target.value
-            )
-          }
-        >
-
-          <option value="">
-            Seleccionar subproceso
-          </option>
-
-          {
-
-            procesosConfig
-
-              .find(
-                p =>
-                  p.nombre ===
-                  procesoOperacion
-              )
-
-              ?.subprocesos
-
-              ?.map((s, i) => (
-
-                <option
-                  key={i}
-                  value={s.nombre}
-                >
-
-                  {s.nombre}
-
-                </option>
-
-              ))
-
-          }
-
-        </select>
-
-        <button
-          style={botonVerde}
-
-          onClick={async () => {
-
-            if (
-
-              !codigoOperacion ||
-
-              !nombreOperacion ||
-
-              !procesoOperacion ||
-
-              !subprocesoOperacion
-
-            ) {
-
-              alert(
-                "Completa datos"
-              );
-
-              return;
-
-            }
-
-            try {
-
-              await addDoc(
-
-                collection(
-                  db,
-                  "operaciones_maestras"
-                ),
-
-                {
-
-                  codigo:
-                    codigoOperacion,
-
-                  nombre:
-                    nombreOperacion,
-
-                  proceso:
-                    procesoOperacion,
-
-                  subproceso:
-                    subprocesoOperacion,
-
-                  activo: true,
-
-                  fecha_creacion:
-                    new Date()
-
-                }
-
-              );
-
-              alert(
-                "✅ Operación creada"
-              );
-
-              setCodigoOperacion("");
-
-              setNombreOperacion("");
-
-              setProcesoOperacion("");
-
-              setSubprocesoOperacion("");
-
-              cargarDatos();
-
-            }
-
-            catch (error) {
-
-              console.error(error);
-
-              alert(
-                "Error creando operación"
-              );
-
-            }
-
-          }}
-        >
-
-          ✅ Guardar Operación
-
-        </button>
-
-      </div>
-
-      {/* LISTADO */}
-
-      <div style={{
-        marginTop: 30
-      }}>
-
-        <h3>
-          📚 Operaciones
-        </h3>
-
-        {Array.isArray(operacionesMaestras) &&
-
-          operacionesMaestras.map((o) => (
-
-            <div
-              key={o.id}
-              style={{
-                background: "white",
-                padding: 18,
-                borderRadius: 14,
-                marginBottom: 14,
-                boxShadow:
-                  "0 2px 6px rgba(0,0,0,0.06)"
-              }}
-            >
-
-              <div style={{
-                fontWeight: "bold",
-                fontSize: 20
-              }}>
-                ⚙️ {o.codigo}
-              </div>
-
-              <div style={{
-                marginTop: 8
-              }}>
-
-                {o.nombre}
-
-              </div>
-
-              <div style={{
-                marginTop: 8,
-                color: "#666"
-              }}>
-
-                🏭 {o.proceso}
-                {" • "}
-                ⚙️ {o.subproceso}
-
-              </div>
-
-            </div>
-
-          ))
-
-        }
 
       </div>
 
