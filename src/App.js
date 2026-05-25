@@ -6200,9 +6200,41 @@ const avanceProceso =
 
     registros
 
-    .slice(0, 10)
+.filter(r =>
 
-    .map((r, i) => (
+  (!otSeleccionada ||
+
+    normalizar(r.ot)
+    ===
+    normalizar(
+      otSeleccionada
+    )
+  )
+
+  &&
+
+  (!operarioSeleccionado ||
+
+    normalizar(r.operario)
+    ===
+    normalizar(
+      operarioSeleccionado
+    )
+  )
+
+)
+
+.sort((a, b) =>
+
+  b.fecha?.seconds
+  -
+  a.fecha?.seconds
+
+)
+
+.slice(0, 30)
+
+.map((r, i) => (
 
       <div
         key={i}
