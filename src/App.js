@@ -1371,6 +1371,8 @@ const parosDeEstaProduccion =
 
   );
 
+let tiempoPausasMs = 0;
+
 parosDeEstaProduccion.forEach(paro => {
 
   if (paro.inicio_paro) {
@@ -1454,8 +1456,6 @@ const tiempoDetenidoFormateado = `
   :
   ${String(segundosDet).padStart(2, "0")}
 `;
-
-  let tiempoPausasMs = 0;
 
 const tiempoHoras =
   inicio
@@ -1843,9 +1843,20 @@ return (
               ),
               {
                 cantidad_actual:
-                  Number(
-                    p.nuevaCantidad || 0
-                  )
+
+                  p.nuevaCantidad !==
+                  undefined
+
+                    &&
+
+                  p.nuevaCantidad !==
+                  ""
+
+                    ? Number(
+                        p.nuevaCantidad
+                      )
+
+                    : p.cantidad_actual
               }
             );
 
