@@ -2015,7 +2015,20 @@ return (
             (1000 * 60 * 60);
 
           const cantidadOK =
-            Number(p.cantidadFinal || 0);
+
+  p.cantidadFinal !==
+  undefined
+
+    &&
+
+  p.cantidadFinal !==
+  ""
+
+    ? Number(p.cantidadFinal)
+
+    : Number(
+        p.cantidad_actual || 0
+      );
 
           const estandar =
             estandares.find(e => {
@@ -2082,8 +2095,6 @@ return (
               proceso: p.proceso,
               subproceso: p.subproceso,
               detalle: p.detalle,
-
-              cantidad_actual: 0,
 
               ot: p.ot,
 
@@ -5677,7 +5688,18 @@ const avanceProceso =
 
         <tbody>
 
-          {todosLosParos.map(paro => {
+          {
+            todosLosParos
+              .sort((a, b) =>
+                (
+                  b.inicio_paro?.seconds || 0
+                )
+                -
+                (
+                  a.inicio_paro?.seconds || 0
+                )
+              )
+              .map(paro => {
 
             const inicio =
               paro.inicio_paro?.toDate
@@ -5865,9 +5887,9 @@ const avanceProceso =
 
         <select
   style={estiloInput}
-  value={operarioSeleccionado}
+  value={responsableAjuste}
   onChange={(e) =>
-    setOperarioSeleccionado(
+    setResponsableAjuste(
       e.target.value
     )
   }
@@ -6287,8 +6309,56 @@ const avanceProceso =
         </div>
 
         <div>
-          ⚙️ {r.detalle}
-        </div>
+  ⚙️ Proceso:
+  {" "}
+  {r.proceso || "-"}
+</div>
+
+<div>
+  🧩 Subproceso:
+  {" "}
+  {r.subproceso || "-"}
+</div>
+
+<div>
+  ⚙️ Detalle:
+  {" "}
+  {r.detalle || "-"}
+</div>
+
+<div>
+  🕒 Registro:
+  {" "}
+
+  {
+
+    r.fecha?.toDate
+
+      ?
+
+    r.fecha
+      .toDate()
+      .toLocaleString()
+
+      :
+
+    "-"
+
+  }
+
+</div>
+
+<div>
+  🕒 Inicio:
+  {" "}
+  {r.hora_inicio || "-"}
+</div>
+
+<div>
+  🕒 Fin:
+  {" "}
+  {r.hora_fin || "-"}
+</div>
 
         <div>
           🕒 Inicio:
