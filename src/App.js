@@ -2015,20 +2015,15 @@ return (
             (1000 * 60 * 60);
 
           const cantidadOK =
-
-  p.cantidadFinal !==
-  undefined
-
-    &&
-
-  p.cantidadFinal !==
-  ""
-
-    ? Number(p.cantidadFinal)
-
-    : Number(
-        p.cantidad_actual || 0
-      );
+            p.cantidadFinal !==
+            undefined
+              &&
+            p.cantidadFinal !==
+            ""
+              ? Number(p.cantidadFinal)
+              : Number(
+                  p.cantidad_actual || 0
+                );
 
           const estandar =
             estandares.find(e => {
@@ -2098,7 +2093,7 @@ return (
 
               ot: p.ot,
 
-              cantidad_ok: Number(p.cantidadFinal || 0),
+              cantidad_ok: Number(cantidadOK),
 
               inicio: p.inicio,
               fin: new Date(),
@@ -6546,6 +6541,51 @@ const avanceProceso =
               }
 
             );
+
+            await updateDoc(
+
+  doc(
+    db,
+    "registros_produccion",
+    registroAjuste.id
+  ),
+
+  {
+
+    cantidad_ok:
+      Number(nuevaCantidad)
+
+  }
+
+);
+
+const registrosSnap =
+  await getDocs(
+    collection(
+      db,
+      "registros_produccion"
+    )
+  );
+
+setRegistros(
+  registrosSnap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+);
+
+await cargarDashboard();
+
+setRegistroAjuste(null);
+
+setNuevaCantidad("");
+
+setNuevaHoraInicio("");
+
+setNuevaHoraFin("");
+
+setMotivoAjuste("");
+
 
             alert(
               "✅ Corrección guardada"

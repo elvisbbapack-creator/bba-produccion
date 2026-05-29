@@ -80,7 +80,7 @@ function App() {
   const [objetivoDetalle, setObjetivoDetalle] = useState("");
 
   const [productosConfig, setProductosConfig] = useState([]);
-  const [nuevoProducto, setNuevoProducto] = useState("");
+  const [nuevoProducto, setNuevoProducto] =useState("");
 
   const [paroActivo, setParoActivo] = useState(false);
   const [paroActivoProduccion, setParoActivoProduccion] = useState(null);
@@ -720,7 +720,17 @@ if (pantalla === "registro") {
 
         {/* PROCESO */}
         <select
-          onChange={(e) => setProcesoSeleccionado(e.target.value)}
+          onChange={(e) => {
+
+  setProcesoSeleccionado(
+    e.target.value
+  );
+
+  setSubprocesoSeleccionado("");
+
+  setDetalleSeleccionado("");
+
+}}
           style={estiloInput}
         >
           <option value="">Seleccionar Proceso</option>
@@ -733,7 +743,15 @@ if (pantalla === "registro") {
 
         {/* SUBPROCESO */}
         <select
-          onChange={(e) => setSubprocesoSeleccionado(e.target.value)}
+          onChange={(e) => {
+
+  setSubprocesoSeleccionado(
+    e.target.value
+  );
+
+  setDetalleSeleccionado("");
+
+}}
           style={estiloInput}
         >
           <option value="">Seleccionar Subproceso</option>
@@ -748,12 +766,13 @@ if (pantalla === "registro") {
 
         {/* DETALLE */}
         <select
+          value={detalleSeleccionado}
           onChange={(e) => setDetalleSeleccionado(e.target.value)}
           style={estiloInput}
         >
           <option value="">Seleccionar Detalle</option>
           {subprocesos
-            .find(sp => sp.nombre === subprocesoSeleccionado)
+            .find(sp => normalizar(sp.nombre) === normalizar(subprocesoSeleccionado))
             ?.detalles?.map((d, i) => (
               <option key={i} value={d}>
                 {d}
@@ -797,6 +816,12 @@ if (pantalla === "registro") {
 
             return;
           }
+
+      console.log({
+        proceso: procesoSeleccionado,
+        subproceso: subprocesoSeleccionado,
+        detalle: detalleSeleccionado
+      });
 
       await addDoc(
         collection(db, "produccion_activa"),
