@@ -13,6 +13,7 @@ import {
   updateDoc,
   query,
   orderBy,
+  limit,
 } from "firebase/firestore";
 import {
   BarChart,
@@ -25,6 +26,8 @@ import {
 } from "recharts";
 
 function App() {
+  const esMobile =
+    window.innerWidth < 768;
   /* eslint-disable no-unused-vars */
   const normalizar = (txt) =>
   (txt || "")
@@ -32,6 +35,16 @@ function App() {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+  const registroFueAjustado = (
+    registroId
+  ) => {
+    return ajustesProduccion.some(
+      a =>
+        a.produccion_id
+        ===
+        registroId
+    );
+  };
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
@@ -133,8 +146,16 @@ const [unidadesHoraOperacionProducto,
 
   const [responsableAjuste, setResponsableAjuste] = useState("");
 
+  const [registroAjuste, setRegistroAjuste] = useState(null);
+  const [nuevaHoraInicio, setNuevaHoraInicio] = useState("");
+  const [nuevaHoraFin, setNuevaHoraFin] = useState("");
+  const [nuevaCantidad, setNuevaCantidad] = useState("");
+  const [motivoAjuste, setMotivoAjuste] = useState("");
+
   const [parosActivos, setParosActivos] = useState([]);
   const [todosLosParos, setTodosLosParos] = useState([]);
+
+  const [ajustesProduccion, setAjustesProduccion] = useState([]);
 
   const [produccionSeleccionada, setProduccionSeleccionada] = useState(null);
 
@@ -200,6 +221,25 @@ const [unidadesHoraOperacionProducto,
     marginBottom: 12
   };
 
+  const cardHome = {
+    border: "none",
+    borderRadius: 18,
+    padding: "22px 18px",
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 22,
+    cursor: "pointer",
+    boxShadow:
+      "0 4px 12px rgba(0,0,0,0.15)",
+    width: "100%",
+    minHeight: 140,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    transition: "0.25s"
+  };
+
 const cargarDatos = useCallback(async () => {
 
   try {
@@ -250,6 +290,43 @@ const cargarDatos = useCallback(async () => {
 
     );
 
+    const ajustesQuery = query(
+  collection(db, "ajustes_produccion"),
+  orderBy("fecha_ajuste", "desc"),
+  limit(200)
+);
+
+const ajustesSnap = await getDocs(
+  ajustesQuery
+);
+
+setAjustesProduccion(
+
+  ajustesSnap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+
+);
+
+const registrosQuery = query(
+  collection(db, "registros_produccion"),
+  orderBy("fecha", "desc"),
+  limit(100)
+);
+
+const registrosSnap =
+  await getDocs(registrosQuery);
+
+setRegistros(
+
+  registrosSnap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+
+);
+
   } catch (error) {
     console.error("ERROR:", error);
   }
@@ -286,7 +363,7 @@ useEffect(() => {
 
     cargarDashboard();
 
-  }, 5000);
+  }, 60000);
 
   return () => clearInterval(intervalo);
 
@@ -306,6 +383,143 @@ useEffect(() => {
   }
 
   // 2. Cálculo de tiempo (Asegurar que existan marcas de tiempo)
+const produccionActual =
+
+  produccionActiva.find(p =>
+
+    normalizar(p.operario)
+    ===
+    normalizar(
+      operarioSeleccionado
+    )
+
+    &&
+
+    normalizar(p.ot)
+    ===
+    normalizar(
+      otSeleccionada
+    )
+
+    &&
+
+    normalizar(p.proceso)
+    ===
+    normalizar(
+      procesoSeleccionado
+    )
+
+    &&
+
+    normalizar(p.subproceso)
+    ===
+    normalizar(
+      subprocesoSeleccionado
+    )
+
+  );
+
+  if (!produccionActual?.inicio) {
+
+  alert(
+    "No existe inicio de producción."
+  );
+
+  return;
+
+}
+
+const inicioProduccion =
+
+  produccionActual.inicio.toDate
+    ? produccionActual.inicio.toDate()
+    : new Date(
+        produccionActual.inicio
+      );
+
+const ahoraTiempo =
+  new Date();
+
+const tiempoTotalMs =
+  ahoraTiempo - inicioProduccion;
+
+let tiempoPausasMs = 0;
+
+const parosProduccion =
+
+  todosLosParos.filter(paro =>
+
+    normalizar(paro.operario)
+    ===
+    normalizar(
+      operarioSeleccionado
+    )
+
+    &&
+
+    normalizar(paro.ot)
+    ===
+    normalizar(
+      otSeleccionada
+    )
+
+    &&
+
+    normalizar(paro.proceso)
+    ===
+    normalizar(
+      procesoSeleccionado
+    )
+
+    &&
+
+    normalizar(paro.subproceso)
+    ===
+    normalizar(
+      subprocesoSeleccionado
+    )
+
+  );
+
+parosProduccion.forEach(paro => {
+
+  if (paro.inicio_paro) {
+
+    const inicioParo =
+      paro.inicio_paro.toDate
+        ? paro.inicio_paro.toDate()
+        : new Date(
+            paro.inicio_paro
+          );
+
+    const finParo =
+      paro.fin_paro
+
+        ? (
+            paro.fin_paro.toDate
+              ? paro.fin_paro.toDate()
+              : new Date(
+                  paro.fin_paro
+                )
+          )
+
+        : ahoraTiempo;
+
+    tiempoPausasMs +=
+      finParo - inicioParo;
+
+  }
+
+});
+
+const tiempoNetoMs =
+
+  tiempoTotalMs
+  - tiempoPausasMs;
+
+const horasTrabajadas =
+
+  tiempoNetoMs / 3600000;
 
   // 4. Búsqueda del estándar con LOGS de depuración
   const estandar = estandares.find(e => {
@@ -334,7 +548,23 @@ useEffect(() => {
   // TEMPORAL
   // mientras migramos a producción_activa
 
-  eficiencia = 100;
+  const esperado =
+
+  horasTrabajadas
+  *
+  estandar.unidades_hora;
+
+eficiencia =
+
+  esperado > 0
+
+    ? (
+        Number(cantidad)
+        /
+        esperado
+      ) * 100
+
+    : 0;
 
   eficiencia = Math.min(eficiencia, 150);
 
@@ -351,6 +581,12 @@ useEffect(() => {
 
     console.log("GUARDANDO PARO");
     
+    const horaInicioReal =
+      inicioProduccion;
+
+    const horaFinReal =
+      ahoraTiempo;
+
     await addDoc(collection(db, "registros_produccion"), {
       iniciado_por:
         usuarioSeleccionado?.nombre || "SIN USUARIO",
@@ -361,6 +597,9 @@ useEffect(() => {
       proceso: procesoSeleccionado,
       subproceso: subprocesoSeleccionado,
       detalle: detalleSeleccionado,
+      hora_inicio: horaInicioReal,
+      hora_fin: horaFinReal,
+      horas_trabajadas: horasTrabajadas,
       responsable_ajuste: responsableAjuste,
       tipo_ajuste: "Corrección Gerencial",
       cantidad_ok: Number(cantidad),
@@ -389,7 +628,8 @@ const cargarDashboard = async () => {
   try {
     const q = query(
       collection(db, "registros_produccion"),
-      orderBy("fecha", "desc")
+      orderBy("fecha", "desc"),
+      limit(500)
     );
 
     const snap = await getDocs(q);
@@ -547,11 +787,15 @@ const cargarTodosLosParos = async () => {
       padding: 30,
       background: "#f4f6f8",
       minHeight: "100vh",
-      fontFamily: "Arial"
+      fontFamily: "Arial",
+
+      maxWidth: 1400,
+
+      margin: "0 auto"
     }}>
 
       {/* LOGO */}
-      <div style={{ textAlign: "center", marginBottom: 30 }}>
+      <div style={{ textAlign: "center", marginBottom: 10 }}>
         <img 
           src="/logo-bba.png" 
           alt="BBA" 
@@ -561,23 +805,205 @@ const cargarTodosLosParos = async () => {
       </div>
 
       {/* BOTONES */}
+
+ {/* KPI SUPERIOR */}
+
+<div style={{
+
+  display: "grid",
+
+  gridTemplateColumns:
+    esMobile
+      ? "1fr 1fr"
+      : "repeat(4, 1fr)",
+
+  gap: 20,
+
+  marginBottom: 40
+
+}}>
+
+  {/* OTS ACTIVAS */}
+
+  <div style={{
+    background: "#E3F2FD",
+    color: "#1565C0",
+    padding: 18,
+    borderRadius: 20,
+    boxShadow:
+      "0 4px 12px rgba(0,0,0,0.12)"
+  }}>
+
+    <div style={{
+      fontSize: 14,
+      opacity: 0.9
+    }}>
+
+      📋 OTs Activas
+
+    </div>
+
+    <div style={{
+      fontSize: 32,
+      fontWeight: "bold",
+      marginTop: 10
+    }}>
+
+      {
+
+        ots.filter(
+          o =>
+            o.estado ===
+            "activa"
+        ).length
+
+      }
+
+    </div>
+
+  </div>
+
+  {/* PRODUCCIÓN */}
+
+  <div style={{
+    background: "#E8F5E9",
+    color: "#2E7D32",
+    padding: 18,
+    borderRadius: 20,
+    boxShadow:
+      "0 4px 12px rgba(0,0,0,0.12)"
+  }}>
+
+    <div style={{
+      fontSize: 14,
+      opacity: 0.9
+    }}>
+
+      🏭 Producción Activa
+
+    </div>
+
+    <div style={{
+      fontSize: 32,
+      fontWeight: "bold",
+      marginTop: 10
+    }}>
+
+      {produccionActiva.length}
+
+    </div>
+
+  </div>
+
+  {/* PAROS */}
+
+  <div style={{
+    background: "#FFF3E0",
+    color: "#EF6C00",
+    padding: 18,
+    borderRadius: 20,
+    boxShadow:
+      "0 4px 12px rgba(0,0,0,0.12)"
+  }}>
+
+    <div style={{
+      fontSize: 14,
+      opacity: 0.9
+    }}>
+
+      ⏸️ Paros Activos
+
+    </div>
+
+    <div style={{
+      fontSize: 32,
+      fontWeight: "bold",
+      marginTop: 10
+    }}>
+
+      {parosActivos.length}
+
+    </div>
+
+  </div>
+
+  {/* OPERACIONES */}
+
+  <div style={{
+    background: "#ECEFF1",
+    color: "#455A64",
+    padding: 18,
+    borderRadius: 20,
+    boxShadow:
+      "0 4px 12px rgba(0,0,0,0.12)"
+  }}>
+
+    <div style={{
+      fontSize: 14,
+      opacity: 0.9
+    }}>
+
+      ⚙️ Operaciones
+
+    </div>
+
+    <div style={{
+      fontSize: 32,
+      fontWeight: "bold",
+      marginTop: 10
+    }}>
+
+      {operacionesMaestras.length}
+
+    </div>
+
+  </div>
+
+</div>     
+
       <div style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 15,
-        maxWidth: 300,
-        margin: "0 auto"
+
+        display: "grid",
+
+        gridTemplateColumns:
+          esMobile
+            ? "1fr"
+            : "1.4fr 1fr 1fr",
+
+        gap: 40,
+
+        marginTop: 40,
+
+        alignItems: "start"
+
       }}>
+
+      <div>
 
         <h3 style={{
           marginTop: 30,
           marginBottom: 15,
           color: "#555"
         }}>
-
           📊 Operación
-
         </h3>
+
+        <div style={{
+
+          display: "grid",
+
+          gridTemplateColumns:
+            esMobile
+              ? "1fr"
+              : "repeat(2, 1fr)",
+
+          gap: 22,
+
+          marginTop: 38,
+
+          marginBottom: 30
+
+        }}>
 
         <button
           onClick={() => {
@@ -585,46 +1011,55 @@ const cargarTodosLosParos = async () => {
             cargarDashboard();
           }}
           style={{
-            padding: "15px",
-            borderRadius: 10,
-            border: "none",
-            background: "#1976D2",
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-            cursor: "pointer"
+            ...cardHome,
+            background: "#1976D2"
           }}
         >
           📊 Ver Dashboard
         </button>
 
         <button
-          onClick={() =>
-            setPantalla("crearOT")
-          }
-          style={botonAzul}
+          onClick={() => setPantalla("crearOT")}
+          style={{
+            ...cardHome,
+            background: "#1976D2"
+          }}
         >
-
           📋 Crear OT
-
         </button>
 
         <button
           onClick={() => setPantalla("registro")}
           style={{
-            padding: "15px",
-            borderRadius: 10,
-            border: "none",
-            background: "#4CAF50",
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-            cursor: "pointer"
+            ...cardHome,
+            background: "#1976D2"
           }}
         >
           🏭 Registrar Producción
         </button>
 
+         <button
+          onClick={() => setPantalla("ot")}
+          style={{
+            ...cardHome,
+            background: "#1976D2"
+          }}
+        >
+          📋 Ver Órdenes de Trabajo 
+        </button>
+
+        </div>
+</div>
+
+<div style={{
+
+  display: "flex",
+
+  flexDirection: "column",
+
+  gap: 20
+
+}}>
         <h3 style={{
           marginTop: 30,
           marginBottom: 15,
@@ -636,41 +1071,35 @@ const cargarTodosLosParos = async () => {
         </h3>
 
         <button
-          onClick={() =>
-            setPantalla("historialParos")
-          }
-          style={botonAzul}
+          onClick={() => setPantalla("historialParos")}
+          style={{
+            ...cardHome,
+            background: "#F57C00"
+          }}
         >
           📋 Historial de Paros
         </button>
 
-        <button
-          onClick={() => setPantalla("ot")}
-          style={{
-            padding: "15px",
-            borderRadius: 10,
-            border: "none",
-            background: "#9C27B0",
-            color: "white",
-            fontSize: 16,
-            fontWeight: "bold",
-            marginTop: 10
-          }}
-        >
-          📋 Ver Órdenes de Trabajo 
-        </button>
-
           <button
-            onClick={() =>
-              setPantalla("ajusteGerencial")
-            }
-            style={botonAzul}
+            onClick={() => setPantalla("ajusteGerencial")}
+            style={{
+              ...cardHome,
+              background: "#EF6C00"
+            }}
           >
-
             🛠 Ajuste Gerencial
-
           </button>
+</div>
 
+<div style={{
+
+  display: "flex",
+
+  flexDirection: "column",
+
+  gap: 20
+
+}}>
           <h3 style={{
             marginTop: 30,
             marginBottom: 15,
@@ -682,31 +1111,35 @@ const cargarTodosLosParos = async () => {
           </h3>
 
           <button
-            onClick={() =>
-              setPantalla(
-                "configProduccion"
-              )
-            }
-            style={botonAzul}
+            onClick={() => setPantalla("configProduccion")}
+            style={{
+              ...cardHome,
+              background: "#455A64"
+            }}
           >
-
             ⚙️ Configuración Producción
-
           </button>
 
           <button
-            onClick={() =>
-              setPantalla(
-                "configProductos"
-              )
-            }
-            style={botonAzul}
+            onClick={() => setPantalla("configProductos")}
+            style={{
+              ...cardHome,
+              background: "#546E7A"
+            }}
           >
-
             📦 Configuración Productos
-
           </button>
 
+          <button
+            onClick={() => setPantalla("operacionesMaestras")}
+            style={{
+              ...cardHome,
+              background: "#607D8B"
+            }}
+          >
+            ⚙️ Operaciones Maestras
+          </button>
+</div>
       </div>
     </div>
   );
@@ -937,6 +1370,8 @@ const parosDeEstaProduccion =
 
   );
 
+let tiempoPausasMs = 0;
+
 parosDeEstaProduccion.forEach(paro => {
 
   if (paro.inicio_paro) {
@@ -1020,8 +1455,6 @@ const tiempoDetenidoFormateado = `
   :
   ${String(segundosDet).padStart(2, "0")}
 `;
-
-  let tiempoPausasMs = 0;
 
 const tiempoHoras =
   inicio
@@ -1409,9 +1842,20 @@ return (
               ),
               {
                 cantidad_actual:
-                  Number(
-                    p.nuevaCantidad || 0
-                  )
+
+                  p.nuevaCantidad !==
+                  undefined
+
+                    &&
+
+                  p.nuevaCantidad !==
+                  ""
+
+                    ? Number(
+                        p.nuevaCantidad
+                      )
+
+                    : p.cantidad_actual
               }
             );
 
@@ -1570,7 +2014,15 @@ return (
             (1000 * 60 * 60);
 
           const cantidadOK =
-            Number(p.cantidadFinal || 0);
+            p.cantidadFinal !==
+            undefined
+              &&
+            p.cantidadFinal !==
+            ""
+              ? Number(p.cantidadFinal)
+              : Number(
+                  p.cantidad_actual || 0
+                );
 
           const estandar =
             estandares.find(e => {
@@ -1638,11 +2090,9 @@ return (
               subproceso: p.subproceso,
               detalle: p.detalle,
 
-              cantidad_actual: 0,
-
               ot: p.ot,
 
-              cantidad_ok: Number(p.cantidadFinal || 0),
+              cantidad_ok: Number(cantidadOK),
 
               inicio: p.inicio,
               fin: new Date(),
@@ -5232,7 +5682,18 @@ const avanceProceso =
 
         <tbody>
 
-          {todosLosParos.map(paro => {
+          {
+            todosLosParos
+              .sort((a, b) =>
+                (
+                  b.inicio_paro?.seconds || 0
+                )
+                -
+                (
+                  a.inicio_paro?.seconds || 0
+                )
+              )
+              .map(paro => {
 
             const inicio =
               paro.inicio_paro?.toDate
@@ -5420,9 +5881,9 @@ const avanceProceso =
 
         <select
   style={estiloInput}
-  value={operarioSeleccionado}
+  value={responsableAjuste}
   onChange={(e) =>
-    setOperarioSeleccionado(
+    setResponsableAjuste(
       e.target.value
     )
   }
@@ -5748,6 +6209,416 @@ const avanceProceso =
           ✅ Aplicar Ajuste
 
         </button>
+
+<hr style={{
+  marginTop: 40,
+  marginBottom: 30
+}} />
+
+<h3>
+  ✏️ Corrección Registros
+</h3>
+
+<div style={{
+  marginTop: 20
+}}>
+
+  {
+
+    registros
+
+.filter(r =>
+
+  (!otSeleccionada ||
+
+    normalizar(r.ot)
+    ===
+    normalizar(
+      otSeleccionada
+    )
+  )
+
+  &&
+
+  (!operarioSeleccionado ||
+
+    normalizar(r.operario)
+    ===
+    normalizar(
+      operarioSeleccionado
+    )
+  )
+
+)
+
+.sort((a, b) =>
+
+  b.fecha?.seconds
+  -
+  a.fecha?.seconds
+
+)
+
+.slice(0, 30)
+
+.map((r, i) => (
+
+      <div
+        key={i}
+        style={{
+          background: "white",
+          padding: 14,
+          borderRadius: 14,
+          marginBottom: 14,
+          boxShadow:
+            "0 2px 6px rgba(0,0,0,0.06)"
+        }}
+      >
+
+        <div>
+          👷 {r.operario}
+        </div>
+
+        {
+          registroFueAjustado(r.id)
+          &&
+          (
+            <div style={{
+              marginTop: 6,
+              background: "#FFF3E0",
+              color: "#E65100",
+              padding: "4px 10px",
+              borderRadius: 20,
+              display: "inline-block",
+              fontSize: 12,
+               fontWeight: "bold"
+            }}>
+              ✏️ Ajustado Gerencia
+            </div>
+          )
+        }
+
+        <div>
+          📋 {r.ot}
+        </div>
+
+        <div>
+  ⚙️ Proceso:
+  {" "}
+  {r.proceso || "-"}
+</div>
+
+<div>
+  🧩 Subproceso:
+  {" "}
+  {r.subproceso || "-"}
+</div>
+
+<div>
+  ⚙️ Detalle:
+  {" "}
+  {r.detalle || "-"}
+</div>
+
+<div>
+  🕒 Registro:
+  {" "}
+
+  {
+
+    r.fecha?.toDate
+
+      ?
+
+    r.fecha
+      .toDate()
+      .toLocaleString()
+
+      :
+
+    "-"
+
+  }
+
+</div>
+
+<div>
+  🕒 Inicio:
+  {" "}
+  {r.hora_inicio || "-"}
+</div>
+
+<div>
+  🕒 Fin:
+  {" "}
+  {r.hora_fin || "-"}
+</div>
+
+        <div>
+          🕒 Inicio:
+          {" "}
+          {r.hora_inicio || "-"}
+        </div>
+
+        <div>
+          🕒 Fin:
+          {" "}
+          {r.hora_fin || "-"}
+        </div>
+
+        <div>
+          🔢 Cantidad:
+          {" "}
+          {r.cantidad_ok || 0}
+        </div>
+
+        <button
+
+          style={{
+            ...botonAzul,
+            marginTop: 10
+          }}
+
+          onClick={() => {
+
+            setRegistroAjuste(r);
+
+            setNuevaHoraInicio(
+              r.hora_inicio || ""
+            );
+
+            setNuevaHoraFin(
+              r.hora_fin || ""
+            );
+
+            setNuevaCantidad(
+              r.cantidad_ok || ""
+            );
+
+          }}
+
+        >
+
+          ✏️ Corregir Registro
+
+        </button>
+
+      </div>
+
+    ))
+
+  }
+
+</div>
+
+{
+
+  registroAjuste && (
+
+    <div style={{
+      background: "#FFF8E1",
+      padding: 20,
+      borderRadius: 16,
+      marginTop: 30,
+      border:
+        "2px solid #FFE082"
+    }}>
+
+      <h3>
+        ✏️ Corregir Registro
+      </h3>
+
+      <div style={{
+        marginBottom: 12
+      }}>
+
+        👷 {registroAjuste.operario}
+
+      </div>
+
+      <input
+        type="text"
+        placeholder="Nueva Hora Inicio"
+        style={estiloInput}
+        value={nuevaHoraInicio}
+        onChange={(e) =>
+          setNuevaHoraInicio(
+            e.target.value
+          )
+        }
+      />
+
+      <input
+        type="text"
+        placeholder="Nueva Hora Fin"
+        style={estiloInput}
+        value={nuevaHoraFin}
+        onChange={(e) =>
+          setNuevaHoraFin(
+            e.target.value
+          )
+        }
+      />
+
+      <input
+        type="number"
+        placeholder="Nueva Cantidad"
+        style={estiloInput}
+        value={nuevaCantidad}
+        onChange={(e) =>
+          setNuevaCantidad(
+            e.target.value
+          )
+        }
+      />
+
+      <input
+        type="text"
+        placeholder="Motivo corrección"
+        style={estiloInput}
+        value={motivoAjuste}
+        onChange={(e) =>
+          setMotivoAjuste(
+            e.target.value
+          )
+        }
+      />
+
+      <button
+
+        style={botonVerde}
+
+        onClick={async () => {
+
+          try {
+
+            await addDoc(
+
+              collection(
+                db,
+                "ajustes_produccion"
+              ),
+
+              {
+
+                produccion_id:
+                  registroAjuste.id,
+
+                hora_inicio_original:
+                  registroAjuste.hora_inicio
+                  || "",
+
+                hora_inicio_nueva:
+                  nuevaHoraInicio,
+
+                hora_fin_original:
+                  registroAjuste.hora_fin
+                  || "",
+
+                hora_fin_nueva:
+                  nuevaHoraFin,
+
+                cantidad_original:
+                  registroAjuste.cantidad_ok
+                  || 0,
+
+                cantidad_nueva:
+                  Number(
+                    nuevaCantidad
+                  ),
+
+                motivo:
+                  motivoAjuste,
+
+                responsable:
+                  usuarioSeleccionado?.nombre
+                  || "GERENCIA",
+
+                fecha_ajuste:
+                  new Date()
+
+              }
+
+            );
+
+            await updateDoc(
+
+  doc(
+    db,
+    "registros_produccion",
+    registroAjuste.id
+  ),
+
+  {
+
+    cantidad_ok:
+      Number(nuevaCantidad)
+
+  }
+
+);
+
+const registrosSnap =
+  await getDocs(
+    collection(
+      db,
+      "registros_produccion"
+    )
+  );
+
+setRegistros(
+  registrosSnap.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }))
+);
+
+await cargarDashboard();
+
+setRegistroAjuste(null);
+
+setNuevaCantidad("");
+
+setNuevaHoraInicio("");
+
+setNuevaHoraFin("");
+
+setMotivoAjuste("");
+
+
+            alert(
+              "✅ Corrección guardada"
+            );
+
+            setRegistroAjuste(null);
+
+            setMotivoAjuste("");
+
+          }
+
+          catch (error) {
+
+            console.error(error);
+
+            alert(
+              "Error guardando corrección"
+            );
+
+          }
+
+        }}
+
+      >
+
+        💾 Guardar Corrección
+
+      </button>
+
+    </div>
+
+  )
+
+}
 
         <button
           style={botonAzul}
@@ -7430,16 +8301,17 @@ if (pantalla === "operacionesMaestras") {
 
   )
 
-  .map(r => ({
-
+  .map(r => ({      
     operario: r.operario,
-
     promedio:
-     r.count > 0
+      r.count > 0
         ? r.total / r.count
         : 0
-
   }))
+
+.filter(r =>
+  r.promedio > 0
+)
 
   .sort((a, b) =>
     b.promedio - a.promedio
@@ -7601,19 +8473,81 @@ produccionActiva.forEach(p => {
 
           <h3>🏆 Ranking</h3>
 
-          {ranking.map((r, i) => (
-            <div
-              key={i}
-              style={{
-                padding: 6,
-                marginBottom: 8,
-                background: "white",
-                borderRadius: 8
-              }}
-            >
-              {i + 1}. {r.operario} — {r.promedio.toFixed(1)}%
-            </div>
-          ))}
+          {ranking.slice(0, 25).map((r, i) => {
+
+  let color = "#F44336";
+
+  if (r.promedio >= 90) {
+    color = "#4CAF50";
+  }
+  else if (r.promedio >= 70) {
+    color = "#FFC107";
+  }
+
+  return (
+
+<div
+  key={i}
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+    background: "white",
+    padding: "4px 8px",
+    borderRadius: 8
+  }}
+>
+
+  <div
+    style={{
+      width: 120,
+      fontSize: 12,
+      fontWeight: "bold",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis"
+    }}
+  >
+    {i + 1}. {r.operario}
+  </div>
+
+  <div
+    style={{
+      flex: 1,
+      height: 10,
+      background: "#E0E0E0",
+      borderRadius: 20,
+      overflow: "hidden"
+    }}
+  >
+
+    <div
+      style={{
+        width: `${Math.min(r.promedio, 150) / 1.5}%`,
+        height: "100%",
+        background: color
+      }}
+    />
+
+  </div>
+
+  <div
+    style={{
+      width: 55,
+      textAlign: "right",
+      fontWeight: "bold",
+      fontSize: 12
+    }}
+  >
+    {r.promedio.toFixed(1)}%
+  </div>
+
+</div>
+
+  );
+
+})}
 
         </div>
 
@@ -7685,55 +8619,6 @@ produccionActiva.forEach(p => {
 
           </div>
 
-          {alertas.length > 0 && (
-
-            <div style={{
-              marginTop: 20,
-              marginBottom: 20
-            }}>
-
-              {alertas.map((a, i) => (
-
-                <div
-                  key={i}
-                  style={{
-                    background:
-                      a.tipo === "critico"
-                        ? "#B71C1C"
-                        : a.tipo === "error"
-                        ? "#D32F2F"
-                        : "#F9A825",
-
-                    color: "white",
-
-                    padding: 15,
-
-                    borderRadius: 12,
-
-                    marginBottom: 10,
-
-                    fontWeight: "bold",
-
-                    fontSize: 16,
-
-                    animation:
-                      a.tipo === "critico"
-                        ? "blink 1s infinite"
-                        : "none"
-
-                  }}
-                >
-
-                  🚨 {a.mensaje}
-
-                </div>
-
-              ))}
-
-            </div>
-
-          )}
-
           <div style={{
             display: "grid",
             gridTemplateColumns:
@@ -7744,513 +8629,158 @@ produccionActiva.forEach(p => {
           }}>
 
             {/* PRODUCCIÓN TOTAL */}
-            <div style={{
-              background: "white",
-              padding: 20,
-              borderRadius: 14,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
-            }}>
+            <div
+  style={{
+    background: "white",
+    padding: "12px 18px",
+    borderRadius: 14,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    minHeight: "auto"
+  }}
+>
 
-              <div style={{
-                fontSize: 14,
-                color: "#666"
-              }}>
-                📦 Producción Total
-              </div>
+  <div
+    style={{
+      fontSize: 14,
+      color: "#666",
+      fontWeight: "600"
+    }}
+  >
+    📦 Producción Total
+  </div>
 
-              <h1 style={{
-                margin: "10px 0 0 0",
-                color: "#1976D2"
-              }}>
-                {
-                  dashboard.reduce(
-                    (acc, r) =>
-                      acc + (r.cantidad_ok || 0),
-                    0
-                  )
-                }
-              </h1>
+  <div
+    style={{
+      fontSize: 34,
+      fontWeight: "bold",
+      color: "#1976D2"
+    }}
+  >
+    {
+      dashboard.reduce(
+        (acc, r) =>
+          acc + (r.cantidad_ok || 0),
+        0
+      )
+    }
+  </div>
 
-            </div>
+</div>
 
             {/* OPERARIOS ACTIVOS */}
-            <div style={{
-              background: "white",
-              padding: 20,
-              borderRadius: 14,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
-            }}>
+            <div
+  style={{
+    background: "white",
+    padding: "12px 18px",
+    borderRadius: 14,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  }}
+>
 
-              <div style={{
-                fontSize: 14,
-                color: "#666"
-              }}>
-                👷 Operarios Activos
-              </div>
+  <div
+    style={{
+      fontSize: 14,
+      color: "#666",
+      fontWeight: "600"
+    }}
+  >
+    👷 Operarios Activos
+  </div>
 
-              <h1 style={{
-                margin: "10px 0 0 0",
-                color: "#2E7D32"
-              }}>
-                {produccionActiva.length}
-              </h1>
+  <div
+    style={{
+      fontSize: 34,
+      fontWeight: "bold",
+      color: "#2E7D32"
+    }}
+  >
+    {produccionActiva.length}
+  </div>
 
-            </div>
+</div>
 
             {/* PAROS ACTIVOS */}
-            <div style={{
-              background: "white",
-              padding: 20,
-              borderRadius: 14,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
-            }}>
+            <div
+  style={{
+    background: "white",
+    padding: "12px 18px",
+    borderRadius: 14,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  }}
+>
 
-              <div style={{
-                fontSize: 14,
-                color: "#666"
-              }}>
-                ⛔ Paros Activos
-              </div>
+  <div
+    style={{
+      fontSize: 14,
+      color: "#666",
+      fontWeight: "600"
+    }}
+  >
+    ⛔ Paros Activos
+  </div>
 
-              <h1 style={{
-                margin: "10px 0 0 0",
-                color:
-                  parosActivos.length > 0
-                    ? "#C62828"
-                    : "#2E7D32"
-              }}>
-                {parosActivos.length}
-              </h1>
+  <div
+    style={{
+      fontSize: 34,
+      fontWeight: "bold",
+      color: "#D32F2F"
+    }}
+  >
+    {parosActivos.length}
+  </div>
 
-            </div>
+</div>
 
             {/* EFICIENCIA */}
-            <div style={{
-              background: "white",
-              padding: 20,
-              borderRadius: 14,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.08)"
-            }}>
-
-              <div style={{
-                fontSize: 14,
-                color: "#666"
-              }}>
-                ⚙️ Eficiencia General
-              </div>
-
-              <h1 style={{
-                margin: "10px 0 0 0",
-                color:
-                  promedio >= 90
-                    ? "#2E7D32"
-                    : promedio >= 70
-                    ? "#F9A825"
-                    : "#C62828"
-              }}>
-                {promedio.toFixed(1)}%
-              </h1>
-
-            </div>
-
-          </div>
-
-          <div style={{
-            background: "white",
-            padding: 20,
-            borderRadius: 12,
-            marginTop: 20,
-            marginBottom: 20
-          }}>
-
-            <h3>
-              📈 Eficiencia por Operario
-            </h3>
-
-            <div style={{
-              background: "white",
-              padding: 20,
-              borderRadius: 12,
-              marginTop: 20,
-              marginBottom: 20
-            }}>
-
-            </div>
-
-            <div style={{
-              width: "100%",
-              height: 300
-            }}>
-
-              <ResponsiveContainer>
-
-                <BarChart data={datosGrafico}>
-
-                  <XAxis dataKey="nombre" />
-
-                  <YAxis />
-
-                  <Tooltip />
-
-                  <Bar dataKey="eficiencia">
-
-                    {datosGrafico.map((entry, index) => {
-
-                      let color = "#4CAF50";
-
-                      if (entry.eficiencia < 70) {
-
-                        color = "#F44336";
-
-                      }
-                      else if (entry.eficiencia < 90) {
-
-                        color = "#FFC107";
-
-                      }
-
-                      return (
-
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={color}
-                        />
-
-                      );
-
-                    })}
-
-                  </Bar>
-
-                </BarChart>
-
-              </ResponsiveContainer>
-
-            </div>
-
-          </div>
-
-          <h3 style={{ marginTop: 20 }}>
-            🟢 Producciones Activas
-          </h3>
-
-          <div style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: 15,
-            marginTop: 15
-          }}>
-          
-          {produccionActiva.map((p, i) => {
-
-            const inicio =
-              p.inicio?.toDate();
-
-            let tiempoPausasMs = 0;
-
-            const parosDeEstaProduccion =
-              todosLosParos.filter(paro =>
-
-                normalizar(paro.operario) ===
-                normalizar(p.operario)
-
-                &&
-
-                normalizar(paro.proceso) ===
-                normalizar(p.proceso)
-
-                );
-
-            parosDeEstaProduccion.forEach(paro => {
-
-              if (paro.inicio_paro) {
-
-                const inicioParo =
-                  paro.inicio_paro.toDate
-                    ? paro.inicio_paro.toDate()
-                    : new Date(paro.inicio_paro);
-
-                const finParo =
-                  paro.fin_paro
-                    ? (
-                        paro.fin_paro.toDate
-                          ? paro.fin_paro.toDate()
-                          : new Date(paro.fin_paro)
-                      )
-                    : ahora;
-
-                tiempoPausasMs +=
-                  finParo - inicioParo;
-
-              }
-
-            });
-
-            const tiempoRealMs =
-              inicio
-                ? (
-                    (ahora - inicio)
-                    - tiempoPausasMs
-                  )
-                : 0;
-
-            const tiempoHoras =
-              tiempoRealMs / 3600000;
-
-            const estandar =
-              estandares.find(e => {
-
-                const matchProc =
-                  normalizar(e.proceso) ===
-                  normalizar(p.proceso);
-
-                const matchSub =
-                  normalizar(e.subproceso) ===
-                  normalizar(p.subproceso);
-
-                const matchDet =
-                  !e.detalle ||
-                  normalizar(e.detalle) ===
-                  normalizar(p.detalle);
-
-                return (
-                  matchProc &&
-                  matchSub &&
-                  matchDet
-                );
-              });
-
-            const esperado =
-              estandar
-                ? Math.round(
-                    estandar.unidades_por_hora *
-                    tiempoHoras
-                )
-                : 0;
-
-            const real =
-              p.cantidad_actual || 0;
-
-            let eficiencia = 0;
-
-            if (esperado > 0) {
-              eficiencia =
-                Math.round(
-                  (real / esperado) * 100
-                );
-            }
-
-            const paroDeEstaProduccion =
-              parosActivos.find(paro =>
-
-                normalizar(paro.operario) ===
-                normalizar(p.operario)
-
-                 &&
-
-                normalizar(paro.proceso) ===
-                normalizar(p.proceso)
-
-              );
-
-            let color = "#E8F5E9";
-
-            let textoColor = "#000";
-
-            if (paroDeEstaProduccion) {
-
-              color = "#B71C1C";
-
-              textoColor = "white";
-
-            }
-            else if (eficiencia < 70) {
-
-              color = "#FFCDD2";
-
-            }
-            else if (eficiencia < 90) {
-
-              color = "#FFF9C4";
-
-            }
-
-            return (
-
             <div
-              key={i}
-              style={{
-                background: color,
-                color: textoColor,
-                padding: 6,
-                borderRadius: 8,
-                marginBottom: 10
-              }}
-            >
-              <div>
-                👤 <b>{p.operario}</b>
-              </div>
+  style={{
+    background: "white",
+    padding: "12px 18px",
+    borderRadius: 14,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  }}
+>
 
-              <div>
-                {p.proceso}
-                {" → "}
-                {p.subproceso}
+  <div
+    style={{
+      fontSize: 14,
+      color: "#666",
+      fontWeight: "600"
+    }}
+  >
+    ⚙️ Eficiencia General
+  </div>
 
-                {p.detalle && (
-                  <>
-                    {" → "}
-                    {p.detalle}
-                  </>
-                )}
-              </div>
+  <div
+    style={{
+      fontSize: 34,
+      fontWeight: "bold",
+      color:
+        promedio < 70
+          ? "#D32F2F"
+          : promedio < 90
+          ? "#F9A825"
+          : "#2E7D32"
+    }}
+  >
+    {promedio.toFixed(1)}%
+  </div>
 
-              <div style={{
-                fontSize: 13,
-                fontWeight: "bold",
-                color: "#333",
-                marginTop: 4
-              }}>
-                📋 OT:
-                {" "}
-                {p.ot || "-"}
-              </div>
+</div>
 
-              <div style={{
-                marginTop: 8
-              }}>
-                📦 Actual:
-                {" "}
-                <b>
-                  {p.cantidad_actual || 0}
-                </b>
-              </div>
-
-              <div style={{
-                fontSize: 12,
-                color: "#555"
-              }}>
-                Inicio:
-                {" "}
-                {p.inicio?.toDate
-                  ? p.inicio.toDate().toLocaleString()
-                  : "-"}
-              </div>
-
-              <div style={{
-                marginTop: 6,
-                fontWeight: "bold",
-                color: "#D32F2F"
-              }}>
-                ⏱ {
-
-                  (() => {
-
-                    if (!p.inicio?.toDate)
-                      return "00:00:00";
-
-                    const inicio =
-                      p.inicio.toDate();
-
-                    const diferencia =
-                      tiempoRealMs;
-
-                    const horas =
-                      Math.floor(
-                        diferencia / 3600000
-                      );
-
-                    const minutos =
-                      Math.floor(
-                        (diferencia % 3600000)
-                        / 60000
-                      );
-
-                    const segundos =
-                      Math.floor(
-                        (diferencia % 60000)
-                        / 1000
-                      );
-
-                    return `
-                      ${String(horas)
-                        .padStart(2, "0")}
-                      :
-                      ${String(minutos)
-                        .padStart(2, "0")}
-                      :
-                      ${String(segundos)
-                        .padStart(2, "0")}
-                    `;
-
-                  })()
-
-                }
-              </div>
-
-              <div style={{
-                marginTop: 8
-              }}>
-                🎯 Esperado:
-                {" "}
-                <b>{esperado}</b>
-              </div>
-
-              <div>
-                📦 Real:
-                {" "}
-                <b>{real}</b>
-              </div>
-
-              {paroDeEstaProduccion && (
-
-                <div style={{
-                  marginTop: 10,
-                  padding: 10,
-                  borderRadius: 10,
-                  background: "#D32F2F",
-                  color: "white",
-                  fontWeight: "bold",
-                  textAlign: "center"
-                }}>
-
-                  ⛔ PRODUCCIÓN DETENIDA
-
-                  <div style={{
-                    fontSize: 12,
-                    marginTop: 4
-                  }}>
-                    {paroActivoProduccion.motivo}
-                  </div>
-
-                </div>
-
-              )}
-
-              <div style={{
-                marginTop: 8,
-                fontSize: 16,
-                fontWeight: "bold"
-              }}>
-                {
-                   eficiencia >= 90
-                    ? "🟢"
-                    : eficiencia >= 70
-                    ? "🟡"
-                    : "🔴"
-                }
-
-                {" "}
-                {eficiencia}%
-              </div>
-  
-            </div>
-
-            );
-          })}
           </div>
-
-          <h1>{promedio.toFixed(1)}%</h1>
 
           <h3>Últimos registros</h3>
 
@@ -8259,7 +8789,7 @@ produccionActiva.forEach(p => {
             <>
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "160px 60px 150px 200px 160px 180px 160px 120px 70px",
+                gridTemplateColumns: "175px 70px 180px 135px 160px 240px 195px 125px 70px",
                 fontWeight: "bold",
                 marginBottom: 10
               }}>
@@ -8274,14 +8804,15 @@ produccionActiva.forEach(p => {
                 <div>%</div>
               </div>
 
-              {dashboard.slice(0, 10).map((r, i) => (
+              {dashboard.slice(0, 25).map((r, i) => (
                 <div key={i} style={{
                   display: "grid",
-                  gridTemplateColumns: "160px 60px 150px 200px 160px 180px 160px 120px 70px",
-                  padding: 5,
+                  gridTemplateColumns: "190px 55px 100px 210px 160px 240px 200px 120px 70px",
+                  padding: "3px 6px",
+                  fontSize: 12,
                   background: "white",
                   borderRadius: 8,
-                  marginBottom: 8
+                  marginBottom: 6
                 }}>
                   <div>
                     {r.fecha?.toDate
@@ -8391,7 +8922,7 @@ produccionActiva.forEach(p => {
       </div>
 
       {/* BOTÓN */}
-      <div style={{ textAlign: "center", marginTop: 30 }}>
+      <div style={{ textAlign: "center", marginTop: 5 }}>
         <button
           onClick={() => setPantalla("home")}
           style={{
