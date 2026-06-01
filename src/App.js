@@ -45,6 +45,10 @@ function App() {
         registroId
     );
   };
+  const esTV =
+  window.innerWidth >= 3000;
+  const escalaTV =
+  esTV ? 0.65 : 1;
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
@@ -8295,6 +8299,11 @@ if (pantalla === "operacionesMaestras") {
 
   const esMobile = window.innerWidth < 768;
 
+  const esTV = window.innerWidth >= 3000;
+
+  const escalaTV =
+  esTV ? 0.80 : 1;  
+
   const promedio =
     dashboard.length > 0
       ? dashboard.reduce((a, b) => a + (b.eficiencia || 0), 0) / dashboard.length
@@ -8475,7 +8484,7 @@ produccionActiva.forEach(p => {
     </style>
 
     <div style={{
-      padding: 20,
+      padding: 20 * escalaTV,
       background: "#f4f6f8",
       minHeight: "100vh",
       fontFamily: "Arial"
@@ -8484,8 +8493,12 @@ produccionActiva.forEach(p => {
       {/* 🧠 LAYOUT PRINCIPAL */}
       <div style={{
         display: esMobile ? "block" : "grid",
-        gridTemplateColumns: "300px 1fr",
-        gap: 20
+        gridTemplateColumns:
+          esTV
+            ? "240px 1fr"
+            : "300px 1fr",
+
+        gap: 20 * escalaTV
       }}>
 
         {/* IZQUIERDA */}
@@ -8504,13 +8517,21 @@ produccionActiva.forEach(p => {
               textAlign: "center",
               marginBottom: 20
             }}>
-              <h3>🥇 MEJOR OPERARIO</h3>
+              <h3 style={{
+                fontSize: `${18 * escalaTV}px`
+              }}>
+                🥇 MEJOR OPERARIO
+              </h3>
 
-              <h1>
+              <h1 style={{
+                fontSize: `${32 * escalaTV}px`
+              }}>
                 {top1.operario}
               </h1>
 
-              <h2>
+              <h2 style={{
+                fontSize: `${24 * escalaTV}px`
+              }}>
                 {top1.promedio.toFixed(1)}%
               </h2>
             </div>
@@ -8546,8 +8567,8 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      width: 120,
-      fontSize: 12,
+      width: esTV ? 90 : 120,
+      fontSize: esTV ? 10 : 12,
       fontWeight: "bold",
       whiteSpace: "nowrap",
       overflow: "hidden",
@@ -8560,7 +8581,7 @@ produccionActiva.forEach(p => {
   <div
     style={{
       flex: 1,
-      height: 10,
+      height: esTV ? 7 : 10,
       background: "#E0E0E0",
       borderRadius: 20,
       overflow: "hidden"
@@ -8582,7 +8603,7 @@ produccionActiva.forEach(p => {
       width: 55,
       textAlign: "right",
       fontWeight: "bold",
-      fontSize: 12
+      fontSize: esTV ? 10 : 12
     }}
   >
     {r.promedio.toFixed(1)}%
@@ -8609,7 +8630,8 @@ produccionActiva.forEach(p => {
             <div>
 
               <h2 style={{
-                margin: 0
+                margin: 0,
+                fontSize: `${32 * escalaTV}px`
               }}>
                 📊 Dashboard
               </h2>
@@ -8677,12 +8699,12 @@ produccionActiva.forEach(p => {
             <div
   style={{
     background: "white",
-    padding: "12px 18px",
+    padding: `${12 * escalaTV}px ${18 * escalaTV}px`,
     borderRadius: 14,
     boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: esMobile ? "column" : "row",
+    alignItems: esMobile ? "flex-start" : "center",
     minHeight: "auto"
   }}
 >
@@ -8698,20 +8720,24 @@ produccionActiva.forEach(p => {
   </div>
 
   <div
-    style={{
-      fontSize: 34,
-      fontWeight: "bold",
-      color: "#1976D2"
-    }}
-  >
-    {
-      dashboard.reduce(
-        (acc, r) =>
-          acc + (r.cantidad_ok || 0),
+  style={{
+    fontSize: esMobile ? 22 : 34,
+    fontWeight: "bold",
+    color: "#1976D2",
+    maxWidth: "100%",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  }}
+>
+  {
+    dashboard
+      .reduce(
+        (acc, r) => acc + (r.cantidad_ok || 0),
         0
       )
-    }
-  </div>
+      .toLocaleString("es-CL")
+  }
+</div>
 
 </div>
 
@@ -8740,7 +8766,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 34,
+      fontSize: esMobile ? 24 : 34,
       fontWeight: "bold",
       color: "#2E7D32"
     }}
@@ -8775,7 +8801,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 34,
+      fontSize: esMobile ? 24 : 34,
       fontWeight: "bold",
       color: "#D32F2F"
     }}
@@ -8810,7 +8836,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 34,
+      fontSize: esMobile ? 24 : 34,
       fontWeight: "bold",
       color:
         promedio < 70
@@ -8853,8 +8879,11 @@ produccionActiva.forEach(p => {
                 <div key={i} style={{
                   display: "grid",
                   gridTemplateColumns: "190px 55px 100px 210px 160px 240px 200px 120px 70px",
-                  padding: "3px 6px",
-                  fontSize: 12,
+                  padding: 
+                    esTV
+                      ? "2px 4px"
+                      : "3px 6px",
+                  fontSize: esTV ? 10 : 12,
                   background: "white",
                   borderRadius: 8,
                   marginBottom: 6
