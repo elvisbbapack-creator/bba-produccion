@@ -46,7 +46,8 @@ function App() {
     );
   };
   const esTV =
-  window.innerWidth >= 3000;
+  window.innerWidth >= 1200 &&
+  window.innerHeight >= 700;
   const escalaTV =
   esTV ? 0.65 : 1;
   const [registros, setRegistros] = useState([]);
