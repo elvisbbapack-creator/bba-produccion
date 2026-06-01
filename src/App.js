@@ -8653,6 +8653,16 @@ produccionActiva.forEach(p => {
 
             </div>
 
+            <div style={{
+  fontSize: 18,
+  color: "red",
+  fontWeight: "bold"
+}}>
+  TV:{esTV ? "SI" : "NO"} |
+  W:{window.innerWidth} |
+  H:{window.innerHeight}
+</div>
+
             <button
               onClick={() => {
 
