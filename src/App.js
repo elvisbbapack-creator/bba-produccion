@@ -8543,7 +8543,15 @@ produccionActiva.forEach(p => {
             </div>
           )}
 
-          <h3>🏆 Ranking</h3>
+          <h3
+            style={{
+              marginTop: esTV ? 5 : 16,
+              marginBottom: esTV ? 6 : 16,
+              color: "#F9A825"
+            }}
+          >
+            🏆 Ranking
+          </h3>
 
           {ranking.slice(0, 25).map((r, i) => {
 
@@ -8852,7 +8860,14 @@ produccionActiva.forEach(p => {
 
           </div>
 
-          <h3>Últimos registros</h3>
+          <h3
+            style={{
+              marginTop: esTV ? 5 : 16,
+              marginBottom: esTV ? 6 : 16
+            }}
+          >
+            Últimos registros
+          </h3>
 
           {/* DESKTOP */}
           {!esMobile && (
@@ -8861,10 +8876,10 @@ produccionActiva.forEach(p => {
                 display: "grid",
                 gridTemplateColumns:
   esTV
-    ? "125px 70px 85px 155px 115px 175px 160px 90px 55px"
+    ? "120px 65px 80px 150px 110px 170px 150px 85px 55px"
     : "175px 70px 180px 135px 160px 240px 195px 125px 70px",
                 fontWeight: "bold",
-                marginBottom: 10
+                marginBottom: esTV ? 4 : 10
               }}>
                 <div>Fecha</div>
                 <div>Estado</div>
@@ -8882,7 +8897,7 @@ produccionActiva.forEach(p => {
                   display: "grid",
                   gridTemplateColumns:
   esTV
-    ? "125px 70px 85px 155px 115px 175px 160px 90px 55px"
+    ? "120px 65px 80px 150px 110px 170px 150px 85px 55px"
     : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
                   padding: 
                     esTV
@@ -8891,7 +8906,7 @@ produccionActiva.forEach(p => {
                   fontSize: esTV ? 11 : 12,
                   background: "white",
                   borderRadius: 8,
-                  marginBottom: 6
+                  marginBottom: esTV ? 2 : 6
                 }}>
                   <div>
                     {r.fecha?.toDate
