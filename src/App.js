@@ -8693,7 +8693,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 14,
+      fontSize: 12,
       color: "#666",
       fontWeight: "600"
     }}
@@ -8703,7 +8703,7 @@ produccionActiva.forEach(p => {
 
   <div
   style={{
-    fontSize: esMobile ? 24 : 28,
+    fontSize: esMobile ? 22 : 26,
     fontWeight: "bold",
     color: "#1976D2",
     whiteSpace: "nowrap",
@@ -8739,7 +8739,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 14,
+      fontSize: 13,
       color: "#666",
       fontWeight: "600"
     }}
@@ -8749,7 +8749,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: esMobile ? 24 : 34,
+      fontSize: esMobile ? 22 : 26,
       fontWeight: "bold",
       color: "#2E7D32"
     }}
@@ -8774,7 +8774,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 14,
+      fontSize: 13,
       color: "#666",
       fontWeight: "600"
     }}
@@ -8784,7 +8784,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: esMobile ? 24 : 34,
+      fontSize: esMobile ? 22 : 26,
       fontWeight: "bold",
       color: "#D32F2F"
     }}
@@ -8819,7 +8819,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: esMobile ? 24 : 34,
+      fontSize: esMobile ? 22 : 26,
       fontWeight: "bold",
       color:
         promedio < 70
@@ -8845,7 +8845,7 @@ produccionActiva.forEach(p => {
                 display: "grid",
                 gridTemplateColumns:
   esTV
-    ? "120px 45px 80px 120px 100px 140px 100px 70px 45px"
+    ? "150px 70px 90px 180px 120px 180px 180px 90px 55px"
     : "175px 70px 180px 135px 160px 240px 195px 125px 70px",
                 fontWeight: "bold",
                 marginBottom: 10
@@ -8866,7 +8866,7 @@ produccionActiva.forEach(p => {
                   display: "grid",
                   gridTemplateColumns:
   esTV
-    ? "120px 45px 80px 120px 100px 140px 100px 70px 45px"
+    ? "150px 70px 90px 180px 120px 180px 180px 90px 55px"
     : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
                   padding: 
                     esTV
