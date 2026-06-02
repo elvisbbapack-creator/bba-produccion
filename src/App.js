@@ -8846,7 +8846,10 @@ produccionActiva.forEach(p => {
             <>
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "175px 70px 180px 135px 160px 240px 195px 125px 70px",
+                gridTemplateColumns:
+  esTV
+    ? "120px 45px 80px 120px 100px 140px 100px 70px 45px"
+    : "175px 70px 180px 135px 160px 240px 195px 125px 70px",
                 fontWeight: "bold",
                 marginBottom: 10
               }}>
@@ -8864,12 +8867,15 @@ produccionActiva.forEach(p => {
               {dashboard.slice(0, 25).map((r, i) => (
                 <div key={i} style={{
                   display: "grid",
-                  gridTemplateColumns: "190px 55px 100px 210px 160px 240px 200px 120px 70px",
+                  gridTemplateColumns:
+  esTV
+    ? "120px 45px 80px 120px 100px 140px 100px 70px 45px"
+    : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
                   padding: 
                     esTV
                       ? "2px 4px"
                       : "3px 6px",
-                  fontSize: esTV ? 13 : 12,
+                  fontSize: esTV ? 11 : 12,
                   background: "white",
                   borderRadius: 8,
                   marginBottom: 6
