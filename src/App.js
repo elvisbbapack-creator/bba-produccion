@@ -45,7 +45,14 @@ function App() {
         registroId
     );
   };
-  const esTV = true;
+
+  const esTV =
+    window.innerWidth >= 1200 &&
+    window.innerHeight >= 700;
+
+  const escalaTV =
+    esTV ? 0.75 : 1;
+
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
@@ -8483,10 +8490,13 @@ produccionActiva.forEach(p => {
     </style>
 
     <div style={{
+  width: esTV ? `${100 / escalaTV}%` : "100%",
   padding: 20,
   background: "#f4f6f8",
   minHeight: "100vh",
   fontFamily: "Arial",
+  transform: esTV ? `scale(${escalaTV})` : "scale(1)",
+  transformOrigin: "top left"
 }}>
 
       {/* 🧠 LAYOUT PRINCIPAL */}
@@ -8494,7 +8504,7 @@ produccionActiva.forEach(p => {
         display: esMobile ? "block" : "grid",
         gridTemplateColumns:
           esTV
-            ? "200px 1fr"
+            ? "220px 1fr"
             : "300px 1fr",
 
         gap: 20 * escalaTV
