@@ -8297,10 +8297,12 @@ if (pantalla === "operacionesMaestras") {
 
   const esMobile = window.innerWidth < 768;
 
-  const esTV = window.innerWidth >= 3000;
+  const esTV =
+    window.innerWidth >= 1200 &&
+    window.innerHeight >= 700;
 
   const escalaTV =
-  esTV ? 0.80 : 1;  
+    esTV ? 0.75 : 1;
 
   const promedio =
     dashboard.length > 0
@@ -8658,7 +8660,7 @@ produccionActiva.forEach(p => {
   color: "red",
   fontWeight: "bold"
 }}>
-  TV FORZADA |
+  TV:{esTV ? "SI" : "NO"} |
   W:{window.innerWidth} |
   H:{window.innerHeight}
 </div>
