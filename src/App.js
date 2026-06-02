@@ -46,7 +46,6 @@ function App() {
     );
   };
   const esTV = true;
-  const escalaTV = 0.50;
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
@@ -8488,8 +8487,6 @@ produccionActiva.forEach(p => {
   background: "#f4f6f8",
   minHeight: "100vh",
   fontFamily: "Arial",
-  transform: esTV ? `scale(${escalaTV})` : "scale(1)",
-  transformOrigin: "top left"
 }}>
 
       {/* 🧠 LAYOUT PRINCIPAL */}
@@ -8497,7 +8494,7 @@ produccionActiva.forEach(p => {
         display: esMobile ? "block" : "grid",
         gridTemplateColumns:
           esTV
-            ? "180px 1fr"
+            ? "200px 1fr"
             : "300px 1fr",
 
         gap: 20 * escalaTV
