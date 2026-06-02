@@ -8659,7 +8659,7 @@ produccionActiva.forEach(p => {
   color: "red",
   fontWeight: "bold"
 }}>
-  TV:{esTV ? "SI" : "NO"} |
+  TV FORZADA |
   W:{window.innerWidth} |
   H:{window.innerHeight}
 </div>
