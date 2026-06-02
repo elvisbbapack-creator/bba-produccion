@@ -8495,7 +8495,7 @@ produccionActiva.forEach(p => {
         display: esMobile ? "block" : "grid",
         gridTemplateColumns:
           esTV
-            ? "220px 1fr"
+            ? "260px 1fr"
             : "300px 1fr",
 
         gap: 20 * escalaTV
