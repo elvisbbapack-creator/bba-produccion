@@ -56,6 +56,7 @@ function App() {
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
+  const [modoTV, setModoTV] = useState(false);
 
   const [ots, setOts] = useState([]);
   const [procesos, setProcesos] = useState([]);
@@ -8303,12 +8304,8 @@ if (pantalla === "operacionesMaestras") {
 
   const esMobile = window.innerWidth < 768;
 
-  const esTV =
-    window.innerWidth >= 1200 &&
-    window.innerHeight >= 700;
-
-  const escalaTV =
-    esTV ? 0.70 : 1;
+  const esTV = modoTV;
+  const escalaTV = esTV ? 0.68 : 1;
 
   const promedio =
     dashboard.length > 0
@@ -8469,33 +8466,30 @@ produccionActiva.forEach(p => {
 
     <style>
     {`
-
       @keyframes blink {
-
         0% {
           opacity: 1;
         }
-
         50% {
           opacity: 0.3;
         }
-
         100% {
           opacity: 1;
         }
-
       }
-
     `}
     </style>
 
     <div style={{
   width: esTV ? `${100 / escalaTV}%` : "100%",
+  maxWidth: "100%",
+  overflowX: "hidden",
+  boxSizing: "border-box",
   padding: 20,
   background: "#f4f6f8",
-  minHeight: "100vh",
+  minHeight: "calc(100vh - 40px)",
   fontFamily: "Arial",
-  transform: esTV ? `scale(${escalaTV})` : "scale(1)",
+  transform: esTV ? `scale(${escalaTV})` : "none",
   transformOrigin: "top left"
 }}>
 
@@ -8663,23 +8657,7 @@ produccionActiva.forEach(p => {
             </div>
 
             <button
-              onClick={() => {
-
-                if (
-                  !document.fullscreenElement
-                ) {
-
-                  document.documentElement
-                    .requestFullscreen();
-
-                }
-                else {
-
-                  document.exitFullscreen();
-
-                }
-
-              }}
+              onClick={() => setModoTV(!modoTV)}
               style={{
                 padding: "10px 18px",
                 borderRadius: 10,
@@ -8696,9 +8674,12 @@ produccionActiva.forEach(p => {
           </div>
 
           <div style={{
+            width: "100%",
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
+              esTV
+                ? "repeat(4, 1fr)"
+                : "repeat(4, minmax(260px, 1fr))",
             gap: 15,
             marginTop: 20,
             marginBottom: 25
@@ -8730,9 +8711,10 @@ produccionActiva.forEach(p => {
 
   <div
   style={{
-    fontSize: esMobile ? 22 : 34,
+    fontSize: esMobile ? 24 : 28,
     fontWeight: "bold",
     color: "#1976D2",
+    whiteSpace: "nowrap",
     maxWidth: "100%",
     overflow: "hidden",
     textOverflow: "ellipsis"
@@ -8902,7 +8884,27 @@ produccionActiva.forEach(p => {
                       ? r.fecha.toDate().toLocaleString()
                       : "-"}
                   </div>
-                  <div>{r.estado_eficiencia}</div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center"
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: "50%",
+                        background:
+                          r.eficiencia >= 90
+                            ? "#4CAF50"
+                            : r.eficiencia >= 70
+                            ? "#FFC107"
+                            : "#F44336"
+                      }}
+                    />
+                  </div>
                   <div><b>{r.operario}</b></div>
                   <div>{r.ot || "-"}</div>
                   <div>{r.proceso}</div>
