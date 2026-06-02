@@ -8512,25 +8512,31 @@ produccionActiva.forEach(p => {
             <div style={{
               background: "#4CAF50",
               color: "white",
-              padding: 20,
+              padding: esTV ? 12 : 20,
               borderRadius: 12,
               textAlign: "center",
-              marginBottom: 20
+              marginBottom: esTV ? 10 : 20
             }}>
-              <h3 style={{
-                fontSize: `${18 * escalaTV}px`
-              }}>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: esTV ? 12 : 18
+                }}>
                 🥇 MEJOR OPERARIO
               </h3>
 
-              <h1 style={{
-                fontSize: `${32 * escalaTV}px`
-              }}>
+              <h1
+                style={{
+                  margin: esTV ? "4px 0" : "8px 0",
+                  fontSize: esTV ? 24 : 32
+                }}>
                 {top1.operario}
               </h1>
 
-              <h2 style={{
-                fontSize: `${24 * escalaTV}px`
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: esTV ? 18 : 24
               }}>
                 {top1.promedio.toFixed(1)}%
               </h2>
@@ -8627,23 +8633,33 @@ produccionActiva.forEach(p => {
   marginBottom: 15
 }}>
 
-            <div>
-              <h2 style={{
-                margin: 0,
-                fontSize: `${32 * escalaTV}px`
-              }}>
-                📊 Dashboard
-              </h2>
+            <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: esTV ? 12 : 15,
+    flexWrap: "wrap"
+  }}
+>
+  <h2
+    style={{
+      margin: 0,
+      fontSize: `${32 * escalaTV}px`
+    }}
+  >
+    📊 Dashboard
+  </h2>
 
-              <div style={{
-                marginTop: 5,
-                fontSize: 14,
-                color: "#555",
-                fontWeight: "bold"
-              }}>
-                🕒 {ahora.toLocaleString()}
-              </div>
-            </div>
+  <div
+    style={{
+      fontSize: esTV ? 12 : 14,
+      color: "#555",
+      fontWeight: "bold"
+    }}
+  >
+    🕒 {ahora.toLocaleString()}
+  </div>
+</div>
 
             <button
               onClick={() => setModoTV(!modoTV)}
@@ -8845,7 +8861,7 @@ produccionActiva.forEach(p => {
                 display: "grid",
                 gridTemplateColumns:
   esTV
-    ? "130px 70px 90px 160px 120px 180px 170px 90px 55px"
+    ? "125px 70px 85px 155px 115px 175px 160px 90px 55px"
     : "175px 70px 180px 135px 160px 240px 195px 125px 70px",
                 fontWeight: "bold",
                 marginBottom: 10
@@ -8866,7 +8882,7 @@ produccionActiva.forEach(p => {
                   display: "grid",
                   gridTemplateColumns:
   esTV
-    ? "130px 70px 90px 160px 120px 180px 170px 90px 55px"
+    ? "125px 70px 85px 155px 115px 175px 160px 90px 55px"
     : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
                   padding: 
                     esTV
