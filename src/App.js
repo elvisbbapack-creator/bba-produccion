@@ -8308,7 +8308,7 @@ if (pantalla === "operacionesMaestras") {
     window.innerHeight >= 700;
 
   const escalaTV =
-    esTV ? 0.75 : 1;
+    esTV ? 0.72 : 1;
 
   const promedio =
     dashboard.length > 0
@@ -8576,8 +8576,8 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      width: esTV ? 70 : 90,
-      fontSize: esTV ? 10 : 12,
+      width: esTV ? 110 : 120,
+      fontSize: esTV ? 13 : 12,
       fontWeight: "bold",
       whiteSpace: "nowrap",
       overflow: "hidden",
@@ -8612,7 +8612,7 @@ produccionActiva.forEach(p => {
       width: 55,
       textAlign: "right",
       fontWeight: "bold",
-      fontSize: esTV ? 10 : 12
+      fontSize: esTV ? 13 : 12
     }}
   >
     {r.promedio.toFixed(1)}%
@@ -8892,7 +8892,7 @@ produccionActiva.forEach(p => {
                     esTV
                       ? "2px 4px"
                       : "3px 6px",
-                  fontSize: esTV ? 10 : 12,
+                  fontSize: esTV ? 13 : 12,
                   background: "white",
                   borderRadius: 8,
                   marginBottom: 6
