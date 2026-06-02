@@ -8624,14 +8624,13 @@ produccionActiva.forEach(p => {
         <div>
 
           <div style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 15
-          }}>
+  display: "grid",
+  gridTemplateColumns: "1fr auto 1fr",
+  alignItems: "center",
+  marginBottom: 15
+}}>
 
             <div>
-
               <h2 style={{
                 margin: 0,
                 fontSize: `${32 * escalaTV}px`
@@ -8645,20 +8644,14 @@ produccionActiva.forEach(p => {
                 color: "#555",
                 fontWeight: "bold"
               }}>
-
-                🕒 {
-
-                  ahora.toLocaleString()
-
-                }
-
+                🕒 {ahora.toLocaleString()}
               </div>
-
             </div>
 
             <button
               onClick={() => setModoTV(!modoTV)}
               style={{
+                justifySelf: "center",
                 padding: "10px 18px",
                 borderRadius: 10,
                 border: "none",
@@ -8670,6 +8663,8 @@ produccionActiva.forEach(p => {
             >
               📺 Modo TV
             </button>
+
+            <div></div>
 
           </div>
 
