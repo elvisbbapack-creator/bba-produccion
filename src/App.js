@@ -50,8 +50,7 @@ function App() {
     window.innerWidth >= 1200 &&
     window.innerHeight >= 700;
 
-  const escalaTV =
-    esTV ? 0.75 : 1;
+  const escalaTV = esTV ? 0.75 : 1;
 
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
@@ -8481,16 +8480,14 @@ produccionActiva.forEach(p => {
     </style>
 
     <div style={{
-  width: esTV ? `${100 / escalaTV}%` : "100%",
+  width: "100%",
   maxWidth: "100%",
   overflowX: "hidden",
   boxSizing: "border-box",
-  padding: 20,
+  padding: esTV ? 12 : 20,
   background: "#f4f6f8",
   minHeight: "calc(100vh - 40px)",
-  fontFamily: "Arial",
-  transform: esTV ? `scale(${escalaTV})` : "none",
-  transformOrigin: "top left"
+  fontFamily: "Arial"
 }}>
 
       {/* 🧠 LAYOUT PRINCIPAL */}
