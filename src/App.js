@@ -8497,7 +8497,7 @@ produccionActiva.forEach(p => {
         display: esMobile ? "block" : "grid",
         gridTemplateColumns:
           esTV
-            ? "240px 1fr"
+            ? "180px 1fr"
             : "300px 1fr",
 
         gap: 20 * escalaTV
@@ -8569,7 +8569,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      width: esTV ? 90 : 120,
+      width: esTV ? 70 : 90,
       fontSize: esTV ? 10 : 12,
       fontWeight: "bold",
       whiteSpace: "nowrap",
@@ -8654,16 +8654,6 @@ produccionActiva.forEach(p => {
               </div>
 
             </div>
-
-            <div style={{
-  fontSize: 18,
-  color: "red",
-  fontWeight: "bold"
-}}>
-  TV:{esTV ? "SI" : "NO"} |
-  W:{window.innerWidth} |
-  H:{window.innerHeight}
-</div>
 
             <button
               onClick={() => {
