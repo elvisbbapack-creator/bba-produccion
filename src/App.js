@@ -8504,8 +8504,27 @@ produccionActiva.forEach(p => {
         {/* IZQUIERDA */}
         <div>
 
-          <div style={{ marginBottom: 10 }}>
-            🔴 EN VIVO
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 10,
+              fontWeight: "bold"
+            }}
+          >
+            <div
+              style={{
+                width: esTV ? 12 : 14,
+                height: esTV ? 12 : 14,
+                borderRadius: "50%",
+                background: "#F44336",
+                boxShadow: "0 0 8px #F44336",
+                animation: "blink 1s infinite"
+              }}
+            />
+
+             <span>EN VIVO</span>
           </div>
 
           {top1 && (
@@ -8571,10 +8590,10 @@ produccionActiva.forEach(p => {
   style={{
     display: "flex",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 4,
+    gap: 6,
+    marginBottom: esTV ? 2 : 4,
     background: "white",
-    padding: "4px 8px",
+    padding: esTV ? "2px 6px" : "4px 8px",
     borderRadius: 8
   }}
 >
@@ -8763,7 +8782,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 13,
+      fontSize: 12,
       color: "#666",
       fontWeight: "600"
     }}
@@ -8798,7 +8817,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 13,
+      fontSize: 12,
       color: "#666",
       fontWeight: "600"
     }}
@@ -8833,7 +8852,7 @@ produccionActiva.forEach(p => {
 
   <div
     style={{
-      fontSize: 14,
+      fontSize: 12,
       color: "#666",
       fontWeight: "600"
     }}
@@ -8876,7 +8895,7 @@ produccionActiva.forEach(p => {
                 display: "grid",
                 gridTemplateColumns:
   esTV
-    ? "120px 65px 80px 150px 110px 170px 150px 85px 55px"
+    ? "120px 65px 80px 150px 110px 170px 130px 85px 55px"
     : "175px 70px 180px 135px 160px 240px 195px 125px 70px",
                 fontWeight: "bold",
                 marginBottom: esTV ? 4 : 10
@@ -8897,7 +8916,7 @@ produccionActiva.forEach(p => {
                   display: "grid",
                   gridTemplateColumns:
   esTV
-    ? "120px 65px 80px 150px 110px 170px 150px 85px 55px"
+    ? "120px 65px 80px 150px 110px 170px 130px 85px 55px"
     : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
                   padding: 
                     esTV
