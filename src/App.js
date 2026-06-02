@@ -8305,7 +8305,7 @@ if (pantalla === "operacionesMaestras") {
   const esMobile = window.innerWidth < 768;
 
   const esTV = modoTV;
-  const escalaTV = esTV ? 0.68 : 1;
+  const escalaTV = esTV ? 0.72 : 1;
 
   const promedio =
     dashboard.length > 0
