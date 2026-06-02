@@ -45,11 +45,8 @@ function App() {
         registroId
     );
   };
-  const esTV =
-  window.innerWidth >= 1200 &&
-  window.innerHeight >= 700;
-  const escalaTV =
-  esTV ? 0.65 : 1;
+  const esTV = true;
+  const escalaTV = 0.50;
   const [registros, setRegistros] = useState([]);
   const [pantalla, setPantalla] = useState("login");
   const [cantidad, setCantidad] = useState("");
@@ -8485,11 +8482,13 @@ produccionActiva.forEach(p => {
     </style>
 
     <div style={{
-      padding: 20 * escalaTV,
-      background: "#f4f6f8",
-      minHeight: "100vh",
-      fontFamily: "Arial"
-    }}>
+  padding: 20,
+  background: "#f4f6f8",
+  minHeight: "100vh",
+  fontFamily: "Arial",
+  transform: esTV ? `scale(${escalaTV})` : "scale(1)",
+  transformOrigin: "top left"
+}}>
 
       {/* 🧠 LAYOUT PRINCIPAL */}
       <div style={{
