@@ -8308,7 +8308,7 @@ if (pantalla === "operacionesMaestras") {
     window.innerHeight >= 700;
 
   const escalaTV =
-    esTV ? 0.72 : 1;
+    esTV ? 0.70 : 1;
 
   const promedio =
     dashboard.length > 0
@@ -8712,8 +8712,8 @@ produccionActiva.forEach(p => {
     borderRadius: 14,
     boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
     display: "flex",
-    flexDirection: esMobile ? "column" : "row",
-    alignItems: esMobile ? "flex-start" : "center",
+    justifyContent: "space-between",
+    alignItems: "center",
     minHeight: "auto"
   }}
 >
