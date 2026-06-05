@@ -365,8 +365,6 @@ useEffect(() => {
 
   cargarParosActivos();
 
-  cargarTodosLosParos();
-
   const intervalo = setInterval(() => {
 
     cargarDashboard();
@@ -637,11 +635,16 @@ const cargarDashboard = async () => {
     const q = query(
       collection(db, "registros_produccion"),
       orderBy("fecha", "desc"),
-      limit(500)
+      limit(50)
     );
 
     const snap = await getDocs(q);
-    const data = snap.docs.map(doc => doc.data());
+    const data = snap.docs
+      .map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      .filter(r => !r.anulado);
     setDashboard(data);
   } catch (error) {
     console.error("ERROR dashboard:", error);
@@ -664,12 +667,11 @@ const cargarParosActivos = async () => {
 
     setTodosLosParos(data);
 
-    const activos =
-      data.filter(p =>
-        p.estado === "activo"
-      );
-
-    setParosActivos(activos);
+    setParosActivos(
+      data.filter(
+        p => p.estado === "activo"
+      )
+    );
 
   } catch (error) {
 
@@ -1240,9 +1242,19 @@ if (pantalla === "registro") {
 
         {/* PROCESO */}
         <select
-          onChange={(e) => setProcesoSeleccionado(e.target.value)}
-          style={estiloInput}
-        >
+  value={procesoSeleccionado}
+  onChange={(e) => {
+
+    setProcesoSeleccionado(
+      e.target.value
+    );
+
+    setSubprocesoSeleccionado("");
+    setDetalleSeleccionado("");
+
+  }}
+  style={estiloInput}
+>
           <option value="">Seleccionar Proceso</option>
           {procesos.map((p, i) => (
             <option key={i} value={p.nombre}>
@@ -1252,10 +1264,19 @@ if (pantalla === "registro") {
         </select>
 
         {/* SUBPROCESO */}
-        <select
-          onChange={(e) => setSubprocesoSeleccionado(e.target.value)}
-          style={estiloInput}
-        >
+       <select
+  value={subprocesoSeleccionado}
+  onChange={(e) => {
+
+    setSubprocesoSeleccionado(
+      e.target.value
+    );
+
+    setDetalleSeleccionado("");
+
+  }}
+  style={estiloInput}
+>
           <option value="">Seleccionar Subproceso</option>
           {subprocesos
             .filter(sp => sp.proceso?.toLowerCase() === procesoSeleccionado?.toLowerCase())
@@ -1268,9 +1289,14 @@ if (pantalla === "registro") {
 
         {/* OPERACIÓN */}
         <select
-          onChange={(e) => setDetalleSeleccionado(e.target.value)}
-          style={estiloInput}
-        >
+  value={detalleSeleccionado}
+  onChange={(e) =>
+    setDetalleSeleccionado(
+      e.target.value
+    )
+  }
+  style={estiloInput}
+>
           <option value="">Seleccionar Operación</option>
           {subprocesos
             .find(sp => sp.nombre === subprocesoSeleccionado)
@@ -1337,6 +1363,12 @@ if (pantalla === "registro") {
       );
 
       alert("Producción iniciada ✅");
+
+      setOperarioSeleccionado("");
+      setProcesoSeleccionado("");
+      setSubprocesoSeleccionado("");
+      setDetalleSeleccionado("");
+      setOtSeleccionada("");
 
       const activaSnap = await getDocs(
         collection(db, "produccion_activa")
@@ -1738,12 +1770,17 @@ return (
                 )
               );
 
-            setProduccionActiva(
-              activaSnap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              }))
-            );
+            setProduccionActiva(prev =>
+  prev.map(item =>
+    item.id === p.id
+      ? {
+          ...item,
+          cantidad_actual:
+            (item.cantidad_actual || 0) + 100
+        }
+      : item
+  )
+);
 
           } catch (error) {
             console.error(error);
@@ -1788,12 +1825,17 @@ return (
                 )
               );
 
-            setProduccionActiva(
-              activaSnap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              }))
-            );
+            setProduccionActiva(prev =>
+  prev.map(item =>
+    item.id === p.id
+      ? {
+          ...item,
+          cantidad_actual:
+            (item.cantidad_actual || 0) + 500
+        }
+      : item
+  )
+);
 
           } catch (error) {
             console.error(error);
@@ -6234,7 +6276,7 @@ const avanceProceso =
   {
 
     registros
-
+.filter(r => !r.anulado)
 .filter(r =>
 
   (!otSeleccionada ||
@@ -6353,26 +6395,26 @@ const avanceProceso =
 <div>
   🕒 Inicio:
   {" "}
-  {r.hora_inicio || "-"}
+  {
+    r.inicio?.seconds
+      ? new Date(
+          r.inicio.seconds * 1000
+        ).toLocaleString()
+      : "-"
+  }
 </div>
 
 <div>
   🕒 Fin:
   {" "}
-  {r.hora_fin || "-"}
+  {
+    r.fin?.seconds
+      ? new Date(
+          r.fin.seconds * 1000
+        ).toLocaleString()
+      : "-"
+  }
 </div>
-
-        <div>
-          🕒 Inicio:
-          {" "}
-          {r.hora_inicio || "-"}
-        </div>
-
-        <div>
-          🕒 Fin:
-          {" "}
-          {r.hora_fin || "-"}
-        </div>
 
         <div>
           🔢 Cantidad:
@@ -6392,12 +6434,20 @@ const avanceProceso =
             setRegistroAjuste(r);
 
             setNuevaHoraInicio(
-              r.hora_inicio || ""
-            );
+  r.inicio?.seconds
+    ? new Date(
+        r.inicio.seconds * 1000
+      ).toLocaleString()
+    : ""
+);
 
-            setNuevaHoraFin(
-              r.hora_fin || ""
-            );
+setNuevaHoraFin(
+  r.fin?.seconds
+    ? new Date(
+        r.fin.seconds * 1000
+      ).toLocaleString()
+    : ""
+);
 
             setNuevaCantidad(
               r.cantidad_ok || ""
@@ -6410,6 +6460,95 @@ const avanceProceso =
           ✏️ Corregir Registro
 
         </button>
+
+        <button
+  style={{
+    marginTop: 8,
+    width: "100%",
+    padding: 10,
+    border: "none",
+    borderRadius: 8,
+    background: "#F44336",
+    color: "white",
+    fontWeight: "bold"
+  }}
+  onClick={async () => {
+
+    const confirmar =
+      window.confirm(
+        `¿Anular registro de ${r.operario}?`
+      );
+
+    if (!confirmar) return;
+
+    try {
+
+      await updateDoc(
+
+        doc(
+          db,
+          "registros_produccion",
+          r.id
+        ),
+
+        {
+
+          anulado: true,
+
+          anulado_por:
+            usuarioSeleccionado?.nombre
+            || "GERENCIA",
+
+          fecha_anulacion:
+            new Date()
+
+        }
+
+      );
+
+      alert(
+        "Registro anulado ✅"
+      );
+
+      const registrosQuery = query(
+        collection(
+          db,
+          "registros_produccion"
+        ),
+        orderBy("fecha", "desc"),
+        limit(100)
+      );
+
+      const registrosSnap =
+        await getDocs(
+          registrosQuery
+        );
+
+      setRegistros(
+        registrosSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+      );
+
+      await cargarDashboard();
+
+    }
+
+    catch (error) {
+
+      console.error(error);
+
+      alert(
+        "Error anulando registro"
+      );
+
+    }
+
+  }}
+>
+  🗑️ Anular Registro
+</button>
 
       </div>
 
@@ -6552,22 +6691,83 @@ const avanceProceso =
 const nuevaCantidadNum =
   Number(nuevaCantidad);
 
-let nuevaEficiencia =
-  registroAjuste.eficiencia || 0;
+const nuevoInicio =
+  nuevaHoraInicio
+    ? new Date(nuevaHoraInicio)
+    : new Date(
+        registroAjuste.inicio.seconds * 1000
+      );
+
+const nuevoFin =
+  nuevaHoraFin
+    ? new Date(nuevaHoraFin)
+    : new Date(
+        registroAjuste.fin.seconds * 1000
+      );
+
+const nuevasHoras =
+  (nuevoFin - nuevoInicio)
+  /
+  (1000 * 60 * 60);
+
+const estandar =
+  estandares.find(e => {
+
+    const matchProc =
+      normalizar(e.proceso)
+      ===
+      normalizar(
+        registroAjuste.proceso
+      );
+
+    const matchSub =
+      normalizar(e.subproceso)
+      ===
+      normalizar(
+        registroAjuste.subproceso
+      );
+
+    const matchDet =
+      !e.detalle ||
+      normalizar(e.detalle)
+      ===
+      normalizar(
+        registroAjuste.detalle
+      );
+
+    return (
+      matchProc &&
+      matchSub &&
+      matchDet
+    );
+
+  });
+
+let nuevaEficiencia = 0;
 
 if (
-  registroAjuste.cantidad_ok > 0 &&
-  registroAjuste.eficiencia > 0
+  estandar &&
+  estandar.unidades_por_hora > 0 &&
+  nuevasHoras > 0
 ) {
+
+  const produccionEsperada =
+    estandar.unidades_por_hora *
+    nuevasHoras;
 
   nuevaEficiencia =
     (
       nuevaCantidadNum /
-      registroAjuste.cantidad_ok
-    ) *
-    registroAjuste.eficiencia;
+      produccionEsperada
+    ) * 100;
 
 }
+
+nuevaEficiencia =
+  Math.min(
+    Math.round(nuevaEficiencia),
+    150
+  );
 
 nuevaEficiencia =
   Math.min(
@@ -6589,14 +6789,20 @@ else if (nuevaEficiencia < 90) {
 }
 
             await updateDoc(
-
   doc(
     db,
     "registros_produccion",
     registroAjuste.id
   ),
-
   {
+    inicio: nuevoInicio,
+
+    fin: nuevoFin,
+
+    tiempo_horas:
+      Number(
+        nuevasHoras.toFixed(2)
+      ),
 
     cantidad_ok:
       nuevaCantidadNum,
@@ -6606,18 +6812,17 @@ else if (nuevaEficiencia < 90) {
 
     estado_eficiencia:
       nuevoSemaforo
-
   }
+);
 
+const registrosQuery = query(
+  collection(db, "registros_produccion"),
+  orderBy("fecha", "desc"),
+  limit(100)
 );
 
 const registrosSnap =
-  await getDocs(
-    collection(
-      db,
-      "registros_produccion"
-    )
-  );
+  await getDocs(registrosQuery);
 
 setRegistros(
   registrosSnap.docs.map(doc => ({
