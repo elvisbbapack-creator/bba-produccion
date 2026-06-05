@@ -1539,11 +1539,7 @@ const tiempoHoras =
     );
 
 const tiempoProductivoHoras =
-  Math.max(
-    0,
-    tiempoHoras -
-    (tiempoDetenidoMs / 3600000)
-  );
+  tiempoHoras;
 
 const estandar =
   estandares.find(e => {
@@ -1566,9 +1562,9 @@ const estandar =
       matchSub &&
       matchDet
     );
-  });
+  });  
 
-const esperado =
+  const esperado =
   estandar
     ? Math.round(
         estandar.unidades_por_hora *
