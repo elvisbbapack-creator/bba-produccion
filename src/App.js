@@ -453,39 +453,40 @@ let tiempoPausasMs = 0;
 
 const parosProduccion =
 
-  todosLosParos.filter(paro =>
+  todosLosParos.filter(paro => {
 
-    normalizar(paro.operario)
-    ===
-    normalizar(
-      operarioSeleccionado
-    )
+    const inicioParo =
+      paro.inicio_paro?.toDate
+        ? paro.inicio_paro.toDate()
+        : new Date(paro.inicio_paro);
 
-    &&
+    return (
 
-    normalizar(paro.ot)
-    ===
-    normalizar(
-      otSeleccionada
-    )
+      normalizar(paro.operario)
+      === normalizar(operarioSeleccionado)
 
-    &&
+      &&
 
-    normalizar(paro.proceso)
-    ===
-    normalizar(
-      procesoSeleccionado
-    )
+      normalizar(paro.ot)
+      === normalizar(otSeleccionada)
 
-    &&
+      &&
 
-    normalizar(paro.subproceso)
-    ===
-    normalizar(
-      subprocesoSeleccionado
-    )
+      normalizar(paro.proceso)
+      === normalizar(procesoSeleccionado)
 
-  );
+      &&
+
+      normalizar(paro.subproceso)
+      === normalizar(subprocesoSeleccionado)
+
+      &&
+
+      inicioParo >= inicioProduccion
+
+    );
+
+  });
 
 parosProduccion.forEach(paro => {
 
@@ -519,12 +520,12 @@ parosProduccion.forEach(paro => {
 });
 
 const tiempoNetoMs =
-
-  tiempoTotalMs
-  - tiempoPausasMs;
+  Math.max(
+    0,
+    tiempoTotalMs - tiempoPausasMs
+  );
 
 const horasTrabajadas =
-
   tiempoNetoMs / 3600000;
 
   // 4. Búsqueda del estándar con LOGS de depuración
@@ -1401,14 +1402,30 @@ if (pantalla === "registro") {
 {produccionActiva.map((p, i) => {
 
 const parosDeEstaProduccion =
-  todosLosParos.filter(paro =>
+  todosLosParos.filter(paro => {
 
-    paro.operario === p.operario &&
-    paro.ot === p.ot &&
-    paro.proceso === p.proceso &&
-    paro.subproceso === p.subproceso
+    const inicioParo =
+      paro.inicio_paro?.toDate
+        ? paro.inicio_paro.toDate()
+        : new Date(paro.inicio_paro);
 
-  );
+    const inicioProduccion =
+      p.inicio?.toDate
+        ? p.inicio.toDate()
+        : new Date(p.inicio);
+
+    return (
+
+      paro.operario === p.operario &&
+      paro.ot === p.ot &&
+      paro.proceso === p.proceso &&
+      paro.subproceso === p.subproceso &&
+
+      inicioParo >= inicioProduccion
+
+    );
+
+  });
 
 let tiempoPausasMs = 0;
 
