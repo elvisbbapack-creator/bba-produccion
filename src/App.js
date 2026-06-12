@@ -24,6 +24,14 @@ import {
   ResponsiveContainer,
   Cell
 } from "recharts";
+import {
+  convertirFecha,
+  fechaParaInput,
+  formatearFecha,
+  normalizarDocumento,
+  normalizarEstandar,
+  normalizarOrdenTrabajo
+} from "./data/compatibilidad";
 
 function App() {
   const esMobile =
@@ -255,7 +263,11 @@ const cargarDatos = useCallback(async () => {
     await cargarProduccionActiva();
 
     const otSnap = await getDocs(collection(db, "ordenes_trabajo"));
-    setOts(otSnap.docs.map(doc => doc.data()));
+    setOts(
+      otSnap.docs.map(doc =>
+        normalizarOrdenTrabajo(doc.id, doc.data())
+      )
+    );
 
     const procSnap = await getDocs(collection(db, "procesos"));
     setProcesos(procSnap.docs.map(doc => doc.data()));
@@ -273,10 +285,25 @@ const cargarDatos = useCallback(async () => {
     setSubprocesos(subSnap.docs.map(doc => doc.data()));
 
     const estSnap = await getDocs(collection(db, "estandares"));
-    setEstandares(estSnap.docs.map(doc => doc.data()));
+    setEstandares(
+      estSnap.docs.map(doc =>
+        normalizarEstandar(doc.id, doc.data())
+      )
+    );
 
     const configProcSnap = await getDocs(collection(db, "config_procesos"));
     setProcesosConfig(configProcSnap.docs.map(doc => ({id: doc.id, ...doc.data()})));
+
+    const productosSnap =
+      await getDocs(
+        collection(db, "config_productos")
+      );
+
+    setProductosConfig(
+      productosSnap.docs.map(doc =>
+        normalizarDocumento(doc.id, doc.data())
+      )
+    );
 
     const operacionesSnap =
       await getDocs(
@@ -2556,7 +2583,9 @@ if (pantalla === "ot") {
         >
           <b>{ot.nombre}</b>
           <div>Cantidad: {ot.cantidad}</div>
-          <div>Entrega: {ot.fecha_entrega}</div>
+          <div>
+            Entrega: {formatearFecha(ot.fecha_entrega)}
+          </div>
         </div>
       ))}
 
@@ -2694,7 +2723,9 @@ if (pantalla === "otDetalle") {
           );
 
           setEditarFechaEntregaOT(
-            otDetalle.fecha_entrega || ""
+            fechaParaInput(
+              otDetalle.fecha_entrega
+            )
           );
 
           setEditarEstadoOT(
@@ -3018,7 +3049,7 @@ if (pantalla === "otDetalle") {
             const fechaEntrega =
               otDetalle.fecha_entrega
 
-                ? new Date(
+                ? convertirFecha(
                     otDetalle.fecha_entrega
                   )
 
@@ -3500,7 +3531,7 @@ if (pantalla === "otDetalle") {
 
           <p>
             <b>Fecha Entrega:</b>{" "}
-            {otDetalle.fecha_de_entrega?.toDate().toLocaleDateString()}
+            {formatearFecha(otDetalle.fecha_entrega)}
           </p>
           {modoEditarOT && (
 
