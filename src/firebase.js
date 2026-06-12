@@ -2,10 +2,16 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCyiF21dtbrFjdu8H-w5df0Ul87upa2vaY",
-  authDomain: "bba-produccion.firebaseapp.com",
-  projectId: "bba-produccion",
+  apiKey:
+    process.env.REACT_APP_FIREBASE_API_KEY ||
+    "AIzaSyCyiF21dtbrFjdu8H-w5df0Ul87upa2vaY",
+  authDomain:
+    process.env.REACT_APP_FIREBASE_AUTH_DOMAIN ||
+    "bba-produccion.firebaseapp.com",
+  projectId:
+    process.env.REACT_APP_FIREBASE_PROJECT_ID ||
+    "bba-produccion",
 };
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);

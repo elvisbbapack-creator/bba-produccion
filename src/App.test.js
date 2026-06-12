@@ -1,5 +1,29 @@
 import { render, screen } from '@testing-library/react';
+import { getDocs } from 'firebase/firestore';
 import App from './App';
+
+jest.mock('./firebase', () => ({
+  app: {},
+  db: {}
+}));
+
+jest.mock('firebase/firestore', () => ({
+  addDoc: jest.fn(),
+  collection: jest.fn(),
+  deleteDoc: jest.fn(),
+  doc: jest.fn(),
+  getDocs: jest.fn(),
+  limit: jest.fn(),
+  orderBy: jest.fn(),
+  query: jest.fn(),
+  updateDoc: jest.fn()
+}));
+
+beforeEach(() => {
+  getDocs.mockImplementation(
+    () => new Promise(() => {})
+  );
+});
 
 test('renders BBA login screen', () => {
   render(<App />);

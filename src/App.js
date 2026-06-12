@@ -32,6 +32,9 @@ import {
   normalizarEstandar,
   normalizarOrdenTrabajo
 } from "./data/compatibilidad";
+import {
+  autenticacionFirebaseActiva
+} from "./auth/config";
 
 function App() {
   const esMobile =
@@ -74,6 +77,16 @@ function App() {
   const [otSeleccionada, setOtSeleccionada] = useState("");
   const [procesoSeleccionado, setProcesoSeleccionado] = useState("");
   const [usuarioSeleccionado, setUsuarioSeleccionado] = useState(null);
+  const [autenticacionLista, setAutenticacionLista] =
+    useState(!autenticacionFirebaseActiva);
+  const [emailAcceso, setEmailAcceso] = useState("");
+  const [passwordAcceso, setPasswordAcceso] = useState("");
+  const [errorAcceso, setErrorAcceso] = useState("");
+  const [ingresando, setIngresando] = useState(false);
+  const sesionCargaId =
+    autenticacionFirebaseActiva
+      ? usuarioSeleccionado?.id || ""
+      : "legacy";
 
   const [subprocesos, setSubprocesos] = useState([]);
   const [subprocesoSeleccionado, setSubprocesoSeleccionado] = useState("");
@@ -375,9 +388,92 @@ setDashboard(
 
 useEffect(() => {
 
+  if (!autenticacionFirebaseActiva) {
+    return undefined;
+  }
+
+  let cancelarObservador;
+  let cancelado = false;
+
+  import("./auth/servicio").then(({
+    mensajeErrorAutenticacion,
+    observarSesion,
+    obtenerPerfilFirebase
+  }) => {
+    if (cancelado) {
+      return;
+    }
+
+    cancelarObservador = observarSesion(
+      async usuario => {
+        try {
+          if (!usuario) {
+            setUsuarioSeleccionado(null);
+            setPantalla("login");
+            setAutenticacionLista(true);
+            return;
+          }
+
+          const perfil =
+            await obtenerPerfilFirebase(usuario);
+
+          setUsuarioSeleccionado(perfil);
+          setErrorAcceso("");
+          setPantalla("home");
+          setAutenticacionLista(true);
+        } catch (error) {
+          setUsuarioSeleccionado(null);
+          setPantalla("login");
+          setErrorAcceso(
+            mensajeErrorAutenticacion(error)
+          );
+          setAutenticacionLista(true);
+        }
+      },
+      error => {
+        setErrorAcceso(
+          mensajeErrorAutenticacion(error)
+        );
+        setAutenticacionLista(true);
+      }
+    );
+  }).catch(error => {
+    if (!cancelado) {
+      setErrorAcceso(
+        "No se pudo cargar el servicio de autenticación."
+      );
+      setAutenticacionLista(true);
+      console.error(error);
+    }
+  });
+
+  return () => {
+    cancelado = true;
+    cancelarObservador?.();
+  };
+
+}, []);
+
+useEffect(() => {
+
+  if (!autenticacionLista) {
+    return;
+  }
+
+  if (
+    autenticacionFirebaseActiva &&
+    !sesionCargaId
+  ) {
+    return;
+  }
+
   cargarDatos();
 
-}, [cargarDatos]);
+}, [
+  autenticacionLista,
+  cargarDatos,
+  sesionCargaId
+]);
   
 useEffect(() => {
 
@@ -737,6 +833,21 @@ const cargarTodosLosParos = async () => {
 };
 
   if (pantalla === "login") {
+
+  if (!autenticacionLista) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        fontFamily: "Arial"
+      }}>
+        Validando sesión...
+      </div>
+    );
+  }
+
   return (
     <div style={{
       height: "100vh",
@@ -771,51 +882,146 @@ const cargarTodosLosParos = async () => {
   🔐 Acceso BBA
 </h2>
 
-        {/* SELECT USUARIO */}
-        <select
-          onChange={(e) => {
-            const index = e.target.value;
-            setUsuarioSeleccionado(usuarios[index]);
-          }}
-          style={{
-            width: "100%",
-            padding: 10,
-            marginBottom: 15,
-            borderRadius: 6,
-            border: "1px solid #ccc"
-          }}
-        >
-          <option value="">Seleccionar Usuario</option>
-          {usuarios.map((u, i) => (
-            <option key={i} value={i}>
-              {u.nombre} ({u.rol})
-            </option>
-          ))}
-        </select>
+        {autenticacionFirebaseActiva ? (
+          <>
+            <input
+              type="email"
+              placeholder="Correo"
+              autoComplete="username"
+              value={emailAcceso}
+              onChange={(e) =>
+                setEmailAcceso(e.target.value)
+              }
+              style={estiloInput}
+            />
 
-        {/* BOTÓN INGRESAR */}
-        <button
-          onClick={() => {
-            if (!usuarioSeleccionado) {
-              alert("Selecciona un usuario");
-              return;
-            }
-            setPantalla("home");
-          }}
-          style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 8,
-            border: "none",
-            background: "#1976D2",
-            color: "white",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: 16
-          }}
-        >
-          Ingresar
-        </button>
+            <input
+              type="password"
+              placeholder="Contraseña"
+              autoComplete="current-password"
+              value={passwordAcceso}
+              onChange={(e) =>
+                setPasswordAcceso(e.target.value)
+              }
+              style={estiloInput}
+            />
+
+            {errorAcceso && (
+              <div style={{
+                color: "#C62828",
+                marginBottom: 12,
+                fontSize: 14
+              }}>
+                {errorAcceso}
+              </div>
+            )}
+
+            <button
+              disabled={ingresando}
+              onClick={async () => {
+                if (
+                  !emailAcceso ||
+                  !passwordAcceso
+                ) {
+                  setErrorAcceso(
+                    "Ingresa correo y contraseña."
+                  );
+                  return;
+                }
+
+                try {
+                  setIngresando(true);
+                  setErrorAcceso("");
+                  const {
+                    iniciarSesion
+                  } = await import(
+                    "./auth/servicio"
+                  );
+                  await iniciarSesion(
+                    emailAcceso,
+                    passwordAcceso
+                  );
+                } catch (error) {
+                  const {
+                    mensajeErrorAutenticacion
+                  } = await import(
+                    "./auth/servicio"
+                  );
+                  setErrorAcceso(
+                    mensajeErrorAutenticacion(error)
+                  );
+                } finally {
+                  setIngresando(false);
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: 12,
+                borderRadius: 8,
+                border: "none",
+                background: "#1976D2",
+                color: "white",
+                fontWeight: "bold",
+                cursor: "pointer",
+                fontSize: 16
+              }}
+            >
+              {ingresando
+                ? "Ingresando..."
+                : "Ingresar"}
+            </button>
+          </>
+        ) : (
+          <>
+            <select
+              onChange={(e) => {
+                const index = e.target.value;
+                setUsuarioSeleccionado(
+                  usuarios[index]
+                );
+              }}
+              style={{
+                width: "100%",
+                padding: 10,
+                marginBottom: 15,
+                borderRadius: 6,
+                border: "1px solid #ccc"
+              }}
+            >
+              <option value="">
+                Seleccionar Usuario
+              </option>
+              {usuarios.map((u, i) => (
+                <option key={i} value={i}>
+                  {u.nombre} ({u.rol})
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => {
+                if (!usuarioSeleccionado) {
+                  alert("Selecciona un usuario");
+                  return;
+                }
+                setPantalla("home");
+              }}
+              style={{
+                width: "100%",
+                padding: 12,
+                borderRadius: 8,
+                border: "none",
+                background: "#1976D2",
+                color: "white",
+                fontWeight: "bold",
+                cursor: "pointer",
+                fontSize: 16
+              }}
+            >
+              Ingresar
+            </button>
+          </>
+        )}
 
       </div>
     </div>
@@ -843,6 +1049,28 @@ const cargarTodosLosParos = async () => {
           style={{ width: 120 }}
         />
         <h1 style={{ marginTop: 10 }}>BBA Producción</h1>
+
+        {autenticacionFirebaseActiva && (
+          <button
+            onClick={async () => {
+              const {
+                cerrarSesion
+              } = await import(
+                "./auth/servicio"
+              );
+              await cerrarSesion();
+            }}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "#1976D2",
+              cursor: "pointer",
+              fontWeight: "bold"
+            }}
+          >
+            Cerrar sesión
+          </button>
+        )}
       </div>
 
       {/* BOTONES */}
