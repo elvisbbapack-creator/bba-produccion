@@ -1,0 +1,96 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "ordenes_trabajo",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "planta_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fecha_creacion",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "sesiones_produccion",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "planta_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "estado",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "inicio",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "eventos_produccion",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "planta_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fecha_operativa",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "eventos_produccion",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ot_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ot_operacion_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "resumenes_operario_dia",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "planta_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fecha",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "eficiencia_calidad",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+

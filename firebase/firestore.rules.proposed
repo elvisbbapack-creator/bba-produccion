@@ -1,0 +1,211 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function authenticated() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return authenticated() ? request.auth.token.rol : null;
+    }
+
+    function companyId() {
+      return authenticated() ? request.auth.token.empresa_id : null;
+    }
+
+    function plantIds() {
+      return authenticated() &&
+        request.auth.token.planta_ids is list
+          ? request.auth.token.planta_ids
+          : [];
+    }
+
+    function isManagement() {
+      return role() in ['jefe', 'gerencia'];
+    }
+
+    function isPlantOperator() {
+      return role() in ['supervisor', 'jefe', 'gerencia'];
+    }
+
+    function belongsToCompany(data) {
+      return authenticated() &&
+        data.empresa_id == companyId();
+    }
+
+    function belongsToPlant(data) {
+      return belongsToCompany(data) &&
+        (
+          role() == 'gerencia' ||
+          data.planta_id in plantIds()
+        );
+    }
+
+    function unchangedScope() {
+      return request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id;
+    }
+
+    match /empresas/{empresaId} {
+      allow read: if authenticated() &&
+        empresaId == companyId();
+      allow write: if role() == 'gerencia' &&
+        empresaId == companyId();
+    }
+
+    match /plantas/{plantaId} {
+      allow read: if belongsToCompany(resource.data) &&
+        (
+          role() == 'gerencia' ||
+          plantaId in plantIds()
+        );
+      allow write: if role() == 'gerencia' &&
+        belongsToCompany(request.resource.data);
+    }
+
+    match /usuarios/{userId} {
+      allow read: if authenticated() &&
+        (
+          userId == request.auth.uid ||
+          isManagement()
+        ) &&
+        belongsToCompany(resource.data);
+      allow write: if role() == 'gerencia' &&
+        belongsToCompany(request.resource.data);
+    }
+
+    match /operarios/{operarioId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope();
+      allow delete: if false;
+    }
+
+    match /{catalogo}/{documentId} {
+      allow read: if catalogo in [
+          'materiales',
+          'procesos',
+          'subprocesos',
+          'operaciones',
+          'productos',
+          'catalogo_defectos'
+        ] &&
+        belongsToCompany(resource.data);
+
+      allow create: if catalogo in [
+          'materiales',
+          'procesos',
+          'subprocesos',
+          'operaciones',
+          'productos',
+          'catalogo_defectos'
+        ] &&
+        isManagement() &&
+        belongsToCompany(request.resource.data);
+
+      allow update: if catalogo in [
+          'materiales',
+          'procesos',
+          'subprocesos',
+          'operaciones',
+          'productos',
+          'catalogo_defectos'
+        ] &&
+        isManagement() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id;
+
+      allow delete: if false;
+    }
+
+    match /productos/{productoId}/rutas/{rutaId} {
+      allow read: if belongsToCompany(resource.data);
+      allow create, update: if isManagement() &&
+        belongsToCompany(request.resource.data);
+      allow delete: if false;
+
+      match /operaciones/{operacionId} {
+        allow read: if belongsToCompany(resource.data);
+        allow create, update: if isManagement() &&
+          belongsToCompany(request.resource.data);
+        allow delete: if false;
+      }
+    }
+
+    match /ordenes_trabajo/{otId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope();
+      allow delete: if false;
+
+      match /operaciones/{operacionId} {
+        allow read: if belongsToPlant(resource.data);
+        allow create: if isManagement() &&
+          belongsToPlant(request.resource.data);
+        allow update: if isPlantOperator() &&
+          belongsToPlant(resource.data) &&
+          belongsToPlant(request.resource.data) &&
+          unchangedScope();
+        allow delete: if false;
+      }
+    }
+
+    match /sesiones_produccion/{sesionId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isPlantOperator() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isPlantOperator() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope();
+      allow delete: if false;
+    }
+
+    match /eventos_produccion/{eventoId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isPlantOperator() &&
+        belongsToPlant(request.resource.data);
+      allow update, delete: if false;
+    }
+
+    match /registros_calidad/{registroId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isPlantOperator() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope();
+      allow delete: if false;
+    }
+
+    match /{resumen}/{resumenId} {
+      allow read: if resumen in [
+          'resumenes_operario_dia',
+          'resumenes_ot',
+          'resumenes_ot_operacion',
+          'resumenes_planta_turno'
+        ] &&
+        belongsToPlant(resource.data);
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

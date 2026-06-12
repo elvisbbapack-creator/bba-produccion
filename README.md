@@ -4,6 +4,7 @@
 
 - [Inventario actual de Firestore](docs/firestore-actual.md)
 - [Modelo productivo V2](docs/modelo-productivo-v2.md)
+- [Propuesta Firebase V2](firebase/README.md)
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
