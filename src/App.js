@@ -326,13 +326,18 @@ const registrosQuery = query(
 const registrosSnap =
   await getDocs(registrosQuery);
 
-setRegistros(
-
+const registrosData =
   registrosSnap.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
-  }))
+  }));
 
+setRegistros(registrosData);
+
+setDashboard(
+  registrosData
+    .filter(r => !r.anulado)
+    .slice(0, 50)
 );
 
   } catch (error) {
@@ -360,8 +365,6 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-
-  cargarDashboard();
 
   cargarParosActivos();
 
@@ -1360,12 +1363,14 @@ if (pantalla === "registro") {
             return;
           }
 
+      const inicioProduccion = new Date();
+
       const produccionDoc = await addDoc(
         collection(db, "produccion_activa"),
         {
           ...produccionAIniciar,
 
-          inicio: new Date(),
+          inicio: inicioProduccion,
 
           estado: "activo"
         }
@@ -1377,6 +1382,16 @@ if (pantalla === "registro") {
         );
       }
 
+      setProduccionActiva(prev => [
+        ...prev,
+        {
+          id: produccionDoc.id,
+          ...produccionAIniciar,
+          inicio: inicioProduccion,
+          estado: "activo"
+        }
+      ]);
+
       alert("Producción iniciada ✅");
 
       setOperarioSeleccionado("");
@@ -1384,17 +1399,6 @@ if (pantalla === "registro") {
       setSubprocesoSeleccionado("");
       setDetalleSeleccionado("");
       setOtSeleccionada("");
-
-      const activaSnap = await getDocs(
-        collection(db, "produccion_activa")
-      );
-
-      setProduccionActiva(
-        activaSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-      );
 
     } catch (error) {
       console.error(error);
@@ -1793,14 +1797,6 @@ return (
               }
             );
 
-            const activaSnap =
-              await getDocs(
-                collection(
-                  db,
-                  "produccion_activa"
-                )
-              );
-
             setProduccionActiva(prev =>
   prev.map(item =>
     item.id === p.id
@@ -1847,14 +1843,6 @@ return (
                   (p.cantidad_actual || 0) + 500
               }
             );
-
-            const activaSnap =
-              await getDocs(
-                collection(
-                  db,
-                  "produccion_activa"
-                )
-              );
 
             setProduccionActiva(prev =>
   prev.map(item =>
@@ -1915,6 +1903,12 @@ return (
 
           try {
 
+            const nuevaCantidad =
+              p.nuevaCantidad !== undefined &&
+              p.nuevaCantidad !== ""
+                ? Number(p.nuevaCantidad)
+                : p.cantidad_actual;
+
             await updateDoc(
               doc(
                 db,
@@ -1922,37 +1916,20 @@ return (
                 p.id
               ),
               {
-                cantidad_actual:
-
-                  p.nuevaCantidad !==
-                  undefined
-
-                    &&
-
-                  p.nuevaCantidad !==
-                  ""
-
-                    ? Number(
-                        p.nuevaCantidad
-                      )
-
-                    : p.cantidad_actual
+                cantidad_actual: nuevaCantidad
               }
             );
 
-            const activaSnap =
-              await getDocs(
-                collection(
-                  db,
-                  "produccion_activa"
-                )
-              );
-
-            setProduccionActiva(
-              activaSnap.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-              }))
+            setProduccionActiva(prev =>
+              prev.map(item =>
+                item.id === p.id
+                  ? {
+                      ...item,
+                      cantidad_actual:
+                        nuevaCantidad
+                    }
+                  : item
+              )
             );
 
           } catch (error) {
@@ -2196,15 +2173,11 @@ return (
             doc(db, "produccion_activa", p.id)
           );
 
-          const activaSnap = await getDocs(
-            collection(db, "produccion_activa")
-          );
-
           setProduccionActiva(
-            activaSnap.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }))
+            prev =>
+              prev.filter(
+                item => item.id !== p.id
+              )
           );
 
           alert("Producción finalizada ✅");
