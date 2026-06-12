@@ -1186,6 +1186,7 @@ if (pantalla === "registro") {
 
         {/* OT */}
         <select
+          value={otSeleccionada}
           onChange={(e) => setOtSeleccionada(e.target.value)}
           style={estiloInput}
         >
@@ -1223,6 +1224,7 @@ if (pantalla === "registro") {
 
         {/* OPERARIO */}
         <select
+          value={operarioSeleccionado}
           onChange={(e) =>
             setOperarioSeleccionado(e.target.value)
           }
@@ -1312,12 +1314,25 @@ if (pantalla === "registro") {
 <button
   onClick={async () => {
 
+    const produccionAIniciar = {
+      operario: operarioSeleccionado,
+      proceso: procesoSeleccionado,
+      subproceso: subprocesoSeleccionado,
+      detalle: detalleSeleccionado,
+      ot: otSeleccionada,
+      iniciado_por: usuarioSeleccionado?.nombre || ""
+    };
+
     if (
-      !operarioSeleccionado ||
-      !procesoSeleccionado ||
-      !subprocesoSeleccionado
+      !produccionAIniciar.ot ||
+      !produccionAIniciar.operario ||
+      !produccionAIniciar.proceso ||
+      !produccionAIniciar.subproceso ||
+      !produccionAIniciar.detalle
     ) {
-      alert("Faltan datos");
+      alert(
+        "Debes seleccionar OT, operario, proceso, subproceso y operación"
+      );
       return;
     }
 
@@ -1327,13 +1342,13 @@ if (pantalla === "registro") {
             produccionActiva.find(p =>
 
               p.operario ===
-                operarioSeleccionado &&
+                produccionAIniciar.operario &&
 
               p.proceso ===
-                procesoSeleccionado &&
+                produccionAIniciar.proceso &&
 
               p.subproceso ===
-                subprocesoSeleccionado
+                produccionAIniciar.subproceso
             );
 
           if (yaExiste) {
@@ -1345,23 +1360,22 @@ if (pantalla === "registro") {
             return;
           }
 
-      await addDoc(
+      const produccionDoc = await addDoc(
         collection(db, "produccion_activa"),
         {
-          operario: operarioSeleccionado,
-          proceso: procesoSeleccionado,
-          subproceso: subprocesoSeleccionado,
-          detalle: detalleSeleccionado,
-          ot: otSeleccionada,
-
-          iniciado_por:
-            usuarioSeleccionado?.nombre,
+          ...produccionAIniciar,
 
           inicio: new Date(),
 
           estado: "activo"
         }
       );
+
+      if (!produccionDoc.id) {
+        throw new Error(
+          "Firebase no confirmó el registro de la producción"
+        );
+      }
 
       alert("Producción iniciada ✅");
 
@@ -1384,6 +1398,10 @@ if (pantalla === "registro") {
 
     } catch (error) {
       console.error(error);
+      alert(
+        "No se pudo iniciar la producción: " +
+        error.message
+      );
     }
 
   }}
