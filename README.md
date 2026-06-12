@@ -4,6 +4,7 @@
 
 - [Inventario actual de Firestore](docs/firestore-actual.md)
 - [Modelo productivo V2](docs/modelo-productivo-v2.md)
+- [Nucleo productivo V2](docs/nucleo-productivo-v2.md)
 - [Autenticacion dual](docs/autenticacion-dual.md)
 - [Propuesta Firebase V2](firebase/README.md)
 
