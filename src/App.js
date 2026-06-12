@@ -489,6 +489,17 @@ useEffect(() => {
 
 useEffect(() => {
 
+  if (!autenticacionLista) {
+    return undefined;
+  }
+
+  if (
+    autenticacionFirebaseActiva &&
+    !sesionCargaId
+  ) {
+    return undefined;
+  }
+
   cargarParosActivos();
 
   const intervalo = setInterval(() => {
@@ -499,7 +510,10 @@ useEffect(() => {
 
   return () => clearInterval(intervalo);
 
-}, []);
+}, [
+  autenticacionLista,
+  sesionCargaId
+]);
 
   async function guardar() {
   // 1. Validación estricta inicial

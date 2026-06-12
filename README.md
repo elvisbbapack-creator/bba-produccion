@@ -6,6 +6,7 @@
 - [Modelo productivo V2](docs/modelo-productivo-v2.md)
 - [Nucleo productivo V2](docs/nucleo-productivo-v2.md)
 - [Autenticacion dual](docs/autenticacion-dual.md)
+- [Firebase Auth de pruebas](docs/firebase-auth-pruebas.md)
 - [Propuesta Firebase V2](firebase/README.md)
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

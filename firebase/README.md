@@ -21,6 +21,10 @@ use el selector local de usuarios en lugar de Firebase Authentication.
   multi-planta y resumenes.
 - `firebase.emulator.json`: configuracion exclusiva para validacion local con
   el proyecto ficticio `demo-bba`.
+- `firestore.rules.test` y `firebase.test.json`: reglas temporales compatibles
+  con las colecciones heredadas, destinadas unicamente a `bba-erp-pruebas`.
+- `../firebase.hosting-test.json`: configuracion de Hosting exclusiva para la
+  compilacion Auth de `bba-erp-pruebas`.
 
 El emulador de Firestore requiere Java. En la revision del 12 de junio de 2026
 esta maquina no tenia un runtime de Java instalado, por lo que la sintaxis de
