@@ -36,6 +36,9 @@ Las contrasenas no se guardan en el repositorio.
 colecciones heredadas para probar la aplicacion actual. Estas reglas fueron
 desplegadas solamente en `bba-erp-pruebas`.
 
+El catalogo `materiales` exige rol `jefe` o `gerencia` para crear o cambiar
+el estado. Los documentos no se eliminan y su empresa no puede modificarse.
+
 Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 
 ## Verificacion
@@ -44,4 +47,3 @@ Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 - Los cuatro tokens incluyeron los claims esperados.
 - El supervisor inicio sesion en Hosting y llego al panel BBA.
 - No hubo lecturas Firestore antes del login ni errores de consola despues.
-

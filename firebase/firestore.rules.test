@@ -27,11 +27,66 @@ service cloud.firestore {
       ];
     }
 
+    function belongsToCompany(data) {
+      return authenticated() &&
+        data.empresa_id ==
+          request.auth.token.empresa_id;
+    }
+
+    function legacyCollection(collectionName) {
+      return collectionName in [
+        'ajustes_produccion',
+        'config_procesos',
+        'config_productos',
+        'estandares',
+        'operaciones_maestras',
+        'operarios',
+        'ordenes_trabajo',
+        'paros_produccion',
+        'procesos',
+        'produccion_activa',
+        'registros_produccion',
+        'subprocesos',
+        'usuarios'
+      ];
+    }
+
+    match /materiales/{materialId} {
+      allow read: if belongsToCompany(
+        resource.data
+      );
+      allow create: if canManage() &&
+        belongsToCompany(
+          request.resource.data
+        );
+      allow update: if canManage() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'activo',
+          'actualizado_en'
+        ]);
+      allow delete: if false;
+    }
+
+    match /{collectionName}/{documentId} {
+      allow read: if authenticated() &&
+        legacyCollection(collectionName);
+      allow create, update: if canOperate() &&
+        legacyCollection(collectionName);
+      allow delete: if canManage() &&
+        legacyCollection(collectionName);
+    }
+
     match /{document=**} {
       allow read: if authenticated();
-      allow create, update: if canOperate();
-      allow delete: if canManage();
+      allow write: if false;
     }
   }
 }
-

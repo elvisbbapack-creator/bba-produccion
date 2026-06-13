@@ -35,6 +35,12 @@ import {
 import {
   autenticacionFirebaseActiva
 } from "./auth/config";
+import {
+  interfazV2Activa,
+  puedeAdministrarV2
+} from "./features/v2/config";
+import CatalogoMaterialesV2 from
+  "./features/materiales/CatalogoMaterialesV2";
 
 function App() {
   const esMobile =
@@ -418,6 +424,7 @@ useEffect(() => {
             await obtenerPerfilFirebase(usuario);
 
           setUsuarioSeleccionado(perfil);
+          setPasswordAcceso("");
           setErrorAcceso("");
           setPantalla("home");
           setAutenticacionLista(true);
@@ -1073,6 +1080,8 @@ const cargarTodosLosParos = async () => {
                 "./auth/servicio"
               );
               await cerrarSesion();
+              setEmailAcceso("");
+              setPasswordAcceso("");
             }}
             style={{
               border: "none",
@@ -1422,9 +1431,42 @@ const cargarTodosLosParos = async () => {
           >
             ⚙️ Operaciones Maestras
           </button>
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
+                  setPantalla("materialesV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#0F766E"
+                }}
+              >
+                Catálogo MP / RF (V2)
+              </button>
+            )}
 </div>
       </div>
     </div>
+  );
+}
+
+if (
+  pantalla === "materialesV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoMaterialesV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
   );
 }
 

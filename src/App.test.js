@@ -16,7 +16,11 @@ jest.mock('firebase/firestore', () => ({
   limit: jest.fn(),
   orderBy: jest.fn(),
   query: jest.fn(),
-  updateDoc: jest.fn()
+  runTransaction: jest.fn(),
+  serverTimestamp: jest.fn(),
+  setDoc: jest.fn(),
+  updateDoc: jest.fn(),
+  where: jest.fn()
 }));
 
 beforeEach(() => {
