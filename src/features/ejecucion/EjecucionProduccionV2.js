@@ -8,6 +8,10 @@ import {
   listarOperacionesOT
 } from "../ordenes/ordenesRepository";
 import {
+  listarCausas,
+  listarDefectos
+} from "../calidad/calidadRepository";
+import {
   iniciarSesionProduccion,
   listarOrdenesEjecutables,
   listarSesionesActivas,
@@ -19,6 +23,8 @@ const reporteInicial = {
   cantidad_ok: "",
   cantidad_defectuosa: "",
   cantidad_reproceso: "",
+  defecto_id: "",
+  causa_id: "",
   observacion: ""
 };
 
@@ -65,6 +71,8 @@ function EjecucionProduccionV2({
   const [operarioNombre, setOperarioNombre] =
     useState("");
   const [sesiones, setSesiones] = useState([]);
+  const [defectos, setDefectos] = useState([]);
+  const [causas, setCausas] = useState([]);
   const [sesionId, setSesionId] = useState("");
   const [reporte, setReporte] =
     useState(reporteInicial);
@@ -119,7 +127,31 @@ function EjecucionProduccionV2({
       try {
         setCargando(true);
         setError("");
-        await cargarPlanta(plantaId);
+        const [
+          ,
+          defectosData,
+          causasData
+        ] = await Promise.all([
+          cargarPlanta(plantaId),
+          listarDefectos(
+            db,
+            perfil.empresa_id
+          ),
+          listarCausas(
+            db,
+            perfil.empresa_id
+          )
+        ]);
+        setDefectos(
+          defectosData.filter(
+            item => item.activo !== false
+          )
+        );
+        setCausas(
+          causasData.filter(
+            item => item.activo !== false
+          )
+        );
       } catch (fallo) {
         setError(
           fallo?.message ||
@@ -129,7 +161,12 @@ function EjecucionProduccionV2({
         setCargando(false);
       }
     },
-    [cargarPlanta, plantaId]
+    [
+      cargarPlanta,
+      db,
+      perfil.empresa_id,
+      plantaId
+    ]
   );
 
   useEffect(() => {
@@ -255,6 +292,14 @@ function EjecucionProduccionV2({
           reporte.cantidad_defectuosa,
         cantidadReproceso:
           reporte.cantidad_reproceso,
+        defecto: defectos.find(
+          item =>
+            item.id === reporte.defecto_id
+        ),
+        causa: causas.find(
+          item =>
+            item.id === reporte.causa_id
+        ),
         observacion: reporte.observacion
       });
       setReporte(reporteInicial);
@@ -609,7 +654,7 @@ function EjecucionProduccionV2({
                     />
                   </label>
                   <label style={etiqueta}>
-                    Cantidad defectuosa
+                    Merma / cantidad defectuosa
                     <input
                       type="number"
                       min="0"
@@ -626,6 +671,75 @@ function EjecucionProduccionV2({
                       style={campo}
                     />
                   </label>
+                  {(
+                    Number(
+                      reporte.cantidad_defectuosa ||
+                      0
+                    ) > 0 ||
+                    Number(
+                      reporte.cantidad_reproceso ||
+                      0
+                    ) > 0
+                  ) && (
+                    <>
+                      <label style={etiqueta}>
+                        Defecto detectado
+                        <select
+                          value={reporte.defecto_id}
+                          onChange={evento =>
+                            actualizarReporte(
+                              "defecto_id",
+                              evento.target.value
+                            )
+                          }
+                          style={campo}
+                        >
+                          <option value="">
+                            Seleccionar defecto
+                          </option>
+                          {defectos.map(item => (
+                            <option
+                              key={item.id}
+                              value={item.id}
+                            >
+                              {item.codigo}
+                              {" - "}
+                              {item.nombre}
+                              {" · "}
+                              {item.severidad}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={etiqueta}>
+                        Causa probable
+                        <select
+                          value={reporte.causa_id}
+                          onChange={evento =>
+                            actualizarReporte(
+                              "causa_id",
+                              evento.target.value
+                            )
+                          }
+                          style={campo}
+                        >
+                          <option value="">
+                            Seleccionar causa
+                          </option>
+                          {causas.map(item => (
+                            <option
+                              key={item.id}
+                              value={item.id}
+                            >
+                              {item.codigo}
+                              {" - "}
+                              {item.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
+                  )}
                   <label style={etiqueta}>
                     Cantidad a reproceso
                     <input

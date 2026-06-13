@@ -51,6 +51,8 @@ import EjecucionProduccionV2 from
   "./features/ejecucion/EjecucionProduccionV2";
 import DashboardV2 from
   "./features/resumenes/DashboardV2";
+import CalidadV2 from
+  "./features/calidad/CalidadV2";
 
 function App() {
   const esMobile =
@@ -1526,6 +1528,24 @@ const cargarTodosLosParos = async () => {
             ) && (
               <button
                 onClick={() =>
+                  setPantalla("calidadV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#BE123C"
+                }}
+              >
+                Calidad y Reprocesos (V2)
+              </button>
+            )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
                   setPantalla("rutasV2")
                 }
                 style={{
@@ -1610,6 +1630,29 @@ if (
 ) {
   return (
     <DashboardV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+      onCerrarSesion={async () => {
+        const {
+          cerrarSesion
+        } = await import("./auth/servicio");
+        await cerrarSesion();
+        setEmailAcceso("");
+        setPasswordAcceso("");
+      }}
+    />
+  );
+}
+
+if (
+  pantalla === "calidadV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CalidadV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

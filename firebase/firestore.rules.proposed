@@ -95,7 +95,8 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
-          'catalogo_defectos'
+          'catalogo_defectos',
+          'catalogo_causas'
         ] &&
         belongsToCompany(resource.data);
 
@@ -105,7 +106,8 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
-          'catalogo_defectos'
+          'catalogo_defectos',
+          'catalogo_causas'
         ] &&
         isManagement() &&
         belongsToCompany(request.resource.data);
@@ -116,7 +118,8 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
-          'catalogo_defectos'
+          'catalogo_defectos',
+          'catalogo_causas'
         ] &&
         isManagement() &&
         belongsToCompany(resource.data) &&
@@ -208,4 +211,3 @@ service cloud.firestore {
     }
   }
 }
-

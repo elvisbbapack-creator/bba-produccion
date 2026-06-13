@@ -310,6 +310,12 @@ correccion genera un nuevo evento.
 codigo, nombre, proceso_id, severidad, activo, empresa_id
 ```
 
+### `catalogo_causas/{causaId}`
+
+```text
+codigo, nombre, activo, empresa_id
+```
+
 ### `registros_calidad/{registroId}`
 
 ```text
@@ -322,10 +328,17 @@ cantidad_inspeccionada
 cantidad_ok
 cantidad_defectuosa
 cantidad_reproceso
+cantidad_merma
+cantidad_reproceso_pendiente
+estado_reproceso: no_aplica | pendiente | resuelto
 defecto_id
 causa_id
 timestamp
 ```
+
+La cantidad defectuosa representa merma. La cantidad a reproceso representa
+material recuperable y mantiene la OT abierta hasta que Calidad distribuya
+todo el saldo entre unidades recuperadas OK y merma final.
 
 Indicadores:
 

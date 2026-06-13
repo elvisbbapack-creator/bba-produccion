@@ -413,6 +413,8 @@ export const congelarRutaParaOT = ({
         cantidad_ok: 0,
         cantidad_defectuosa: 0,
         cantidad_reproceso: 0,
+        cantidad_merma: 0,
+        reproceso_pendiente: 0,
         cantidad_consumida: 0,
         cantidad_pendiente:
           cantidadRequerida,

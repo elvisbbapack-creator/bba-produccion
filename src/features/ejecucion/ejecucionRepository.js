@@ -192,6 +192,32 @@ export const calcularIndicadoresSesion = ({
   };
 };
 
+export const validarDatosCalidadReporte = ({
+  cantidadDefectuosa = 0,
+  cantidadReproceso = 0,
+  defecto,
+  causa
+}) => {
+  const tieneNoConformidad =
+    Number(cantidadDefectuosa || 0) > 0 ||
+    Number(cantidadReproceso || 0) > 0;
+  const errores = [];
+
+  if (tieneNoConformidad && !defecto) {
+    errores.push(
+      "Selecciona el defecto detectado."
+    );
+  }
+
+  if (tieneNoConformidad && !causa) {
+    errores.push(
+      "Selecciona la causa probable."
+    );
+  }
+
+  return errores;
+};
+
 export const listarOrdenesEjecutables = async (
   db,
   empresaId,
@@ -380,6 +406,8 @@ export const registrarReporteProduccion =
     cantidadOk,
     cantidadDefectuosa,
     cantidadReproceso,
+    defecto,
+    causa,
     observacion
   }) => {
     const valores = [
@@ -404,6 +432,20 @@ export const registrarReporteProduccion =
     if (!sesion) {
       throw new Error(
         "Selecciona una sesión activa."
+      );
+    }
+
+    const erroresCalidad =
+      validarDatosCalidadReporte({
+        cantidadDefectuosa: valores[1],
+        cantidadReproceso: valores[2],
+        defecto,
+        causa
+      });
+
+    if (erroresCalidad.length > 0) {
+      throw new Error(
+        erroresCalidad.join(" ")
       );
     }
 
@@ -438,6 +480,12 @@ export const registrarReporteProduccion =
     const eventoRef = doc(
       collection(db, "eventos_produccion")
     );
+    const calidadRef =
+      valores[1] > 0 || valores[2] > 0
+        ? doc(
+          collection(db, "registros_calidad")
+        )
+        : null;
     const fecha = fechaOperativa();
     const resumenRefs =
       referenciasResumenReporte(db, {
@@ -455,10 +503,18 @@ export const registrarReporteProduccion =
       async transaccion => {
         const sesionSnap =
           await transaccion.get(sesionRef);
+        const otSnap =
+          await transaccion.get(otRef);
 
         if (!sesionSnap.exists()) {
           throw new Error(
             "La sesión ya no existe."
+          );
+        }
+
+        if (!otSnap.exists()) {
+          throw new Error(
+            "La OT ya no existe."
           );
         }
 
@@ -516,6 +572,16 @@ export const registrarReporteProduccion =
               cantidadReproceso: valores[2]
             }
           );
+        actualizado.cantidad_merma =
+          Number(
+            objetivo.cantidad_merma ||
+            objetivo.cantidad_defectuosa ||
+            0
+          ) + valores[1];
+        actualizado.reproceso_pendiente =
+          Number(
+            objetivo.reproceso_pendiente || 0
+          ) + valores[2];
         actualizado.cantidad_consumida =
           Number(
             objetivo.cantidad_consumida || 0
@@ -559,6 +625,10 @@ export const registrarReporteProduccion =
                 actualizado.cantidad_defectuosa,
               cantidad_reproceso:
                 actualizado.cantidad_reproceso,
+              cantidad_merma:
+                actualizado.cantidad_merma,
+              reproceso_pendiente:
+                actualizado.reproceso_pendiente,
               cantidad_consumida:
                 actualizado.cantidad_consumida,
               cantidad_pendiente:
@@ -603,12 +673,21 @@ export const registrarReporteProduccion =
             Number(operacion.cantidad_ok || 0),
           0
         );
-        const completada = posteriores.every(
+        const operacionesCompletadas =
+          posteriores.every(
           operacion =>
             Number(
               operacion.cantidad_pendiente
             ) <= 0
         );
+        const reprocesosPendientes =
+          Number(
+            otSnap.data()
+              .reprocesos_pendientes || 0
+          ) + valores[2];
+        const completada =
+          operacionesCompletadas &&
+          reprocesosPendientes === 0;
         const fin = Timestamp.now();
         const inicio =
           sesionSnap.data().inicio;
@@ -692,6 +771,16 @@ export const registrarReporteProduccion =
           cantidad_ok: valores[0],
           cantidad_defectuosa: valores[1],
           cantidad_reproceso: valores[2],
+          defecto_id: defecto?.id || "",
+          defecto_codigo:
+            defecto?.codigo || "",
+          defecto_nombre:
+            defecto?.nombre || "",
+          defecto_severidad:
+            defecto?.severidad || "",
+          causa_id: causa?.id || "",
+          causa_codigo: causa?.codigo || "",
+          causa_nombre: causa?.nombre || "",
           observacion:
             limpiarTexto(observacion),
           fecha_operativa: fecha,
@@ -702,6 +791,54 @@ export const registrarReporteProduccion =
           registrado_por_id: perfil.uid,
           modelo_version: 2
         });
+        if (calidadRef) {
+          transaccion.set(calidadRef, {
+            empresa_id: perfil.empresa_id,
+            planta_id: sesion.planta_id,
+            sesion_id: sesion.id,
+            evento_id: eventoRef.id,
+            ot_id: sesion.ot_id,
+            ot_codigo: sesion.ot_codigo,
+            ot_operacion_id:
+              sesion.ot_operacion_id,
+            operacion_codigo:
+              sesion.operacion_codigo,
+            operacion_nombre:
+              sesion.operacion_nombre,
+            operario_id: sesion.operario_id,
+            operario_codigo:
+              sesion.operario_codigo || "",
+            operario_nombre:
+              sesion.operario_nombre,
+            cantidad_inspeccionada:
+              valores[0] +
+              valores[1] +
+              valores[2],
+            cantidad_ok: valores[0],
+            cantidad_merma: valores[1],
+            cantidad_defectuosa: valores[1],
+            cantidad_reproceso: valores[2],
+            cantidad_reproceso_pendiente:
+              valores[2],
+            estado_reproceso:
+              valores[2] > 0
+                ? "pendiente"
+                : "no_aplica",
+            defecto_id: defecto.id,
+            defecto_codigo: defecto.codigo,
+            defecto_nombre: defecto.nombre,
+            defecto_severidad:
+              defecto.severidad,
+            causa_id: causa.id,
+            causa_codigo: causa.codigo,
+            causa_nombre: causa.nombre,
+            observacion:
+              limpiarTexto(observacion),
+            registrado_por_id: perfil.uid,
+            timestamp: serverTimestamp(),
+            modelo_version: 2
+          });
+        }
         transaccion.update(otRef, {
           avance_pct:
             totalRequerido > 0
@@ -718,6 +855,12 @@ export const registrarReporteProduccion =
           fecha_real_fin: completada
             ? serverTimestamp()
             : null,
+          merma_total:
+            Number(
+              otSnap.data().merma_total || 0
+            ) + valores[1],
+          reprocesos_pendientes:
+            reprocesosPendientes,
           fecha_actualizacion: serverTimestamp()
         });
         transaccion.set(

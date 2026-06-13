@@ -2,6 +2,7 @@ import {
   calcularIndicadoresSesion,
   calcularDisponibilidadPorMaterial,
   obtenerOperacionesDisponibles,
+  validarDatosCalidadReporte,
   validarInicioSesion
 } from "./ejecucionRepository";
 
@@ -83,4 +84,22 @@ test("exige OT, operación y operario", () => {
       operarioNombre: ""
     })
   ).toHaveLength(4);
+});
+
+test("exige defecto y causa cuando hay merma o reproceso", () => {
+  expect(
+    validarDatosCalidadReporte({
+      cantidadDefectuosa: 1,
+      cantidadReproceso: 0
+    })
+  ).toHaveLength(2);
+
+  expect(
+    validarDatosCalidadReporte({
+      cantidadDefectuosa: 0,
+      cantidadReproceso: 2,
+      defecto: { id: "DEF0001" },
+      causa: { id: "CAU0001" }
+    })
+  ).toEqual([]);
 });

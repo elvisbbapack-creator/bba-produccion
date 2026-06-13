@@ -80,6 +80,8 @@ export const prepararOrden = ({
   fecha_real_inicio: null,
   fecha_real_fin: null,
   avance_pct: 0,
+  merma_total: 0,
+  reprocesos_pendientes: 0,
   creada_por_id: perfil.uid,
   creada_por_nombre: perfil.nombre,
   modelo_version: 2

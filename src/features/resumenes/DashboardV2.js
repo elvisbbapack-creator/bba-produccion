@@ -47,7 +47,8 @@ const colorIndicador = (valor) => {
 function DashboardV2({
   db,
   perfil,
-  onVolver
+  onVolver,
+  onCerrarSesion
 }) {
   const plantas = perfil.planta_ids || [];
   const [plantaId, setPlantaId] =
@@ -236,6 +237,22 @@ function DashboardV2({
                   Volver
                 </button>
               </>
+            )}
+            {perfil.rol === "tv" && (
+              <button
+                type="button"
+                onClick={onCerrarSesion}
+                style={{
+                  padding: "10px 14px",
+                  border: "1px solid #475569",
+                  borderRadius: 8,
+                  background: "#1E293B",
+                  color: "white",
+                  cursor: "pointer"
+                }}
+              >
+                Cerrar sesión
+              </button>
             )}
           </div>
         </header>

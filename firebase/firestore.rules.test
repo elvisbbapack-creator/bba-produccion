@@ -89,6 +89,34 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /{catalogo}/{registroId} {
+      allow read: if catalogo in [
+          'catalogo_defectos',
+          'catalogo_causas'
+        ] &&
+        belongsToCompany(resource.data);
+      allow create: if catalogo in [
+          'catalogo_defectos',
+          'catalogo_causas'
+        ] &&
+        canManage() &&
+        belongsToCompany(
+          request.resource.data
+        );
+      allow update: if catalogo in [
+          'catalogo_defectos',
+          'catalogo_causas'
+        ] &&
+        canManage() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id;
+      allow delete: if false;
+    }
+
     match /productos/{productoId} {
       allow read: if belongsToCompany(
         resource.data
@@ -205,6 +233,8 @@ service cloud.firestore {
           'avance_pct',
           'fecha_real_inicio',
           'fecha_real_fin',
+          'merma_total',
+          'reprocesos_pendientes',
           'fecha_actualizacion'
         ]);
       allow delete: if
@@ -234,6 +264,8 @@ service cloud.firestore {
             'cantidad_ok',
             'cantidad_defectuosa',
             'cantidad_reproceso',
+            'cantidad_merma',
+            'reproceso_pendiente',
             'cantidad_consumida',
             'cantidad_pendiente',
             'avance_pct',
@@ -287,6 +319,38 @@ service cloud.firestore {
         request.resource.data.registrado_por_id ==
           request.auth.uid;
       allow update, delete: if false;
+    }
+
+    match /registros_calidad/{registroId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if canOperate() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.registrado_por_id ==
+          request.auth.uid;
+      allow update: if canManage() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'estado_reproceso',
+          'cantidad_reproceso_pendiente',
+          'cantidad_resuelta_ok',
+          'cantidad_resuelta_merma',
+          'observacion_resolucion',
+          'resuelto_por_id',
+          'resuelto_por_nombre',
+          'resuelto_en'
+        ]);
+      allow delete: if false;
     }
 
     match /{resumen}/{resumenId} {
