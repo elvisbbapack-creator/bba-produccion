@@ -144,6 +144,32 @@ service cloud.firestore {
       allow list, delete: if false;
     }
 
+    match /programacion_turnos/{programacionId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if canManage() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if canManage() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.semana_inicio ==
+          resource.data.semana_inicio &&
+        request.resource.data.operario_id ==
+          resource.data.operario_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
+    }
+
     match /productos/{productoId} {
       allow read: if belongsToCompany(
         resource.data

@@ -316,6 +316,31 @@ Para controlar jornadas y horas extra por persona se agregara una programacion
 semanal de turnos por operario. El simulador actual calcula capacidad por
 proceso y planta; no asigna automaticamente personas a cada franja.
 
+### `programacion_turnos/{empresa_planta_semana_operario}`
+
+La programación semanal rotativa registra:
+
+```text
+empresa_id
+planta_id
+semana_inicio
+operario_id
+operario_codigo
+operario_nombre
+turno_id: manana | tarde | noche
+turno_nombre
+horas_efectivas
+horas_ordinarias
+horas_extra
+actualizado_por_id
+actualizado_en
+```
+
+El identificador determinista evita duplicar un operario en la misma semana.
+Guardar nuevamente reemplaza su turno. Chile controla 42 horas ordinarias y
+marca 9,75 horas extra cuando se asigna toda la semana nocturna; Peru controla
+48 horas sin excedente en sus tres turnos.
+
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 
 Es la copia congelada de una operacion de ruta:

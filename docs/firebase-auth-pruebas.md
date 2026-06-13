@@ -63,6 +63,12 @@ la mediana de unidades OK/hora. Solo considera sesiones de al menos 45 minutos
 y 95% de calidad. El jefe puede revisar tendencia, confianza y diferencia
 contra el estandar vigente antes de aprobar.
 
+La programación semanal de turnos rotativos permite asignar mañana, tarde o
+noche por operario y planta. Usa un documento por persona y semana, calcula
+jornada ordinaria y horas extra, y resume cuántos operarios cubren cada turno.
+La validacion piloto asigno `OPTEST1` al turno noche de Chile y mostro 42 horas
+ordinarias, 9,75 horas extra y una persona de cobertura nocturna.
+
 Las OT V2 usan correlativo transaccional por planta y solo pueden crearlas
 `jefe` o `gerencia`. El piloto `OT-CHI-000001` congelo la ruta de `PCL0001`
 para 100 productos, generando 400 unidades pendientes en cada operacion.
