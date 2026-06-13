@@ -393,9 +393,16 @@ Toda pantalla historica debe usar rango de fechas, limite y paginacion.
 
 ### Fase 4 - Ejecucion y calidad
 
-- Registrar sesiones y eventos V2.
-- Actualizar avances mediante transacciones.
+- Registrar sesiones y eventos V2. Implementado inicialmente en
+  `bba-erp-pruebas`.
+- Actualizar avances mediante transacciones. El piloto habilita operaciones
+  dependientes al cumplir avance minimo y disponibilidad RF.
 - Incorporar defectos, merma y reproceso.
+
+La sesion finalizada conserva `rendimiento_pct`, `calidad_pct` y
+`eficiencia_calidad_pct`. En pruebas muy breves el rendimiento puede ser alto
+porque el tiempo productivo se mide en segundos; en planta se calcula sobre la
+duracion real de la sesion.
 
 ### Fase 5 - Resumenes y expansion
 

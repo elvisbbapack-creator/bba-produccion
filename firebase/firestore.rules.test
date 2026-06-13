@@ -187,7 +187,26 @@ service cloud.firestore {
       allow update: if
         resource.data.modelo_version != 2 &&
         canOperate();
-      allow update: if false;
+      allow update: if
+        resource.data.modelo_version == 2 &&
+        canOperate() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'estado',
+          'avance_pct',
+          'fecha_real_inicio',
+          'fecha_real_fin',
+          'fecha_actualizacion'
+        ]);
       allow delete: if
         resource.data.modelo_version != 2 &&
         canManage();
@@ -200,8 +219,74 @@ service cloud.firestore {
           belongsToPlant(
             request.resource.data
           );
-        allow update, delete: if false;
+        allow update: if canOperate() &&
+          belongsToPlant(resource.data) &&
+          belongsToPlant(
+            request.resource.data
+          ) &&
+          request.resource.data.empresa_id ==
+            resource.data.empresa_id &&
+          request.resource.data.planta_id ==
+            resource.data.planta_id &&
+          request.resource.data.diff(
+            resource.data
+          ).affectedKeys().hasOnly([
+            'cantidad_ok',
+            'cantidad_defectuosa',
+            'cantidad_reproceso',
+            'cantidad_consumida',
+            'cantidad_pendiente',
+            'avance_pct',
+            'estado',
+            'fecha_inicio',
+            'fecha_fin',
+            'fecha_actualizacion'
+          ]);
+        allow delete: if false;
       }
+    }
+
+    match /sesiones_produccion/{sesionId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if canOperate() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.supervisor_id ==
+          request.auth.uid;
+      allow update: if canOperate() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'estado',
+          'fin',
+          'tiempo_productivo_seg',
+          'tiempo_paro_seg',
+          'cantidad_ok',
+          'cantidad_defectuosa',
+          'cantidad_reproceso',
+          'produccion_total',
+          'produccion_esperada',
+          'rendimiento_pct',
+          'calidad_pct',
+          'eficiencia_calidad_pct'
+        ]);
+      allow delete: if false;
+    }
+
+    match /eventos_produccion/{eventoId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if canOperate() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.registrado_por_id ==
+          request.auth.uid;
+      allow update, delete: if false;
     }
 
     match /{collectionName}/{documentId} {

@@ -1,0 +1,86 @@
+import {
+  calcularIndicadoresSesion,
+  calcularDisponibilidadPorMaterial,
+  obtenerOperacionesDisponibles,
+  validarInicioSesion
+} from "./ejecucionRepository";
+
+const operaciones = [
+  {
+    id: "DT0001",
+    ruta_operacion_id: "DT0001",
+    material_entrada_id: "MP0001",
+    material_salida_id: "RF0001",
+    cantidad_ok: 100,
+    cantidad_defectuosa: 5,
+    cantidad_consumida: 105,
+    cantidad_pendiente: 300,
+    avance_pct: 25,
+    estado: "en_proceso",
+    dependencias: []
+  },
+  {
+    id: "DT0005",
+    ruta_operacion_id: "DT0005",
+    material_entrada_id: "RF0001",
+    material_salida_id: "RF0002",
+    cantidad_ok: 0,
+    cantidad_defectuosa: 0,
+    cantidad_consumida: 0,
+    cantidad_pendiente: 400,
+    avance_pct: 0,
+    estado: "pendiente",
+    dependencias: [{
+      ruta_operacion_id: "DT0001",
+      porcentaje_minimo_avance: 20,
+      requiere_material_disponible: true
+    }]
+  }
+];
+
+test("calcula RF disponible para el siguiente paso", () => {
+  expect(
+    calcularDisponibilidadPorMaterial(
+      operaciones
+    )
+  ).toMatchObject({
+    RF0001: 100,
+    RF0002: 0
+  });
+});
+
+test("calcula rendimiento, calidad y eficiencia con calidad", () => {
+  expect(
+    calcularIndicadoresSesion({
+      cantidadOk: 80,
+      cantidadDefectuosa: 20,
+      cantidadReproceso: 0,
+      unidadesPorHora: 100,
+      tiempoProductivoSeg: 3600
+    })
+  ).toEqual({
+    produccion_total: 100,
+    produccion_esperada: 100,
+    rendimiento_pct: 100,
+    calidad_pct: 80,
+    eficiencia_calidad_pct: 80
+  });
+});
+
+test("habilita operaciones por avance y RF", () => {
+  expect(
+    obtenerOperacionesDisponibles(operaciones)
+      .map(operacion => operacion.id)
+  ).toEqual(["DT0001", "DT0005"]);
+});
+
+test("exige OT, operación y operario", () => {
+  expect(
+    validarInicioSesion({
+      orden: null,
+      operacion: null,
+      operarioCodigo: "",
+      operarioNombre: ""
+    })
+  ).toHaveLength(4);
+});

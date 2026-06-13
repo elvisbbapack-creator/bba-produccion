@@ -37,7 +37,8 @@ import {
 } from "./auth/config";
 import {
   interfazV2Activa,
-  puedeAdministrarV2
+  puedeAdministrarV2,
+  puedeOperarV2
 } from "./features/v2/config";
 import CatalogoMaterialesV2 from
   "./features/materiales/CatalogoMaterialesV2";
@@ -45,6 +46,8 @@ import ConstructorRutasV2 from
   "./features/productos/ConstructorRutasV2";
 import OrdenesTrabajoV2 from
   "./features/ordenes/OrdenesTrabajoV2";
+import EjecucionProduccionV2 from
+  "./features/ejecucion/EjecucionProduccionV2";
 
 function App() {
   const esMobile =
@@ -1352,6 +1355,24 @@ const cargarTodosLosParos = async () => {
           🏭 Registrar Producción
         </button>
 
+        {interfazV2Activa &&
+          autenticacionFirebaseActiva &&
+          puedeOperarV2(
+            usuarioSeleccionado
+          ) && (
+            <button
+              onClick={() =>
+                setPantalla("ejecucionV2")
+              }
+              style={{
+                ...cardHome,
+                background: "#EA580C"
+              }}
+            >
+              Ejecutar Producción (V2)
+            </button>
+          )}
+
          <button
           onClick={() => setPantalla("ot")}
           style={{
@@ -1533,6 +1554,21 @@ if (
 ) {
   return (
     <OrdenesTrabajoV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "ejecucionV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeOperarV2(usuarioSeleccionado)
+) {
+  return (
+    <EjecucionProduccionV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
