@@ -58,6 +58,11 @@ En la OT piloto, `DT0001` se ajusto durante la ejecucion de 120 a 125
 unidades/hora. La pantalla confirmo que el cambio se aplica solo a sesiones
 nuevas y no se detectaron errores de consola.
 
+La sugerencia inteligente conserva hasta 12 mediciones recientes por DT y usa
+la mediana de unidades OK/hora. Solo considera sesiones de al menos 45 minutos
+y 95% de calidad. El jefe puede revisar tendencia, confianza y diferencia
+contra el estandar vigente antes de aprobar.
+
 Las OT V2 usan correlativo transaccional por planta y solo pueden crearlas
 `jefe` o `gerencia`. El piloto `OT-CHI-000001` congelo la ruta de `PCL0001`
 para 100 productos, generando 400 unidades pendientes en cada operacion.

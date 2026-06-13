@@ -157,6 +157,28 @@ valor anterior, valor nuevo, motivo, usuario y fecha. El nuevo valor se aplica
 solo a sesiones iniciadas posteriormente. Las sesiones activas y finalizadas
 conservan el estandar congelado con el que comenzaron.
 
+### Sugerencia de estandar
+
+Cada cierre de sesion actualiza un unico documento
+`resumenes_estandar_operacion/{otId_otOperacionId}`. Guarda como maximo las
+12 mediciones recientes, evitando consultar el historial completo.
+
+Una medicion es valida para sugerir estandar cuando:
+
+- tiene al menos 45 minutos productivos;
+- alcanza al menos 95% de calidad;
+- produjo unidades OK.
+
+La sugerencia usa la mediana de unidades OK por hora:
+
+- 1 medicion valida: confianza inicial;
+- 2 a 4: confianza media;
+- 5 o mas: confianza alta.
+
+El jefe ve la tendencia reciente y debe aprobar expresamente la sugerencia.
+La aprobacion usa el mismo evento trazable de cambio de estandar y se aplica
+solo a sesiones nuevas.
+
 ## Ejemplo PCL0001
 
 Ruta simplificada para `PCL0001 Mod 2N60 CL`:

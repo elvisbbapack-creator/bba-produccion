@@ -72,6 +72,101 @@ export const calcularResumenAcumulado = (
   };
 };
 
+const mediana = valores => {
+  const ordenados = [...valores].sort(
+    (a, b) => a - b
+  );
+  const mitad = Math.floor(
+    ordenados.length / 2
+  );
+
+  return ordenados.length % 2 === 0
+    ? (
+      ordenados[mitad - 1] +
+      ordenados[mitad]
+    ) / 2
+    : ordenados[mitad];
+};
+
+export const calcularMedicionEstandar = ({
+  cantidadOk = 0,
+  cantidadDefectuosa = 0,
+  cantidadReproceso = 0,
+  tiempoProductivoSeg = 0,
+  estandarAplicado = 0,
+  fechaOperativa = "",
+  sesionId = ""
+}) => {
+  const tiempo = numero(tiempoProductivoSeg);
+  const ok = numero(cantidadOk);
+  const total =
+    ok +
+    numero(cantidadDefectuosa) +
+    numero(cantidadReproceso);
+  const calidad = total > 0
+    ? (ok / total) * 100
+    : 0;
+  const unidadesOkHora = tiempo > 0
+    ? ok / (tiempo / 3600)
+    : 0;
+
+  return {
+    sesion_id: sesionId,
+    fecha_operativa: fechaOperativa,
+    tiempo_productivo_seg: tiempo,
+    cantidad_ok: ok,
+    produccion_total: total,
+    calidad_pct: Number(calidad.toFixed(2)),
+    unidades_ok_hora: Number(
+      unidadesOkHora.toFixed(2)
+    ),
+    estandar_aplicado:
+      numero(estandarAplicado),
+    valida_para_sugerencia:
+      tiempo >= 2700 &&
+      total > 0 &&
+      calidad >= 95
+  };
+};
+
+export const actualizarResumenEstandar = (
+  actual = {},
+  medicion
+) => {
+  const recientes = [
+    ...(actual.mediciones_recientes || []),
+    medicion
+  ].slice(-12);
+  const validas = recientes.filter(
+    item => item.valida_para_sugerencia
+  );
+  const sugerido = validas.length > 0
+    ? mediana(
+      validas.map(item =>
+        numero(item.unidades_ok_hora)
+      )
+    )
+    : 0;
+
+  return {
+    sesiones_medidas:
+      numero(actual.sesiones_medidas) + 1,
+    mediciones_validas: validas.length,
+    mediciones_recientes: recientes,
+    estandar_sugerido: Number(
+      sugerido.toFixed(2)
+    ),
+    confianza:
+      validas.length >= 5
+        ? "alta"
+        : validas.length >= 2
+          ? "media"
+          : validas.length === 1
+            ? "inicial"
+            : "insuficiente"
+  };
+};
+
 export const idsResumenReporte = ({
   plantaId,
   fecha,
@@ -188,6 +283,26 @@ export const obtenerResumenPlanta = async (
     db,
     "resumenes_planta_turno",
     `${plantaId}__${fecha}__dia`
+  );
+  const snapshot = await getDoc(referencia);
+
+  return snapshot.exists()
+    ? {
+        id: snapshot.id,
+        ...snapshot.data()
+      }
+    : null;
+};
+
+export const obtenerResumenEstandar = async (
+  db,
+  otId,
+  otOperacionId
+) => {
+  const referencia = doc(
+    db,
+    "resumenes_estandar_operacion",
+    `${otId}__${otOperacionId}`
   );
   const snapshot = await getDoc(referencia);
 

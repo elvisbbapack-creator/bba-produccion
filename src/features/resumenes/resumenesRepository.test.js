@@ -1,8 +1,56 @@
 import {
+  actualizarResumenEstandar,
   actualizarRankingPlanta,
+  calcularMedicionEstandar,
   calcularResumenAcumulado,
   idsResumenReporte
 } from "./resumenesRepository";
+
+test("sugiere estándar con mediciones válidas de calidad", () => {
+  const primera = calcularMedicionEstandar({
+    cantidadOk: 100,
+    cantidadDefectuosa: 4,
+    tiempoProductivoSeg: 3600,
+    estandarAplicado: 0,
+    sesionId: "s1"
+  });
+  const segunda = calcularMedicionEstandar({
+    cantidadOk: 120,
+    cantidadDefectuosa: 2,
+    tiempoProductivoSeg: 3600,
+    estandarAplicado: 100,
+    sesionId: "s2"
+  });
+  const resumen = actualizarResumenEstandar(
+    actualizarResumenEstandar({}, primera),
+    segunda
+  );
+
+  expect(primera.valida_para_sugerencia)
+    .toBe(true);
+  expect(resumen).toMatchObject({
+    sesiones_medidas: 2,
+    mediciones_validas: 2,
+    estandar_sugerido: 110,
+    confianza: "media"
+  });
+});
+
+test("excluye mediciones cortas o con baja calidad", () => {
+  const medicion = calcularMedicionEstandar({
+    cantidadOk: 60,
+    cantidadDefectuosa: 40,
+    tiempoProductivoSeg: 1800
+  });
+  const resumen =
+    actualizarResumenEstandar({}, medicion);
+
+  expect(medicion.valida_para_sugerencia)
+    .toBe(false);
+  expect(resumen.estandar_sugerido).toBe(0);
+  expect(resumen.confianza)
+    .toBe("insuficiente");
+});
 
 test("acumula totales y recalcula indicadores ponderados", () => {
   expect(

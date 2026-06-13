@@ -414,6 +414,7 @@ service cloud.firestore {
           'resumenes_operario_dia',
           'resumenes_ot',
           'resumenes_ot_operacion',
+          'resumenes_estandar_operacion',
           'resumenes_planta_turno'
         ] &&
         authenticated() &&
@@ -428,6 +429,7 @@ service cloud.firestore {
           'resumenes_operario_dia',
           'resumenes_ot',
           'resumenes_ot_operacion',
+          'resumenes_estandar_operacion',
           'resumenes_planta_turno'
         ] &&
         belongsToPlant(resource.data);
@@ -436,6 +438,7 @@ service cloud.firestore {
           'resumenes_operario_dia',
           'resumenes_ot',
           'resumenes_ot_operacion',
+          'resumenes_estandar_operacion',
           'resumenes_planta_turno'
         ] &&
         canOperate() &&
@@ -449,6 +452,7 @@ service cloud.firestore {
           'resumenes_operario_dia',
           'resumenes_ot',
           'resumenes_ot_operacion',
+          'resumenes_estandar_operacion',
           'resumenes_planta_turno'
         ] &&
         canOperate() &&

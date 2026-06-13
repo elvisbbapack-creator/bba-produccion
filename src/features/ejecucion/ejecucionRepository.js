@@ -19,7 +19,9 @@ import {
   listarOrdenesV2
 } from "../ordenes/ordenesRepository";
 import {
+  actualizarResumenEstandar,
   actualizarRankingPlanta,
+  calcularMedicionEstandar,
   calcularResumenAcumulado,
   referenciasResumenReporte
 } from "../resumenes/resumenesRepository";
@@ -858,6 +860,11 @@ export const registrarReporteProduccion =
         otOperacionId:
           sesion.ot_operacion_id
       });
+    const resumenEstandarRef = doc(
+      db,
+      "resumenes_estandar_operacion",
+      `${sesion.ot_id}__${sesion.ot_operacion_id}`
+    );
     let resultadoReporte;
 
     await runTransaction(
@@ -908,6 +915,10 @@ export const registrarReporteProduccion =
           resumenSnapshots[tipo] =
             await transaccion.get(referencia);
         }
+        const resumenEstandarSnap =
+          await transaccion.get(
+            resumenEstandarRef
+          );
 
         const actuales = snapshots.map(
           item => ({
@@ -1068,6 +1079,25 @@ export const registrarReporteProduccion =
                 .estandar_unidades_hora,
             tiempoProductivoSeg
           });
+        const medicionEstandar =
+          calcularMedicionEstandar({
+            cantidadOk: valores[0],
+            cantidadDefectuosa: valores[1],
+            cantidadReproceso: valores[2],
+            tiempoProductivoSeg,
+            estandarAplicado:
+              sesionSnap.data()
+                .estandar_unidades_hora,
+            fechaOperativa: fecha,
+            sesionId: sesion.id
+          });
+        const resumenEstandar =
+          actualizarResumenEstandar(
+            resumenEstandarSnap.exists()
+              ? resumenEstandarSnap.data()
+              : {},
+            medicionEstandar
+          );
         const incrementoResumen = {
           cantidad_ok: valores[0],
           cantidad_defectuosa: valores[1],
@@ -1303,6 +1333,29 @@ export const registrarReporteProduccion =
             { merge: true }
           );
         }
+        transaccion.set(
+          resumenEstandarRef,
+          {
+            ...resumenEstandar,
+            empresa_id: perfil.empresa_id,
+            planta_id: sesion.planta_id,
+            ot_id: sesion.ot_id,
+            ot_codigo: sesion.ot_codigo,
+            ot_operacion_id:
+              sesion.ot_operacion_id,
+            operacion_codigo:
+              sesion.operacion_codigo,
+            operacion_nombre:
+              sesion.operacion_nombre,
+            estandar_vigente: Number(
+              objetivo.unidades_por_hora || 0
+            ),
+            actualizado_por_id: perfil.uid,
+            actualizado_en: serverTimestamp(),
+            modelo_version: 2
+          },
+          { merge: true }
+        );
 
         resultadoReporte = {
           tiempo_productivo_seg:

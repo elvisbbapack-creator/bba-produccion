@@ -15,6 +15,9 @@ import {
   listarMotivosParo
 } from "../paros/parosRepository";
 import {
+  obtenerResumenEstandar
+} from "../resumenes/resumenesRepository";
+import {
   actualizarEstandarOperacionOT,
   iniciarSesionProduccion,
   listarOrdenesEjecutables,
@@ -97,6 +100,8 @@ function EjecucionProduccionV2({
       unidades_por_hora: "",
       motivo: ""
     });
+  const [resumenEstandar, setResumenEstandar] =
+    useState(null);
 
   const ordenSeleccionada = ordenes.find(
     orden => orden.id === ordenId
@@ -117,6 +122,53 @@ function EjecucionProduccionV2({
     "jefe",
     "gerencia"
   ].includes(perfil.rol);
+  const estandarSugerido = Number(
+    resumenEstandar?.estandar_sugerido || 0
+  );
+  const estandarVigente = Number(
+    operacionSeleccionada
+      ?.unidades_por_hora || 0
+  );
+  const diferenciaSugerida =
+    estandarVigente > 0 &&
+    estandarSugerido > 0
+      ? (
+        (
+          estandarSugerido -
+          estandarVigente
+        ) /
+        estandarVigente
+      ) * 100
+      : null;
+
+  useEffect(() => {
+    if (!ordenId || !operacionId) {
+      setResumenEstandar(null);
+      return undefined;
+    }
+
+    let vigente = true;
+
+    obtenerResumenEstandar(
+      db,
+      ordenId,
+      operacionId
+    )
+      .then(datos => {
+        if (vigente) {
+          setResumenEstandar(datos);
+        }
+      })
+      .catch(() => {
+        if (vigente) {
+          setResumenEstandar(null);
+        }
+      });
+
+    return () => {
+      vigente = false;
+    };
+  }, [db, operacionId, ordenId]);
 
   const cargarPlanta = useCallback(
     async (planta) => {
@@ -298,7 +350,11 @@ function EjecucionProduccionV2({
     }
   };
 
-  const actualizarEstandar = async () => {
+  const actualizarEstandar = async ({
+    unidadesPorHora =
+      estandarForm.unidades_por_hora,
+    motivo = estandarForm.motivo
+  } = {}) => {
     try {
       setGuardando(true);
       setError("");
@@ -308,14 +364,21 @@ function EjecucionProduccionV2({
           perfil,
           orden: ordenSeleccionada,
           operacion: operacionSeleccionada,
-          unidadesPorHora:
-            estandarForm.unidades_por_hora,
-          motivo: estandarForm.motivo
+          unidadesPorHora,
+          motivo
         });
 
       await cambiarOrden(
         ordenSeleccionada.id,
         false
+      );
+      setResumenEstandar(actual => actual
+        ? {
+          ...actual,
+          estandar_vigente:
+            cambio.estandar_nuevo
+        }
+        : actual
       );
       setEstandarForm({
         unidades_por_hora: "",
@@ -633,6 +696,20 @@ function EjecucionProduccionV2({
                   ) > 0
                     ? `Estándar vigente: ${operacionSeleccionada.unidades_por_hora} unidades/hora.`
                     : "Sin estándar: la sesión será de medición y no afectará eficiencia ni ranking."}
+                  {Number(
+                    operacionSeleccionada
+                      .unidades_por_hora || 0
+                  ) <= 0 && (
+                    <div style={{
+                      marginTop: 6,
+                      fontSize: 13
+                    }}>
+                      Medición guiada: trabaja entre 45 y
+                      60 minutos, registra calidad y
+                      finaliza la sesión para obtener una
+                      sugerencia.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -649,6 +726,120 @@ function EjecucionProduccionV2({
                   <strong>
                     Establecer o ajustar estándar
                   </strong>
+                  <div style={{
+                    padding: 10,
+                    borderRadius: 7,
+                    background: "white",
+                    color: "#334155",
+                    fontSize: 13
+                  }}>
+                    {estandarSugerido > 0
+                      ? (
+                        <>
+                          Sugerido:{" "}
+                          <strong>
+                            {estandarSugerido}
+                            {" unidades/hora"}
+                          </strong>
+                          {" · confianza "}
+                          {
+                            resumenEstandar
+                              ?.confianza
+                          }
+                          {" · "}
+                          {
+                            resumenEstandar
+                              ?.mediciones_validas
+                          }
+                          {" medición(es) válida(s)"}
+                          {diferenciaSugerida !==
+                            null && (
+                            <>
+                              {" · "}
+                              {diferenciaSugerida >= 0
+                                ? "+"
+                                : ""}
+                              {diferenciaSugerida
+                                .toFixed(1)}
+                              {"% frente al vigente"}
+                            </>
+                          )}
+                        </>
+                      )
+                      : "Aún no hay una medición válida. Se requieren al menos 45 minutos y 95% de calidad."}
+                    {(
+                      resumenEstandar
+                        ?.mediciones_recientes || []
+                    ).length > 0 && (
+                      <div style={{
+                        marginTop: 8,
+                        display: "flex",
+                        gap: 6,
+                        flexWrap: "wrap"
+                      }}>
+                        <span>Tendencia reciente:</span>
+                        {resumenEstandar
+                          .mediciones_recientes
+                          .slice(-5)
+                          .map((medicion, indice) => (
+                            <span
+                              key={
+                                medicion.sesion_id ||
+                                indice
+                              }
+                              style={{
+                                padding: "2px 6px",
+                                borderRadius: 10,
+                                background:
+                                  medicion
+                                    .valida_para_sugerencia
+                                    ? "#DCFCE7"
+                                    : "#F1F5F9",
+                                color:
+                                  medicion
+                                    .valida_para_sugerencia
+                                    ? "#166534"
+                                    : "#64748B"
+                              }}
+                            >
+                              {
+                                medicion
+                                  .unidades_ok_hora
+                              }
+                              /h
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                  {estandarSugerido > 0 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        actualizarEstandar({
+                          unidadesPorHora:
+                            estandarSugerido,
+                          motivo:
+                            `Sugerencia aprobada con ${resumenEstandar.mediciones_validas} mediciones válidas y confianza ${resumenEstandar.confianza}.`
+                        })
+                      }
+                      disabled={
+                        guardando ||
+                        estandarSugerido ===
+                          estandarVigente
+                      }
+                      style={{
+                        ...campo,
+                        border:
+                          "1px solid #0284C7",
+                        background: "white",
+                        color: "#0369A1",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      Aprobar estándar sugerido
+                    </button>
+                  )}
                   <label style={etiqueta}>
                     Unidades por hora
                     <input
@@ -691,7 +882,9 @@ function EjecucionProduccionV2({
                   </label>
                   <button
                     type="button"
-                    onClick={actualizarEstandar}
+                    onClick={() =>
+                      actualizarEstandar()
+                    }
                     disabled={guardando}
                     style={{
                       ...campo,
