@@ -75,6 +75,63 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /productos/{productoId} {
+      allow read: if belongsToCompany(
+        resource.data
+      );
+      allow create: if canManage() &&
+        belongsToCompany(
+          request.resource.data
+        );
+      allow update: if canManage() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'activo',
+          'version_ruta_activa',
+          'fecha_actualizacion'
+        ]);
+      allow delete: if false;
+
+      match /rutas/{rutaId} {
+        allow read: if belongsToCompany(
+          resource.data
+        );
+        allow create: if canManage() &&
+          belongsToCompany(
+            request.resource.data
+          );
+        allow update: if canManage() &&
+          belongsToCompany(resource.data) &&
+          belongsToCompany(
+            request.resource.data
+          ) &&
+          request.resource.data.diff(
+            resource.data
+          ).affectedKeys().hasOnly([
+            'estado',
+            'vigente_desde',
+            'fecha_actualizacion'
+          ]);
+        allow delete: if false;
+
+        match /operaciones/{operacionId} {
+          allow read: if belongsToCompany(
+            resource.data
+          );
+          allow create: if canManage() &&
+            belongsToCompany(
+              request.resource.data
+            );
+          allow update, delete: if false;
+        }
+      }
+    }
+
     match /{collectionName}/{documentId} {
       allow read: if authenticated() &&
         legacyCollection(collectionName);
@@ -85,8 +142,7 @@ service cloud.firestore {
     }
 
     match /{document=**} {
-      allow read: if authenticated();
-      allow write: if false;
+      allow read, write: if false;
     }
   }
 }

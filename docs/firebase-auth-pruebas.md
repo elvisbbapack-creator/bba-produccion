@@ -39,6 +39,10 @@ desplegadas solamente en `bba-erp-pruebas`.
 El catalogo `materiales` exige rol `jefe` o `gerencia` para crear o cambiar
 el estado. Los documentos no se eliminan y su empresa no puede modificarse.
 
+Los productos y sus rutas versionadas tambien exigen rol `jefe` o `gerencia`.
+Las operaciones publicadas conservan documentos separados para evitar arreglos
+grandes y reducir lecturas al consultar un producto concreto.
+
 Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 
 ## Verificacion

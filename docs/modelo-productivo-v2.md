@@ -378,9 +378,11 @@ Toda pantalla historica debe usar rango de fechas, limite y paginacion.
 
 ### Fase 2 - Rutas versionadas
 
-- Construir rutas V2 desde la interfaz.
-- Publicar una ruta piloto.
-- Validar cantidades y dependencias con un producto real.
+- Construir rutas V2 desde la interfaz. Implementado inicialmente para V1
+  en el entorno `bba-erp-pruebas`.
+- Publicar una ruta piloto. Completado con `PCL0001` en pruebas.
+- Validar cantidades y dependencias con un producto real. El piloto usa cuatro
+  unidades por producto y habilita `DT0005` al 20% de avance de `DT0001`.
 
 ### Fase 3 - OT V2
 

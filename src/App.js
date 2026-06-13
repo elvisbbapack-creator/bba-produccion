@@ -41,6 +41,8 @@ import {
 } from "./features/v2/config";
 import CatalogoMaterialesV2 from
   "./features/materiales/CatalogoMaterialesV2";
+import ConstructorRutasV2 from
+  "./features/productos/ConstructorRutasV2";
 
 function App() {
   const esMobile =
@@ -1449,6 +1451,24 @@ const cargarTodosLosParos = async () => {
                 Catálogo MP / RF (V2)
               </button>
             )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
+                  setPantalla("rutasV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#1D4ED8"
+                }}
+              >
+                Productos y Rutas (V2)
+              </button>
+            )}
 </div>
       </div>
     </div>
@@ -1463,6 +1483,21 @@ if (
 ) {
   return (
     <CatalogoMaterialesV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "rutasV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <ConstructorRutasV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
