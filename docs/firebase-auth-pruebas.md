@@ -68,6 +68,9 @@ noche por operario y planta. Usa un documento por persona y semana, calcula
 jornada ordinaria y horas extra, y resume cuántos operarios cubren cada turno.
 La validacion piloto asigno `OPTEST1` al turno noche de Chile y mostro 42 horas
 ordinarias, 9,75 horas extra y una persona de cobertura nocturna.
+La ejecución carga la programación de la semana actual y completa código,
+nombre y turno del operario. También conserva un ingreso excepcional marcado
+para no detener la planta ante una contingencia.
 
 Las OT V2 usan correlativo transaccional por planta y solo pueden crearlas
 `jefe` o `gerencia`. El piloto `OT-CHI-000001` congelo la ruta de `PCL0001`

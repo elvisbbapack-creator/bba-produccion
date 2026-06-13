@@ -25,6 +25,9 @@ import {
   calcularResumenAcumulado,
   referenciasResumenReporte
 } from "../resumenes/resumenesRepository";
+import {
+  datosTurnoParaSesion
+} from "../turnos/turnosRepository";
 
 const limpiarTexto = (valor) =>
   (valor || "").toString().trim();
@@ -325,7 +328,8 @@ export const iniciarSesionProduccion = async ({
   orden,
   operacion,
   operarioCodigo,
-  operarioNombre
+  operarioNombre,
+  programacion = null
 }) => {
   const errores = validarInicioSesion({
     orden,
@@ -356,10 +360,19 @@ export const iniciarSesionProduccion = async ({
     "operaciones",
     operacion.id
   );
-  const codigo = limpiarTexto(
+  const programacionRef = programacion?.id
+    ? doc(
+      db,
+      "programacion_turnos",
+      programacion.id
+    )
+    : null;
+  let codigo = limpiarTexto(
     operarioCodigo
   ).toUpperCase();
-  const nombre = limpiarTexto(operarioNombre);
+  let nombre = limpiarTexto(operarioNombre);
+  let datosTurno =
+    datosTurnoParaSesion(programacion);
   let estandarCongelado = Number(
     operacion.unidades_por_hora || 0
   );
@@ -367,6 +380,9 @@ export const iniciarSesionProduccion = async ({
   await runTransaction(db, async transaccion => {
     const operacionSnap =
       await transaccion.get(operacionRef);
+    const programacionSnap = programacionRef
+      ? await transaccion.get(programacionRef)
+      : null;
 
     if (!operacionSnap.exists()) {
       throw new Error(
@@ -384,6 +400,38 @@ export const iniciarSesionProduccion = async ({
       );
     }
 
+    if (
+      programacionRef &&
+      (
+        !programacionSnap.exists() ||
+        programacionSnap.data().empresa_id !==
+          perfil.empresa_id ||
+        programacionSnap.data().planta_id !==
+          orden.planta_id
+      )
+    ) {
+      throw new Error(
+        "La programación del operario ya no es válida para esta planta."
+      );
+    }
+
+    if (programacionSnap?.exists()) {
+      const programacionVigente = {
+        id: programacionSnap.id,
+        ...programacionSnap.data()
+      };
+
+      codigo = limpiarTexto(
+        programacionVigente.operario_codigo
+      ).toUpperCase();
+      nombre = limpiarTexto(
+        programacionVigente.operario_nombre
+      );
+      datosTurno = datosTurnoParaSesion(
+        programacionVigente
+      );
+    }
+
     estandarCongelado = Number(
       operacionSnap.data()
         .unidades_por_hora || 0
@@ -392,7 +440,7 @@ export const iniciarSesionProduccion = async ({
     transaccion.set(sesionRef, {
       empresa_id: perfil.empresa_id,
       planta_id: orden.planta_id,
-      turno_id: "",
+      ...datosTurno,
       ot_id: orden.id,
       ot_codigo: orden.codigo,
       ot_operacion_id: operacion.id,
@@ -472,6 +520,7 @@ export const iniciarSesionProduccion = async ({
     operario_codigo: codigo,
     operario_nombre: nombre,
     planta_id: orden.planta_id,
+    ...datosTurno,
     estado: "activa",
     estandar_unidades_hora:
       estandarCongelado,

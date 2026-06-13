@@ -341,6 +341,11 @@ Guardar nuevamente reemplaza su turno. Chile controla 42 horas ordinarias y
 marca 9,75 horas extra cuando se asigna toda la semana nocturna; Peru controla
 48 horas sin excedente en sus tres turnos.
 
+Al iniciar producción, el supervisor selecciona un operario de la programación
+semanal. La sesión congela turno, semana, horas ordinarias y horas extra
+planificadas. Existe un ingreso excepcional para contingencias, pero la sesión
+queda marcada como no programada.
+
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 
 Es la copia congelada de una operacion de ruta:
@@ -394,6 +399,12 @@ Sustituye gradualmente a `produccion_activa`:
 empresa_id
 planta_id
 turno_id
+turno_nombre
+semana_programada
+programacion_turno_id
+sesion_programada
+horas_ordinarias_programadas
+horas_extra_programadas
 ot_id
 ot_codigo
 ot_operacion_id

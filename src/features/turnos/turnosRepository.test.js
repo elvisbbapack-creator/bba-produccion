@@ -1,5 +1,6 @@
 import {
   calcularJornadaSemanal,
+  datosTurnoParaSesion,
   lunesDeSemana,
   validarProgramacionTurno
 } from "./turnosRepository";
@@ -39,4 +40,30 @@ test("valida los datos obligatorios de programación", () => {
       turnoId: "manana"
     })
   ).toEqual([]);
+});
+
+test("congela la programación dentro de la sesión", () => {
+  expect(
+    datosTurnoParaSesion({
+      id: "programacion-1",
+      turno_id: "noche",
+      turno_nombre: "Noche",
+      semana_inicio: "2026-06-08",
+      horas_ordinarias: 42,
+      horas_extra: 9.75
+    })
+  ).toEqual({
+    turno_id: "noche",
+    turno_nombre: "Noche",
+    semana_programada: "2026-06-08",
+    programacion_turno_id: "programacion-1",
+    sesion_programada: true,
+    horas_ordinarias_programadas: 42,
+    horas_extra_programadas: 9.75
+  });
+
+  expect(
+    datosTurnoParaSesion()
+      .sesion_programada
+  ).toBe(false);
 });

@@ -92,6 +92,25 @@ export const calcularJornadaSemanal = (
   };
 };
 
+export const datosTurnoParaSesion = (
+  programacion = null
+) => ({
+  turno_id: programacion?.turno_id || "",
+  turno_nombre:
+    programacion?.turno_nombre || "",
+  semana_programada:
+    programacion?.semana_inicio || "",
+  programacion_turno_id:
+    programacion?.id || "",
+  sesion_programada: Boolean(programacion),
+  horas_ordinarias_programadas: Number(
+    programacion?.horas_ordinarias || 0
+  ),
+  horas_extra_programadas: Number(
+    programacion?.horas_extra || 0
+  )
+});
+
 export const validarProgramacionTurno = ({
   plantaId,
   semanaInicio,

@@ -18,6 +18,10 @@ import {
   obtenerResumenEstandar
 } from "../resumenes/resumenesRepository";
 import {
+  listarProgramacionSemanal,
+  lunesDeSemana
+} from "../turnos/turnosRepository";
+import {
   actualizarEstandarOperacionOT,
   iniciarSesionProduccion,
   listarOrdenesEjecutables,
@@ -79,6 +83,12 @@ function EjecucionProduccionV2({
     useState("");
   const [operarioNombre, setOperarioNombre] =
     useState("");
+  const [programacionTurnos,
+    setProgramacionTurnos] = useState([]);
+  const [programacionId, setProgramacionId] =
+    useState("");
+  const [ingresoExcepcional,
+    setIngresoExcepcional] = useState(false);
   const [sesiones, setSesiones] = useState([]);
   const [defectos, setDefectos] = useState([]);
   const [causas, setCausas] = useState([]);
@@ -118,6 +128,10 @@ function EjecucionProduccionV2({
   const sesionSeleccionada = sesiones.find(
     sesion => sesion.id === sesionId
   );
+  const programacionSeleccionada =
+    programacionTurnos.find(
+      item => item.id === programacionId
+    );
   const puedeGestionarEstandar = [
     "jefe",
     "gerencia"
@@ -176,7 +190,11 @@ function EjecucionProduccionV2({
         return;
       }
 
-      const [ordenesData, sesionesData] =
+      const [
+        ordenesData,
+        sesionesData,
+        programacionData
+      ] =
         await Promise.all([
           listarOrdenesEjecutables(
             db,
@@ -187,10 +205,17 @@ function EjecucionProduccionV2({
             db,
             perfil.empresa_id,
             planta
+          ),
+          listarProgramacionSemanal(
+            db,
+            perfil.empresa_id,
+            planta,
+            lunesDeSemana()
           )
         ]);
       setOrdenes(ordenesData);
       setSesiones(sesionesData);
+      setProgramacionTurnos(programacionData);
     },
     [db, perfil.empresa_id]
   );
@@ -262,6 +287,10 @@ function EjecucionProduccionV2({
     setOperacionId("");
     setOperaciones([]);
     setSesionId("");
+    setProgramacionId("");
+    setOperarioCodigo("");
+    setOperarioNombre("");
+    setIngresoExcepcional(false);
     setError("");
     setMensaje("");
 
@@ -325,7 +354,9 @@ function EjecucionProduccionV2({
           orden: ordenSeleccionada,
           operacion: operacionSeleccionada,
           operarioCodigo,
-          operarioNombre
+          operarioNombre,
+          programacion:
+            programacionSeleccionada || null
         });
       setSesiones(actuales => [
         ...actuales,
@@ -913,38 +944,149 @@ function EjecucionProduccionV2({
                 )}
 
               <label style={etiqueta}>
-                Código operario
-                <input
-                  value={operarioCodigo}
-                  onChange={evento =>
+                Operario programado
+                <select
+                  value={programacionId}
+                  onChange={evento => {
+                    const id = evento.target.value;
+                    const asignacion =
+                      programacionTurnos.find(
+                        item => item.id === id
+                      );
+
+                    setProgramacionId(id);
                     setOperarioCodigo(
-                      evento.target.value
-                    )
-                  }
-                  placeholder="OP0001"
+                      asignacion
+                        ?.operario_codigo || ""
+                    );
+                    setOperarioNombre(
+                      asignacion
+                        ?.operario_nombre || ""
+                    );
+                  }}
+                  disabled={ingresoExcepcional}
                   style={campo}
-                />
+                >
+                  <option value="">
+                    Seleccionar operario
+                  </option>
+                  {programacionTurnos.map(
+                    asignacion => (
+                      <option
+                        key={asignacion.id}
+                        value={asignacion.id}
+                      >
+                        {asignacion.operario_codigo}
+                        {" - "}
+                        {asignacion.operario_nombre}
+                        {" · "}
+                        {asignacion.turno_nombre}
+                      </option>
+                    )
+                  )}
+                </select>
               </label>
 
-              <label style={etiqueta}>
-                Nombre operario
-                <input
-                  value={operarioNombre}
-                  onChange={evento =>
-                    setOperarioNombre(
-                      evento.target.value
-                    )
+              {programacionSeleccionada &&
+                !ingresoExcepcional && (
+                <div style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  background: "#EEF2FF",
+                  color: "#3730A3"
+                }}>
+                  Turno{" "}
+                  <strong>
+                    {
+                      programacionSeleccionada
+                        .turno_nombre
+                    }
+                  </strong>
+                  {" · "}
+                  {
+                    programacionSeleccionada
+                      .horas_ordinarias
                   }
-                  placeholder="Nombre completo"
-                  style={campo}
+                  {" h ordinarias"}
+                  {Number(
+                    programacionSeleccionada
+                      .horas_extra || 0
+                  ) > 0
+                    ? ` · ${programacionSeleccionada.horas_extra} h extra`
+                    : ""}
+                </div>
+              )}
+
+              <label style={{
+                ...etiqueta,
+                display: "flex",
+                alignItems: "center",
+                gridTemplateColumns: "auto 1fr"
+              }}>
+                <input
+                  type="checkbox"
+                  checked={ingresoExcepcional}
+                  onChange={evento => {
+                    setIngresoExcepcional(
+                      evento.target.checked
+                    );
+                    setProgramacionId("");
+                    setOperarioCodigo("");
+                    setOperarioNombre("");
+                  }}
                 />
+                Ingreso excepcional no programado
               </label>
+
+              {ingresoExcepcional && (
+                <>
+                  <div style={{
+                    padding: 9,
+                    borderRadius: 8,
+                    background: "#FFFBEB",
+                    color: "#92400E"
+                  }}>
+                    Se permitirá iniciar, pero la sesión
+                    quedará marcada como no programada.
+                  </div>
+                  <label style={etiqueta}>
+                    Código operario
+                    <input
+                      value={operarioCodigo}
+                      onChange={evento =>
+                        setOperarioCodigo(
+                          evento.target.value
+                        )
+                      }
+                      placeholder="OP0001"
+                      style={campo}
+                    />
+                  </label>
+                  <label style={etiqueta}>
+                    Nombre operario
+                    <input
+                      value={operarioNombre}
+                      onChange={evento =>
+                        setOperarioNombre(
+                          evento.target.value
+                        )
+                      }
+                      placeholder="Nombre completo"
+                      style={campo}
+                    />
+                  </label>
+                </>
+              )}
 
               <button
                 type="submit"
                 disabled={
                   guardando ||
-                  !operacionSeleccionada
+                  !operacionSeleccionada ||
+                  (
+                    !ingresoExcepcional &&
+                    !programacionSeleccionada
+                  )
                 }
                 style={{
                   ...campo,
@@ -1019,6 +1161,14 @@ function EjecucionProduccionV2({
                         {sesion.operario_codigo}
                         {" - "}
                         {sesion.operario_nombre}
+                      </div>
+                      <div style={{
+                        color: "#64748B",
+                        marginTop: 3
+                      }}>
+                        {sesion.sesion_programada
+                          ? `Turno ${sesion.turno_nombre}`
+                          : "Ingreso excepcional no programado"}
                       </div>
                       <div style={{
                         marginTop: 6,
