@@ -96,7 +96,8 @@ service cloud.firestore {
           'operaciones',
           'productos',
           'catalogo_defectos',
-          'catalogo_causas'
+          'catalogo_causas',
+          'catalogo_motivos_paro'
         ] &&
         belongsToCompany(resource.data);
 
@@ -107,7 +108,8 @@ service cloud.firestore {
           'operaciones',
           'productos',
           'catalogo_defectos',
-          'catalogo_causas'
+          'catalogo_causas',
+          'catalogo_motivos_paro'
         ] &&
         isManagement() &&
         belongsToCompany(request.resource.data);
@@ -119,7 +121,8 @@ service cloud.firestore {
           'operaciones',
           'productos',
           'catalogo_defectos',
-          'catalogo_causas'
+          'catalogo_causas',
+          'catalogo_motivos_paro'
         ] &&
         isManagement() &&
         belongsToCompany(resource.data) &&

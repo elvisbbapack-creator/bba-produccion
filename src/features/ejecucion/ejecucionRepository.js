@@ -192,6 +192,44 @@ export const calcularIndicadoresSesion = ({
   };
 };
 
+export const calcularTiemposSesion = ({
+  inicio,
+  fin,
+  tiempoParoSeg = 0,
+  tiempoParoDescontableSeg = tiempoParoSeg
+}) => {
+  const inicioMs = typeof inicio?.toMillis ===
+    "function"
+    ? inicio.toMillis()
+    : new Date(inicio).getTime();
+  const finMs = typeof fin?.toMillis === "function"
+    ? fin.toMillis()
+    : new Date(fin).getTime();
+  const tiempoTotalSeg = Math.max(
+    1,
+    Math.round((finMs - inicioMs) / 1000)
+  );
+  const paroTotal = Math.max(
+    0,
+    Number(tiempoParoSeg || 0)
+  );
+  const paroDescontable = Math.max(
+    0,
+    Number(tiempoParoDescontableSeg || 0)
+  );
+
+  return {
+    tiempo_total_seg: tiempoTotalSeg,
+    tiempo_paro_seg: paroTotal,
+    tiempo_paro_descontable_seg:
+      paroDescontable,
+    tiempo_productivo_seg: Math.max(
+      1,
+      tiempoTotalSeg - paroDescontable
+    )
+  };
+};
+
 export const validarDatosCalidadReporte = ({
   cantidadDefectuosa = 0,
   cantidadReproceso = 0,
@@ -243,19 +281,33 @@ export const listarSesionesActivas = async (
   empresaId,
   plantaId
 ) => {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "sesiones_produccion"),
-      where("empresa_id", "==", empresaId),
-      where("planta_id", "==", plantaId),
-      where("estado", "==", "activa")
+  const estados = ["activa", "pausada"];
+  const snapshots = await Promise.all(
+    estados.map(estado =>
+      getDocs(
+        query(
+          collection(
+            db,
+            "sesiones_produccion"
+          ),
+          where(
+            "empresa_id",
+            "==",
+            empresaId
+          ),
+          where("planta_id", "==", plantaId),
+          where("estado", "==", estado)
+        )
+      )
     )
   );
 
-  return snapshot.docs.map(documento => ({
-    id: documento.id,
-    ...documento.data()
-  }));
+  return snapshots.flatMap(snapshot =>
+    snapshot.docs.map(documento => ({
+      id: documento.id,
+      ...documento.data()
+    }))
+  );
 };
 
 export const iniciarSesionProduccion = async ({
@@ -342,6 +394,12 @@ export const iniciarSesionProduccion = async ({
       fin: null,
       tiempo_productivo_seg: 0,
       tiempo_paro_seg: 0,
+      tiempo_paro_descontable_seg: 0,
+      paro_inicio: null,
+      motivo_paro_id: "",
+      motivo_paro_codigo: "",
+      motivo_paro_nombre: "",
+      paro_afecta_eficiencia: true,
       estandar_unidades_hora: Number(
         operacion.unidades_por_hora
       ),
@@ -397,6 +455,191 @@ export const iniciarSesionProduccion = async ({
     estado: "activa"
   };
 };
+
+export const pausarSesionProduccion = async ({
+  db,
+  perfil,
+  sesion,
+  motivo,
+  observacion
+}) => {
+  if (!sesion || sesion.estado !== "activa") {
+    throw new Error(
+      "Selecciona una sesión activa."
+    );
+  }
+
+  if (!motivo) {
+    throw new Error(
+      "Selecciona un motivo de paro."
+    );
+  }
+
+  const sesionRef = doc(
+    db,
+    "sesiones_produccion",
+    sesion.id
+  );
+  const eventoRef = doc(
+    collection(db, "eventos_produccion")
+  );
+
+  await runTransaction(db, async transaccion => {
+    const sesionSnap =
+      await transaccion.get(sesionRef);
+
+    if (
+      !sesionSnap.exists() ||
+      sesionSnap.data().estado !== "activa"
+    ) {
+      throw new Error(
+        "La sesión ya no está activa."
+      );
+    }
+
+    const inicioParo = Timestamp.now();
+
+    transaccion.update(sesionRef, {
+      estado: "pausada",
+      paro_inicio: inicioParo,
+      motivo_paro_id: motivo.id,
+      motivo_paro_codigo: motivo.codigo,
+      motivo_paro_nombre: motivo.nombre,
+      paro_afecta_eficiencia:
+        motivo.afecta_eficiencia !== false
+    });
+    transaccion.set(eventoRef, {
+      sesion_id: sesion.id,
+      empresa_id: perfil.empresa_id,
+      planta_id: sesion.planta_id,
+      ot_id: sesion.ot_id,
+      ot_operacion_id:
+        sesion.ot_operacion_id,
+      operario_id: sesion.operario_id,
+      tipo: "pausa",
+      motivo_id: motivo.id,
+      motivo_codigo: motivo.codigo,
+      motivo_nombre: motivo.nombre,
+      motivo_categoria: motivo.categoria,
+      afecta_eficiencia:
+        motivo.afecta_eficiencia !== false,
+      cantidad_ok: 0,
+      cantidad_defectuosa: 0,
+      cantidad_reproceso: 0,
+      observacion:
+        limpiarTexto(observacion),
+      timestamp: inicioParo,
+      registrado_por_id: perfil.uid,
+      modelo_version: 2
+    });
+  });
+};
+
+export const reanudarSesionProduccion =
+  async ({
+    db,
+    perfil,
+    sesion,
+    observacion
+  }) => {
+    if (!sesion || sesion.estado !== "pausada") {
+      throw new Error(
+        "Selecciona una sesión pausada."
+      );
+    }
+
+    const sesionRef = doc(
+      db,
+      "sesiones_produccion",
+      sesion.id
+    );
+    const eventoRef = doc(
+      collection(db, "eventos_produccion")
+    );
+
+    await runTransaction(db, async transaccion => {
+      const sesionSnap =
+        await transaccion.get(sesionRef);
+
+      if (
+        !sesionSnap.exists() ||
+        sesionSnap.data().estado !== "pausada"
+      ) {
+        throw new Error(
+          "La sesión ya no está pausada."
+        );
+      }
+
+      const datos = sesionSnap.data();
+      const finParo = Timestamp.now();
+      const inicioParo = datos.paro_inicio;
+
+      if (!inicioParo) {
+        throw new Error(
+          "La pausa no tiene hora de inicio."
+        );
+      }
+
+      const duracionSeg = Math.max(
+        1,
+        Math.round(
+          (
+            finParo.toMillis() -
+            inicioParo.toMillis()
+          ) / 1000
+        )
+      );
+      const tiempoParoTotal = Number(
+        datos.tiempo_paro_seg || 0
+      ) + duracionSeg;
+      const tiempoParoDescontable = Number(
+        datos.tiempo_paro_descontable_seg ??
+        datos.tiempo_paro_seg ??
+        0
+      ) + (
+        datos.paro_afecta_eficiencia ===
+          false
+          ? 0
+          : duracionSeg
+      );
+
+      transaccion.update(sesionRef, {
+        estado: "activa",
+        tiempo_paro_seg: tiempoParoTotal,
+        tiempo_paro_descontable_seg:
+          tiempoParoDescontable,
+        paro_inicio: null,
+        motivo_paro_id: "",
+        motivo_paro_codigo: "",
+        motivo_paro_nombre: "",
+        paro_afecta_eficiencia: true
+      });
+      transaccion.set(eventoRef, {
+        sesion_id: sesion.id,
+        empresa_id: perfil.empresa_id,
+        planta_id: sesion.planta_id,
+        ot_id: sesion.ot_id,
+        ot_operacion_id:
+          sesion.ot_operacion_id,
+        operario_id: sesion.operario_id,
+        tipo: "reanudacion",
+        motivo_id: datos.motivo_paro_id || "",
+        motivo_codigo:
+          datos.motivo_paro_codigo || "",
+        motivo_nombre:
+          datos.motivo_paro_nombre || "",
+        duracion_paro_seg: duracionSeg,
+        cantidad_ok: 0,
+        cantidad_defectuosa: 0,
+        cantidad_reproceso: 0,
+        observacion:
+          limpiarTexto(observacion),
+        timestamp: finParo,
+        registrado_por_id: perfil.uid,
+        modelo_version: 2
+      });
+    });
+  };
 
 export const registrarReporteProduccion =
   async ({
@@ -522,7 +765,9 @@ export const registrarReporteProduccion =
           sesionSnap.data().estado !== "activa"
         ) {
           throw new Error(
-            "La sesión ya fue finalizada."
+            sesionSnap.data().estado === "pausada"
+              ? "Reanuda la sesión antes de finalizar."
+              : "La sesión ya fue finalizada."
           );
         }
 
@@ -691,15 +936,18 @@ export const registrarReporteProduccion =
         const fin = Timestamp.now();
         const inicio =
           sesionSnap.data().inicio;
-        const tiempoProductivoSeg = Math.max(
-          1,
-          Math.round(
-            (
-              fin.toMillis() -
-              inicio.toMillis()
-            ) / 1000
-          )
-        );
+        const tiempos = calcularTiemposSesion({
+          inicio,
+          fin,
+          tiempoParoSeg:
+            sesionSnap.data().tiempo_paro_seg,
+          tiempoParoDescontableSeg:
+            sesionSnap.data()
+              .tiempo_paro_descontable_seg ??
+            sesionSnap.data().tiempo_paro_seg
+        });
+        const tiempoProductivoSeg =
+          tiempos.tiempo_productivo_seg;
         const indicadores =
           calcularIndicadoresSesion({
             cantidadOk: valores[0],
@@ -754,6 +1002,13 @@ export const registrarReporteProduccion =
           fin,
           tiempo_productivo_seg:
             tiempoProductivoSeg,
+          tiempo_paro_seg:
+            tiempos.tiempo_paro_seg,
+          tiempo_paro_descontable_seg:
+            tiempos
+              .tiempo_paro_descontable_seg,
+          tiempo_total_seg:
+            tiempos.tiempo_total_seg,
           cantidad_ok: valores[0],
           cantidad_defectuosa: valores[1],
           cantidad_reproceso: valores[2],

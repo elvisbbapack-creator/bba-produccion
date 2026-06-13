@@ -12,10 +12,15 @@ import {
   listarDefectos
 } from "../calidad/calidadRepository";
 import {
+  listarMotivosParo
+} from "../paros/parosRepository";
+import {
   iniciarSesionProduccion,
   listarOrdenesEjecutables,
   listarSesionesActivas,
   obtenerOperacionesDisponibles,
+  pausarSesionProduccion,
+  reanudarSesionProduccion,
   registrarReporteProduccion
 } from "./ejecucionRepository";
 
@@ -73,7 +78,13 @@ function EjecucionProduccionV2({
   const [sesiones, setSesiones] = useState([]);
   const [defectos, setDefectos] = useState([]);
   const [causas, setCausas] = useState([]);
+  const [motivosParo, setMotivosParo] =
+    useState([]);
   const [sesionId, setSesionId] = useState("");
+  const [motivoParoId, setMotivoParoId] =
+    useState("");
+  const [observacionParo, setObservacionParo] =
+    useState("");
   const [reporte, setReporte] =
     useState(reporteInicial);
   const [cargando, setCargando] = useState(true);
@@ -130,7 +141,8 @@ function EjecucionProduccionV2({
         const [
           ,
           defectosData,
-          causasData
+          causasData,
+          motivosData
         ] = await Promise.all([
           cargarPlanta(plantaId),
           listarDefectos(
@@ -138,6 +150,10 @@ function EjecucionProduccionV2({
             perfil.empresa_id
           ),
           listarCausas(
+            db,
+            perfil.empresa_id
+          ),
+          listarMotivosParo(
             db,
             perfil.empresa_id
           )
@@ -149,6 +165,11 @@ function EjecucionProduccionV2({
         );
         setCausas(
           causasData.filter(
+            item => item.activo !== false
+          )
+        );
+        setMotivosParo(
+          motivosData.filter(
             item => item.activo !== false
           )
         );
@@ -274,6 +295,60 @@ function EjecucionProduccionV2({
     }));
     setError("");
     setMensaje("");
+  };
+
+  const pausar = async () => {
+    const motivo = motivosParo.find(
+      item => item.id === motivoParoId
+    );
+
+    try {
+      setGuardando(true);
+      setError("");
+      await pausarSesionProduccion({
+        db,
+        perfil,
+        sesion: sesionSeleccionada,
+        motivo,
+        observacion: observacionParo
+      });
+      await cargarPlanta(plantaId);
+      setMotivoParoId("");
+      setObservacionParo("");
+      setMensaje("Sesión pausada correctamente.");
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo pausar la sesión."
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const reanudar = async () => {
+    try {
+      setGuardando(true);
+      setError("");
+      await reanudarSesionProduccion({
+        db,
+        perfil,
+        sesion: sesionSeleccionada,
+        observacion: observacionParo
+      });
+      await cargarPlanta(plantaId);
+      setObservacionParo("");
+      setMensaje(
+        "Sesión reanudada. El paro quedó registrado."
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo reanudar la sesión."
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const reportar = async (evento) => {
@@ -606,6 +681,18 @@ function EjecucionProduccionV2({
                         {" - "}
                         {sesion.operario_nombre}
                       </div>
+                      <div style={{
+                        marginTop: 6,
+                        fontWeight: "bold",
+                        color:
+                          sesion.estado === "pausada"
+                            ? "#B45309"
+                            : "#15803D"
+                      }}>
+                        {sesion.estado === "pausada"
+                          ? `PAUSADA · ${sesion.motivo_paro_nombre}`
+                          : "PRODUCIENDO"}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -638,6 +725,111 @@ function EjecucionProduccionV2({
                   display: "grid",
                   gap: 12
                 }}>
+                  {sesionSeleccionada.estado ===
+                  "activa" ? (
+                    <>
+                      <label style={etiqueta}>
+                        Motivo para pausar
+                        <select
+                          value={motivoParoId}
+                          onChange={evento =>
+                            setMotivoParoId(
+                              evento.target.value
+                            )
+                          }
+                          style={campo}
+                        >
+                          <option value="">
+                            Seleccionar motivo
+                          </option>
+                          {motivosParo.map(motivo => (
+                            <option
+                              key={motivo.id}
+                              value={motivo.id}
+                            >
+                              {motivo.codigo}
+                              {" - "}
+                              {motivo.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label style={etiqueta}>
+                        Observación del paro
+                        <input
+                          value={observacionParo}
+                          onChange={evento =>
+                            setObservacionParo(
+                              evento.target.value
+                            )
+                          }
+                          style={campo}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        disabled={
+                          guardando || !motivoParoId
+                        }
+                        onClick={pausar}
+                        style={{
+                          ...campo,
+                          border: "none",
+                          background: "#D97706",
+                          color: "white",
+                          fontWeight: "bold"
+                        }}
+                      >
+                        Pausar producción
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{
+                        padding: 12,
+                        borderRadius: 8,
+                        background: "#FFFBEB",
+                        color: "#92400E"
+                      }}>
+                        Paro activo:{" "}
+                        <strong>
+                          {
+                            sesionSeleccionada
+                              .motivo_paro_nombre
+                          }
+                        </strong>
+                      </div>
+                      <label style={etiqueta}>
+                        Observación al reanudar
+                        <input
+                          value={observacionParo}
+                          onChange={evento =>
+                            setObservacionParo(
+                              evento.target.value
+                            )
+                          }
+                          style={campo}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        disabled={guardando}
+                        onClick={reanudar}
+                        style={{
+                          ...campo,
+                          border: "none",
+                          background: "#2563EB",
+                          color: "white",
+                          fontWeight: "bold"
+                        }}
+                      >
+                        Reanudar producción
+                      </button>
+                    </>
+                  )}
+                  {sesionSeleccionada.estado ===
+                    "activa" && (
+                    <>
                   <label style={etiqueta}>
                     Cantidad OK
                     <input
@@ -790,6 +982,8 @@ function EjecucionProduccionV2({
                   >
                     Registrar y finalizar sesión
                   </button>
+                    </>
+                  )}
                 </div>
               </form>
             )}

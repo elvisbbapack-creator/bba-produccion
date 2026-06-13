@@ -1,6 +1,7 @@
 import {
   calcularIndicadoresSesion,
   calcularDisponibilidadPorMaterial,
+  calcularTiemposSesion,
   obtenerOperacionesDisponibles,
   validarDatosCalidadReporte,
   validarInicioSesion
@@ -65,6 +66,37 @@ test("calcula rendimiento, calidad y eficiencia con calidad", () => {
     rendimiento_pct: 100,
     calidad_pct: 80,
     eficiencia_calidad_pct: 80
+  });
+});
+
+test("descuenta paros del tiempo productivo", () => {
+  expect(
+    calcularTiemposSesion({
+      inicio: new Date("2026-06-13T10:00:00Z"),
+      fin: new Date("2026-06-13T11:00:00Z"),
+      tiempoParoSeg: 900
+    })
+  ).toEqual({
+    tiempo_total_seg: 3600,
+    tiempo_paro_seg: 900,
+    tiempo_paro_descontable_seg: 900,
+    tiempo_productivo_seg: 2700
+  });
+});
+
+test("conserva paros planificados sin descontarlos", () => {
+  expect(
+    calcularTiemposSesion({
+      inicio: new Date("2026-06-13T10:00:00Z"),
+      fin: new Date("2026-06-13T11:00:00Z"),
+      tiempoParoSeg: 900,
+      tiempoParoDescontableSeg: 0
+    })
+  ).toEqual({
+    tiempo_total_seg: 3600,
+    tiempo_paro_seg: 900,
+    tiempo_paro_descontable_seg: 0,
+    tiempo_productivo_seg: 3600
   });
 });
 

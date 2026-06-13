@@ -92,12 +92,14 @@ service cloud.firestore {
     match /{catalogo}/{registroId} {
       allow read: if catalogo in [
           'catalogo_defectos',
-          'catalogo_causas'
+          'catalogo_causas',
+          'catalogo_motivos_paro'
         ] &&
         belongsToCompany(resource.data);
       allow create: if catalogo in [
           'catalogo_defectos',
-          'catalogo_causas'
+          'catalogo_causas',
+          'catalogo_motivos_paro'
         ] &&
         canManage() &&
         belongsToCompany(
@@ -105,7 +107,8 @@ service cloud.firestore {
         );
       allow update: if catalogo in [
           'catalogo_defectos',
-          'catalogo_causas'
+          'catalogo_causas',
+          'catalogo_motivos_paro'
         ] &&
         canManage() &&
         belongsToCompany(resource.data) &&
@@ -298,6 +301,13 @@ service cloud.firestore {
           'fin',
           'tiempo_productivo_seg',
           'tiempo_paro_seg',
+          'tiempo_paro_descontable_seg',
+          'tiempo_total_seg',
+          'paro_inicio',
+          'motivo_paro_id',
+          'motivo_paro_codigo',
+          'motivo_paro_nombre',
+          'paro_afecta_eficiencia',
           'cantidad_ok',
           'cantidad_defectuosa',
           'cantidad_reproceso',

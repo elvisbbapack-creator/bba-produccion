@@ -53,6 +53,8 @@ import DashboardV2 from
   "./features/resumenes/DashboardV2";
 import CalidadV2 from
   "./features/calidad/CalidadV2";
+import ParosV2 from
+  "./features/paros/ParosV2";
 
 function App() {
   const esMobile =
@@ -1528,6 +1530,24 @@ const cargarTodosLosParos = async () => {
             ) && (
               <button
                 onClick={() =>
+                  setPantalla("parosV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#B45309"
+                }}
+              >
+                Motivos de Paro (V2)
+              </button>
+            )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
                   setPantalla("calidadV2")
                 }
                 style={{
@@ -1653,6 +1673,21 @@ if (
 ) {
   return (
     <CalidadV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "parosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <ParosV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

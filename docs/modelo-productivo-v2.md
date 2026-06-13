@@ -265,11 +265,17 @@ operacion_codigo
 operario_id
 operario_nombre
 supervisor_id
-estado: activa | detenida | finalizada | anulada
+estado: activa | pausada | finalizada | anulada
 inicio
 fin
 tiempo_productivo_seg
 tiempo_paro_seg
+tiempo_paro_descontable_seg
+tiempo_total_seg
+paro_inicio
+motivo_paro_id
+motivo_paro_codigo
+motivo_paro_nombre
 estandar_unidades_hora
 ruta_version
 fecha_operativa
@@ -277,6 +283,28 @@ fecha_operativa
 
 Varios documentos pueden estar activos para la misma operacion de OT, uno por
 operario o equipo de trabajo.
+
+### `catalogo_motivos_paro/{motivoId}`
+
+```text
+codigo
+nombre
+categoria: operacional | maquina | material | calidad | planificacion | seguridad
+afecta_eficiencia
+activo
+empresa_id
+```
+
+Cada pausa y reanudacion crea un evento. La sesion acumula
+`tiempo_paro_seg`, de modo que los indicadores finales usan:
+
+```text
+tiempo_productivo = tiempo_total - tiempo_paro_descontable
+```
+
+`tiempo_paro_seg` conserva todas las detenciones para analitica. El campo
+`tiempo_paro_descontable_seg` excluye pausas planificadas que no deben afectar
+el rendimiento.
 
 ### `eventos_produccion/{eventoId}`
 
@@ -416,6 +444,8 @@ Toda pantalla historica debe usar rango de fechas, limite y paginacion.
 - Actualizar avances mediante transacciones. El piloto habilita operaciones
   dependientes al cumplir avance minimo y disponibilidad RF.
 - Incorporar defectos, merma y reproceso.
+- Registrar pausas y reanudaciones con motivos normalizados y descontar el
+  tiempo detenido de la eficiencia.
 
 La sesion finalizada conserva `rendimiento_pct`, `calidad_pct` y
 `eficiencia_calidad_pct`. En pruebas muy breves el rendimiento puede ser alto
