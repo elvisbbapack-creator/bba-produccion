@@ -901,32 +901,49 @@ function OrdenesTrabajoV2({
                     gap: 9,
                     marginBottom: 12
                   }}>
-                    <label style={etiqueta}>
-                      Horas efectivas del 3er turno
-                      <input
-                        type="number"
-                        min="0.5"
-                        step="0.5"
-                        value={
-                          configuracionCapacidad
-                            .horas_tercer_turno
-                        }
-                        onChange={evento =>
-                          actualizarCapacidad(
-                            "horas_tercer_turno",
-                            evento.target.value
-                          )
-                        }
-                        style={campo}
-                      />
-                    </label>
-                    <div style={{
-                      color: "#92400E",
-                      fontSize: 13
-                    }}>
-                      Supuesto editable hasta definir el
-                      horario exacto del tercer turno.
-                    </div>
+                    {formulario.planta_id === "peru"
+                      ? (
+                        <div style={{
+                          color: "#475569",
+                          fontSize: 14
+                        }}>
+                          <strong>
+                            Tercer turno:
+                          </strong>
+                          {" 22:00 a 06:00 (8 horas)."}
+                        </div>
+                      )
+                      : (
+                        <>
+                          <label style={etiqueta}>
+                            Horas efectivas del 3er turno
+                            <input
+                              type="number"
+                              min="0.5"
+                              step="0.5"
+                              value={
+                                configuracionCapacidad
+                                  .horas_tercer_turno
+                              }
+                              onChange={evento =>
+                                actualizarCapacidad(
+                                  "horas_tercer_turno",
+                                  evento.target.value
+                                )
+                              }
+                              style={campo}
+                            />
+                          </label>
+                          <div style={{
+                            color: "#92400E",
+                            fontSize: 13
+                          }}>
+                            Supuesto editable hasta definir
+                            el horario exacto del tercer
+                            turno.
+                          </div>
+                        </>
+                      )}
                   </div>
 
                   <button

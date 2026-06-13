@@ -83,6 +83,19 @@ test("usa los calendarios semanales de Chile y Perú", () => {
     new Date("2026-06-16T00:00:00")
       .toISOString()
   );
+
+  expect(
+    sumarHorasEnCalendario({
+      fechaReferencia:
+        new Date("2026-06-15T21:30:00"),
+      horasTrabajo: 8.5,
+      plantaId: "peru",
+      horasTercerTurno: 4
+    }).toISOString()
+  ).toBe(
+    new Date("2026-06-16T06:00:00")
+      .toISOString()
+  );
 });
 
 test("proyecta la OT usando la operación más larga", () => {

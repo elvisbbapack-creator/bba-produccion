@@ -112,6 +112,7 @@ export const CALENDARIOS_PLANTA = {
     nombre: "Perú",
     horas_semanales_declaradas: 48,
     tercer_turno_horas_default: 8,
+    tercer_turno: [22, 30],
     dias: {
       1: [[6, 14], [14, 22]],
       2: [[6, 14], [14, 22]],
@@ -192,13 +193,17 @@ export const sumarHorasEnCalendario = ({
       ventanasBase.length > 0 &&
       Number(horasTercerTurno) > 0
     ) {
-      const finBase =
-        ventanasBase[ventanasBase.length - 1][1];
+      if (calendario.tercer_turno) {
+        ventanas.push(calendario.tercer_turno);
+      } else {
+        const finBase =
+          ventanasBase[ventanasBase.length - 1][1];
 
-      ventanas.push([
-        finBase,
-        finBase + Number(horasTercerTurno)
-      ]);
+        ventanas.push([
+          finBase,
+          finBase + Number(horasTercerTurno)
+        ]);
+      }
     }
 
     for (const [inicio, fin] of ventanas) {
@@ -397,7 +402,9 @@ export const guardarConfiguracionCapacidad =
     plantaId,
     horasTercerTurno
   }) => {
-    const horas = Number(horasTercerTurno);
+    const horas = plantaId === "peru"
+      ? 8
+      : Number(horasTercerTurno);
 
     if (
       !Number.isFinite(horas) ||

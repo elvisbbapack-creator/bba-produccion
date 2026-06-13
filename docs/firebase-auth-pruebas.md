@@ -70,8 +70,9 @@ quedo guardada con dos turnos base, tres ampliados y ocho horas efectivas.
 El 13 de junio de 2026 el simulador se actualizo con calendarios por planta.
 Chile muestra 42 horas efectivas semanales para el turno de mañana y 41,25
 para el turno de tarde según los horarios informados; Peru usa 48 horas por
-turno. La proyeccion omite los domingos y conserva las horas del tercer turno
-como supuesto editable hasta que BBA defina ese horario.
+turno y un tercer turno de 22:00 a 06:00. La proyeccion omite los domingos.
+Solo el tercer turno de Chile se conserva como supuesto editable hasta que BBA
+defina ese horario.
 
 El rol `tv` ingresa directamente al Dashboard V2. El ranking y los indicadores
 diarios se obtienen desde un unico documento `resumenes_planta_turno`, evitando

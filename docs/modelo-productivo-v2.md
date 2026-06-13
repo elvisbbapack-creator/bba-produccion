@@ -245,12 +245,13 @@ Calendarios base:
   sabado, mañana 07:00-14:00 y tarde 14:00-21:15. Se descuentan 30 minutos de
   colacion por turno. Esto produce 42 horas efectivas semanales en mañana y
   41,25 horas en tarde según los horarios informados.
-- Peru: lunes a sabado, mañana 06:00-14:00 y tarde 14:00-22:00, equivalente a
-  48 horas semanales por turno.
+- Peru: lunes a sabado, mañana 06:00-14:00, tarde 14:00-22:00 y tercer turno
+  22:00-06:00. Cada turno tiene ocho horas y los turnos base equivalen a 48
+  horas semanales por turno.
 
-El horario exacto del tercer turno queda pendiente de definicion. Hasta
-entonces, el simulador usa `horas_tercer_turno` como supuesto editable y lo
-presenta expresamente como tal.
+El horario exacto del tercer turno de Chile queda pendiente de definicion.
+Hasta entonces, el simulador usa `horas_tercer_turno` como supuesto editable
+y lo presenta expresamente como tal.
 
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 
