@@ -21,6 +21,9 @@ import {
 import {
   calcularCapacidadRecursos
 } from "../capacidad/capacidadRepository";
+import {
+  calcularCoberturaSubproceso
+} from "../turnos/turnosRepository";
 
 const limpiarTexto = (valor) =>
   (valor || "").toString().trim();
@@ -309,7 +312,8 @@ export const simularTurnosOT = (
     plantaId = "peru",
     horasTercerTurno = 8,
     fechaReferencia = new Date(),
-    capacidades = []
+    capacidades = [],
+    programacionTurnos = []
   } = {}
 ) => {
   if (Number(horasTercerTurno) <= 0) {
@@ -331,13 +335,30 @@ export const simularTurnosOT = (
           operacion.subproceso_id &&
         capacidad.activo !== false
     );
+    const cobertura =
+      calcularCoberturaSubproceso(
+        programacionTurnos,
+        operacion.subproceso_id
+      );
+    const usaDotacionProgramada =
+      cobertura.turnos_base_completos;
+    const operariosDisponibles =
+      usaDotacionProgramada
+        ? Math.min(
+          Number(
+            capacidadConfigurada
+              ?.operarios_disponibles_turno ?? 1
+          ),
+          cobertura.operarios_base_conservadores
+        )
+        : capacidadConfigurada
+          ?.operarios_disponibles_turno ?? 1;
     const recursos = calcularCapacidadRecursos({
       maquinasDisponibles:
         capacidadConfigurada
           ?.maquinas_disponibles ?? 1,
       operariosDisponibles:
-        capacidadConfigurada
-          ?.operarios_disponibles_turno ?? 1,
+        operariosDisponibles,
       operariosPorRecurso:
         capacidadConfigurada
           ?.operarios_por_recurso ?? 1,
@@ -362,12 +383,22 @@ export const simularTurnosOT = (
       subproceso_id: operacion.subproceso_id,
       capacidad_configurada:
         Boolean(capacidadConfigurada),
+      cobertura_programada: cobertura,
+      dotacion_programada_aplicada:
+        usaDotacionProgramada,
       recursos_paralelos:
         recursos.recursos_paralelos,
       disponibilidad_pct:
         recursos.disponibilidad_pct,
       operarios_requeridos_turno:
         recursos.operarios_requeridos_turno,
+      tercer_turno_con_dotacion:
+        programacionTurnos.length === 0 ||
+        (
+          cobertura.turnos_base_completos &&
+          cobertura.noche >=
+            recursos.operarios_requeridos_turno
+        ),
       unidades_por_hora_efectivas:
         Number(velocidadEfectiva.toFixed(2)),
       horas_trabajo: Number(
@@ -387,7 +418,8 @@ export const simularTurnosOT = (
   )[0] || null;
   const escenario = cargas.map(carga => {
     const ampliada =
-      carga.id === cuello?.id;
+      carga.id === cuello?.id &&
+      carga.tercer_turno_con_dotacion;
     const fechaFinEscenario =
       sumarHorasEnCalendario({
         fechaReferencia,
@@ -443,7 +475,9 @@ export const simularTurnosOT = (
       ahorroHoras.toFixed(2)
     ),
     recomienda_ampliar:
-      Boolean(cuello) && ahorroHoras >= 0.5
+      Boolean(cuello) &&
+      cuello.tercer_turno_con_dotacion &&
+      ahorroHoras >= 0.5
   };
 };
 

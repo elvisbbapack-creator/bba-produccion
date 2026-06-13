@@ -11,6 +11,62 @@ import {
 const limpiar = valor =>
   (valor || "").toString().trim();
 
+export const normalizarSubprocesosHabilitados = (
+  valor = []
+) => {
+  const elementos = Array.isArray(valor)
+    ? valor
+    : valor.toString().split(",");
+
+  return [...new Set(
+    elementos
+      .map(item =>
+        limpiar(item)
+          .toUpperCase()
+          .replace(/\s+/g, "")
+      )
+      .filter(Boolean)
+  )].sort();
+};
+
+export const calcularCoberturaSubproceso = (
+  programacion = [],
+  subprocesoId
+) => {
+  const codigo = limpiar(subprocesoId)
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  const cobertura = {
+    manana: 0,
+    tarde: 0,
+    noche: 0
+  };
+
+  programacion.forEach(item => {
+    if (
+      item.turno_id in cobertura &&
+      normalizarSubprocesosHabilitados(
+        item.subprocesos_habilitados
+      ).includes(codigo)
+    ) {
+      cobertura[item.turno_id] += 1;
+    }
+  });
+
+  return {
+    ...cobertura,
+    turnos_base_completos:
+      cobertura.manana > 0 &&
+      cobertura.tarde > 0,
+    operarios_base_conservadores: Math.min(
+      cobertura.manana,
+      cobertura.tarde
+    ),
+    tercer_turno_disponible:
+      cobertura.noche > 0
+  };
+};
+
 export const TURNOS_PLANTA = {
   chile: {
     limite_semanal: 42,
@@ -116,7 +172,8 @@ export const validarProgramacionTurno = ({
   semanaInicio,
   operarioCodigo,
   operarioNombre,
-  turnoId
+  turnoId,
+  subprocesosHabilitados = []
 }) => {
   const errores = [];
 
@@ -138,6 +195,16 @@ export const validarProgramacionTurno = ({
 
   if (!TURNOS_PLANTA[plantaId]?.turnos[turnoId]) {
     errores.push("Selecciona un turno.");
+  }
+
+  if (
+    normalizarSubprocesosHabilitados(
+      subprocesosHabilitados
+    ).length === 0
+  ) {
+    errores.push(
+      "Asigna al menos un subproceso habilitado."
+    );
   }
 
   return errores;
@@ -194,14 +261,16 @@ export const guardarProgramacionTurno = async ({
   semanaInicio,
   operarioCodigo,
   operarioNombre,
-  turnoId
+  turnoId,
+  subprocesosHabilitados
 }) => {
   const errores = validarProgramacionTurno({
     plantaId,
     semanaInicio,
     operarioCodigo,
     operarioNombre,
-    turnoId
+    turnoId,
+    subprocesosHabilitados
   });
 
   if (errores.length > 0) {
@@ -215,6 +284,10 @@ export const guardarProgramacionTurno = async ({
     plantaId,
     turnoId
   );
+  const habilidades =
+    normalizarSubprocesosHabilitados(
+      subprocesosHabilitados
+    );
   const referencia = doc(
     db,
     "programacion_turnos",
@@ -236,6 +309,7 @@ export const guardarProgramacionTurno = async ({
     turno_nombre:
       TURNOS_PLANTA[plantaId]
         .turnos[turnoId].nombre,
+    subprocesos_habilitados: habilidades,
     ...jornada,
     actualizado_por_id: perfil.uid,
     actualizado_en: serverTimestamp(),

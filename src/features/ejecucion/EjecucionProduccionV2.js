@@ -19,7 +19,8 @@ import {
 } from "../resumenes/resumenesRepository";
 import {
   listarProgramacionSemanal,
-  lunesDeSemana
+  lunesDeSemana,
+  normalizarSubprocesosHabilitados
 } from "../turnos/turnosRepository";
 import {
   actualizarEstandarOperacionOT,
@@ -132,6 +133,25 @@ function EjecucionProduccionV2({
     programacionTurnos.find(
       item => item.id === programacionId
     );
+  const programacionHabilitada = useMemo(
+    () => {
+      const subproceso =
+        normalizarSubprocesosHabilitados([
+          operacionSeleccionada
+            ?.subproceso_id
+        ])[0];
+
+      return subproceso
+        ? programacionTurnos.filter(
+        item =>
+          normalizarSubprocesosHabilitados(
+            item.subprocesos_habilitados
+          ).includes(subproceso)
+      )
+        : [];
+    },
+    [operacionSeleccionada, programacionTurnos]
+  );
   const puedeGestionarEstandar = [
     "jefe",
     "gerencia"
@@ -677,11 +697,14 @@ function EjecucionProduccionV2({
                 Operación disponible
                 <select
                   value={operacionId}
-                  onChange={evento =>
+                  onChange={evento => {
                     setOperacionId(
                       evento.target.value
-                    )
-                  }
+                    );
+                    setProgramacionId("");
+                    setOperarioCodigo("");
+                    setOperarioNombre("");
+                  }}
                   style={campo}
                 >
                   <option value="">
@@ -970,7 +993,7 @@ function EjecucionProduccionV2({
                   <option value="">
                     Seleccionar operario
                   </option>
-                  {programacionTurnos.map(
+                  {programacionHabilitada.map(
                     asignacion => (
                       <option
                         key={asignacion.id}
@@ -986,6 +1009,23 @@ function EjecucionProduccionV2({
                   )}
                 </select>
               </label>
+
+              {operacionSeleccionada &&
+                programacionHabilitada.length === 0 &&
+                !ingresoExcepcional && (
+                <div style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  background: "#FFFBEB",
+                  color: "#92400E"
+                }}>
+                  No hay operarios programados y
+                  habilitados para{" "}
+                  {operacionSeleccionada.subproceso_id}.
+                  Actualiza la programación semanal o
+                  usa el ingreso excepcional.
+                </div>
+              )}
 
               {programacionSeleccionada &&
                 !ingresoExcepcional && (

@@ -94,6 +94,95 @@ test("calcula la carga con recursos paralelos por subproceso", () => {
   expect(carga.capacidad_configurada).toBe(true);
 });
 
+test("usa dotación calificada y bloquea tercer turno sin cobertura", () => {
+  const simulacion = simularTurnosOT(
+    [
+      {
+        id: "DT0005",
+        operacion_codigo: "DT0005",
+        operacion_nombre: "Láser",
+        subproceso_id: "SP0003",
+        cantidad_pendiente: 360,
+        unidades_por_hora: 100
+      }
+    ],
+    {
+      plantaId: "peru",
+      fechaReferencia:
+        new Date("2026-06-15T06:00:00"),
+      capacidades: [
+        {
+          subproceso_id: "SP0003",
+          maquinas_disponibles: 3,
+          operarios_disponibles_turno: 4,
+          operarios_por_recurso: 1,
+          disponibilidad_pct: 100
+        }
+      ],
+      programacionTurnos: [
+        {
+          turno_id: "manana",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "tarde",
+          subprocesos_habilitados: ["SP0003"]
+        }
+      ]
+    }
+  );
+  const carga = simulacion.operaciones[0];
+
+  expect(carga.dotacion_programada_aplicada)
+    .toBe(true);
+  expect(carga.recursos_paralelos).toBe(1);
+  expect(carga.cobertura_programada.noche).toBe(0);
+  expect(carga.tercer_turno_con_dotacion)
+    .toBe(false);
+  expect(carga.turnos_escenario).toBe(2);
+  expect(simulacion.recomienda_ampliar).toBe(false);
+});
+
+test("no recomienda noche si falta un turno base calificado", () => {
+  const simulacion = simularTurnosOT(
+    [
+      {
+        id: "DT0005",
+        operacion_codigo: "DT0005",
+        subproceso_id: "SP0003",
+        cantidad_pendiente: 800,
+        unidades_por_hora: 100
+      }
+    ],
+    {
+      plantaId: "peru",
+      fechaReferencia:
+        new Date("2026-06-15T06:00:00"),
+      programacionTurnos: [
+        {
+          turno_id: "manana",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "noche",
+          subprocesos_habilitados: ["SP0003"]
+        }
+      ]
+    }
+  );
+
+  expect(
+    simulacion.cuello_botella
+      .cobertura_programada
+      .turnos_base_completos
+  ).toBe(false);
+  expect(
+    simulacion.cuello_botella
+      .tercer_turno_con_dotacion
+  ).toBe(false);
+  expect(simulacion.recomienda_ampliar).toBe(false);
+});
+
 test("usa los calendarios semanales de Chile y Perú", () => {
   expect(CALENDARIOS_PLANTA.chile.turnos_rotativos)
     .toBe(true);

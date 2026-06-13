@@ -1,7 +1,9 @@
 import {
+  calcularCoberturaSubproceso,
   calcularJornadaSemanal,
   datosTurnoParaSesion,
   lunesDeSemana,
+  normalizarSubprocesosHabilitados,
   validarProgramacionTurno
 } from "./turnosRepository";
 
@@ -37,9 +39,49 @@ test("valida los datos obligatorios de programación", () => {
       semanaInicio: "2026-06-08",
       operarioCodigo: "OP0001",
       operarioNombre: "Ana",
-      turnoId: "manana"
+      turnoId: "manana",
+      subprocesosHabilitados: ["SP0001"]
     })
   ).toEqual([]);
+});
+
+test("normaliza competencias y calcula cobertura conservadora", () => {
+  expect(
+    normalizarSubprocesosHabilitados(
+      " sp0003, SP0001, sp0003 "
+    )
+  ).toEqual(["SP0001", "SP0003"]);
+
+  expect(
+    calcularCoberturaSubproceso(
+      [
+        {
+          turno_id: "manana",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "manana",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "tarde",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "noche",
+          subprocesos_habilitados: ["SP0003"]
+        }
+      ],
+      "sp0003"
+    )
+  ).toEqual({
+    manana: 2,
+    tarde: 1,
+    noche: 1,
+    turnos_base_completos: true,
+    operarios_base_conservadores: 1,
+    tercer_turno_disponible: true
+  });
 });
 
 test("congela la programación dentro de la sesión", () => {

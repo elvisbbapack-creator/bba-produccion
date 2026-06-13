@@ -361,6 +361,7 @@ operario_codigo
 operario_nombre
 turno_id: manana | tarde | noche
 turno_nombre
+subprocesos_habilitados[]
 horas_efectivas
 horas_ordinarias
 horas_extra
@@ -369,14 +370,22 @@ actualizado_en
 ```
 
 El identificador determinista evita duplicar un operario en la misma semana.
-Guardar nuevamente reemplaza su turno. Chile controla 42 horas ordinarias y
-marca 9,75 horas extra cuando se asigna toda la semana nocturna; Peru controla
-48 horas sin excedente en sus tres turnos.
+Guardar nuevamente reemplaza su turno y congela los subprocesos para los que
+está habilitado esa semana. Chile controla 42 horas ordinarias y marca 9,75
+horas extra cuando se asigna toda la semana nocturna; Peru controla 48 horas
+sin excedente en sus tres turnos.
 
 Al iniciar producción, el supervisor selecciona un operario de la programación
-semanal. La sesión congela turno, semana, horas ordinarias y horas extra
-planificadas. Existe un ingreso excepcional para contingencias, pero la sesión
-queda marcada como no programada.
+semanal que esté habilitado para el subproceso del DT. La transacción vuelve a
+validar esa competencia y la sesión congela turno, semana, horas ordinarias y
+horas extra planificadas. Existe un ingreso excepcional para contingencias,
+pero la sesión queda marcada como no programada.
+
+Para proyectar capacidad, el simulador cuenta operarios habilitados por turno.
+En los dos turnos base usa de forma conservadora la menor cobertura entre
+mañana y tarde cuando ambos están cubiertos. Solo recomienda ampliar a noche
+cuando mañana y tarde tienen cobertura y además existe dotación nocturna
+habilitada suficiente para operar los recursos calculados.
 
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 

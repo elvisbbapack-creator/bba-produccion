@@ -31,7 +31,8 @@ const tarjeta = {
 const formularioInicial = {
   operario_codigo: "",
   operario_nombre: "",
-  turno_id: "manana"
+  turno_id: "manana",
+  subprocesos_habilitados: ""
 };
 
 function ProgramacionTurnosV2({
@@ -134,7 +135,9 @@ function ProgramacionTurnosV2({
           formulario.operario_codigo,
         operarioNombre:
           formulario.operario_nombre,
-        turnoId: formulario.turno_id
+        turnoId: formulario.turno_id,
+        subprocesosHabilitados:
+          formulario.subprocesos_habilitados
       });
       setFormulario(formularioInicial);
       await cargar();
@@ -317,6 +320,32 @@ function ProgramacionTurnosV2({
                   ))}
                 </select>
               </label>
+              <label>
+                Subprocesos habilitados
+                <input
+                  value={
+                    formulario
+                      .subprocesos_habilitados
+                  }
+                  onChange={evento =>
+                    actualizar(
+                      "subprocesos_habilitados",
+                      evento.target.value
+                    )
+                  }
+                  placeholder="SP0001, SP0003"
+                  style={campo}
+                />
+                <small style={{
+                  display: "block",
+                  color: "#64748B",
+                  marginTop: 4
+                }}>
+                  Separa los códigos con comas. Esta
+                  competencia quedará congelada para la
+                  semana programada.
+                </small>
+              </label>
               <button
                 type="submit"
                 disabled={guardando}
@@ -398,7 +427,13 @@ function ProgramacionTurnosV2({
                           item.operario_codigo,
                         operario_nombre:
                           item.operario_nombre,
-                        turno_id: item.turno_id
+                        turno_id: item.turno_id,
+                        subprocesos_habilitados:
+                          (
+                            item
+                              .subprocesos_habilitados ||
+                            []
+                          ).join(", ")
                       })
                     }
                     style={{
@@ -426,6 +461,18 @@ function ProgramacionTurnosV2({
                       {Number(item.horas_extra) > 0
                         ? ` · ${item.horas_extra} h extra`
                         : ""}
+                    </div>
+                    <div style={{
+                      color: "#0369A1",
+                      marginTop: 4,
+                      fontSize: 13
+                    }}>
+                      Habilitado:{" "}
+                      {(
+                        item.subprocesos_habilitados ||
+                        []
+                      ).join(", ") ||
+                        "sin competencias registradas"}
                     </div>
                   </button>
                 ))}

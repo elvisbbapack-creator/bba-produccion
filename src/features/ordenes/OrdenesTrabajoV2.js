@@ -11,6 +11,10 @@ import {
   listarCapacidadesProceso
 } from "../capacidad/capacidadRepository";
 import {
+  listarProgramacionSemanal,
+  lunesDeSemana
+} from "../turnos/turnosRepository";
+import {
   CALENDARIOS_PLANTA,
   calcularProyeccionOT,
   crearOrdenV2,
@@ -116,6 +120,8 @@ function OrdenesTrabajoV2({
   const [operaciones, setOperaciones] = useState([]);
   const [capacidadesProceso,
     setCapacidadesProceso] = useState([]);
+  const [programacionTurnos,
+    setProgramacionTurnos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -211,12 +217,14 @@ function OrdenesTrabajoV2({
           configuracionCapacidad
             .horas_tercer_turno,
         fechaReferencia: new Date(),
-        capacidades: capacidadesProceso
+        capacidades: capacidadesProceso,
+        programacionTurnos
       }
     ),
     [
       configuracionCapacidad,
       capacidadesProceso,
+      programacionTurnos,
       formulario.planta_id,
       operaciones
     ]
@@ -248,6 +256,14 @@ function OrdenesTrabajoV2({
           db,
           perfil.empresa_id,
           plantaId
+        )
+      );
+      setProgramacionTurnos(
+        await listarProgramacionSemanal(
+          db,
+          perfil.empresa_id,
+          plantaId,
+          lunesDeSemana()
         )
       );
     },
@@ -1040,6 +1056,34 @@ function OrdenesTrabajoV2({
                         </div>
                       )}
                       <div style={{
+                        marginTop: 7,
+                        color: "#475569"
+                      }}>
+                        Cobertura calificada semanal:{" "}
+                        mañana{" "}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .cobertura_programada
+                            .manana
+                        }
+                        {" · tarde "}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .cobertura_programada
+                            .tarde
+                        }
+                        {" · noche "}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .cobertura_programada
+                            .noche
+                        }
+                        .
+                      </div>
+                      <div style={{
                         marginTop: 8,
                         fontWeight: "bold",
                         color:
@@ -1051,7 +1095,17 @@ function OrdenesTrabajoV2({
                         {simulacionTurnos
                           .recomienda_ampliar
                           ? `Recomendación: ampliar solo ${simulacionTurnos.cuello_botella.codigo} de 2 a 3 turnos. Ahorro estimado: ${simulacionTurnos.ahorro_horas_calendario} horas calendario.`
-                          : "El tercer turno no produce una mejora significativa en la fecha final actual."}
+                          : !simulacionTurnos
+                            .cuello_botella
+                            .cobertura_programada
+                            .turnos_base_completos &&
+                            programacionTurnos.length > 0
+                            ? `No se recomienda ampliar: falta cobertura calificada en mañana o tarde para ${simulacionTurnos.cuello_botella.subproceso_id}.`
+                            : !simulacionTurnos
+                              .cuello_botella
+                            .tercer_turno_con_dotacion
+                            ? `No se recomienda el tercer turno: faltan operarios habilitados en noche para ${simulacionTurnos.cuello_botella.subproceso_id}.`
+                            : "El tercer turno no produce una mejora significativa en la fecha final actual."}
                       </div>
                       <div style={{
                         marginTop: 7

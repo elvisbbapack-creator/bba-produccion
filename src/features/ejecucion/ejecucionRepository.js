@@ -26,7 +26,8 @@ import {
   referenciasResumenReporte
 } from "../resumenes/resumenesRepository";
 import {
-  datosTurnoParaSesion
+  datosTurnoParaSesion,
+  normalizarSubprocesosHabilitados
 } from "../turnos/turnosRepository";
 
 const limpiarTexto = (valor) =>
@@ -430,6 +431,21 @@ export const iniciarSesionProduccion = async ({
       datosTurno = datosTurnoParaSesion(
         programacionVigente
       );
+      const subprocesoOperacion =
+        normalizarSubprocesosHabilitados([
+          operacionSnap.data().subproceso_id
+        ])[0];
+
+      if (
+        !normalizarSubprocesosHabilitados(
+          programacionVigente
+            .subprocesos_habilitados
+        ).includes(subprocesoOperacion)
+      ) {
+        throw new Error(
+          `El operario no está habilitado para ${subprocesoOperacion}.`
+        );
+      }
     }
 
     estandarCongelado = Number(
