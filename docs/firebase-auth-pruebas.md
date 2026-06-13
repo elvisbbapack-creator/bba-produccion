@@ -43,6 +43,10 @@ Los productos y sus rutas versionadas tambien exigen rol `jefe` o `gerencia`.
 Las operaciones publicadas conservan documentos separados para evitar arreglos
 grandes y reducir lecturas al consultar un producto concreto.
 
+Las OT V2 usan correlativo transaccional por planta y solo pueden crearlas
+`jefe` o `gerencia`. El piloto `OT-CHI-000001` congelo la ruta de `PCL0001`
+para 100 productos, generando 400 unidades pendientes en cada operacion.
+
 Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 
 ## Verificacion

@@ -43,6 +43,8 @@ import CatalogoMaterialesV2 from
   "./features/materiales/CatalogoMaterialesV2";
 import ConstructorRutasV2 from
   "./features/productos/ConstructorRutasV2";
+import OrdenesTrabajoV2 from
+  "./features/ordenes/OrdenesTrabajoV2";
 
 function App() {
   const esMobile =
@@ -1322,6 +1324,24 @@ const cargarTodosLosParos = async () => {
           📋 Crear OT
         </button>
 
+        {interfazV2Activa &&
+          autenticacionFirebaseActiva &&
+          puedeAdministrarV2(
+            usuarioSeleccionado
+          ) && (
+            <button
+              onClick={() =>
+                setPantalla("ordenesV2")
+              }
+              style={{
+                ...cardHome,
+                background: "#7C3AED"
+              }}
+            >
+              Órdenes de Trabajo (V2)
+            </button>
+          )}
+
         <button
           onClick={() => setPantalla("registro")}
           style={{
@@ -1498,6 +1518,21 @@ if (
 ) {
   return (
     <ConstructorRutasV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "ordenesV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <OrdenesTrabajoV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

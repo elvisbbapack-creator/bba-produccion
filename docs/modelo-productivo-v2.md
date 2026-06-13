@@ -386,7 +386,8 @@ Toda pantalla historica debe usar rango de fechas, limite y paginacion.
 
 ### Fase 3 - OT V2
 
-- Las nuevas OT piloto usan `modelo_version: 2`.
+- Las nuevas OT piloto usan `modelo_version: 2`. Implementado en
+  `bba-erp-pruebas` con correlativo automático por planta.
 - Las OT actuales siguen usando el flujo heredado.
 - La seleccion de produccion detecta la version y usa el flujo correspondiente.
 

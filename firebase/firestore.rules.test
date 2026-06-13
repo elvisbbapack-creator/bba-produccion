@@ -33,6 +33,21 @@ service cloud.firestore {
           request.auth.token.empresa_id;
     }
 
+    function plantIds() {
+      return authenticated() &&
+        request.auth.token.planta_ids is list
+          ? request.auth.token.planta_ids
+          : [];
+    }
+
+    function belongsToPlant(data) {
+      return belongsToCompany(data) &&
+        (
+          role() == 'gerencia' ||
+          data.planta_id in plantIds()
+        );
+    }
+
     function legacyCollection(collectionName) {
       return collectionName in [
         'ajustes_produccion',
@@ -41,7 +56,6 @@ service cloud.firestore {
         'estandares',
         'operaciones_maestras',
         'operarios',
-        'ordenes_trabajo',
         'paros_produccion',
         'procesos',
         'produccion_activa',
@@ -129,6 +143,64 @@ service cloud.firestore {
             );
           allow update, delete: if false;
         }
+      }
+    }
+
+    match /correlativos/{correlativoId} {
+      allow read: if canManage();
+      allow create: if canManage() &&
+        belongsToPlant(
+          request.resource.data
+        );
+      allow update: if canManage() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.ultimo ==
+          resource.data.ultimo + 1;
+      allow delete: if false;
+    }
+
+    match /ordenes_trabajo/{otId} {
+      allow read: if
+        resource.data.modelo_version != 2 &&
+        authenticated();
+      allow read: if
+        resource.data.modelo_version == 2 &&
+        belongsToPlant(resource.data);
+
+      allow create: if
+        request.resource.data.modelo_version != 2 &&
+        canOperate();
+      allow create: if
+        request.resource.data.modelo_version == 2 &&
+        canManage() &&
+        belongsToPlant(
+          request.resource.data
+        );
+
+      allow update: if
+        resource.data.modelo_version != 2 &&
+        canOperate();
+      allow update: if false;
+      allow delete: if
+        resource.data.modelo_version != 2 &&
+        canManage();
+
+      match /operaciones/{operacionId} {
+        allow read: if belongsToPlant(
+          resource.data
+        );
+        allow create: if canManage() &&
+          belongsToPlant(
+            request.resource.data
+          );
+        allow update, delete: if false;
       }
     }
 
