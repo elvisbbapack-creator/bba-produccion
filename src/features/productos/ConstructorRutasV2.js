@@ -18,6 +18,7 @@ import {
   prepararOperacionRuta,
   prepararProducto,
   publicarRuta,
+  recalibrarEstandarRuta,
   validarOperacionBasica,
   validarProducto
 } from "./productosRepository";
@@ -87,6 +88,13 @@ function ConstructorRutasV2({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [recalibrandoId, setRecalibrandoId] =
+    useState("");
+  const [recalibracion, setRecalibracion] =
+    useState({
+      unidades_por_hora: "",
+      motivo: ""
+    });
 
   const productoSeleccionado = productos.find(
     producto => producto.id === productoId
@@ -135,7 +143,7 @@ function ConstructorRutasV2({
   }, [cargarCatalogos]);
 
   const cargarRuta = useCallback(
-    async (id) => {
+    async (id, version = 1) => {
       if (!id) {
         setRuta(null);
         return;
@@ -148,7 +156,7 @@ function ConstructorRutasV2({
             db,
             id,
             perfil.empresa_id,
-            1
+            version
           )
         );
       } catch (fallo) {
@@ -284,7 +292,7 @@ function ConstructorRutasV2({
         db,
         perfil.empresa_id,
         productoId,
-        1,
+        ruta?.version || 1,
         {
           ...operacionForm,
           secuencia:
@@ -303,6 +311,63 @@ function ConstructorRutasV2({
       setError(
         fallo?.message ||
         "No se pudo agregar la operación."
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const abrirRecalibracion = operacion => {
+    setRecalibrandoId(operacion.id);
+    setRecalibracion({
+      unidades_por_hora:
+        operacion.unidades_por_hora,
+      motivo: ""
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const cancelarRecalibracion = () => {
+    setRecalibrandoId("");
+    setRecalibracion({
+      unidades_por_hora: "",
+      motivo: ""
+    });
+  };
+
+  const guardarRecalibracion = async (
+    operacion
+  ) => {
+    try {
+      setGuardando(true);
+      const resultado =
+        await recalibrarEstandarRuta({
+          db,
+          empresaId: perfil.empresa_id,
+          productoId,
+          versionActual: ruta.version,
+          operaciones: ruta.operaciones,
+          operacionId: operacion.id,
+          unidadesPorHora:
+            recalibracion.unidades_por_hora,
+          motivo: recalibracion.motivo,
+          perfil
+        });
+
+      await cargarCatalogos();
+      await cargarRuta(
+        productoId,
+        resultado.version
+      );
+      cancelarRecalibracion();
+      setMensaje(
+        `Estándar actualizado en ruta V${resultado.version}. Las OT existentes conservan el valor anterior.`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo actualizar el estándar."
       );
     } finally {
       setGuardando(false);
@@ -332,14 +397,17 @@ function ConstructorRutasV2({
         db,
         empresaId: perfil.empresa_id,
         productoId,
-        version: 1,
+        version: ruta.version,
         operaciones: ruta.operaciones,
         materiales
       });
       await cargarCatalogos();
-      await cargarRuta(productoId);
+      await cargarRuta(
+        productoId,
+        ruta.version
+      );
       setMensaje(
-        "Ruta V1 publicada y activa."
+        `Ruta V${ruta.version} publicada y activa.`
       );
     } catch (fallo) {
       setError(
@@ -515,7 +583,11 @@ function ConstructorRutasV2({
                         setProductoId(producto.id);
                         setError("");
                         setMensaje("");
-                        cargarRuta(producto.id);
+                        cargarRuta(
+                          producto.id,
+                          producto
+                            .version_ruta_activa || 1
+                        );
                       }}
                       style={{
                         textAlign: "left",
@@ -584,7 +656,7 @@ function ConstructorRutasV2({
                         color: "#64748B",
                         marginBottom: 0
                       }}>
-                        Ruta V1 ·{" "}
+                        Ruta V{ruta?.version || 1} ·{" "}
                         {ruta?.estado || "borrador"}
                       </p>
                     </div>
@@ -1038,6 +1110,168 @@ function ConstructorRutasV2({
                                 }
                                 {" por hora"}
                               </div>
+                              {operacion.estandar_motivo && (
+                                <div style={{
+                                  marginTop: 7,
+                                  color: "#475569",
+                                  fontSize: 13,
+                                  background: "#F8FAFC",
+                                  padding: 8,
+                                  borderRadius: 7
+                                }}>
+                                  Estándar anterior:{" "}
+                                  {
+                                    operacion
+                                      .estandar_anterior
+                                  }
+                                  {" por hora. Motivo: "}
+                                  {
+                                    operacion
+                                      .estandar_motivo
+                                  }
+                                </div>
+                              )}
+                              {rutaPublicada &&
+                                recalibrandoId !==
+                                  operacion.id && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    abrirRecalibracion(
+                                      operacion
+                                    )
+                                  }
+                                  style={{
+                                    marginTop: 10,
+                                    border:
+                                      "1px solid #0369A1",
+                                    borderRadius: 7,
+                                    padding: "7px 10px",
+                                    background: "white",
+                                    color: "#0369A1",
+                                    fontWeight: "bold",
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  Actualizar estándar
+                                </button>
+                              )}
+                              {rutaPublicada &&
+                                recalibrandoId ===
+                                  operacion.id && (
+                                <div style={{
+                                  marginTop: 12,
+                                  padding: 12,
+                                  borderRadius: 8,
+                                  background: "#F0F9FF",
+                                  display: "grid",
+                                  gap: 9
+                                }}>
+                                  <strong>
+                                    Nueva versión de ruta
+                                  </strong>
+                                  <label style={etiqueta}>
+                                    Nuevo estándar
+                                    (unidades/hora)
+                                    <input
+                                      type="number"
+                                      min="0.01"
+                                      step="0.01"
+                                      value={
+                                        recalibracion
+                                          .unidades_por_hora
+                                      }
+                                      onChange={evento =>
+                                        setRecalibracion(
+                                          actual => ({
+                                            ...actual,
+                                            unidades_por_hora:
+                                              evento.target
+                                                .value
+                                          })
+                                        )
+                                      }
+                                      style={campo}
+                                    />
+                                  </label>
+                                  <label style={etiqueta}>
+                                    Motivo del cambio
+                                    <textarea
+                                      value={
+                                        recalibracion.motivo
+                                      }
+                                      onChange={evento =>
+                                        setRecalibracion(
+                                          actual => ({
+                                            ...actual,
+                                            motivo:
+                                              evento.target
+                                                .value
+                                          })
+                                        )
+                                      }
+                                      placeholder="Ej.: mejora comprobada del método o corrección de estándar inicial."
+                                      rows={3}
+                                      style={campo}
+                                    />
+                                  </label>
+                                  <div style={{
+                                    color: "#475569",
+                                    fontSize: 13
+                                  }}>
+                                    Las OT existentes no
+                                    cambian. Las nuevas OT
+                                    usarán la nueva versión.
+                                  </div>
+                                  <div style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    flexWrap: "wrap"
+                                  }}>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        guardarRecalibracion(
+                                          operacion
+                                        )
+                                      }
+                                      disabled={guardando}
+                                      style={{
+                                        border: "none",
+                                        borderRadius: 7,
+                                        padding:
+                                          "8px 11px",
+                                        background:
+                                          "#0369A1",
+                                        color: "white",
+                                        fontWeight: "bold",
+                                        cursor: "pointer"
+                                      }}
+                                    >
+                                      Crear nueva versión
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={
+                                        cancelarRecalibracion
+                                      }
+                                      disabled={guardando}
+                                      style={{
+                                        border:
+                                          "1px solid #94A3B8",
+                                        borderRadius: 7,
+                                        padding:
+                                          "8px 11px",
+                                        background: "white",
+                                        color: "#475569",
+                                        cursor: "pointer"
+                                      }}
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </article>
                           );
                         }

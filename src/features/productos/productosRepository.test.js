@@ -1,6 +1,7 @@
 import {
   prepararOperacionRuta,
   prepararProducto,
+  validarRecalibracionEstandar,
   validarOperacionBasica,
   validarProducto
 } from "./productosRepository";
@@ -78,4 +79,26 @@ test("prepara una operacion con dependencia parcial", () => {
   expect(
     validarOperacionBasica(operacion)
   ).toEqual([]);
+});
+
+test("valida una recalibración trazable del estándar", () => {
+  expect(
+    validarRecalibracionEstandar({
+      valorAnterior: 80,
+      valorNuevo: 120,
+      motivo:
+        "Mejora comprobada durante producción."
+    })
+  ).toEqual([]);
+
+  expect(
+    validarRecalibracionEstandar({
+      valorAnterior: 80,
+      valorNuevo: 80,
+      motivo: "Error"
+    })
+  ).toEqual(expect.arrayContaining([
+    "El nuevo estándar debe ser diferente al actual.",
+    "Indica un motivo de al menos 10 caracteres."
+  ]));
 });

@@ -43,6 +43,12 @@ Los productos y sus rutas versionadas tambien exigen rol `jefe` o `gerencia`.
 Las operaciones publicadas conservan documentos separados para evitar arreglos
 grandes y reducir lecturas al consultar un producto concreto.
 
+La recalibracion de estandares crea una nueva version publicada de la ruta,
+registra valor anterior, valor nuevo, motivo, usuario y fecha, y conserva sin
+cambios las OT existentes. Solo las OT nuevas toman el estandar actualizado.
+En el piloto, `DT0001` paso de 120 a 125 unidades por hora y `PCL0001` creo la
+ruta V2, manteniendo la OT piloto enlazada a su copia congelada anterior.
+
 Las OT V2 usan correlativo transaccional por planta y solo pueden crearlas
 `jefe` o `gerencia`. El piloto `OT-CHI-000001` congelo la ruta de `PCL0001`
 para 100 productos, generando 400 unidades pendientes en cada operacion.

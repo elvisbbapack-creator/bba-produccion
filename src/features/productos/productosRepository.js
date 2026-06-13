@@ -198,6 +198,39 @@ export const validarOperacionBasica = (
   return errores;
 };
 
+export const validarRecalibracionEstandar = ({
+  valorAnterior,
+  valorNuevo,
+  motivo
+}) => {
+  const errores = [];
+  const anterior = Number(valorAnterior);
+  const nuevo = Number(valorNuevo);
+
+  if (!Number.isFinite(nuevo) || nuevo <= 0) {
+    errores.push(
+      "El nuevo estándar debe ser mayor que cero."
+    );
+  }
+
+  if (
+    Number.isFinite(anterior) &&
+    nuevo === anterior
+  ) {
+    errores.push(
+      "El nuevo estándar debe ser diferente al actual."
+    );
+  }
+
+  if (limpiarTexto(motivo).length < 10) {
+    errores.push(
+      "Indica un motivo de al menos 10 caracteres."
+    );
+  }
+
+  return errores;
+};
+
 const idProducto = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
 
@@ -424,6 +457,133 @@ export const publicarRuta = async ({
     empresa_id: empresaId
   });
   await lote.commit();
+};
+
+export const recalibrarEstandarRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  versionActual,
+  operaciones,
+  operacionId,
+  unidadesPorHora,
+  motivo,
+  perfil
+}) => {
+  const operacionActual = operaciones.find(
+    operacion => operacion.id === operacionId
+  );
+
+  if (!operacionActual) {
+    throw new Error(
+      "No se encontró la operación seleccionada."
+    );
+  }
+
+  const errores = validarRecalibracionEstandar({
+    valorAnterior:
+      operacionActual.unidades_por_hora,
+    valorNuevo: unidadesPorHora,
+    motivo
+  });
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  const versionNueva =
+    Number(versionActual) + 1;
+  const productoRef = doc(
+    db,
+    "productos",
+    productoId
+  );
+  const rutaActualRef = doc(
+    db,
+    "productos",
+    productoId,
+    "rutas",
+    idRuta(versionActual)
+  );
+  const rutaNuevaRef = doc(
+    db,
+    "productos",
+    productoId,
+    "rutas",
+    idRuta(versionNueva)
+  );
+  const lote = writeBatch(db);
+  const motivoLimpio = limpiarTexto(motivo);
+  const nuevoEstandar = Number(
+    unidadesPorHora
+  );
+
+  lote.set(rutaNuevaRef, {
+    id: rutaNuevaRef.id,
+    empresa_id: empresaId,
+    producto_id: productoId,
+    version: versionNueva,
+    estado: "publicada",
+    version_origen: Number(versionActual),
+    motivo_nueva_version: motivoLimpio,
+    creada_por: perfil.uid,
+    vigente_desde: serverTimestamp(),
+    fecha_creacion: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  });
+
+  operaciones.forEach(operacion => {
+    const esRecalibrada =
+      operacion.id === operacionId;
+    const operacionRef = doc(
+      db,
+      "productos",
+      productoId,
+      "rutas",
+      idRuta(versionNueva),
+      "operaciones",
+      operacion.id
+    );
+    const copia = {
+      ...operacion,
+      unidades_por_hora: esRecalibrada
+        ? nuevoEstandar
+        : Number(operacion.unidades_por_hora),
+      ruta_version: versionNueva,
+      fecha_creacion: serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    };
+
+    delete copia.id;
+
+    if (esRecalibrada) {
+      copia.estandar_anterior = Number(
+        operacion.unidades_por_hora
+      );
+      copia.estandar_motivo = motivoLimpio;
+      copia.estandar_actualizado_por =
+        perfil.uid;
+      copia.estandar_actualizado_en =
+        serverTimestamp();
+    }
+
+    lote.set(operacionRef, copia);
+  });
+
+  lote.update(rutaActualRef, {
+    estado: "retirada",
+    fecha_actualizacion: serverTimestamp()
+  });
+  lote.update(productoRef, {
+    version_ruta_activa: versionNueva,
+    fecha_actualizacion: serverTimestamp()
+  });
+  await lote.commit();
+
+  return {
+    version: versionNueva,
+    unidades_por_hora: nuevoEstandar
+  };
 };
 
 export const retirarProducto = async (

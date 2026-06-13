@@ -127,6 +127,20 @@ activo
 Los nombres y codigos se copian junto con los IDs para mostrar historicos sin
 lecturas adicionales y conservar la descripcion vigente en ese momento.
 
+### Recalibracion de estandares
+
+El jefe o gerencia puede actualizar `unidades_por_hora` desde una ruta
+publicada. El sistema no modifica la version vigente ni las OT ya creadas:
+
+1. exige un nuevo valor positivo y un motivo;
+2. copia la ruta completa a la siguiente version;
+3. registra en el DT modificado el estandar anterior, motivo, usuario y fecha;
+4. retira la ruta anterior y activa la nueva version;
+5. aplica el nuevo estandar solamente a las OT creadas posteriormente.
+
+Esto permite corregir un dato inicial alejado de la realidad o reconocer una
+mejora comprobada del proceso sin alterar indicadores historicos.
+
 ## Ejemplo PCL0001
 
 Ruta simplificada para `PCL0001 Mod 2N60 CL`:
