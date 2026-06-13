@@ -1,10 +1,12 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   runTransaction,
   serverTimestamp,
+  setDoc,
   where
 } from "firebase/firestore";
 import {
@@ -91,6 +93,213 @@ export const calcularProyeccionOT = (
     fecha_estimada_fin: fechaEstimadaFin
   };
 };
+
+export const simularTurnosOT = (
+  operaciones = [],
+  {
+    turnosBase = 2,
+    turnosCuello = 3,
+    horasPorTurno = 8,
+    fechaReferencia = new Date()
+  } = {}
+) => {
+  const capacidadBaseDia =
+    Number(turnosBase) *
+    Number(horasPorTurno);
+  const capacidadAmpliadaDia =
+    Number(turnosCuello) *
+    Number(horasPorTurno);
+
+  if (
+    capacidadBaseDia <= 0 ||
+    capacidadAmpliadaDia <= 0
+  ) {
+    throw new Error(
+      "La configuración de turnos debe ser positiva."
+    );
+  }
+
+  const cargas = operaciones.map(operacion => {
+    const pendiente = Number(
+      operacion.cantidad_pendiente || 0
+    );
+    const velocidad = Number(
+      operacion.unidades_por_hora || 0
+    );
+    const horasTrabajo = velocidad > 0
+      ? pendiente / velocidad
+      : 0;
+
+    return {
+      id:
+        operacion.id ||
+        operacion.ruta_operacion_id,
+      codigo: operacion.operacion_codigo,
+      nombre: operacion.operacion_nombre,
+      cantidad_pendiente: pendiente,
+      unidades_por_hora: velocidad,
+      horas_trabajo: Number(
+        horasTrabajo.toFixed(2)
+      ),
+      dias_base: Number(
+        (horasTrabajo / capacidadBaseDia)
+          .toFixed(3)
+      )
+    };
+  });
+  const cuello = [...cargas].sort(
+    (a, b) => b.dias_base - a.dias_base
+  )[0] || null;
+  const escenario = cargas.map(carga => {
+    const ampliada =
+      carga.id === cuello?.id;
+    const diasEscenario =
+      carga.horas_trabajo /
+      (
+        ampliada
+          ? capacidadAmpliadaDia
+          : capacidadBaseDia
+      );
+
+    return {
+      ...carga,
+      es_cuello_botella: ampliada,
+      turnos_escenario:
+        ampliada ? turnosCuello : turnosBase,
+      dias_escenario: Number(
+        diasEscenario.toFixed(3)
+      )
+    };
+  });
+  const diasBase = Math.max(
+    0,
+    ...cargas.map(carga => carga.dias_base)
+  );
+  const diasEscenario = Math.max(
+    0,
+    ...escenario.map(
+      carga => carga.dias_escenario
+    )
+  );
+  const referencia = new Date(fechaReferencia);
+  const fechaBase = new Date(
+    referencia.getTime() +
+    diasBase * 24 * 60 * 60 * 1000
+  );
+  const fechaEscenario = new Date(
+    referencia.getTime() +
+    diasEscenario * 24 * 60 * 60 * 1000
+  );
+  const ahorroHoras = Math.max(
+    0,
+    (diasBase - diasEscenario) * 24
+  );
+
+  return {
+    turnos_base: Number(turnosBase),
+    turnos_cuello: Number(turnosCuello),
+    horas_por_turno: Number(horasPorTurno),
+    cuello_botella: cuello,
+    operaciones: escenario,
+    dias_base: Number(diasBase.toFixed(3)),
+    dias_escenario: Number(
+      diasEscenario.toFixed(3)
+    ),
+    fecha_fin_base: fechaBase,
+    fecha_fin_escenario: fechaEscenario,
+    ahorro_horas_calendario: Number(
+      ahorroHoras.toFixed(2)
+    ),
+    recomienda_ampliar:
+      Boolean(cuello) && ahorroHoras >= 0.5
+  };
+};
+
+const idConfiguracionCapacidad = (
+  empresaId,
+  plantaId
+) => `${empresaId}__${plantaId}`;
+
+export const obtenerConfiguracionCapacidad =
+  async (db, empresaId, plantaId) => {
+    const referencia = doc(
+      db,
+      "configuracion_capacidad",
+      idConfiguracionCapacidad(
+        empresaId,
+        plantaId
+      )
+    );
+    const snapshot = await getDoc(referencia);
+
+    return snapshot.exists()
+      ? {
+        id: snapshot.id,
+        ...snapshot.data()
+      }
+      : {
+        empresa_id: empresaId,
+        planta_id: plantaId,
+        turnos_base: 2,
+        turnos_ampliados: 3,
+        horas_efectivas_turno: 8
+      };
+  };
+
+export const guardarConfiguracionCapacidad =
+  async ({
+    db,
+    perfil,
+    plantaId,
+    turnosBase,
+    turnosAmpliados,
+    horasEfectivasTurno
+  }) => {
+    const valores = [
+      turnosBase,
+      turnosAmpliados,
+      horasEfectivasTurno
+    ].map(Number);
+
+    if (
+      valores.some(
+        valor =>
+          !Number.isFinite(valor) ||
+          valor <= 0
+      ) ||
+      valores[1] <= valores[0]
+    ) {
+      throw new Error(
+        "La capacidad requiere horas positivas y más turnos en el escenario ampliado."
+      );
+    }
+
+    const referencia = doc(
+      db,
+      "configuracion_capacidad",
+      idConfiguracionCapacidad(
+        perfil.empresa_id,
+        plantaId
+      )
+    );
+    const configuracion = {
+      empresa_id: perfil.empresa_id,
+      planta_id: plantaId,
+      turnos_base: valores[0],
+      turnos_ampliados: valores[1],
+      horas_efectivas_turno: valores[2],
+      actualizado_por_id: perfil.uid,
+      actualizado_en: serverTimestamp()
+    };
+
+    await setDoc(
+      referencia,
+      configuracion,
+      { merge: true }
+    );
+
+    return configuracion;
+  };
 
 export const formatearCodigoOT = (
   plantaId,

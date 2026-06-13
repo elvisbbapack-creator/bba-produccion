@@ -61,6 +61,12 @@ la OT mostro 27,25% de avance, 218 unidades OK, 582 pendientes y cerca de
 cuatro horas restantes. Estos agregados quedaron guardados en la OT para que
 la pantalla no tenga que reconstruirlos leyendo el historial de eventos.
 
+El simulador de capacidad detecto `DT0005 - Perforacion 4 hoyos` como cuello
+de botella, con 320 unidades pendientes y cuatro horas de trabajo. Manteniendo
+dos turnos en los demas DT y ampliando solo `DT0005` a tres turnos, proyecto
+un ahorro cercano a dos horas calendario. La configuracion piloto de Chile
+quedo guardada con dos turnos base, tres ampliados y ocho horas efectivas.
+
 El rol `tv` ingresa directamente al Dashboard V2. El ranking y los indicadores
 diarios se obtienen desde un unico documento `resumenes_planta_turno`, evitando
 leer sesiones y eventos historicos en cada actualizacion del televisor.

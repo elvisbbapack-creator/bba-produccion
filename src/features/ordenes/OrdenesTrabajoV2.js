@@ -10,8 +10,11 @@ import {
 import {
   calcularProyeccionOT,
   crearOrdenV2,
+  guardarConfiguracionCapacidad,
   listarOperacionesOT,
   listarOrdenesV2,
+  obtenerConfiguracionCapacidad,
+  simularTurnosOT,
   validarDatosOrden
 } from "./ordenesRepository";
 
@@ -109,6 +112,12 @@ function OrdenesTrabajoV2({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [configuracionCapacidad,
+    setConfiguracionCapacidad] = useState({
+      turnos_base: 2,
+      turnos_ampliados: 3,
+      horas_efectivas_turno: 8
+    });
 
   const productosPublicados = useMemo(
     () => productos.filter(
@@ -176,6 +185,23 @@ function OrdenesTrabajoV2({
     fechaEstimada &&
     fechaEstimada > entregaFecha
   );
+  const simulacionTurnos = useMemo(
+    () => simularTurnosOT(
+      operaciones,
+      {
+        turnosBase:
+          configuracionCapacidad.turnos_base,
+        turnosCuello:
+          configuracionCapacidad
+            .turnos_ampliados,
+        horasPorTurno:
+          configuracionCapacidad
+            .horas_efectivas_turno,
+        fechaReferencia: new Date()
+      }
+    ),
+    [configuracionCapacidad, operaciones]
+  );
 
   const cargarOrdenes = useCallback(
     async (plantaId) => {
@@ -186,6 +212,13 @@ function OrdenesTrabajoV2({
 
       setOrdenes(
         await listarOrdenesV2(
+          db,
+          perfil.empresa_id,
+          plantaId
+        )
+      );
+      setConfiguracionCapacidad(
+        await obtenerConfiguracionCapacidad(
           db,
           perfil.empresa_id,
           plantaId
@@ -326,6 +359,49 @@ function OrdenesTrabajoV2({
         fallo?.message ||
         "No se pudieron cargar las operaciones."
       );
+    }
+  };
+
+  const actualizarCapacidad = (
+    nombre,
+    valor
+  ) => {
+    setConfiguracionCapacidad(actual => ({
+      ...actual,
+      [nombre]: valor
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const guardarCapacidad = async () => {
+    try {
+      setGuardando(true);
+      const guardada =
+        await guardarConfiguracionCapacidad({
+          db,
+          perfil,
+          plantaId: formulario.planta_id,
+          turnosBase:
+            configuracionCapacidad.turnos_base,
+          turnosAmpliados:
+            configuracionCapacidad
+              .turnos_ampliados,
+          horasEfectivasTurno:
+            configuracionCapacidad
+              .horas_efectivas_turno
+        });
+      setConfiguracionCapacidad(guardada);
+      setMensaje(
+        "Capacidad por turnos guardada para la planta."
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo guardar la capacidad."
+      );
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -765,6 +841,184 @@ function OrdenesTrabajoV2({
                       : "La OT no tiene fecha de entrega planificada para comparar."}
                 </div>
 
+                <section style={{
+                  border: "1px solid #F59E0B",
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                  background: "#FFFBEB"
+                }}>
+                  <h3 style={{
+                    marginTop: 0,
+                    marginBottom: 6
+                  }}>
+                    Simulación de cuello de botella
+                  </h3>
+                  <p style={{
+                    color: "#92400E",
+                    marginTop: 0
+                  }}>
+                    Se amplía únicamente el DT que
+                    limita la fecha final.
+                  </p>
+
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(140px, 1fr))",
+                    gap: 9,
+                    marginBottom: 12
+                  }}>
+                    <label style={etiqueta}>
+                      Turnos normales
+                      <input
+                        type="number"
+                        min="1"
+                        value={
+                          configuracionCapacidad
+                            .turnos_base
+                        }
+                        onChange={evento =>
+                          actualizarCapacidad(
+                            "turnos_base",
+                            evento.target.value
+                          )
+                        }
+                        style={campo}
+                      />
+                    </label>
+                    <label style={etiqueta}>
+                      Turnos ampliados
+                      <input
+                        type="number"
+                        min="2"
+                        value={
+                          configuracionCapacidad
+                            .turnos_ampliados
+                        }
+                        onChange={evento =>
+                          actualizarCapacidad(
+                            "turnos_ampliados",
+                            evento.target.value
+                          )
+                        }
+                        style={campo}
+                      />
+                    </label>
+                    <label style={etiqueta}>
+                      Horas efectivas / turno
+                      <input
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        value={
+                          configuracionCapacidad
+                            .horas_efectivas_turno
+                        }
+                        onChange={evento =>
+                          actualizarCapacidad(
+                            "horas_efectivas_turno",
+                            evento.target.value
+                          )
+                        }
+                        style={campo}
+                      />
+                    </label>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={guardarCapacidad}
+                    disabled={guardando}
+                    style={{
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "10px 14px",
+                      background: "#B45309",
+                      color: "white",
+                      fontWeight: "bold",
+                      cursor: "pointer"
+                    }}
+                  >
+                    Guardar capacidad de planta
+                  </button>
+
+                  {simulacionTurnos
+                    .cuello_botella && (
+                    <div style={{
+                      marginTop: 14,
+                      padding: 12,
+                      background: "white",
+                      borderRadius: 9
+                    }}>
+                      <strong>
+                        Cuello detectado:{" "}
+                        {
+                          simulacionTurnos
+                            .cuello_botella.codigo
+                        }
+                        {" - "}
+                        {
+                          simulacionTurnos
+                            .cuello_botella.nombre
+                        }
+                      </strong>
+                      <div style={{
+                        marginTop: 5,
+                        color: "#475569"
+                      }}>
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .cantidad_pendiente
+                        }
+                        {" unidades pendientes · "}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .horas_trabajo
+                        }
+                        {" horas de trabajo"}
+                      </div>
+                      <div style={{
+                        marginTop: 8,
+                        fontWeight: "bold",
+                        color:
+                          simulacionTurnos
+                            .recomienda_ampliar
+                            ? "#166534"
+                            : "#475569"
+                      }}>
+                        {simulacionTurnos
+                          .recomienda_ampliar
+                          ? `Recomendación: ampliar solo ${simulacionTurnos.cuello_botella.codigo} de ${simulacionTurnos.turnos_base} a ${simulacionTurnos.turnos_cuello} turnos. Ahorro estimado: ${simulacionTurnos.ahorro_horas_calendario} horas calendario.`
+                          : "El tercer turno no produce una mejora significativa en la fecha final actual."}
+                      </div>
+                      <div style={{
+                        marginTop: 7
+                      }}>
+                        Fin con{" "}
+                        {simulacionTurnos.turnos_base}
+                        {" turnos: "}
+                        <strong>
+                          {fechaHoraVisible(
+                            simulacionTurnos
+                              .fecha_fin_base
+                          )}
+                        </strong>
+                        <br />
+                        Fin ampliando el cuello:{" "}
+                        <strong>
+                          {fechaHoraVisible(
+                            simulacionTurnos
+                              .fecha_fin_escenario
+                          )}
+                        </strong>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
                 <div style={{
                   display: "grid",
                   gap: 10
@@ -824,6 +1078,20 @@ function OrdenesTrabajoV2({
                       }}>
                         Estado: {operacion.estado}
                       </div>
+                      {simulacionTurnos.operaciones
+                        .find(
+                          item =>
+                            item.id === operacion.id
+                        )
+                        ?.es_cuello_botella && (
+                        <div style={{
+                          marginTop: 6,
+                          color: "#B91C1C",
+                          fontWeight: "bold"
+                        }}>
+                          Cuello de botella actual
+                        </div>
+                      )}
                     </article>
                   ))}
                 </div>

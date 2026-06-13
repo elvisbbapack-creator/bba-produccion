@@ -88,6 +88,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /configuracion_capacidad/{configId} {
+      allow read: if isManagement() &&
+        belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope();
+      allow delete: if false;
+    }
+
     match /{catalogo}/{documentId} {
       allow read: if catalogo in [
           'materiales',

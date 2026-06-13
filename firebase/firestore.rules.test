@@ -120,6 +120,30 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /configuracion_capacidad/{configId} {
+      allow get: if canManage() &&
+        (
+          !exists(
+            /databases/$(database)/documents/configuracion_capacidad/$(configId)
+          ) ||
+          belongsToPlant(resource.data)
+        );
+      allow create: if canManage() &&
+        belongsToPlant(
+          request.resource.data
+        );
+      allow update: if canManage() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id;
+      allow list, delete: if false;
+    }
+
     match /productos/{productoId} {
       allow read: if belongsToCompany(
         resource.data

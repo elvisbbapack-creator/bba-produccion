@@ -221,6 +221,23 @@ fecha_estimada_fin = fecha_actual + horas_restantes_ot
 Es una estimacion operativa basada en los estandares vigentes. Se recalcula con
 cada reporte y puede cambiar por paros, reprocesos o variaciones de rendimiento.
 
+### `configuracion_capacidad/{empresaId_plantaId}`
+
+```text
+empresa_id
+planta_id
+turnos_base
+turnos_ampliados
+horas_efectivas_turno
+actualizado_por_id
+actualizado_en
+```
+
+El simulador mantiene los turnos base en todos los DT y aplica el escenario
+ampliado solamente al DT con mayor carga restante. Luego recalcula el maximo
+entre todos los DT, porque al aliviar un proceso otro puede convertirse en el
+nuevo cuello de botella.
+
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 
 Es la copia congelada de una operacion de ruta:

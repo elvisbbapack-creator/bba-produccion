@@ -2,8 +2,57 @@ import {
   calcularProyeccionOT,
   formatearCodigoOT,
   prepararOrden,
+  simularTurnosOT,
   validarDatosOrden
 } from "./ordenesRepository";
+
+test("amplía solo el cuello de botella a tres turnos", () => {
+  const simulacion = simularTurnosOT(
+    [
+      {
+        id: "DT0001",
+        operacion_codigo: "DT0001",
+        operacion_nombre: "Corte",
+        cantidad_pendiente: 1600,
+        unidades_por_hora: 100
+      },
+      {
+        id: "DT0005",
+        operacion_codigo: "DT0005",
+        operacion_nombre: "Láser",
+        cantidad_pendiente: 2400,
+        unidades_por_hora: 100
+      }
+    ],
+    {
+      turnosBase: 2,
+      turnosCuello: 3,
+      horasPorTurno: 8,
+      fechaReferencia:
+        new Date("2026-06-13T00:00:00Z")
+    }
+  );
+
+  expect(
+    simulacion.cuello_botella.codigo
+  ).toBe("DT0005");
+  expect(simulacion.dias_base).toBe(1.5);
+  expect(simulacion.dias_escenario).toBe(1);
+  expect(
+    simulacion.operaciones.find(
+      item => item.codigo === "DT0001"
+    ).turnos_escenario
+  ).toBe(2);
+  expect(
+    simulacion.operaciones.find(
+      item => item.codigo === "DT0005"
+    ).turnos_escenario
+  ).toBe(3);
+  expect(
+    simulacion.ahorro_horas_calendario
+  ).toBe(12);
+  expect(simulacion.recomienda_ampliar).toBe(true);
+});
 
 test("proyecta la OT usando la operación más larga", () => {
   const referencia = new Date(
