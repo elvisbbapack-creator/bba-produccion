@@ -17,6 +17,11 @@ import {
   listarOperacionesOT,
   listarOrdenesV2
 } from "../ordenes/ordenesRepository";
+import {
+  actualizarRankingPlanta,
+  calcularResumenAcumulado,
+  referenciasResumenReporte
+} from "../resumenes/resumenesRepository";
 
 const limpiarTexto = (valor) =>
   (valor || "").toString().trim();
@@ -433,6 +438,16 @@ export const registrarReporteProduccion =
     const eventoRef = doc(
       collection(db, "eventos_produccion")
     );
+    const fecha = fechaOperativa();
+    const resumenRefs =
+      referenciasResumenReporte(db, {
+        plantaId: sesion.planta_id,
+        fecha,
+        operarioId: sesion.operario_id,
+        otId: sesion.ot_id,
+        otOperacionId:
+          sesion.ot_operacion_id
+      });
     let resultadoReporte;
 
     await runTransaction(
@@ -463,6 +478,15 @@ export const registrarReporteProduccion =
             snapshot:
               await transaccion.get(item.ref)
           });
+        }
+        const resumenSnapshots = {};
+
+        for (
+          const [tipo, referencia] of
+          Object.entries(resumenRefs)
+        ) {
+          resumenSnapshots[tipo] =
+            await transaccion.get(referencia);
         }
 
         const actuales = snapshots.map(
@@ -607,6 +631,44 @@ export const registrarReporteProduccion =
                 .estandar_unidades_hora,
             tiempoProductivoSeg
           });
+        const incrementoResumen = {
+          cantidad_ok: valores[0],
+          cantidad_defectuosa: valores[1],
+          cantidad_reproceso: valores[2],
+          produccion_esperada:
+            indicadores.produccion_esperada,
+          tiempo_productivo_seg:
+            tiempoProductivoSeg
+        };
+        const resumenes = Object.fromEntries(
+          Object.entries(
+            resumenSnapshots
+          ).map(([tipo, snapshot]) => [
+            tipo,
+            calcularResumenAcumulado(
+              snapshot.exists()
+                ? snapshot.data()
+                : {},
+              incrementoResumen
+            )
+          ])
+        );
+        const resumenOperarioRanking = {
+          ...resumenes.operario,
+          operario_id: sesion.operario_id,
+          operario_codigo:
+            sesion.operario_codigo || "",
+          operario_nombre:
+            sesion.operario_nombre
+        };
+        const rankingPlanta =
+          actualizarRankingPlanta(
+            resumenSnapshots.planta.exists()
+              ? resumenSnapshots.planta.data()
+                  .ranking_operarios || []
+              : [],
+            resumenOperarioRanking
+          );
 
         transaccion.update(sesionRef, {
           estado: "finalizada",
@@ -632,6 +694,7 @@ export const registrarReporteProduccion =
           cantidad_reproceso: valores[2],
           observacion:
             limpiarTexto(observacion),
+          fecha_operativa: fecha,
           tiempo_productivo_seg:
             tiempoProductivoSeg,
           ...indicadores,
@@ -657,6 +720,74 @@ export const registrarReporteProduccion =
             : null,
           fecha_actualizacion: serverTimestamp()
         });
+        transaccion.set(
+          resumenRefs.operario,
+          {
+            ...resumenes.operario,
+            empresa_id: perfil.empresa_id,
+            planta_id: sesion.planta_id,
+            fecha,
+            operario_id: sesion.operario_id,
+            operario_codigo:
+              sesion.operario_codigo || "",
+            operario_nombre:
+              sesion.operario_nombre,
+            actualizado_por_id: perfil.uid,
+            actualizado_en: serverTimestamp(),
+            modelo_version: 2
+          },
+          { merge: true }
+        );
+        transaccion.set(
+          resumenRefs.planta,
+          {
+            ...resumenes.planta,
+            empresa_id: perfil.empresa_id,
+            planta_id: sesion.planta_id,
+            fecha,
+            turno_id: "dia",
+            ranking_operarios:
+              rankingPlanta,
+            actualizado_por_id: perfil.uid,
+            actualizado_en: serverTimestamp(),
+            modelo_version: 2
+          },
+          { merge: true }
+        );
+        transaccion.set(
+          resumenRefs.ot,
+          {
+            ...resumenes.ot,
+            empresa_id: perfil.empresa_id,
+            planta_id: sesion.planta_id,
+            ot_id: sesion.ot_id,
+            ot_codigo: sesion.ot_codigo,
+            actualizado_por_id: perfil.uid,
+            actualizado_en: serverTimestamp(),
+            modelo_version: 2
+          },
+          { merge: true }
+        );
+        transaccion.set(
+          resumenRefs.operacion,
+          {
+            ...resumenes.operacion,
+            empresa_id: perfil.empresa_id,
+            planta_id: sesion.planta_id,
+            ot_id: sesion.ot_id,
+            ot_codigo: sesion.ot_codigo,
+            ot_operacion_id:
+              sesion.ot_operacion_id,
+            operacion_codigo:
+              sesion.operacion_codigo,
+            operacion_nombre:
+              sesion.operacion_nombre,
+            actualizado_por_id: perfil.uid,
+            actualizado_en: serverTimestamp(),
+            modelo_version: 2
+          },
+          { merge: true }
+        );
 
         resultadoReporte = {
           tiempo_productivo_seg:

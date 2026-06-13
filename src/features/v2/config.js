@@ -32,3 +32,15 @@ export const puedeOperarV2 = (perfil) =>
     perfil.planta_ids.length > 0 &&
     ROLES_OPERACION_V2.includes(perfil?.rol)
   );
+
+export const puedeVerDashboardV2 = (perfil) =>
+  Boolean(
+    perfil?.autenticado &&
+    perfil?.empresa_id &&
+    Array.isArray(perfil?.planta_ids) &&
+    perfil.planta_ids.length > 0 &&
+    [
+      ...ROLES_OPERACION_V2,
+      "tv"
+    ].includes(perfil?.rol)
+  );

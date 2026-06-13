@@ -350,6 +350,11 @@ El televisor consulta un unico resumen de planta y el ranking diario. Los
 resumenes deben actualizarse mediante transaccion o funcion de backend al
 registrar eventos, no mediante lectura completa del historial.
 
+El piloto V2 guarda `ranking_operarios` dentro del resumen diario de planta.
+De esta forma el televisor mantiene una sola escucha aunque aumente la cantidad
+de operarios. Antes de activar produccion real, la escritura de estos resumenes
+debe trasladarse desde el cliente a una Cloud Function o backend confiable.
+
 ## Consultas e indices previstos
 
 - Sesiones activas por `planta_id + estado`.
@@ -406,7 +411,8 @@ duracion real de la sesion.
 
 ### Fase 5 - Resumenes y expansion
 
-- Migrar dashboard y ranking a resumenes.
+- Migrar dashboard y ranking a resumenes. Implementado inicialmente en
+  `bba-erp-pruebas` con una sola escucha por planta para el televisor.
 - Activar multi-planta.
 - Preparar exportacion analitica para IA.
 

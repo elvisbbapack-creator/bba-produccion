@@ -1,13 +1,28 @@
 import {
   obtenerInterfazV2Activa,
   puedeAdministrarV2,
-  puedeOperarV2
+  puedeOperarV2,
+  puedeVerDashboardV2
 } from "./config";
 
 test("activa la interfaz V2 solo con true explicito", () => {
   expect(obtenerInterfazV2Activa("true")).toBe(true);
   expect(obtenerInterfazV2Activa("TRUE")).toBe(false);
   expect(obtenerInterfazV2Activa("false")).toBe(false);
+});
+
+test("permite al rol TV ver el dashboard V2", () => {
+  const perfilTv = {
+    autenticado: true,
+    empresa_id: "bba",
+    planta_ids: ["chile"],
+    rol: "tv"
+  };
+
+  expect(puedeVerDashboardV2(perfilTv)).toBe(
+    true
+  );
+  expect(puedeOperarV2(perfilTv)).toBe(false);
 });
 
 test("permite operación V2 al supervisor con planta", () => {

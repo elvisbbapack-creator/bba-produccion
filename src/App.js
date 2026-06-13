@@ -38,7 +38,8 @@ import {
 import {
   interfazV2Activa,
   puedeAdministrarV2,
-  puedeOperarV2
+  puedeOperarV2,
+  puedeVerDashboardV2
 } from "./features/v2/config";
 import CatalogoMaterialesV2 from
   "./features/materiales/CatalogoMaterialesV2";
@@ -48,6 +49,8 @@ import OrdenesTrabajoV2 from
   "./features/ordenes/OrdenesTrabajoV2";
 import EjecucionProduccionV2 from
   "./features/ejecucion/EjecucionProduccionV2";
+import DashboardV2 from
+  "./features/resumenes/DashboardV2";
 
 function App() {
   const esMobile =
@@ -433,7 +436,12 @@ useEffect(() => {
           setUsuarioSeleccionado(perfil);
           setPasswordAcceso("");
           setErrorAcceso("");
-          setPantalla("home");
+          setPantalla(
+            interfazV2Activa &&
+            perfil.rol === "tv"
+              ? "dashboardV2"
+              : "home"
+          );
           setAutenticacionLista(true);
         } catch (error) {
           setUsuarioSeleccionado(null);
@@ -1317,6 +1325,24 @@ const cargarTodosLosParos = async () => {
           📊 Ver Dashboard
         </button>
 
+        {interfazV2Activa &&
+          autenticacionFirebaseActiva &&
+          puedeVerDashboardV2(
+            usuarioSeleccionado
+          ) && (
+            <button
+              onClick={() =>
+                setPantalla("dashboardV2")
+              }
+              style={{
+                ...cardHome,
+                background: "#0F172A"
+              }}
+            >
+              Dashboard y Ranking (V2)
+            </button>
+          )}
+
         <button
           onClick={() => setPantalla("crearOT")}
           style={{
@@ -1569,6 +1595,21 @@ if (
 ) {
   return (
     <EjecucionProduccionV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "dashboardV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeVerDashboardV2(usuarioSeleccionado)
+) {
+  return (
+    <DashboardV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

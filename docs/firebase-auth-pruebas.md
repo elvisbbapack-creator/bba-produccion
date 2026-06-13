@@ -51,6 +51,10 @@ El supervisor probo la ejecucion V2 con sesiones para `DT0001` y `DT0005`.
 Los reportes actualizaron pendiente, disponibilidad RF, calidad y eficiencia,
 y generaron eventos inmutables para auditoria.
 
+El rol `tv` ingresa directamente al Dashboard V2. El ranking y los indicadores
+diarios se obtienen desde un unico documento `resumenes_planta_turno`, evitando
+leer sesiones y eventos historicos en cada actualizacion del televisor.
+
 Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 
 ## Verificacion

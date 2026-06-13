@@ -289,6 +289,63 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /{resumen}/{resumenId} {
+      allow get: if resumen in [
+          'resumenes_operario_dia',
+          'resumenes_ot',
+          'resumenes_ot_operacion',
+          'resumenes_planta_turno'
+        ] &&
+        authenticated() &&
+        (
+          !exists(
+            /databases/$(database)/documents/$(resumen)/$(resumenId)
+          ) ||
+          belongsToPlant(resource.data)
+        );
+
+      allow list: if resumen in [
+          'resumenes_operario_dia',
+          'resumenes_ot',
+          'resumenes_ot_operacion',
+          'resumenes_planta_turno'
+        ] &&
+        belongsToPlant(resource.data);
+
+      allow create: if resumen in [
+          'resumenes_operario_dia',
+          'resumenes_ot',
+          'resumenes_ot_operacion',
+          'resumenes_planta_turno'
+        ] &&
+        canOperate() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+
+      allow update: if resumen in [
+          'resumenes_operario_dia',
+          'resumenes_ot',
+          'resumenes_ot_operacion',
+          'resumenes_planta_turno'
+        ] &&
+        canOperate() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+
+      allow delete: if false;
+    }
+
     match /{collectionName}/{documentId} {
       allow read: if authenticated() &&
         legacyCollection(collectionName);
