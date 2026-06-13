@@ -45,6 +45,8 @@ import CatalogoMaterialesV2 from
   "./features/materiales/CatalogoMaterialesV2";
 import ProgramacionTurnosV2 from
   "./features/turnos/ProgramacionTurnosV2";
+import CapacidadProcesosV2 from
+  "./features/capacidad/CapacidadProcesosV2";
 import ConstructorRutasV2 from
   "./features/productos/ConstructorRutasV2";
 import OrdenesTrabajoV2 from
@@ -1586,6 +1588,24 @@ const cargarTodosLosParos = async () => {
             ) && (
               <button
                 onClick={() =>
+                  setPantalla("capacidadV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#0E7490"
+                }}
+              >
+                Capacidad por Proceso (V2)
+              </button>
+            )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
                   setPantalla("rutasV2")
                 }
                 style={{
@@ -1625,6 +1645,21 @@ if (
 ) {
   return (
     <ProgramacionTurnosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "capacidadV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CapacidadProcesosV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

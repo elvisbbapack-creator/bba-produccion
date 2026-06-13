@@ -55,6 +55,45 @@ test("amplía solo el cuello de botella a tres turnos", () => {
   expect(simulacion.recomienda_ampliar).toBe(true);
 });
 
+test("calcula la carga con recursos paralelos por subproceso", () => {
+  const simulacion = simularTurnosOT(
+    [
+      {
+        id: "DT0005",
+        operacion_codigo: "DT0005",
+        operacion_nombre: "Láser",
+        subproceso_id: "SP0003",
+        cantidad_pendiente: 360,
+        unidades_por_hora: 100
+      }
+    ],
+    {
+      plantaId: "peru",
+      fechaReferencia:
+        new Date("2026-06-15T06:00:00"),
+      capacidades: [
+        {
+          subproceso_id: "SP0003",
+          maquinas_disponibles: 3,
+          operarios_disponibles_turno: 4,
+          operarios_por_recurso: 2,
+          disponibilidad_pct: 90,
+          activo: true
+        }
+      ]
+    }
+  );
+  const carga = simulacion.operaciones[0];
+
+  expect(carga.recursos_paralelos).toBe(2);
+  expect(carga.unidades_por_hora_efectivas)
+    .toBe(180);
+  expect(carga.horas_trabajo).toBe(2);
+  expect(carga.operarios_requeridos_turno)
+    .toBe(4);
+  expect(carga.capacidad_configurada).toBe(true);
+});
+
 test("usa los calendarios semanales de Chile y Perú", () => {
   expect(CALENDARIOS_PLANTA.chile.turnos_rotativos)
     .toBe(true);

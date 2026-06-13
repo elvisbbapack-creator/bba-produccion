@@ -8,6 +8,9 @@ import {
   listarProductos
 } from "../productos/productosRepository";
 import {
+  listarCapacidadesProceso
+} from "../capacidad/capacidadRepository";
+import {
   CALENDARIOS_PLANTA,
   calcularProyeccionOT,
   crearOrdenV2,
@@ -111,6 +114,8 @@ function OrdenesTrabajoV2({
   const [ordenSeleccionada, setOrdenSeleccionada] =
     useState(null);
   const [operaciones, setOperaciones] = useState([]);
+  const [capacidadesProceso,
+    setCapacidadesProceso] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -205,11 +210,13 @@ function OrdenesTrabajoV2({
         horasTercerTurno:
           configuracionCapacidad
             .horas_tercer_turno,
-        fechaReferencia: new Date()
+        fechaReferencia: new Date(),
+        capacidades: capacidadesProceso
       }
     ),
     [
       configuracionCapacidad,
+      capacidadesProceso,
       formulario.planta_id,
       operaciones
     ]
@@ -231,6 +238,13 @@ function OrdenesTrabajoV2({
       );
       setConfiguracionCapacidad(
         await obtenerConfiguracionCapacidad(
+          db,
+          perfil.empresa_id,
+          plantaId
+        )
+      );
+      setCapacidadesProceso(
+        await listarCapacidadesProceso(
           db,
           perfil.empresa_id,
           plantaId
@@ -988,7 +1002,43 @@ function OrdenesTrabajoV2({
                             .horas_trabajo
                         }
                         {" horas de trabajo"}
+                        <br />
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .recursos_paralelos
+                        }
+                        {" recursos paralelos · "}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .unidades_por_hora_efectivas
+                        }
+                        {" unidades/h efectivas · "}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .operarios_requeridos_turno
+                        }
+                        {" operarios requeridos por turno"}
                       </div>
+                      {!simulacionTurnos
+                        .cuello_botella
+                        .capacidad_configurada && (
+                        <div style={{
+                          marginTop: 7,
+                          color: "#B45309"
+                        }}>
+                          Capacidad no configurada para{" "}
+                          {
+                            simulacionTurnos
+                              .cuello_botella
+                              .subproceso_id
+                          }
+                          . Se está usando un recurso al
+                          100%.
+                        </div>
+                      )}
                       <div style={{
                         marginTop: 8,
                         fontWeight: "bold",
@@ -1100,6 +1150,40 @@ function OrdenesTrabajoV2({
                           Cuello de botella actual
                         </div>
                       )}
+                      {(() => {
+                        const carga =
+                          simulacionTurnos.operaciones
+                            .find(
+                              item =>
+                                item.id === operacion.id
+                            );
+
+                        return carga ? (
+                          <div style={{
+                            marginTop: 6,
+                            color: carga
+                              .capacidad_configurada
+                              ? "#0369A1"
+                              : "#B45309",
+                            fontSize: 14
+                          }}>
+                            {carga.recursos_paralelos}
+                            {" recursos · "}
+                            {
+                              carga
+                                .unidades_por_hora_efectivas
+                            }
+                            {" un/h efectivas · "}
+                            {
+                              carga
+                                .operarios_requeridos_turno
+                            }
+                            {" operarios/turno"}
+                            {!carga.capacidad_configurada &&
+                              " · capacidad por configurar"}
+                          </div>
+                        ) : null;
+                      })()}
                     </article>
                   ))}
                 </div>

@@ -265,7 +265,11 @@ La proyeccion usa la mayor carga restante entre operaciones porque BBA puede
 ejecutar varios procesos en simultaneo:
 
 ```text
-horas_operacion = cantidad_pendiente / unidades_por_hora
+velocidad_efectiva =
+  unidades_por_hora_por_recurso
+  * recursos_paralelos
+  * (disponibilidad_pct / 100)
+horas_operacion = cantidad_pendiente / velocidad_efectiva
 horas_restantes_ot = max(horas_operacion)
 fecha_estimada_fin = fecha_actual + horas_restantes_ot
 ```
@@ -311,6 +315,34 @@ Calendarios base:
 Los terceros turnos de Chile y Peru usan horarios fijos por planta. El campo
 `horas_tercer_turno` se conserva por compatibilidad con configuraciones
 anteriores, pero el calendario vigente determina la capacidad efectiva.
+
+### `capacidad_procesos/{empresa_planta_subproceso}`
+
+```text
+empresa_id
+planta_id
+proceso_id
+proceso_nombre
+subproceso_id
+subproceso_nombre
+maquinas_disponibles
+operarios_disponibles_turno
+operarios_por_recurso
+disponibilidad_pct
+recursos_paralelos
+factor_capacidad
+operarios_requeridos_turno
+activo
+actualizado_por_id
+actualizado_por_nombre
+actualizado_en
+```
+
+El estándar se interpreta como unidades por hora de un recurso productivo
+(máquina, línea o puesto). Los recursos paralelos quedan limitados por la menor
+capacidad entre equipos disponibles y dotación disponible. Si un subproceso aún
+no tiene configuración, la simulación usa de forma conservadora un recurso al
+100% y lo muestra como pendiente de configurar.
 
 Para controlar jornadas y horas extra por persona se agregara una programacion
 semanal de turnos por operario. El simulador actual calcula capacidad por

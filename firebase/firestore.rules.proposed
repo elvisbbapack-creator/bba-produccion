@@ -100,6 +100,23 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /capacidad_procesos/{capacidadId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope() &&
+        request.resource.data.subproceso_id ==
+          resource.data.subproceso_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
+    }
+
     match /{catalogo}/{documentId} {
       allow read: if catalogo in [
           'materiales',

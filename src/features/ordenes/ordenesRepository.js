@@ -18,6 +18,9 @@ import {
 import {
   listarMateriales
 } from "../materiales/materialesRepository";
+import {
+  calcularCapacidadRecursos
+} from "../capacidad/capacidadRepository";
 
 const limpiarTexto = (valor) =>
   (valor || "").toString().trim();
@@ -305,7 +308,8 @@ export const simularTurnosOT = (
   {
     plantaId = "peru",
     horasTercerTurno = 8,
-    fechaReferencia = new Date()
+    fechaReferencia = new Date(),
+    capacidades = []
   } = {}
 ) => {
   if (Number(horasTercerTurno) <= 0) {
@@ -321,8 +325,30 @@ export const simularTurnosOT = (
     const velocidad = Number(
       operacion.unidades_por_hora || 0
     );
-    const horasTrabajo = velocidad > 0
-      ? pendiente / velocidad
+    const capacidadConfigurada = capacidades.find(
+      capacidad =>
+        capacidad.subproceso_id ===
+          operacion.subproceso_id &&
+        capacidad.activo !== false
+    );
+    const recursos = calcularCapacidadRecursos({
+      maquinasDisponibles:
+        capacidadConfigurada
+          ?.maquinas_disponibles ?? 1,
+      operariosDisponibles:
+        capacidadConfigurada
+          ?.operarios_disponibles_turno ?? 1,
+      operariosPorRecurso:
+        capacidadConfigurada
+          ?.operarios_por_recurso ?? 1,
+      disponibilidadPct:
+        capacidadConfigurada
+          ?.disponibilidad_pct ?? 100
+    });
+    const velocidadEfectiva =
+      velocidad * recursos.factor_capacidad;
+    const horasTrabajo = velocidadEfectiva > 0
+      ? pendiente / velocidadEfectiva
       : 0;
 
     return {
@@ -333,6 +359,17 @@ export const simularTurnosOT = (
       nombre: operacion.operacion_nombre,
       cantidad_pendiente: pendiente,
       unidades_por_hora: velocidad,
+      subproceso_id: operacion.subproceso_id,
+      capacidad_configurada:
+        Boolean(capacidadConfigurada),
+      recursos_paralelos:
+        recursos.recursos_paralelos,
+      disponibilidad_pct:
+        recursos.disponibilidad_pct,
+      operarios_requeridos_turno:
+        recursos.operarios_requeridos_turno,
+      unidades_por_hora_efectivas:
+        Number(velocidadEfectiva.toFixed(2)),
       horas_trabajo: Number(
         horasTrabajo.toFixed(2)
       ),
