@@ -52,6 +52,16 @@ export const calcularProyeccionOT = (
       Number(operacion.cantidad_pendiente || 0),
     0
   );
+  const tieneOperacionSinEstandar =
+    operaciones.some(
+      operacion =>
+        Number(
+          operacion.cantidad_pendiente || 0
+        ) > 0 &&
+        Number(
+          operacion.unidades_por_hora || 0
+        ) <= 0
+    );
   const horasPorOperacion = operaciones.map(
     operacion => {
       const pendiente = Number(
@@ -71,10 +81,13 @@ export const calcularProyeccionOT = (
     ...horasPorOperacion
   );
   const referencia = new Date(fechaReferencia);
-  const fechaEstimadaFin = new Date(
-    referencia.getTime() +
-    horasRestantes * 60 * 60 * 1000
-  );
+  const fechaEstimadaFin =
+    tieneOperacionSinEstandar
+      ? null
+      : new Date(
+        referencia.getTime() +
+        horasRestantes * 60 * 60 * 1000
+      );
   const avance = totalRequerido > 0
     ? Math.min(
       100,
@@ -87,9 +100,10 @@ export const calcularProyeccionOT = (
     cantidad_total_ok: totalOk,
     cantidad_total_pendiente: totalPendiente,
     avance_pct: Number(avance.toFixed(2)),
-    estimado_horas_restantes: Number(
-      horasRestantes.toFixed(2)
-    ),
+    estimado_horas_restantes:
+      tieneOperacionSinEstandar
+        ? null
+        : Number(horasRestantes.toFixed(2)),
     fecha_estimada_fin: fechaEstimadaFin
   };
 };

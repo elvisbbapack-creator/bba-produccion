@@ -61,11 +61,30 @@ test("calcula rendimiento, calidad y eficiencia con calidad", () => {
       tiempoProductivoSeg: 3600
     })
   ).toEqual({
+    evaluar_eficiencia: true,
     produccion_total: 100,
     produccion_esperada: 100,
     rendimiento_pct: 100,
     calidad_pct: 80,
     eficiencia_calidad_pct: 80
+  });
+});
+
+test("una medición sin estándar no calcula eficiencia", () => {
+  expect(
+    calcularIndicadoresSesion({
+      cantidadOk: 70,
+      cantidadDefectuosa: 5,
+      unidadesPorHora: 0,
+      tiempoProductivoSeg: 3600
+    })
+  ).toEqual({
+    evaluar_eficiencia: false,
+    produccion_total: 75,
+    produccion_esperada: 0,
+    rendimiento_pct: null,
+    calidad_pct: 93.33,
+    eficiencia_calidad_pct: null
   });
 });
 

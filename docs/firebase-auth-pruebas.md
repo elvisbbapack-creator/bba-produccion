@@ -49,6 +49,15 @@ cambios las OT existentes. Solo las OT nuevas toman el estandar actualizado.
 En el piloto, `DT0001` paso de 120 a 125 unidades por hora y `PCL0001` creo la
 ruta V2, manteniendo la OT piloto enlazada a su copia congelada anterior.
 
+El flujo admite operaciones nuevas sin estandar. La primera sesion funciona
+como medicion: registra produccion y calidad, pero no eficiencia ni ranking.
+Jefe o gerencia puede establecer y reajustar el estandar de una OT activa
+cuantas veces sea necesario; cada sesion conserva el valor vigente al momento
+de iniciarse y cada cambio queda registrado como evento inmutable.
+En la OT piloto, `DT0001` se ajusto durante la ejecucion de 120 a 125
+unidades/hora. La pantalla confirmo que el cambio se aplica solo a sesiones
+nuevas y no se detectaron errores de consola.
+
 Las OT V2 usan correlativo transaccional por planta y solo pueden crearlas
 `jefe` o `gerencia`. El piloto `OT-CHI-000001` congelo la ruta de `PCL0001`
 para 100 productos, generando 400 unidades pendientes en cada operacion.

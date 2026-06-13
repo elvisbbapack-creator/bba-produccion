@@ -141,6 +141,22 @@ publicada. El sistema no modifica la version vigente ni las OT ya creadas:
 Esto permite corregir un dato inicial alejado de la realidad o reconocer una
 mejora comprobada del proceso sin alterar indicadores historicos.
 
+Una operacion nueva tambien puede publicarse con `unidades_por_hora = 0`.
+Mientras permanezca asi:
+
+- las sesiones se identifican como `en_medicion`;
+- se registran cantidades, tiempo y calidad;
+- no se calcula rendimiento ni eficiencia;
+- la sesion no participa en resumenes de eficiencia ni ranking.
+- la OT muestra su proyeccion como pendiente de estandar, en lugar de asumir
+  cero horas restantes.
+
+Durante una OT activa, jefe o gerencia puede establecer o cambiar el estandar
+las veces que sea necesario. Cada cambio crea un evento `cambio_estandar` con
+valor anterior, valor nuevo, motivo, usuario y fecha. El nuevo valor se aplica
+solo a sesiones iniciadas posteriormente. Las sesiones activas y finalizadas
+conservan el estandar congelado con el que comenzaron.
+
 ## Ejemplo PCL0001
 
 Ruta simplificada para `PCL0001 Mod 2N60 CL`:
@@ -351,12 +367,14 @@ motivo_paro_id
 motivo_paro_codigo
 motivo_paro_nombre
 estandar_unidades_hora
+estandar_estado: en_medicion | vigente
 ruta_version
 fecha_operativa
 ```
 
 Varios documentos pueden estar activos para la misma operacion de OT, uno por
-operario o equipo de trabajo.
+operario o equipo de trabajo. El estandar se copia al iniciar la sesion y nunca
+se reemplaza retroactivamente.
 
 ### `catalogo_motivos_paro/{motivoId}`
 

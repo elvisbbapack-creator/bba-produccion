@@ -306,6 +306,22 @@ service cloud.firestore {
             'fecha_fin',
             'fecha_actualizacion'
           ]);
+        allow update: if canManage() &&
+          belongsToPlant(resource.data) &&
+          belongsToPlant(
+            request.resource.data
+          ) &&
+          request.resource.data.diff(
+            resource.data
+          ).affectedKeys().hasOnly([
+            'unidades_por_hora',
+            'estandar_estado',
+            'estandar_anterior',
+            'estandar_motivo',
+            'estandar_actualizado_por',
+            'estandar_actualizado_en',
+            'fecha_actualizacion'
+          ]);
         allow delete: if false;
       }
     }
@@ -344,7 +360,8 @@ service cloud.firestore {
           'produccion_esperada',
           'rendimiento_pct',
           'calidad_pct',
-          'eficiencia_calidad_pct'
+          'eficiencia_calidad_pct',
+          'evaluar_eficiencia'
         ]);
       allow delete: if false;
     }

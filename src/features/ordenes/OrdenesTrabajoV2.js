@@ -188,6 +188,15 @@ function OrdenesTrabajoV2({
     fechaEstimada &&
     fechaEstimada > entregaFecha
   );
+  const pendienteDeEstandar = operaciones.some(
+    operacion =>
+      Number(
+        operacion.cantidad_pendiente || 0
+      ) > 0 &&
+      Number(
+        operacion.unidades_por_hora || 0
+      ) <= 0
+  );
   const simulacionTurnos = useMemo(
     () => simularTurnosOT(
       operaciones,
@@ -788,18 +797,24 @@ function OrdenesTrabajoV2({
                   <div>
                     <strong>Tiempo estimado</strong>
                     <div>
-                      {horasVisible(
-                        ordenSeleccionada
-                          .estimado_horas_restantes ??
-                        proyeccionSeleccionada
-                          .estimado_horas_restantes
-                      )}
+                      {pendienteDeEstandar
+                        ? "Pendiente de estándar"
+                        : horasVisible(
+                          ordenSeleccionada
+                            .estimado_horas_restantes ??
+                          proyeccionSeleccionada
+                            .estimado_horas_restantes
+                        )}
                     </div>
                   </div>
                   <div>
                     <strong>Fin estimado</strong>
                     <div>
-                      {fechaHoraVisible(fechaEstimada)}
+                      {pendienteDeEstandar
+                        ? "Pendiente de estándar"
+                        : fechaHoraVisible(
+                          fechaEstimada
+                        )}
                     </div>
                   </div>
                 </div>

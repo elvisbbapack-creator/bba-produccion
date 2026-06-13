@@ -155,6 +155,24 @@ test("proyecta la OT usando la operación más larga", () => {
   ).toBe("2026-06-13T14:00:00.000Z");
 });
 
+test("no inventa una proyección cuando falta estándar", () => {
+  const proyeccion = calcularProyeccionOT([
+    {
+      cantidad_requerida: 100,
+      cantidad_ok: 0,
+      cantidad_pendiente: 100,
+      unidades_por_hora: 0
+    }
+  ]);
+
+  expect(
+    proyeccion.estimado_horas_restantes
+  ).toBeNull();
+  expect(
+    proyeccion.fecha_estimada_fin
+  ).toBeNull();
+});
+
 test("genera un correlativo legible por planta", () => {
   expect(
     formatearCodigoOT("chile", 12)

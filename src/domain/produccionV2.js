@@ -182,12 +182,13 @@ export const validarRuta = (
     }
 
     if (
-      !numeroPositivo(
-        operacion.unidades_por_hora
-      )
+      !Number.isFinite(
+        Number(operacion.unidades_por_hora)
+      ) ||
+      Number(operacion.unidades_por_hora) < 0
     ) {
       errores.push(
-        `La operacion ${referencia} requiere unidades_por_hora positivas.`
+        `La operacion ${referencia} requiere unidades_por_hora iguales o mayores que cero.`
       );
     }
 

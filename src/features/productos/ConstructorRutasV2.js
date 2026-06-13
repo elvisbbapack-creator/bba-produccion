@@ -922,7 +922,7 @@ function ConstructorRutasV2({
                         />
                       </label>
                       <label style={etiqueta}>
-                        Unidades por hora
+                        Estándar (unidades por hora)
                         <input
                           type="number"
                           min="0"
@@ -939,6 +939,14 @@ function ConstructorRutasV2({
                           }
                           style={campo}
                         />
+                        <span style={{
+                          color: "#64748B",
+                          fontWeight: "normal",
+                          fontSize: 12
+                        }}>
+                          Usa 0 si es una producción nueva
+                          y todavía se está midiendo.
+                        </span>
                       </label>
                       <label style={etiqueta}>
                         Depende de

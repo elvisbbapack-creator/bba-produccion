@@ -38,6 +38,25 @@ test("valida la ruta PCL0001 sin errores", () => {
   ).toEqual([]);
 });
 
+test("permite una ruta nueva con estándar pendiente", () => {
+  expect(
+    validarRuta(
+      {
+        ...rutaPcl0001,
+        operaciones:
+          rutaPcl0001.operaciones.map(
+            (operacion, indice) => ({
+              ...operacion,
+              unidades_por_hora:
+                indice === 0 ? 0 : 80
+            })
+          )
+      },
+      materialesPcl0001
+    )
+  ).toEqual([]);
+});
+
 test("congela la ruta y calcula 400 unidades para una OT de 100", () => {
   const operaciones = congelarRutaParaOT({
     ruta: rutaPcl0001,

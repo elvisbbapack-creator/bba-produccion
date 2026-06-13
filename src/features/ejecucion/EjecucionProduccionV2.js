@@ -15,6 +15,7 @@ import {
   listarMotivosParo
 } from "../paros/parosRepository";
 import {
+  actualizarEstandarOperacionOT,
   iniciarSesionProduccion,
   listarOrdenesEjecutables,
   listarSesionesActivas,
@@ -91,6 +92,11 @@ function EjecucionProduccionV2({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [estandarForm, setEstandarForm] =
+    useState({
+      unidades_por_hora: "",
+      motivo: ""
+    });
 
   const ordenSeleccionada = ordenes.find(
     orden => orden.id === ordenId
@@ -107,6 +113,10 @@ function EjecucionProduccionV2({
   const sesionSeleccionada = sesiones.find(
     sesion => sesion.id === sesionId
   );
+  const puedeGestionarEstandar = [
+    "jefe",
+    "gerencia"
+  ].includes(perfil.rol);
 
   const cargarPlanta = useCallback(
     async (planta) => {
@@ -288,6 +298,42 @@ function EjecucionProduccionV2({
     }
   };
 
+  const actualizarEstandar = async () => {
+    try {
+      setGuardando(true);
+      setError("");
+      const cambio =
+        await actualizarEstandarOperacionOT({
+          db,
+          perfil,
+          orden: ordenSeleccionada,
+          operacion: operacionSeleccionada,
+          unidadesPorHora:
+            estandarForm.unidades_por_hora,
+          motivo: estandarForm.motivo
+        });
+
+      await cambiarOrden(
+        ordenSeleccionada.id,
+        false
+      );
+      setEstandarForm({
+        unidades_por_hora: "",
+        motivo: ""
+      });
+      setMensaje(
+        `Estándar actualizado de ${cambio.estandar_anterior} a ${cambio.estandar_nuevo} unidades/hora. Solo se aplicará a sesiones nuevas.`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo actualizar el estándar."
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   const actualizarReporte = (nombre, valor) => {
     setReporte(actual => ({
       ...actual,
@@ -389,7 +435,9 @@ function EjecucionProduccionV2({
       }
 
       setMensaje(
-        `Reporte registrado. Rendimiento: ${indicadores.rendimiento_pct}%. Calidad: ${indicadores.calidad_pct}%. Eficiencia con calidad: ${indicadores.eficiencia_calidad_pct}%.`
+        indicadores.evaluar_eficiencia
+          ? `Reporte registrado. Rendimiento: ${indicadores.rendimiento_pct}%. Calidad: ${indicadores.calidad_pct}%. Eficiencia con calidad: ${indicadores.eficiencia_calidad_pct}%.`
+          : `Medición registrada sin afectar eficiencia ni ranking. Producción: ${indicadores.produccion_total}; calidad: ${indicadores.calidad_pct}%.`
       );
     } catch (fallo) {
       setError(
@@ -559,6 +607,104 @@ function EjecucionProduccionV2({
                   ))}
                 </select>
               </label>
+
+              {operacionSeleccionada && (
+                <div style={{
+                  padding: 11,
+                  borderRadius: 8,
+                  background:
+                    Number(
+                      operacionSeleccionada
+                        .unidades_por_hora || 0
+                    ) > 0
+                      ? "#F0FDF4"
+                      : "#FFFBEB",
+                  color:
+                    Number(
+                      operacionSeleccionada
+                        .unidades_por_hora || 0
+                    ) > 0
+                      ? "#166534"
+                      : "#92400E"
+                }}>
+                  {Number(
+                    operacionSeleccionada
+                      .unidades_por_hora || 0
+                  ) > 0
+                    ? `Estándar vigente: ${operacionSeleccionada.unidades_por_hora} unidades/hora.`
+                    : "Sin estándar: la sesión será de medición y no afectará eficiencia ni ranking."}
+                </div>
+              )}
+
+              {puedeGestionarEstandar &&
+                operacionSeleccionada && (
+                <div style={{
+                  padding: 12,
+                  border: "1px solid #BAE6FD",
+                  borderRadius: 8,
+                  background: "#F0F9FF",
+                  display: "grid",
+                  gap: 9
+                }}>
+                  <strong>
+                    Establecer o ajustar estándar
+                  </strong>
+                  <label style={etiqueta}>
+                    Unidades por hora
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={
+                        estandarForm
+                          .unidades_por_hora
+                      }
+                      onChange={evento =>
+                        setEstandarForm(
+                          actual => ({
+                            ...actual,
+                            unidades_por_hora:
+                              evento.target.value
+                          })
+                        )
+                      }
+                      style={campo}
+                    />
+                  </label>
+                  <label style={etiqueta}>
+                    Motivo
+                    <textarea
+                      rows={3}
+                      value={estandarForm.motivo}
+                      onChange={evento =>
+                        setEstandarForm(
+                          actual => ({
+                            ...actual,
+                            motivo:
+                              evento.target.value
+                          })
+                        )
+                      }
+                      placeholder="Medición inicial, mejora del método o corrección del valor."
+                      style={campo}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={actualizarEstandar}
+                    disabled={guardando}
+                    style={{
+                      ...campo,
+                      border: "none",
+                      background: "#0369A1",
+                      color: "white",
+                      fontWeight: "bold"
+                    }}
+                  >
+                    Guardar para sesiones nuevas
+                  </button>
+                </div>
+              )}
 
               {ordenId &&
                 disponibles.length === 0 && (
