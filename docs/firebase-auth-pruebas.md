@@ -67,6 +67,12 @@ dos turnos en los demas DT y ampliando solo `DT0005` a tres turnos, proyecto
 un ahorro cercano a dos horas calendario. La configuracion piloto de Chile
 quedo guardada con dos turnos base, tres ampliados y ocho horas efectivas.
 
+El 13 de junio de 2026 el simulador se actualizo con calendarios por planta.
+Chile muestra 42 horas efectivas semanales para el turno de mañana y 41,25
+para el turno de tarde según los horarios informados; Peru usa 48 horas por
+turno. La proyeccion omite los domingos y conserva las horas del tercer turno
+como supuesto editable hasta que BBA defina ese horario.
+
 El rol `tv` ingresa directamente al Dashboard V2. El ranking y los indicadores
 diarios se obtienen desde un unico documento `resumenes_planta_turno`, evitando
 leer sesiones y eventos historicos en cada actualizacion del televisor.
@@ -79,3 +85,5 @@ Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 - Los cuatro tokens incluyeron los claims esperados.
 - El supervisor inicio sesion en Hosting y llego al panel BBA.
 - No hubo lecturas Firestore antes del login ni errores de consola despues.
+- El jefe valido el calendario de Chile y `DT0005` continuo identificado como
+  cuello de botella en la OT piloto.

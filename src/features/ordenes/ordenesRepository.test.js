@@ -1,8 +1,10 @@
 import {
+  horasSemanalesCalendario,
   calcularProyeccionOT,
   formatearCodigoOT,
   prepararOrden,
   simularTurnosOT,
+  sumarHorasEnCalendario,
   validarDatosOrden
 } from "./ordenesRepository";
 
@@ -25,19 +27,16 @@ test("amplía solo el cuello de botella a tres turnos", () => {
       }
     ],
     {
-      turnosBase: 2,
-      turnosCuello: 3,
-      horasPorTurno: 8,
+      plantaId: "peru",
+      horasTercerTurno: 8,
       fechaReferencia:
-        new Date("2026-06-13T00:00:00Z")
+        new Date("2026-06-15T06:00:00")
     }
   );
 
   expect(
     simulacion.cuello_botella.codigo
   ).toBe("DT0005");
-  expect(simulacion.dias_base).toBe(1.5);
-  expect(simulacion.dias_escenario).toBe(1);
   expect(
     simulacion.operaciones.find(
       item => item.codigo === "DT0001"
@@ -50,8 +49,40 @@ test("amplía solo el cuello de botella a tres turnos", () => {
   ).toBe(3);
   expect(
     simulacion.ahorro_horas_calendario
-  ).toBe(12);
+  ).toBe(8);
   expect(simulacion.recomienda_ampliar).toBe(true);
+});
+
+test("usa los calendarios semanales de Chile y Perú", () => {
+  expect(horasSemanalesCalendario("chile"))
+    .toBe(83.25);
+  expect(horasSemanalesCalendario("peru"))
+    .toBe(96);
+
+  expect(
+    sumarHorasEnCalendario({
+      fechaReferencia:
+        new Date("2026-06-13T20:00:00"),
+      horasTrabajo: 4,
+      plantaId: "chile"
+    }).toISOString()
+  ).toBe(
+    new Date("2026-06-15T10:15:00")
+      .toISOString()
+  );
+
+  expect(
+    sumarHorasEnCalendario({
+      fechaReferencia:
+        new Date("2026-06-15T21:00:00"),
+      horasTrabajo: 3,
+      plantaId: "peru",
+      horasTercerTurno: 8
+    }).toISOString()
+  ).toBe(
+    new Date("2026-06-16T00:00:00")
+      .toISOString()
+  );
 });
 
 test("proyecta la OT usando la operación más larga", () => {

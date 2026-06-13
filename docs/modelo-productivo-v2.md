@@ -228,7 +228,8 @@ empresa_id
 planta_id
 turnos_base
 turnos_ampliados
-horas_efectivas_turno
+horas_tercer_turno
+calendario_version
 actualizado_por_id
 actualizado_en
 ```
@@ -237,6 +238,19 @@ El simulador mantiene los turnos base en todos los DT y aplica el escenario
 ampliado solamente al DT con mayor carga restante. Luego recalcula el maximo
 entre todos los DT, porque al aliviar un proceso otro puede convertirse en el
 nuevo cuello de botella.
+
+Calendarios base:
+
+- Chile: lunes a miercoles, mañana 07:00-15:00 y tarde 15:00-22:30; jueves a
+  sabado, mañana 07:00-14:00 y tarde 14:00-21:15. Se descuentan 30 minutos de
+  colacion por turno. Esto produce 42 horas efectivas semanales en mañana y
+  41,25 horas en tarde según los horarios informados.
+- Peru: lunes a sabado, mañana 06:00-14:00 y tarde 14:00-22:00, equivalente a
+  48 horas semanales por turno.
+
+El horario exacto del tercer turno queda pendiente de definicion. Hasta
+entonces, el simulador usa `horas_tercer_turno` como supuesto editable y lo
+presenta expresamente como tal.
 
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 

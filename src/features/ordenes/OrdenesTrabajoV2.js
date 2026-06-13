@@ -8,12 +8,14 @@ import {
   listarProductos
 } from "../productos/productosRepository";
 import {
+  CALENDARIOS_PLANTA,
   calcularProyeccionOT,
   crearOrdenV2,
   guardarConfiguracionCapacidad,
   listarOperacionesOT,
   listarOrdenesV2,
   obtenerConfiguracionCapacidad,
+  horasSemanalesCalendario,
   simularTurnosOT,
   validarDatosOrden
 } from "./ordenesRepository";
@@ -116,7 +118,7 @@ function OrdenesTrabajoV2({
     setConfiguracionCapacidad] = useState({
       turnos_base: 2,
       turnos_ampliados: 3,
-      horas_efectivas_turno: 8
+      horas_tercer_turno: 8
     });
 
   const productosPublicados = useMemo(
@@ -189,18 +191,18 @@ function OrdenesTrabajoV2({
     () => simularTurnosOT(
       operaciones,
       {
-        turnosBase:
-          configuracionCapacidad.turnos_base,
-        turnosCuello:
+        plantaId: formulario.planta_id,
+        horasTercerTurno:
           configuracionCapacidad
-            .turnos_ampliados,
-        horasPorTurno:
-          configuracionCapacidad
-            .horas_efectivas_turno,
+            .horas_tercer_turno,
         fechaReferencia: new Date()
       }
     ),
-    [configuracionCapacidad, operaciones]
+    [
+      configuracionCapacidad,
+      formulario.planta_id,
+      operaciones
+    ]
   );
 
   const cargarOrdenes = useCallback(
@@ -382,14 +384,9 @@ function OrdenesTrabajoV2({
           db,
           perfil,
           plantaId: formulario.planta_id,
-          turnosBase:
-            configuracionCapacidad.turnos_base,
-          turnosAmpliados:
+          horasTercerTurno:
             configuracionCapacidad
-              .turnos_ampliados,
-          horasEfectivasTurno:
-            configuracionCapacidad
-              .horas_efectivas_turno
+              .horas_tercer_turno
         });
       setConfiguracionCapacidad(guardada);
       setMensaje(
@@ -863,6 +860,41 @@ function OrdenesTrabajoV2({
                   </p>
 
                   <div style={{
+                    background: "white",
+                    borderRadius: 9,
+                    padding: 12,
+                    marginBottom: 12,
+                    color: "#475569"
+                  }}>
+                    <strong>
+                      Calendario{" "}
+                      {
+                        CALENDARIOS_PLANTA[
+                          formulario.planta_id
+                        ]?.nombre
+                      }
+                    </strong>
+                    <div style={{ marginTop: 5 }}>
+                      2 turnos · lunes a sábado ·{" "}
+                      {horasSemanalesCalendario(
+                        formulario.planta_id
+                      ).toFixed(2)}
+                      {" horas efectivas combinadas por semana"}
+                    </div>
+                    {formulario.planta_id ===
+                      "chile" && (
+                      <div style={{
+                        marginTop: 5,
+                        color: "#92400E"
+                      }}>
+                        Mañana: 42 h/semana. Tarde:
+                        41,25 h/semana según el horario
+                        informado.
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{
                     display: "grid",
                     gridTemplateColumns:
                       "repeat(auto-fit, minmax(140px, 1fr))",
@@ -870,60 +902,31 @@ function OrdenesTrabajoV2({
                     marginBottom: 12
                   }}>
                     <label style={etiqueta}>
-                      Turnos normales
-                      <input
-                        type="number"
-                        min="1"
-                        value={
-                          configuracionCapacidad
-                            .turnos_base
-                        }
-                        onChange={evento =>
-                          actualizarCapacidad(
-                            "turnos_base",
-                            evento.target.value
-                          )
-                        }
-                        style={campo}
-                      />
-                    </label>
-                    <label style={etiqueta}>
-                      Turnos ampliados
-                      <input
-                        type="number"
-                        min="2"
-                        value={
-                          configuracionCapacidad
-                            .turnos_ampliados
-                        }
-                        onChange={evento =>
-                          actualizarCapacidad(
-                            "turnos_ampliados",
-                            evento.target.value
-                          )
-                        }
-                        style={campo}
-                      />
-                    </label>
-                    <label style={etiqueta}>
-                      Horas efectivas / turno
+                      Horas efectivas del 3er turno
                       <input
                         type="number"
                         min="0.5"
                         step="0.5"
                         value={
                           configuracionCapacidad
-                            .horas_efectivas_turno
+                            .horas_tercer_turno
                         }
                         onChange={evento =>
                           actualizarCapacidad(
-                            "horas_efectivas_turno",
+                            "horas_tercer_turno",
                             evento.target.value
                           )
                         }
                         style={campo}
                       />
                     </label>
+                    <div style={{
+                      color: "#92400E",
+                      fontSize: 13
+                    }}>
+                      Supuesto editable hasta definir el
+                      horario exacto del tercer turno.
+                    </div>
                   </div>
 
                   <button
@@ -991,15 +994,14 @@ function OrdenesTrabajoV2({
                       }}>
                         {simulacionTurnos
                           .recomienda_ampliar
-                          ? `Recomendación: ampliar solo ${simulacionTurnos.cuello_botella.codigo} de ${simulacionTurnos.turnos_base} a ${simulacionTurnos.turnos_cuello} turnos. Ahorro estimado: ${simulacionTurnos.ahorro_horas_calendario} horas calendario.`
+                          ? `Recomendación: ampliar solo ${simulacionTurnos.cuello_botella.codigo} de 2 a 3 turnos. Ahorro estimado: ${simulacionTurnos.ahorro_horas_calendario} horas calendario.`
                           : "El tercer turno no produce una mejora significativa en la fecha final actual."}
                       </div>
                       <div style={{
                         marginTop: 7
                       }}>
                         Fin con{" "}
-                        {simulacionTurnos.turnos_base}
-                        {" turnos: "}
+                        2 turnos:{" "}
                         <strong>
                           {fechaHoraVisible(
                             simulacionTurnos

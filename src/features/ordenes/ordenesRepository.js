@@ -94,28 +94,163 @@ export const calcularProyeccionOT = (
   };
 };
 
+export const CALENDARIOS_PLANTA = {
+  chile: {
+    nombre: "Chile",
+    horas_semanales_declaradas: 42,
+    tercer_turno_horas_default: 8,
+    dias: {
+      1: [[7, 14.5], [15, 22]],
+      2: [[7, 14.5], [15, 22]],
+      3: [[7, 14.5], [15, 22]],
+      4: [[7, 13.5], [14, 20.75]],
+      5: [[7, 13.5], [14, 20.75]],
+      6: [[7, 13.5], [14, 20.75]]
+    }
+  },
+  peru: {
+    nombre: "Perú",
+    horas_semanales_declaradas: 48,
+    tercer_turno_horas_default: 8,
+    dias: {
+      1: [[6, 14], [14, 22]],
+      2: [[6, 14], [14, 22]],
+      3: [[6, 14], [14, 22]],
+      4: [[6, 14], [14, 22]],
+      5: [[6, 14], [14, 22]],
+      6: [[6, 14], [14, 22]]
+    }
+  }
+};
+
+const fechaConHora = (fecha, horaDecimal) => {
+  const resultado = new Date(fecha);
+  const diasAdicionales = Math.floor(
+    horaDecimal / 24
+  );
+  const horaNormalizada =
+    horaDecimal - diasAdicionales * 24;
+  const horas = Math.floor(horaNormalizada);
+  const minutos = Math.round(
+    (horaNormalizada - horas) * 60
+  );
+
+  resultado.setHours(0, 0, 0, 0);
+  resultado.setDate(
+    resultado.getDate() + diasAdicionales
+  );
+  resultado.setHours(horas, minutos, 0, 0);
+  return resultado;
+};
+
+const siguienteDia = (fecha) => {
+  const resultado = new Date(fecha);
+
+  resultado.setDate(resultado.getDate() + 1);
+  resultado.setHours(0, 0, 0, 0);
+  return resultado;
+};
+
+export const horasSemanalesCalendario = (
+  plantaId
+) => {
+  const calendario =
+    CALENDARIOS_PLANTA[plantaId] ||
+    CALENDARIOS_PLANTA.peru;
+
+  return Object.values(calendario.dias)
+    .flat()
+    .reduce(
+      (total, [inicio, fin]) =>
+        total + fin - inicio,
+      0
+    );
+};
+
+export const sumarHorasEnCalendario = ({
+  fechaReferencia,
+  horasTrabajo,
+  plantaId,
+  horasTercerTurno = 0
+}) => {
+  const calendario =
+    CALENDARIOS_PLANTA[plantaId] ||
+    CALENDARIOS_PLANTA.peru;
+  let cursor = new Date(fechaReferencia);
+  let pendiente = Math.max(
+    0,
+    Number(horasTrabajo || 0)
+  );
+  let guardia = 0;
+
+  while (pendiente > 0 && guardia < 370) {
+    const ventanasBase =
+      calendario.dias[cursor.getDay()] || [];
+    const ventanas = [...ventanasBase];
+
+    if (
+      ventanasBase.length > 0 &&
+      Number(horasTercerTurno) > 0
+    ) {
+      const finBase =
+        ventanasBase[ventanasBase.length - 1][1];
+
+      ventanas.push([
+        finBase,
+        finBase + Number(horasTercerTurno)
+      ]);
+    }
+
+    for (const [inicio, fin] of ventanas) {
+      const inicioVentana =
+        fechaConHora(cursor, inicio);
+      const finVentana =
+        fechaConHora(cursor, fin);
+
+      if (cursor >= finVentana) {
+        continue;
+      }
+
+      const inicioReal =
+        cursor > inicioVentana
+          ? cursor
+          : inicioVentana;
+      const disponible =
+        (
+          finVentana.getTime() -
+          inicioReal.getTime()
+        ) /
+        (60 * 60 * 1000);
+
+      if (pendiente <= disponible) {
+        return new Date(
+          inicioReal.getTime() +
+          pendiente * 60 * 60 * 1000
+        );
+      }
+
+      pendiente -= disponible;
+      cursor = finVentana;
+    }
+
+    cursor = siguienteDia(cursor);
+    guardia += 1;
+  }
+
+  return cursor;
+};
+
 export const simularTurnosOT = (
   operaciones = [],
   {
-    turnosBase = 2,
-    turnosCuello = 3,
-    horasPorTurno = 8,
+    plantaId = "peru",
+    horasTercerTurno = 8,
     fechaReferencia = new Date()
   } = {}
 ) => {
-  const capacidadBaseDia =
-    Number(turnosBase) *
-    Number(horasPorTurno);
-  const capacidadAmpliadaDia =
-    Number(turnosCuello) *
-    Number(horasPorTurno);
-
-  if (
-    capacidadBaseDia <= 0 ||
-    capacidadAmpliadaDia <= 0
-  ) {
+  if (Number(horasTercerTurno) <= 0) {
     throw new Error(
-      "La configuración de turnos debe ser positiva."
+      "Las horas del tercer turno deben ser positivas."
     );
   }
 
@@ -141,70 +276,70 @@ export const simularTurnosOT = (
       horas_trabajo: Number(
         horasTrabajo.toFixed(2)
       ),
-      dias_base: Number(
-        (horasTrabajo / capacidadBaseDia)
-          .toFixed(3)
-      )
+      fecha_fin_base: sumarHorasEnCalendario({
+        fechaReferencia,
+        horasTrabajo,
+        plantaId
+      })
     };
   });
   const cuello = [...cargas].sort(
-    (a, b) => b.dias_base - a.dias_base
+    (a, b) =>
+      b.fecha_fin_base.getTime() -
+      a.fecha_fin_base.getTime()
   )[0] || null;
   const escenario = cargas.map(carga => {
     const ampliada =
       carga.id === cuello?.id;
-    const diasEscenario =
-      carga.horas_trabajo /
-      (
-        ampliada
-          ? capacidadAmpliadaDia
-          : capacidadBaseDia
-      );
+    const fechaFinEscenario =
+      sumarHorasEnCalendario({
+        fechaReferencia,
+        horasTrabajo: carga.horas_trabajo,
+        plantaId,
+        horasTercerTurno:
+          ampliada ? horasTercerTurno : 0
+      });
 
     return {
       ...carga,
       es_cuello_botella: ampliada,
-      turnos_escenario:
-        ampliada ? turnosCuello : turnosBase,
-      dias_escenario: Number(
-        diasEscenario.toFixed(3)
-      )
+      turnos_escenario: ampliada ? 3 : 2,
+      fecha_fin_escenario:
+        fechaFinEscenario
     };
   });
-  const diasBase = Math.max(
-    0,
-    ...cargas.map(carga => carga.dias_base)
-  );
-  const diasEscenario = Math.max(
-    0,
-    ...escenario.map(
-      carga => carga.dias_escenario
+  const fechaBase = new Date(Math.max(
+    new Date(fechaReferencia).getTime(),
+    ...cargas.map(
+      carga => carga.fecha_fin_base.getTime()
     )
-  );
-  const referencia = new Date(fechaReferencia);
-  const fechaBase = new Date(
-    referencia.getTime() +
-    diasBase * 24 * 60 * 60 * 1000
-  );
-  const fechaEscenario = new Date(
-    referencia.getTime() +
-    diasEscenario * 24 * 60 * 60 * 1000
-  );
+  ));
+  const fechaEscenario = new Date(Math.max(
+    new Date(fechaReferencia).getTime(),
+    ...escenario.map(
+      carga =>
+        carga.fecha_fin_escenario.getTime()
+    )
+  ));
   const ahorroHoras = Math.max(
     0,
-    (diasBase - diasEscenario) * 24
+    (
+      fechaBase.getTime() -
+      fechaEscenario.getTime()
+    ) /
+    (60 * 60 * 1000)
   );
 
   return {
-    turnos_base: Number(turnosBase),
-    turnos_cuello: Number(turnosCuello),
-    horas_por_turno: Number(horasPorTurno),
+    planta_id: plantaId,
+    turnos_base: 2,
+    turnos_cuello: 3,
+    horas_tercer_turno:
+      Number(horasTercerTurno),
+    horas_semanales_calendario:
+      horasSemanalesCalendario(plantaId),
     cuello_botella: cuello,
     operaciones: escenario,
-    dias_base: Number(diasBase.toFixed(3)),
-    dias_escenario: Number(
-      diasEscenario.toFixed(3)
-    ),
     fecha_fin_base: fechaBase,
     fecha_fin_escenario: fechaEscenario,
     ahorro_horas_calendario: Number(
@@ -235,14 +370,23 @@ export const obtenerConfiguracionCapacidad =
     return snapshot.exists()
       ? {
         id: snapshot.id,
-        ...snapshot.data()
+        ...snapshot.data(),
+        horas_tercer_turno:
+          snapshot.data().horas_tercer_turno ??
+          snapshot.data()
+            .horas_efectivas_turno ??
+          CALENDARIOS_PLANTA[plantaId]
+            ?.tercer_turno_horas_default ??
+          8
       }
       : {
         empresa_id: empresaId,
         planta_id: plantaId,
         turnos_base: 2,
         turnos_ampliados: 3,
-        horas_efectivas_turno: 8
+        horas_tercer_turno:
+          CALENDARIOS_PLANTA[plantaId]
+            ?.tercer_turno_horas_default || 8
       };
   };
 
@@ -251,26 +395,16 @@ export const guardarConfiguracionCapacidad =
     db,
     perfil,
     plantaId,
-    turnosBase,
-    turnosAmpliados,
-    horasEfectivasTurno
+    horasTercerTurno
   }) => {
-    const valores = [
-      turnosBase,
-      turnosAmpliados,
-      horasEfectivasTurno
-    ].map(Number);
+    const horas = Number(horasTercerTurno);
 
     if (
-      valores.some(
-        valor =>
-          !Number.isFinite(valor) ||
-          valor <= 0
-      ) ||
-      valores[1] <= valores[0]
+      !Number.isFinite(horas) ||
+      horas <= 0
     ) {
       throw new Error(
-        "La capacidad requiere horas positivas y más turnos en el escenario ampliado."
+        "Las horas efectivas del tercer turno deben ser positivas."
       );
     }
 
@@ -285,9 +419,10 @@ export const guardarConfiguracionCapacidad =
     const configuracion = {
       empresa_id: perfil.empresa_id,
       planta_id: plantaId,
-      turnos_base: valores[0],
-      turnos_ampliados: valores[1],
-      horas_efectivas_turno: valores[2],
+      turnos_base: 2,
+      turnos_ampliados: 3,
+      horas_tercer_turno: horas,
+      calendario_version: 1,
       actualizado_por_id: perfil.uid,
       actualizado_en: serverTimestamp()
     };

@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "bba-erp-pruebas",
     "public": "build",
     "ignore": [
       "firebase.hosting-test.json",
