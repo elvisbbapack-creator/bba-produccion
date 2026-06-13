@@ -14,6 +14,7 @@ import {
   registrarResultadoOperacion
 } from "../../domain/produccionV2";
 import {
+  calcularProyeccionOT,
   listarOperacionesOT,
   listarOrdenesV2
 } from "../ordenes/ordenesRepository";
@@ -904,20 +905,11 @@ export const registrarReporteProduccion =
           );
         });
 
-        const totalRequerido = posteriores.reduce(
-          (total, operacion) =>
-            total +
-            Number(
-              operacion.cantidad_requerida || 0
-            ),
-          0
-        );
-        const totalOk = posteriores.reduce(
-          (total, operacion) =>
-            total +
-            Number(operacion.cantidad_ok || 0),
-          0
-        );
+        const proyeccion =
+          calcularProyeccionOT(
+            posteriores,
+            Timestamp.now().toDate()
+          );
         const operacionesCompletadas =
           posteriores.every(
           operacion =>
@@ -1095,21 +1087,22 @@ export const registrarReporteProduccion =
           });
         }
         transaccion.update(otRef, {
-          avance_pct:
-            totalRequerido > 0
-              ? Number(
-                  (
-                    (totalOk / totalRequerido) *
-                    100
-                  ).toFixed(2)
-                )
-              : 0,
+          ...proyeccion,
           estado: completada
             ? "completada"
             : "en_produccion",
           fecha_real_fin: completada
             ? serverTimestamp()
             : null,
+          estimado_horas_restantes:
+            completada
+              ? 0
+              : proyeccion
+                .estimado_horas_restantes,
+          fecha_estimada_fin:
+            completada
+              ? serverTimestamp()
+              : proyeccion.fecha_estimada_fin,
           merma_total:
             Number(
               otSnap.data().merma_total || 0

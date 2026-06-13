@@ -8,6 +8,7 @@ import {
   listarProductos
 } from "../productos/productosRepository";
 import {
+  calcularProyeccionOT,
   crearOrdenV2,
   listarOperacionesOT,
   listarOrdenesV2,
@@ -62,6 +63,33 @@ const fechaVisible = (valor) => {
     : fecha.toLocaleDateString("es-CL");
 };
 
+const fechaHoraVisible = (valor) => {
+  if (!valor) {
+    return "-";
+  }
+
+  const fecha = typeof valor.toDate === "function"
+    ? valor.toDate()
+    : new Date(valor);
+
+  return Number.isNaN(fecha.getTime())
+    ? "-"
+    : fecha.toLocaleString("es-CL", {
+      dateStyle: "short",
+      timeStyle: "short"
+    });
+};
+
+const horasVisible = (valor) => {
+  const horas = Number(valor || 0);
+
+  if (horas < 1) {
+    return `${Math.round(horas * 60)} min`;
+  }
+
+  return `${horas.toFixed(1)} h`;
+};
+
 function OrdenesTrabajoV2({
   db,
   perfil,
@@ -96,6 +124,58 @@ function OrdenesTrabajoV2({
       producto =>
         producto.id === formulario.producto_id
     );
+  const proyeccionSeleccionada = useMemo(
+    () => {
+      const inicio =
+        ordenSeleccionada
+          ?.fecha_planificada_inicio;
+      const inicioFecha = inicio
+        ? (
+          typeof inicio.toDate === "function"
+            ? inicio.toDate()
+            : new Date(inicio)
+        )
+        : new Date();
+
+      return calcularProyeccionOT(
+        operaciones,
+        inicioFecha > new Date()
+          ? inicioFecha
+          : new Date()
+      );
+    },
+    [operaciones, ordenSeleccionada]
+  );
+  const entregaPlanificada =
+    ordenSeleccionada
+      ?.fecha_planificada_entrega;
+  const entregaFecha = entregaPlanificada
+    ? (
+      typeof entregaPlanificada.toDate ===
+      "function"
+        ? entregaPlanificada.toDate()
+        : new Date(entregaPlanificada)
+    )
+    : null;
+  const fechaEstimada =
+    ordenSeleccionada?.fecha_estimada_fin
+      ? (
+        typeof ordenSeleccionada
+          .fecha_estimada_fin.toDate ===
+        "function"
+          ? ordenSeleccionada
+            .fecha_estimada_fin.toDate()
+          : new Date(
+            ordenSeleccionada.fecha_estimada_fin
+          )
+      )
+      : proyeccionSeleccionada
+        .fecha_estimada_fin;
+  const riesgoAtraso = Boolean(
+    entregaFecha &&
+    fechaEstimada &&
+    fechaEstimada > entregaFecha
+  );
 
   const cargarOrdenes = useCallback(
     async (plantaId) => {
@@ -613,9 +693,76 @@ function OrdenesTrabajoV2({
                   <div>
                     <strong>Avance</strong>
                     <div>
-                      {ordenSeleccionada.avance_pct}%
+                      {
+                        ordenSeleccionada
+                          .avance_pct ??
+                        proyeccionSeleccionada
+                          .avance_pct
+                      }%
                     </div>
                   </div>
+                  <div>
+                    <strong>Unidades OK</strong>
+                    <div>
+                      {
+                        ordenSeleccionada
+                          .cantidad_total_ok ??
+                        proyeccionSeleccionada
+                          .cantidad_total_ok
+                      }
+                    </div>
+                  </div>
+                  <div>
+                    <strong>Pendiente</strong>
+                    <div>
+                      {
+                        ordenSeleccionada
+                          .cantidad_total_pendiente ??
+                        proyeccionSeleccionada
+                          .cantidad_total_pendiente
+                      }
+                    </div>
+                  </div>
+                  <div>
+                    <strong>Tiempo estimado</strong>
+                    <div>
+                      {horasVisible(
+                        ordenSeleccionada
+                          .estimado_horas_restantes ??
+                        proyeccionSeleccionada
+                          .estimado_horas_restantes
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <strong>Fin estimado</strong>
+                    <div>
+                      {fechaHoraVisible(fechaEstimada)}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: 12,
+                  borderRadius: 9,
+                  marginBottom: 16,
+                  background: riesgoAtraso
+                    ? "#FEF2F2"
+                    : entregaFecha
+                      ? "#F0FDF4"
+                      : "#EFF6FF",
+                  color: riesgoAtraso
+                    ? "#B91C1C"
+                    : entregaFecha
+                      ? "#166534"
+                      : "#1D4ED8",
+                  fontWeight: "bold"
+                }}>
+                  {riesgoAtraso
+                    ? "Riesgo de atraso: el fin estimado supera la entrega planificada."
+                    : entregaFecha
+                      ? "Proyección dentro de la fecha planificada."
+                      : "La OT no tiene fecha de entrega planificada para comparar."}
                 </div>
 
                 <div style={{

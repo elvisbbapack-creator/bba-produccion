@@ -9,6 +9,7 @@ import {
   where
 } from "firebase/firestore";
 import {
+  calcularProyeccionOT,
   listarOperacionesOT
 } from "../ordenes/ordenesRepository";
 
@@ -353,24 +354,11 @@ export const resolverReproceso = async ({
             operacion.cantidad_pendiente
           ) <= 0
       );
-    const totalRequerido =
-      operacionesActualizadas.reduce(
-        (total, operacion) =>
-          total +
-          Number(
-            operacion.cantidad_requerida || 0
-          ),
-        0
-      );
-    const totalOk =
-      operacionesActualizadas.reduce(
-        (total, operacion) =>
-          total +
-          Number(operacion.cantidad_ok || 0),
-        0
-      );
     const completada =
       todasTerminadas && pendienteOt === 0;
+    const proyeccion = calcularProyeccionOT(
+      operacionesActualizadas
+    );
 
     transaccion.update(registroRef, {
       estado_reproceso: "resuelto",
@@ -432,21 +420,22 @@ export const resolverReproceso = async ({
       merma_total:
         Number(datosOt.merma_total || 0) +
         merma,
-      avance_pct:
-        totalRequerido > 0
-          ? Number(
-            (
-              (totalOk / totalRequerido) *
-              100
-            ).toFixed(2)
-          )
-          : 0,
+      ...proyeccion,
       estado: completada
         ? "completada"
         : "en_produccion",
       fecha_real_fin: completada
         ? serverTimestamp()
         : null,
+      estimado_horas_restantes:
+        completada
+          ? 0
+          : proyeccion
+            .estimado_horas_restantes,
+      fecha_estimada_fin:
+        completada
+          ? serverTimestamp()
+          : proyeccion.fecha_estimada_fin,
       fecha_actualizacion: serverTimestamp()
     });
     transaccion.set(eventoRef, {

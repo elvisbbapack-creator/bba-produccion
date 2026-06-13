@@ -198,11 +198,28 @@ fecha_planificada_entrega
 fecha_real_inicio
 fecha_real_fin
 avance_pct
+cantidad_total_requerida
+cantidad_total_ok
+cantidad_total_pendiente
+estimado_horas_restantes
+fecha_estimada_fin
 creada_por_id
 creada_por_nombre
 fecha_creacion
 modelo_version: 2
 ```
+
+La proyeccion usa la mayor carga restante entre operaciones porque BBA puede
+ejecutar varios procesos en simultaneo:
+
+```text
+horas_operacion = cantidad_pendiente / unidades_por_hora
+horas_restantes_ot = max(horas_operacion)
+fecha_estimada_fin = fecha_actual + horas_restantes_ot
+```
+
+Es una estimacion operativa basada en los estandares vigentes. Se recalcula con
+cada reporte y puede cambiar por paros, reprocesos o variaciones de rendimiento.
 
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 

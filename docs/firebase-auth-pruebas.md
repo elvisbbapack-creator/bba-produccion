@@ -56,6 +56,11 @@ de `DT0001` fue pausada, reanudada y finalizada correctamente; la duracion del
 paro quedo acumulada en la sesion y se desconto del tiempo productivo usado
 para calcular rendimiento y eficiencia.
 
+La proyeccion de OT V2 se valido con `OT-CHI-000001`. Despues de un reporte,
+la OT mostro 27,25% de avance, 218 unidades OK, 582 pendientes y cerca de
+cuatro horas restantes. Estos agregados quedaron guardados en la OT para que
+la pantalla no tenga que reconstruirlos leyendo el historial de eventos.
+
 El rol `tv` ingresa directamente al Dashboard V2. El ranking y los indicadores
 diarios se obtienen desde un unico documento `resumenes_planta_turno`, evitando
 leer sesiones y eventos historicos en cada actualizacion del televisor.

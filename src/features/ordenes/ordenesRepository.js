@@ -29,6 +29,69 @@ const codigoPlanta = (plantaId) =>
     .toUpperCase()
     .slice(0, 3);
 
+export const calcularProyeccionOT = (
+  operaciones = [],
+  fechaReferencia = new Date()
+) => {
+  const totalRequerido = operaciones.reduce(
+    (total, operacion) =>
+      total +
+      Number(operacion.cantidad_requerida || 0),
+    0
+  );
+  const totalOk = operaciones.reduce(
+    (total, operacion) =>
+      total + Number(operacion.cantidad_ok || 0),
+    0
+  );
+  const totalPendiente = operaciones.reduce(
+    (total, operacion) =>
+      total +
+      Number(operacion.cantidad_pendiente || 0),
+    0
+  );
+  const horasPorOperacion = operaciones.map(
+    operacion => {
+      const pendiente = Number(
+        operacion.cantidad_pendiente || 0
+      );
+      const velocidad = Number(
+        operacion.unidades_por_hora || 0
+      );
+
+      return velocidad > 0
+        ? pendiente / velocidad
+        : 0;
+    }
+  );
+  const horasRestantes = Math.max(
+    0,
+    ...horasPorOperacion
+  );
+  const referencia = new Date(fechaReferencia);
+  const fechaEstimadaFin = new Date(
+    referencia.getTime() +
+    horasRestantes * 60 * 60 * 1000
+  );
+  const avance = totalRequerido > 0
+    ? Math.min(
+      100,
+      (totalOk / totalRequerido) * 100
+    )
+    : 0;
+
+  return {
+    cantidad_total_requerida: totalRequerido,
+    cantidad_total_ok: totalOk,
+    cantidad_total_pendiente: totalPendiente,
+    avance_pct: Number(avance.toFixed(2)),
+    estimado_horas_restantes: Number(
+      horasRestantes.toFixed(2)
+    ),
+    fecha_estimada_fin: fechaEstimadaFin
+  };
+};
+
 export const formatearCodigoOT = (
   plantaId,
   correlativo
@@ -80,6 +143,11 @@ export const prepararOrden = ({
   fecha_real_inicio: null,
   fecha_real_fin: null,
   avance_pct: 0,
+  cantidad_total_requerida: 0,
+  cantidad_total_ok: 0,
+  cantidad_total_pendiente: 0,
+  estimado_horas_restantes: 0,
+  fecha_estimada_fin: null,
   merma_total: 0,
   reprocesos_pendientes: 0,
   creada_por_id: perfil.uid,
@@ -237,6 +305,12 @@ export const crearOrdenV2 = async ({
     materiales,
     cantidadProducto
   });
+  const proyeccion = calcularProyeccionOT(
+    operaciones,
+    fechaInicio
+      ? new Date(`${fechaInicio}T12:00:00`)
+      : new Date()
+  );
   const correlativoId =
     `${perfil.empresa_id}__${plantaId}__ot`;
   const correlativoRef = doc(
@@ -286,6 +360,7 @@ export const crearOrdenV2 = async ({
       });
       transaccion.set(otRef, {
         ...orden,
+        ...proyeccion,
         fecha_creacion: serverTimestamp(),
         fecha_actualizacion: serverTimestamp()
       });

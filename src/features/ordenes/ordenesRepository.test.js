@@ -1,8 +1,43 @@
 import {
+  calcularProyeccionOT,
   formatearCodigoOT,
   prepararOrden,
   validarDatosOrden
 } from "./ordenesRepository";
+
+test("proyecta la OT usando la operación más larga", () => {
+  const referencia = new Date(
+    "2026-06-13T10:00:00Z"
+  );
+  const proyeccion = calcularProyeccionOT(
+    [
+      {
+        cantidad_requerida: 400,
+        cantidad_ok: 120,
+        cantidad_pendiente: 280,
+        unidades_por_hora: 140
+      },
+      {
+        cantidad_requerida: 400,
+        cantidad_ok: 80,
+        cantidad_pendiente: 320,
+        unidades_por_hora: 80
+      }
+    ],
+    referencia
+  );
+
+  expect(proyeccion).toMatchObject({
+    cantidad_total_requerida: 800,
+    cantidad_total_ok: 200,
+    cantidad_total_pendiente: 600,
+    avance_pct: 25,
+    estimado_horas_restantes: 4
+  });
+  expect(
+    proyeccion.fecha_estimada_fin.toISOString()
+  ).toBe("2026-06-13T14:00:00.000Z");
+});
 
 test("genera un correlativo legible por planta", () => {
   expect(
@@ -42,6 +77,7 @@ test("prepara una OT V2 liberada", () => {
     ruta_version: 1,
     cantidad_producto: 100,
     estado: "liberada",
+    cantidad_total_pendiente: 0,
     modelo_version: 2
   });
 });
