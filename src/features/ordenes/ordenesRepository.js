@@ -98,7 +98,15 @@ export const CALENDARIOS_PLANTA = {
   chile: {
     nombre: "Chile",
     horas_semanales_declaradas: 42,
-    tercer_turno_horas_default: 8,
+    tercer_turno_horas_default: 8.625,
+    tercer_turno_por_dia: {
+      1: [22.5, 30.5],
+      2: [22.5, 30.5],
+      3: [22.5, 30.5],
+      4: [21.25, 30.5],
+      5: [21.25, 30.5],
+      6: [21.25, 30.5]
+    },
     dias: {
       1: [[7, 14.5], [15, 22]],
       2: [[7, 14.5], [15, 22]],
@@ -168,6 +176,28 @@ export const horasSemanalesCalendario = (
     );
 };
 
+export const horasSemanalesTercerTurno = (
+  plantaId
+) => {
+  const calendario =
+    CALENDARIOS_PLANTA[plantaId] ||
+    CALENDARIOS_PLANTA.peru;
+  const ventanas =
+    calendario.tercer_turno_por_dia
+      ? Object.values(
+        calendario.tercer_turno_por_dia
+      )
+      : Array(6).fill(
+        calendario.tercer_turno
+      ).filter(Boolean);
+
+  return ventanas.reduce(
+    (total, [inicio, fin]) =>
+      total + fin - inicio,
+    0
+  );
+};
+
 export const sumarHorasEnCalendario = ({
   fechaReferencia,
   horasTrabajo,
@@ -193,7 +223,16 @@ export const sumarHorasEnCalendario = ({
       ventanasBase.length > 0 &&
       Number(horasTercerTurno) > 0
     ) {
-      if (calendario.tercer_turno) {
+      const tercerTurnoDia =
+        calendario.tercer_turno_por_dia
+          ? calendario.tercer_turno_por_dia[
+            cursor.getDay()
+          ]
+          : calendario.tercer_turno;
+
+      if (tercerTurnoDia) {
+        ventanas.push(tercerTurnoDia);
+      } else if (calendario.tercer_turno) {
         ventanas.push(calendario.tercer_turno);
       } else {
         const finBase =
@@ -402,9 +441,10 @@ export const guardarConfiguracionCapacidad =
     plantaId,
     horasTercerTurno
   }) => {
-    const horas = plantaId === "peru"
-      ? 8
-      : Number(horasTercerTurno);
+    const horas =
+      CALENDARIOS_PLANTA[plantaId]
+        ?.tercer_turno_horas_default ??
+      Number(horasTercerTurno);
 
     if (
       !Number.isFinite(horas) ||

@@ -244,14 +244,17 @@ Calendarios base:
 - Chile: lunes a miercoles, mañana 07:00-15:00 y tarde 15:00-22:30; jueves a
   sabado, mañana 07:00-14:00 y tarde 14:00-21:15. Se descuentan 30 minutos de
   colacion por turno. Esto produce 42 horas efectivas semanales en mañana y
-  41,25 horas en tarde según los horarios informados.
+  41,25 horas en tarde según los horarios informados. El tercer turno funciona
+  lunes a miercoles de 22:30 a 07:00 y jueves a sabado de 21:15 a 07:00.
+  Descontando 30 minutos diarios de colacion, suma 51,75 horas efectivas:
+  42 ordinarias y 9,75 horas extra.
 - Peru: lunes a sabado, mañana 06:00-14:00, tarde 14:00-22:00 y tercer turno
   22:00-06:00. Cada turno tiene ocho horas y los turnos base equivalen a 48
   horas semanales por turno.
 
-El horario exacto del tercer turno de Chile queda pendiente de definicion.
-Hasta entonces, el simulador usa `horas_tercer_turno` como supuesto editable
-y lo presenta expresamente como tal.
+Los terceros turnos de Chile y Peru usan horarios fijos por planta. El campo
+`horas_tercer_turno` se conserva por compatibilidad con configuraciones
+anteriores, pero el calendario vigente determina la capacidad efectiva.
 
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 

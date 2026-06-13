@@ -1,5 +1,6 @@
 import {
   horasSemanalesCalendario,
+  horasSemanalesTercerTurno,
   calcularProyeccionOT,
   formatearCodigoOT,
   prepararOrden,
@@ -58,6 +59,10 @@ test("usa los calendarios semanales de Chile y Perú", () => {
     .toBe(83.25);
   expect(horasSemanalesCalendario("peru"))
     .toBe(96);
+  expect(horasSemanalesTercerTurno("chile"))
+    .toBe(51.75);
+  expect(horasSemanalesTercerTurno("peru"))
+    .toBe(48);
 
   expect(
     sumarHorasEnCalendario({
@@ -94,6 +99,19 @@ test("usa los calendarios semanales de Chile y Perú", () => {
     }).toISOString()
   ).toBe(
     new Date("2026-06-16T06:00:00")
+      .toISOString()
+  );
+
+  expect(
+    sumarHorasEnCalendario({
+      fechaReferencia:
+        new Date("2026-06-18T21:00:00"),
+      horasTrabajo: 9.25,
+      plantaId: "chile",
+      horasTercerTurno: 8
+    }).toISOString()
+  ).toBe(
+    new Date("2026-06-19T06:30:00")
       .toISOString()
   );
 });

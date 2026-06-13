@@ -16,6 +16,7 @@ import {
   listarOrdenesV2,
   obtenerConfiguracionCapacidad,
   horasSemanalesCalendario,
+  horasSemanalesTercerTurno,
   simularTurnosOT,
   validarDatosOrden
 } from "./ordenesRepository";
@@ -362,18 +363,6 @@ function OrdenesTrabajoV2({
         "No se pudieron cargar las operaciones."
       );
     }
-  };
-
-  const actualizarCapacidad = (
-    nombre,
-    valor
-  ) => {
-    setConfiguracionCapacidad(actual => ({
-      ...actual,
-      [nombre]: valor
-    }));
-    setError("");
-    setMensaje("");
   };
 
   const guardarCapacidad = async () => {
@@ -901,49 +890,26 @@ function OrdenesTrabajoV2({
                     gap: 9,
                     marginBottom: 12
                   }}>
-                    {formulario.planta_id === "peru"
-                      ? (
-                        <div style={{
-                          color: "#475569",
-                          fontSize: 14
-                        }}>
-                          <strong>
-                            Tercer turno:
-                          </strong>
-                          {" 22:00 a 06:00 (8 horas)."}
-                        </div>
-                      )
-                      : (
-                        <>
-                          <label style={etiqueta}>
-                            Horas efectivas del 3er turno
-                            <input
-                              type="number"
-                              min="0.5"
-                              step="0.5"
-                              value={
-                                configuracionCapacidad
-                                  .horas_tercer_turno
-                              }
-                              onChange={evento =>
-                                actualizarCapacidad(
-                                  "horas_tercer_turno",
-                                  evento.target.value
-                                )
-                              }
-                              style={campo}
-                            />
-                          </label>
-                          <div style={{
-                            color: "#92400E",
-                            fontSize: 13
-                          }}>
-                            Supuesto editable hasta definir
-                            el horario exacto del tercer
-                            turno.
-                          </div>
-                        </>
-                      )}
+                    <div style={{
+                      color: "#475569",
+                      fontSize: 14
+                    }}>
+                      <strong>Tercer turno:</strong>
+                      {formulario.planta_id === "peru"
+                        ? " 22:00 a 06:00 (8 horas)."
+                        : " lun-mié 22:30 a 07:00; jue-sáb 21:15 a 07:00."}
+                      <div style={{
+                        marginTop: 5,
+                        color:
+                          formulario.planta_id === "chile"
+                            ? "#92400E"
+                            : "#475569"
+                      }}>
+                        {formulario.planta_id === "chile"
+                          ? `${horasSemanalesTercerTurno("chile").toFixed(2).replace(".", ",")} h efectivas: 42 ordinarias y 9,75 horas extra. Incluye 30 min diarios de colación no imputable.`
+                          : "48 horas semanales."}
+                      </div>
+                    </div>
                   </div>
 
                   <button
