@@ -1,4 +1,5 @@
 import {
+  CALENDARIOS_PLANTA,
   horasSemanalesCalendario,
   horasSemanalesTercerTurno,
   calcularProyeccionOT,
@@ -55,6 +56,10 @@ test("amplía solo el cuello de botella a tres turnos", () => {
 });
 
 test("usa los calendarios semanales de Chile y Perú", () => {
+  expect(CALENDARIOS_PLANTA.chile.turnos_rotativos)
+    .toBe(true);
+  expect(CALENDARIOS_PLANTA.peru.turnos_rotativos)
+    .toBe(true);
   expect(horasSemanalesCalendario("chile"))
     .toBe(83.25);
   expect(horasSemanalesCalendario("peru"))

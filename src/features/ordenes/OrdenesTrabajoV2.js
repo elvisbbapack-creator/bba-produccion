@@ -870,6 +870,14 @@ function OrdenesTrabajoV2({
                       ).toFixed(2)}
                       {" horas efectivas combinadas por semana"}
                     </div>
+                    <div style={{
+                      marginTop: 5,
+                      color: "#0369A1"
+                    }}>
+                      Turnos rotativos. Este calendario
+                      representa cobertura de la planta, no
+                      una asignación fija por operario.
+                    </div>
                     {formulario.planta_id ===
                       "chile" && (
                       <div style={{
@@ -906,7 +914,7 @@ function OrdenesTrabajoV2({
                             : "#475569"
                       }}>
                         {formulario.planta_id === "chile"
-                          ? `${horasSemanalesTercerTurno("chile").toFixed(2).replace(".", ",")} h efectivas: 42 ordinarias y 9,75 horas extra. Incluye 30 min diarios de colación no imputable.`
+                          ? `${horasSemanalesTercerTurno("chile").toFixed(2).replace(".", ",")} h de cobertura efectiva semanal. Incluye 30 min diarios de colación no imputable. Las horas extra se determinan por operario según su rotación y jornada acumulada.`
                           : "48 horas semanales."}
                       </div>
                     </div>

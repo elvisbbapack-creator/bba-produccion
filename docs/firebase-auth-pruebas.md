@@ -72,8 +72,10 @@ Chile muestra 42 horas efectivas semanales para el turno de mañana y 41,25
 para el turno de tarde según los horarios informados; Peru usa 48 horas por
 turno y un tercer turno de 22:00 a 06:00. La proyeccion omite los domingos.
 El tercer turno de Chile usa 22:30-07:00 de lunes a miercoles y 21:15-07:00
-de jueves a sabado. Descontando la colacion suma 51,75 horas efectivas por
-semana, de las cuales 9,75 se identifican como horas extra.
+de jueves a sabado. Descontando la colacion suma 51,75 horas de cobertura
+efectiva semanal. Los turnos de ambas plantas son rotativos, por lo que las
+horas ordinarias y extra se calcularan por operario cuando se incorpore su
+programacion semanal.
 
 El rol `tv` ingresa directamente al Dashboard V2. El ranking y los indicadores
 diarios se obtienen desde un unico documento `resumenes_planta_turno`, evitando

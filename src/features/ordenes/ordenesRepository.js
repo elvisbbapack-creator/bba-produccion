@@ -97,6 +97,7 @@ export const calcularProyeccionOT = (
 export const CALENDARIOS_PLANTA = {
   chile: {
     nombre: "Chile",
+    turnos_rotativos: true,
     horas_semanales_declaradas: 42,
     tercer_turno_horas_default: 8.625,
     tercer_turno_por_dia: {
@@ -118,6 +119,7 @@ export const CALENDARIOS_PLANTA = {
   },
   peru: {
     nombre: "Perú",
+    turnos_rotativos: true,
     horas_semanales_declaradas: 48,
     tercer_turno_horas_default: 8,
     tercer_turno: [22, 30],
