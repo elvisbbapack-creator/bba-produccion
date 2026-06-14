@@ -1,5 +1,6 @@
 import {
   calcularCapacidadRecursos,
+  evaluarCompletitudCapacidad,
   extraerSubprocesosOperaciones,
   prepararCapacidadProceso,
   validarCapacidadProceso
@@ -21,6 +22,36 @@ test("limita los recursos paralelos por máquinas y dotación", () => {
     recursos_paralelos: 2,
     factor_capacidad: 1.8,
     operarios_requeridos_turno: 4
+  });
+});
+
+test("distingue capacidades faltantes, provisionales y validadas", () => {
+  expect(
+    evaluarCompletitudCapacidad(
+      [
+        { subproceso_id: "SP0001" },
+        { subproceso_id: "SP0003" },
+        { subproceso_id: "SP0005" }
+      ],
+      [
+        {
+          id: "cap-1",
+          subproceso_id: "SP0001",
+          estado_datos: "validada"
+        },
+        {
+          id: "cap-3",
+          subproceso_id: "SP0003",
+          estado_datos: "provisional"
+        }
+      ]
+    )
+  ).toMatchObject({
+    total: 3,
+    validadas: 1,
+    provisionales: 1,
+    faltantes: 1,
+    completa: false
   });
 });
 
@@ -78,7 +109,8 @@ test("prepara una capacidad identificada por subproceso", () => {
       maquinas_disponibles: 2,
       operarios_disponibles_turno: 2,
       operarios_por_recurso: 1,
-      disponibilidad_pct: 85
+      disponibilidad_pct: 85,
+      datos_validados: true
     }
   });
 
@@ -97,7 +129,8 @@ test("rechaza una disponibilidad o dotación inválida", () => {
     operarios_disponibles_turno: 2,
     operarios_por_recurso: 1,
     disponibilidad_pct: 120,
-    motivo: "Ajuste de capacidad inicial"
+    motivo: "Ajuste de capacidad inicial",
+    datos_validados: true
   });
 
   expect(errores).toHaveLength(2);
@@ -114,9 +147,35 @@ test("exige motivo trazable para cambiar capacidad", () => {
       operarios_disponibles_turno: 1,
       operarios_por_recurso: 1,
       disponibilidad_pct: 100,
-      motivo: "cambio"
+      motivo: "cambio",
+      datos_validados: true
     })
   ).toContain(
     "Indica un motivo de al menos 10 caracteres."
   );
+});
+
+test("permite guardar una capacidad como provisional", () => {
+  const capacidad = prepararCapacidadProceso({
+    empresaId: "bba",
+    plantaId: "chile",
+    perfil: {
+      uid: "jefe-1",
+      nombre: "Jefe Chile"
+    },
+    datos: {
+      proceso_id: "PR0001",
+      proceso_nombre: "Corte",
+      subproceso_id: "SP0001",
+      subproceso_nombre: "Prensa",
+      maquinas_disponibles: 1,
+      operarios_disponibles_turno: 1,
+      operarios_por_recurso: 1,
+      disponibilidad_pct: 100,
+      datos_validados: false
+    }
+  });
+
+  expect(capacidad.estado_datos)
+    .toBe("provisional");
 });

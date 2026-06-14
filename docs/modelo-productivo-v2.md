@@ -332,6 +332,7 @@ disponibilidad_pct
 recursos_paralelos
 factor_capacidad
 operarios_requeridos_turno
+estado_datos: provisional | validada
 activo
 actualizado_por_id
 actualizado_por_nombre
@@ -343,6 +344,14 @@ El estándar se interpreta como unidades por hora de un recurso productivo
 capacidad entre equipos disponibles y dotación disponible. Si un subproceso aún
 no tiene configuración, la simulación usa de forma conservadora un recurso al
 100% y lo muestra como pendiente de configurar.
+
+Una capacidad solo queda `validada` cuando el jefe confirma que máquinas,
+dotación y disponibilidad fueron verificadas en planta. Las capacidades
+ausentes o provisionales pueden producir una proyección orientativa, pero el
+sistema no emite recomendaciones de ampliación de turnos hasta validar el
+cuello de botella. Una estimación puede guardarse como provisional con su
+motivo, sin marcar la confirmación. La OT de referencia resume capacidades validadas,
+provisionales y faltantes.
 
 Cada creación o cambio exige un motivo de al menos 10 caracteres y se registra
 atómicamente en la subcolección `historial`. El historial es inmutable y conserva

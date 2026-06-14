@@ -17,6 +17,7 @@ test("amplía solo el cuello de botella a tres turnos", () => {
         id: "DT0001",
         operacion_codigo: "DT0001",
         operacion_nombre: "Corte",
+        subproceso_id: "SP0001",
         cantidad_pendiente: 1600,
         unidades_por_hora: 100
       },
@@ -24,6 +25,7 @@ test("amplía solo el cuello de botella a tres turnos", () => {
         id: "DT0005",
         operacion_codigo: "DT0005",
         operacion_nombre: "Láser",
+        subproceso_id: "SP0003",
         cantidad_pendiente: 2400,
         unidades_por_hora: 100
       }
@@ -32,7 +34,17 @@ test("amplía solo el cuello de botella a tres turnos", () => {
       plantaId: "peru",
       horasTercerTurno: 8,
       fechaReferencia:
-        new Date("2026-06-15T06:00:00")
+        new Date("2026-06-15T06:00:00"),
+      capacidades: [
+        {
+          subproceso_id: "SP0001",
+          estado_datos: "validada"
+        },
+        {
+          subproceso_id: "SP0003",
+          estado_datos: "validada"
+        }
+      ]
     }
   );
 
@@ -78,6 +90,7 @@ test("calcula la carga con recursos paralelos por subproceso", () => {
           operarios_disponibles_turno: 4,
           operarios_por_recurso: 2,
           disponibilidad_pct: 90,
+          estado_datos: "validada",
           activo: true
         }
       ]
@@ -179,6 +192,41 @@ test("no recomienda noche si falta un turno base calificado", () => {
   expect(
     simulacion.cuello_botella
       .tercer_turno_con_dotacion
+  ).toBe(false);
+  expect(simulacion.recomienda_ampliar).toBe(false);
+});
+
+test("no recomienda turnos con capacidad provisional", () => {
+  const simulacion = simularTurnosOT(
+    [
+      {
+        id: "DT0005",
+        operacion_codigo: "DT0005",
+        subproceso_id: "SP0003",
+        cantidad_pendiente: 800,
+        unidades_por_hora: 100
+      }
+    ],
+    {
+      plantaId: "peru",
+      fechaReferencia:
+        new Date("2026-06-15T06:00:00"),
+      capacidades: [
+        {
+          subproceso_id: "SP0003",
+          estado_datos: "provisional"
+        }
+      ]
+    }
+  );
+
+  expect(
+    simulacion.cuello_botella
+      .capacidad_configurada
+  ).toBe(true);
+  expect(
+    simulacion.cuello_botella
+      .capacidad_validada
   ).toBe(false);
   expect(simulacion.recomienda_ampliar).toBe(false);
 });

@@ -6,6 +6,7 @@ import {
 } from "react";
 import {
   calcularCapacidadRecursos,
+  evaluarCompletitudCapacidad,
   extraerSubprocesosOperaciones,
   guardarCapacidadProceso,
   listarHistorialCapacidad,
@@ -26,7 +27,8 @@ const estadoInicial = {
   operarios_disponibles_turno: 1,
   operarios_por_recurso: 1,
   disponibilidad_pct: 100,
-  motivo: ""
+  motivo: "",
+  datos_validados: false
 };
 
 const campo = {
@@ -111,6 +113,13 @@ function CapacidadProcesosV2({
     }),
     [formulario]
   );
+  const completitud = useMemo(
+    () => evaluarCompletitudCapacidad(
+      subprocesosReferencia,
+      capacidades
+    ),
+    [capacidades, subprocesosReferencia]
+  );
 
   const actualizar = (nombre, valor) => {
     setFormulario(actual => ({
@@ -191,7 +200,9 @@ function CapacidadProcesosV2({
         capacidad.operarios_por_recurso || 1,
       disponibilidad_pct:
         capacidad.disponibilidad_pct || 100,
-      motivo: ""
+      motivo: "",
+      datos_validados:
+        capacidad.estado_datos === "validada"
     });
     setMensaje(
       `Editando ${capacidad.subproceso_id}.`
@@ -390,6 +401,7 @@ function CapacidadProcesosV2({
               </select>
             </label>
             {ordenReferenciaId && (
+              <>
               <label>
                 Subproceso encontrado
                 <select
@@ -435,6 +447,32 @@ function CapacidadProcesosV2({
                   </small>
                 )}
               </label>
+              {subprocesosReferencia.length > 0 && (
+                <div style={{
+                  padding: 11,
+                  borderRadius: 8,
+                  background: completitud.completa
+                    ? "#F0FDF4"
+                    : "#FFFBEB",
+                  color: completitud.completa
+                    ? "#166534"
+                    : "#92400E"
+                }}>
+                  <strong>
+                    Preparación de la OT:{" "}
+                    {completitud.validadas}/
+                    {completitud.total}
+                    {" capacidades validadas"}
+                  </strong>
+                  <div style={{ marginTop: 4 }}>
+                    {completitud.provisionales}
+                    {" provisionales · "}
+                    {completitud.faltantes}
+                    {" faltantes"}
+                  </div>
+                </div>
+              )}
+              </>
             )}
             {[
               ["proceso_id", "Código proceso", "PR0001"],
@@ -530,6 +568,39 @@ function CapacidadProcesosV2({
               }}>
                 Obligatorio. Mínimo 10 caracteres.
               </small>
+            </label>
+            <label style={{
+              display: "flex",
+              gap: 9,
+              alignItems: "flex-start",
+              padding: 11,
+              borderRadius: 8,
+              background: "#F8FAFC"
+            }}>
+              <input
+                type="checkbox"
+                checked={formulario.datos_validados}
+                onChange={evento =>
+                  actualizar(
+                    "datos_validados",
+                    evento.target.checked
+                  )
+                }
+              />
+              <span>
+                <strong>
+                  Datos verificados en planta
+                </strong>
+                <small style={{
+                  display: "block",
+                  color: "#64748B",
+                  marginTop: 3
+                }}>
+                  Márcalo solo si máquinas, dotación y
+                  disponibilidad fueron verificadas. Sin
+                  confirmar se guardará como provisional.
+                </small>
+              </span>
             </label>
 
             <div style={{
@@ -627,6 +698,21 @@ function CapacidadProcesosV2({
                       {" operarios/turno · "}
                       {capacidad.disponibilidad_pct}%
                       {" disponibilidad"}
+                    </div>
+                    <div style={{
+                      marginTop: 5,
+                      color:
+                        capacidad.estado_datos ===
+                          "validada"
+                          ? "#166534"
+                          : "#B45309",
+                      fontWeight: "bold",
+                      fontSize: 13
+                    }}>
+                      {capacidad.estado_datos ===
+                        "validada"
+                        ? "Datos validados en planta"
+                        : "Datos provisionales"}
                     </div>
                   </button>
                 ))}

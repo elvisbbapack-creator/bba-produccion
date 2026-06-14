@@ -335,6 +335,9 @@ export const simularTurnosOT = (
           operacion.subproceso_id &&
         capacidad.activo !== false
     );
+    const capacidadValidada =
+      capacidadConfigurada?.estado_datos ===
+      "validada";
     const cobertura =
       calcularCoberturaSubproceso(
         programacionTurnos,
@@ -383,6 +386,7 @@ export const simularTurnosOT = (
       subproceso_id: operacion.subproceso_id,
       capacidad_configurada:
         Boolean(capacidadConfigurada),
+      capacidad_validada: capacidadValidada,
       cobertura_programada: cobertura,
       dotacion_programada_aplicada:
         usaDotacionProgramada,
@@ -476,6 +480,7 @@ export const simularTurnosOT = (
     ),
     recomienda_ampliar:
       Boolean(cuello) &&
+      cuello.capacidad_validada &&
       cuello.tercer_turno_con_dotacion &&
       ahorroHoras >= 0.5
   };

@@ -105,6 +105,52 @@ export const extraerSubprocesosOperaciones = (
   );
 };
 
+export const evaluarCompletitudCapacidad = (
+  subprocesos = [],
+  capacidades = []
+) => {
+  const detalle = subprocesos.map(subproceso => {
+    const capacidad = capacidades.find(
+      item =>
+        item.subproceso_id ===
+        subproceso.subproceso_id
+    );
+    const validada =
+      capacidad?.estado_datos === "validada";
+
+    return {
+      ...subproceso,
+      capacidad_id: capacidad?.id || "",
+      configurada: Boolean(capacidad),
+      validada,
+      estado: !capacidad
+        ? "faltante"
+        : validada
+          ? "validada"
+          : "provisional"
+    };
+  });
+
+  return {
+    total: detalle.length,
+    validadas: detalle.filter(
+      item => item.estado === "validada"
+    ).length,
+    provisionales: detalle.filter(
+      item => item.estado === "provisional"
+    ).length,
+    faltantes: detalle.filter(
+      item => item.estado === "faltante"
+    ).length,
+    completa:
+      detalle.length > 0 &&
+      detalle.every(
+        item => item.estado === "validada"
+      ),
+    detalle
+  };
+};
+
 export const prepararCapacidadProceso = ({
   empresaId,
   plantaId,
@@ -138,6 +184,9 @@ export const prepararCapacidadProceso = ({
     subproceso_nombre: limpiarTexto(
       datos.subproceso_nombre
     ),
+    estado_datos: datos.datos_validados
+      ? "validada"
+      : "provisional",
     ...recursos,
     actualizado_por_id: perfil.uid,
     actualizado_por_nombre:
@@ -269,7 +318,9 @@ export const guardarCapacidadProceso = async ({
   const errores = validarCapacidadProceso(
     {
       ...capacidad,
-      motivo: datos.motivo
+      motivo: datos.motivo,
+      datos_validados:
+        datos.datos_validados
     }
   );
 
@@ -337,7 +388,10 @@ export const guardarCapacidadProceso = async ({
           recursos_paralelos:
             anterior.recursos_paralelos,
           factor_capacidad:
-            anterior.factor_capacidad
+            anterior.factor_capacidad,
+          estado_datos:
+            anterior.estado_datos ||
+            "provisional"
         }
         : null,
       valores_nuevos: {
@@ -352,7 +406,9 @@ export const guardarCapacidadProceso = async ({
         recursos_paralelos:
           capacidad.recursos_paralelos,
         factor_capacidad:
-          capacidad.factor_capacidad
+          capacidad.factor_capacidad,
+        estado_datos:
+          capacidad.estado_datos
       },
       actualizado_por_id: perfil.uid,
       actualizado_por_nombre:

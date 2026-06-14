@@ -1055,6 +1055,22 @@ function OrdenesTrabajoV2({
                           100%.
                         </div>
                       )}
+                      {simulacionTurnos
+                        .cuello_botella
+                        .capacidad_configurada &&
+                        !simulacionTurnos
+                          .cuello_botella
+                          .capacidad_validada && (
+                        <div style={{
+                          marginTop: 7,
+                          color: "#B45309",
+                          fontWeight: "bold"
+                        }}>
+                          Capacidad provisional: aún no
+                          fue confirmada con datos
+                          verificados en planta.
+                        </div>
+                      )}
                       <div style={{
                         marginTop: 7,
                         color: "#475569"
@@ -1095,6 +1111,10 @@ function OrdenesTrabajoV2({
                         {simulacionTurnos
                           .recomienda_ampliar
                           ? `Recomendación: ampliar solo ${simulacionTurnos.cuello_botella.codigo} de 2 a 3 turnos. Ahorro estimado: ${simulacionTurnos.ahorro_horas_calendario} horas calendario.`
+                          : !simulacionTurnos
+                            .cuello_botella
+                            .capacidad_validada
+                            ? `Proyección provisional: valida la capacidad de ${simulacionTurnos.cuello_botella.subproceso_id} antes de tomar una decisión de turnos.`
                           : !simulacionTurnos
                             .cuello_botella
                             .cobertura_programada
