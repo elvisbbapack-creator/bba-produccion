@@ -3,7 +3,9 @@ import {
   actualizarRankingPlanta,
   calcularMedicionEstandar,
   calcularResumenAcumulado,
-  idsResumenReporte
+  clasificarRiesgoOT,
+  idsResumenReporte,
+  ordenarOrdenesActivas
 } from "./resumenesRepository";
 
 test("sugiere estándar con mediciones válidas de calidad", () => {
@@ -123,4 +125,59 @@ test("genera ids estables para los cuatro resumenes", () => {
     ot: "ot-1",
     operacion: "ot-1__DT0001"
   });
+});
+
+test("prioriza OTs atrasadas, en riesgo y sin estándar", () => {
+  const ordenadas = ordenarOrdenesActivas(
+    [
+      {
+        id: "en-fecha",
+        correlativo: 1,
+        fecha_planificada_entrega:
+          "2026-06-20T18:00:00Z",
+        fecha_estimada_fin:
+          "2026-06-19T18:00:00Z"
+      },
+      {
+        id: "sin-estandar",
+        correlativo: 2,
+        cuello_carga: {
+          cantidad_pendiente: 100,
+          pendiente_estandar: true
+        }
+      },
+      {
+        id: "en-riesgo",
+        correlativo: 3,
+        fecha_planificada_entrega:
+          "2026-06-18T18:00:00Z",
+        fecha_estimada_fin:
+          "2026-06-19T18:00:00Z"
+      },
+      {
+        id: "atrasada",
+        correlativo: 4,
+        fecha_planificada_entrega:
+          "2026-06-14T18:00:00Z",
+        fecha_estimada_fin:
+          "2026-06-16T18:00:00Z"
+      }
+    ],
+    new Date("2026-06-15T12:00:00Z")
+  );
+
+  expect(
+    ordenadas.map(item => item.id)
+  ).toEqual([
+    "atrasada",
+    "en-riesgo",
+    "sin-estandar",
+    "en-fecha"
+  ]);
+  expect(
+    clasificarRiesgoOT(
+      ordenadas[1],
+      new Date("2026-06-15T12:00:00Z")
+    ).desviacion_horas
+  ).toBe(24);
 });

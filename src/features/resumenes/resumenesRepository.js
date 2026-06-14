@@ -342,3 +342,127 @@ export const observarResumenPlanta = (
     alFallar
   );
 };
+
+const fechaAValor = valor => {
+  if (!valor) {
+    return null;
+  }
+
+  const fecha = typeof valor.toDate === "function"
+    ? valor.toDate()
+    : new Date(valor);
+
+  return Number.isNaN(fecha.getTime())
+    ? null
+    : fecha;
+};
+
+export const clasificarRiesgoOT = (
+  orden,
+  fechaReferencia = new Date()
+) => {
+  const entrega = fechaAValor(
+    orden.fecha_planificada_entrega
+  );
+  const estimada = fechaAValor(
+    orden.fecha_estimada_fin
+  );
+  const referencia = fechaAValor(fechaReferencia) ||
+    new Date();
+  let nivel = "sin_fecha";
+  let prioridad = 2;
+
+  if (
+    entrega &&
+    entrega.getTime() < referencia.getTime()
+  ) {
+    nivel = "atrasada";
+    prioridad = 6;
+  } else if (
+    entrega &&
+    estimada &&
+    estimada.getTime() >
+      entrega.getTime()
+  ) {
+    nivel = "en_riesgo";
+    prioridad = 5;
+  } else if (
+    Number(
+      orden?.cuello_carga?.cantidad_pendiente || 0
+    ) > 0 &&
+    orden?.cuello_carga?.pendiente_estandar
+  ) {
+    nivel = "sin_estandar";
+    prioridad = 4;
+  } else if (entrega && estimada) {
+    nivel = "en_fecha";
+    prioridad = 1;
+  }
+
+  return {
+    ...orden,
+    riesgo_entrega: nivel,
+    prioridad_riesgo: prioridad,
+    desviacion_horas:
+      entrega && estimada
+        ? Number(
+          (
+            (
+              estimada.getTime() -
+              entrega.getTime()
+            ) /
+            (60 * 60 * 1000)
+          ).toFixed(2)
+        )
+        : null
+  };
+};
+
+export const ordenarOrdenesActivas = (
+  ordenes = [],
+  fechaReferencia = new Date()
+) => ordenes
+  .map(orden =>
+    clasificarRiesgoOT(orden, fechaReferencia)
+  )
+  .sort((a, b) =>
+    b.prioridad_riesgo -
+      a.prioridad_riesgo ||
+    Number(b.correlativo || 0) -
+      Number(a.correlativo || 0)
+  );
+
+export const observarOrdenesActivas = (
+  db,
+  empresaId,
+  plantaId,
+  alCambiar,
+  alFallar
+) => {
+  const consulta = query(
+    collection(db, "ordenes_trabajo"),
+    where("empresa_id", "==", empresaId),
+    where("planta_id", "==", plantaId),
+    where("modelo_version", "==", 2),
+    where("estado", "in", [
+      "liberada",
+      "en_produccion",
+      "pausada"
+    ])
+  );
+
+  return onSnapshot(
+    consulta,
+    snapshot => {
+      const ordenes = snapshot.docs.map(
+        documento => ({
+          id: documento.id,
+          ...documento.data()
+        })
+      );
+
+      alCambiar(ordenarOrdenesActivas(ordenes));
+    },
+    alFallar
+  );
+};

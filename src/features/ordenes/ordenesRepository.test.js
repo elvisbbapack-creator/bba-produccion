@@ -312,12 +312,20 @@ test("proyecta la OT usando la operación más larga", () => {
   const proyeccion = calcularProyeccionOT(
     [
       {
+        id: "DT0001",
+        operacion_codigo: "DT0001",
+        operacion_nombre: "Corte",
+        subproceso_id: "SP0001",
         cantidad_requerida: 400,
         cantidad_ok: 120,
         cantidad_pendiente: 280,
         unidades_por_hora: 140
       },
       {
+        id: "DT0005",
+        operacion_codigo: "DT0005",
+        operacion_nombre: "Láser",
+        subproceso_id: "SP0003",
         cantidad_requerida: 400,
         cantidad_ok: 80,
         cantidad_pendiente: 320,
@@ -332,7 +340,15 @@ test("proyecta la OT usando la operación más larga", () => {
     cantidad_total_ok: 200,
     cantidad_total_pendiente: 600,
     avance_pct: 25,
-    estimado_horas_restantes: 4
+    estimado_horas_restantes: 4,
+    cuello_carga: {
+      operacion_id: "DT0005",
+      operacion_codigo: "DT0005",
+      subproceso_id: "SP0003",
+      cantidad_pendiente: 320,
+      horas_restantes: 4,
+      pendiente_estandar: false
+    }
   });
   expect(
     proyeccion.fecha_estimada_fin.toISOString()
@@ -355,6 +371,10 @@ test("no inventa una proyección cuando falta estándar", () => {
   expect(
     proyeccion.fecha_estimada_fin
   ).toBeNull();
+  expect(
+    proyeccion.cuello_carga
+      .pendiente_estandar
+  ).toBe(true);
 });
 
 test("genera un correlativo legible por planta", () => {

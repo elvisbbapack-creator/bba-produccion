@@ -4,6 +4,7 @@ import {
   useState
 } from "react";
 import {
+  observarOrdenesActivas,
   observarResumenPlanta
 } from "./resumenesRepository";
 
@@ -44,6 +45,46 @@ const colorIndicador = (valor) => {
   return "#DC2626";
 };
 
+const fechaHoraVisible = valor => {
+  if (!valor) {
+    return "Pendiente";
+  }
+
+  const fecha = typeof valor.toDate === "function"
+    ? valor.toDate()
+    : new Date(valor);
+
+  return Number.isNaN(fecha.getTime())
+    ? "Pendiente"
+    : fecha.toLocaleString("es-CL", {
+      dateStyle: "short",
+      timeStyle: "short"
+    });
+};
+
+const presentacionRiesgo = {
+  atrasada: {
+    texto: "Atrasada",
+    color: "#F87171"
+  },
+  en_riesgo: {
+    texto: "En riesgo",
+    color: "#FB923C"
+  },
+  sin_estandar: {
+    texto: "Sin estándar",
+    color: "#FACC15"
+  },
+  sin_fecha: {
+    texto: "Sin fecha",
+    color: "#94A3B8"
+  },
+  en_fecha: {
+    texto: "En fecha",
+    color: "#4ADE80"
+  }
+};
+
 function DashboardV2({
   db,
   perfil,
@@ -54,6 +95,8 @@ function DashboardV2({
   const [plantaId, setPlantaId] =
     useState(plantas[0] || "");
   const [resumen, setResumen] = useState(null);
+  const [ordenesActivas, setOrdenesActivas] =
+    useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [modoTv, setModoTv] = useState(
@@ -89,6 +132,25 @@ function DashboardV2({
       }
     );
   }, [db, fecha, plantaId]);
+
+  useEffect(() => {
+    if (!plantaId) {
+      return undefined;
+    }
+
+    return observarOrdenesActivas(
+      db,
+      perfil.empresa_id,
+      plantaId,
+      setOrdenesActivas,
+      fallo => {
+        setError(
+          fallo?.message ||
+          "No se pudieron cargar las OTs activas."
+        );
+      }
+    );
+  }, [db, perfil.empresa_id, plantaId]);
 
   const ranking =
     resumen?.ranking_operarios || [];
@@ -307,6 +369,113 @@ function DashboardV2({
         <section style={{
           background: "#1E293B",
           borderRadius: 14,
+          padding: modoTv ? 22 : 18,
+          marginBottom: 20
+        }}>
+          <h2 style={{ marginTop: 0 }}>
+            OTs activas y cuellos pendientes
+          </h2>
+          {ordenesActivas.length === 0 ? (
+            <p style={{ color: "#94A3B8" }}>
+              No hay OTs activas en esta planta.
+            </p>
+          ) : (
+            <div style={{
+              display: "grid",
+              gap: 10
+            }}>
+              {ordenesActivas.slice(
+                0,
+                modoTv ? 6 : 10
+              ).map(orden => {
+                const riesgo =
+                  presentacionRiesgo[
+                    orden.riesgo_entrega
+                  ] ||
+                  presentacionRiesgo.sin_fecha;
+                const cuello = orden.cuello_carga;
+
+                return (
+                  <div
+                    key={orden.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        modoTv
+                          ? "minmax(210px, 1.2fr) minmax(260px, 1.6fr) 150px 140px"
+                          : "minmax(180px, 1.2fr) minmax(230px, 1.6fr) 140px 125px",
+                      gap: 12,
+                      alignItems: "center",
+                      background: "#0F172A",
+                      borderLeft:
+                        `5px solid ${riesgo.color}`,
+                      borderRadius: 10,
+                      padding: "12px 14px"
+                    }}
+                  >
+                    <div>
+                      <strong>
+                        {orden.codigo}
+                      </strong>
+                      <div style={{
+                        color: "#94A3B8",
+                        marginTop: 4
+                      }}>
+                        {orden.producto_codigo}
+                        {" · "}
+                        {Number(
+                          orden.avance_pct || 0
+                        ).toFixed(1)}
+                        {"%"}
+                      </div>
+                    </div>
+                    <div>
+                      <strong>
+                        {cuello?.operacion_codigo
+                          ? `${cuello.operacion_codigo} - ${cuello.operacion_nombre}`
+                          : "Cuello pendiente de recalcular"}
+                      </strong>
+                      <div style={{
+                        color: "#CBD5E1",
+                        marginTop: 4
+                      }}>
+                        {cuello
+                          ? `${cuello.cantidad_pendiente} unidades pendientes`
+                          : `${Number(
+                            orden
+                              .cantidad_total_pendiente ||
+                            0
+                          )} unidades pendientes en la OT`}
+                      </div>
+                    </div>
+                    <div>
+                      <small style={{
+                        color: "#94A3B8"
+                      }}>
+                        Fin estimado
+                      </small>
+                      <div>
+                        {fechaHoraVisible(
+                          orden.fecha_estimada_fin
+                        )}
+                      </div>
+                    </div>
+                    <strong style={{
+                      color: riesgo.color,
+                      textAlign: "right"
+                    }}>
+                      {riesgo.texto}
+                    </strong>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section style={{
+          background: "#1E293B",
+          borderRadius: 14,
           padding: modoTv ? 22 : 18
         }}>
           <h2 style={{ marginTop: 0 }}>
@@ -430,8 +599,9 @@ function DashboardV2({
           marginTop: 14,
           fontSize: 13
         }}>
-          Este panel escucha un solo documento de
-          resumen por planta.
+          Este panel escucha un resumen diario y los
+          documentos principales de las OTs activas;
+          no consulta operaciones ni historiales.
         </div>
       </div>
     </div>

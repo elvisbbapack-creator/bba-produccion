@@ -255,6 +255,7 @@ cantidad_total_ok
 cantidad_total_pendiente
 estimado_horas_restantes
 fecha_estimada_fin
+cuello_carga
 creada_por_id
 creada_por_nombre
 fecha_creacion
@@ -276,6 +277,13 @@ fecha_estimada_fin = fecha_actual + horas_restantes_ot
 
 Es una estimacion operativa basada en los estandares vigentes. Se recalcula con
 cada reporte y puede cambiar por paros, reprocesos o variaciones de rendimiento.
+
+`cuello_carga` conserva en el documento principal de la OT el DT con mayor
+carga restante: código, nombre, subproceso, cantidad pendiente y horas
+estimadas. El dashboard consulta únicamente las OTs activas y este resumen
+denormalizado; no recorre sus subcolecciones de operaciones ni historiales.
+Ordena primero OTs atrasadas, luego proyecciones posteriores a la entrega y
+operaciones pendientes de estándar.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 

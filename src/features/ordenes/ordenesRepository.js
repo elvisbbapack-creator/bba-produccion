@@ -83,6 +83,50 @@ export const calcularProyeccionOT = (
         : 0;
     }
   );
+  const cargas = operaciones.map(
+    (operacion, indice) => ({
+      operacion_id:
+        operacion.id ||
+        operacion.ruta_operacion_id ||
+        operacion.ot_operacion_id ||
+        "",
+      operacion_codigo:
+        operacion.operacion_codigo || "",
+      operacion_nombre:
+        operacion.operacion_nombre ||
+        operacion.nombre ||
+        "",
+      subproceso_id:
+        operacion.subproceso_id || "",
+      cantidad_pendiente: Number(
+        operacion.cantidad_pendiente || 0
+      ),
+      horas_restantes:
+        Number(horasPorOperacion[indice] || 0),
+      pendiente_estandar:
+        Number(
+          operacion.cantidad_pendiente || 0
+        ) > 0 &&
+        Number(
+          operacion.unidades_por_hora || 0
+        ) <= 0
+    })
+  );
+  const cuelloCarga = [...cargas]
+    .filter(item => item.cantidad_pendiente > 0)
+    .sort((a, b) => {
+      if (
+        a.pendiente_estandar !==
+        b.pendiente_estandar
+      ) {
+        return a.pendiente_estandar ? -1 : 1;
+      }
+
+      return (
+        b.horas_restantes -
+        a.horas_restantes
+      );
+    })[0] || null;
   const horasRestantes = Math.max(
     0,
     ...horasPorOperacion
@@ -111,7 +155,8 @@ export const calcularProyeccionOT = (
       tieneOperacionSinEstandar
         ? null
         : Number(horasRestantes.toFixed(2)),
-    fecha_estimada_fin: fechaEstimadaFin
+    fecha_estimada_fin: fechaEstimadaFin,
+    cuello_carga: cuelloCarga
   };
 };
 
