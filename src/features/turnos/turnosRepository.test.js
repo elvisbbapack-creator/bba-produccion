@@ -6,6 +6,7 @@ import {
   datosTurnoParaSesion,
   lunesDeSemana,
   normalizarSubprocesosHabilitados,
+  sugerirReasignacionesDotacion,
   validarProgramacionTurno
 } from "./turnosRepository";
 
@@ -97,6 +98,60 @@ test("calcula brechas contra la dotación requerida", () => {
     cobertura_base_suficiente: false,
     cobertura_noche_suficiente: false
   });
+});
+
+test("sugiere solo reasignaciones que conservan cobertura de origen", () => {
+  const programacion = [
+    ...["OP01", "OP02", "OP03"].map(codigo => ({
+      operario_id: codigo,
+      operario_codigo: codigo,
+      operario_nombre: codigo,
+      turno_id: "manana",
+      subprocesos_habilitados: ["SP0003"]
+    })),
+    {
+      operario_id: "OP04",
+      operario_codigo: "OP04",
+      operario_nombre: "OP04",
+      turno_id: "tarde",
+      subprocesos_habilitados: ["SP0003"]
+    }
+  ];
+  const sugerencias =
+    sugerirReasignacionesDotacion(
+      programacion,
+      "SP0003",
+      2
+    );
+
+  expect(sugerencias).toEqual([
+    expect.objectContaining({
+      operario_codigo: "OP03",
+      turno_origen: "manana",
+      turno_destino: "tarde"
+    })
+  ]);
+});
+
+test("no sugiere mover operarios sin excedente calificado", () => {
+  expect(
+    sugerirReasignacionesDotacion(
+      [
+        {
+          operario_codigo: "OP01",
+          turno_id: "manana",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          operario_codigo: "OP02",
+          turno_id: "tarde",
+          subprocesos_habilitados: ["SP0003"]
+        }
+      ],
+      "SP0003",
+      1
+    )
+  ).toEqual([]);
 });
 
 test("normaliza cualquier fecha al lunes de su semana", () => {

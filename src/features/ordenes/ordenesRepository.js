@@ -23,7 +23,8 @@ import {
 } from "../capacidad/capacidadRepository";
 import {
   calcularBrechasDotacion,
-  calcularCoberturaSubproceso
+  calcularCoberturaSubproceso,
+  sugerirReasignacionesDotacion
 } from "../turnos/turnosRepository";
 
 const limpiarTexto = (valor) =>
@@ -415,6 +416,13 @@ export const simularTurnosOT = (
         recursosObjetivo
           .operarios_requeridos_turno
       );
+    const reasignacionesSugeridas =
+      sugerirReasignacionesDotacion(
+        programacionTurnos,
+        operacion.subproceso_id,
+        recursosObjetivo
+          .operarios_requeridos_turno
+      );
     const operariosDisponiblesReales =
       usaDotacionProgramada
         ? Math.min(
@@ -466,6 +474,8 @@ export const simularTurnosOT = (
       capacidad_validada: capacidadValidada,
       cobertura_programada: cobertura,
       brechas_dotacion: brechasDotacion,
+      reasignaciones_sugeridas:
+        reasignacionesSugeridas,
       dotacion_programada_aplicada:
         usaDotacionProgramada,
       recursos_paralelos:

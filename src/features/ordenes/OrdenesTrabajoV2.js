@@ -1212,6 +1212,46 @@ function OrdenesTrabajoV2({
                               .fecha_fin_dotacion_objetivo
                           )}
                           .
+                          {simulacionTurnos
+                            .cuello_botella
+                            .reasignaciones_sugeridas
+                            .filter(item =>
+                              ["manana", "tarde"]
+                                .includes(
+                                  item.turno_destino
+                                )
+                            ).length > 0 ? (
+                            <div style={{
+                              marginTop: 7
+                            }}>
+                              Reasignaciones posibles
+                              sin descubrir el turno de
+                              origen:{" "}
+                              {simulacionTurnos
+                                .cuello_botella
+                                .reasignaciones_sugeridas
+                                .filter(item =>
+                                  ["manana", "tarde"]
+                                    .includes(
+                                      item.turno_destino
+                                    )
+                                )
+                                .map(item =>
+                                  `${item.operario_codigo} ${item.operario_nombre} (${item.turno_origen} → ${item.turno_destino})`
+                                )
+                                .join("; ")}
+                              .
+                            </div>
+                          ) : (
+                            <div style={{
+                              marginTop: 7
+                            }}>
+                              No hay excedentes
+                              calificados que puedan
+                              reasignarse sin crear otra
+                              brecha.
+                            </div>
+                          )}
                         </div>
                       )}
                       {simulacionTurnos
@@ -1240,6 +1280,41 @@ function OrdenesTrabajoV2({
                               .ahorro_noche_adicional_horas
                           }
                           {" horas adicionales."}
+                          {simulacionTurnos
+                            .cuello_botella
+                            .reasignaciones_sugeridas
+                            .filter(item =>
+                              item.turno_destino ===
+                              "noche"
+                            ).length > 0 ? (
+                            <div style={{
+                              marginTop: 7
+                            }}>
+                              Candidatos con competencia
+                              y excedente en su turno:{" "}
+                              {simulacionTurnos
+                                .cuello_botella
+                                .reasignaciones_sugeridas
+                                .filter(item =>
+                                  item.turno_destino ===
+                                  "noche"
+                                )
+                                .map(item =>
+                                  `${item.operario_codigo} ${item.operario_nombre} (${item.turno_origen} → noche)`
+                                )
+                                .join("; ")}
+                              .
+                            </div>
+                          ) : (
+                            <div style={{
+                              marginTop: 7
+                            }}>
+                              No hay excedentes
+                              calificados disponibles;
+                              se requiere habilitar o
+                              incorporar personal.
+                            </div>
+                          )}
                         </div>
                       )}
                       <div style={{

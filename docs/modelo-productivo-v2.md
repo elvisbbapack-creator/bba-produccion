@@ -443,6 +443,12 @@ después evalúa habilitar la brecha nocturna y el ahorro adicional de un tercer
 turno. Esto evita usar horas extra para compensar una asignación base
 incompleta.
 
+Cuando existe excedente de operarios calificados en otro turno, el simulador
+identifica candidatos concretos para reasignación. Solo propone una persona si
+el turno de origen conserva la dotación requerida después del movimiento. La
+sugerencia es informativa: el jefe debe revisar la rotación, jornada y
+continuidad de las demás OTs antes de modificar la programación semanal.
+
 Para cargar `capacidad_procesos`, el jefe puede elegir una OT V2 de referencia.
 La pantalla lee únicamente las operaciones de esa OT, deduplica sus
 subprocesos y completa códigos y nombres. Esto evita recorrer todas las rutas o

@@ -101,6 +101,108 @@ export const calcularBrechasDotacion = (
   };
 };
 
+export const sugerirReasignacionesDotacion = (
+  programacion = [],
+  subprocesoId,
+  operariosRequeridosTurno = 1
+) => {
+  const codigo = limpiar(subprocesoId)
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  const requeridos = Math.max(
+    1,
+    Math.ceil(Number(operariosRequeridosTurno) || 1)
+  );
+  const porTurno = {
+    manana: [],
+    tarde: [],
+    noche: []
+  };
+
+  programacion.forEach(item => {
+    if (
+      item.turno_id in porTurno &&
+      normalizarSubprocesosHabilitados(
+        item.subprocesos_habilitados
+      ).includes(codigo)
+    ) {
+      porTurno[item.turno_id].push(item);
+    }
+  });
+
+  const disponibles = Object.fromEntries(
+    Object.entries(porTurno).map(
+      ([turnoId, operarios]) => [
+        turnoId,
+        [...operarios].sort((a, b) =>
+          (a.operario_codigo || "").localeCompare(
+            b.operario_codigo || ""
+          )
+        )
+      ]
+    )
+  );
+  const sugerencias = [];
+  const turnosDestino = [
+    "manana",
+    "tarde",
+    "noche"
+  ];
+
+  turnosDestino.forEach(turnoDestino => {
+    let faltantes = Math.max(
+      0,
+      requeridos -
+        disponibles[turnoDestino].length
+    );
+
+    turnosDestino
+      .filter(turnoOrigen =>
+        turnoOrigen !== turnoDestino
+      )
+      .sort((a, b) =>
+        (
+          disponibles[b].length -
+          requeridos
+        ) -
+        (
+          disponibles[a].length -
+          requeridos
+        )
+      )
+      .forEach(turnoOrigen => {
+        while (
+          faltantes > 0 &&
+          disponibles[turnoOrigen].length >
+            requeridos
+        ) {
+          const operario =
+            disponibles[turnoOrigen].pop();
+
+          disponibles[turnoDestino].push(
+            operario
+          );
+          sugerencias.push({
+            operario_id:
+              operario.operario_id ||
+              operario.id ||
+              operario.operario_codigo,
+            operario_codigo:
+              operario.operario_codigo || "",
+            operario_nombre:
+              operario.operario_nombre || "",
+            turno_origen: turnoOrigen,
+            turno_destino: turnoDestino,
+            subproceso_id: codigo
+          });
+          faltantes -= 1;
+        }
+      });
+  });
+
+  return sugerencias;
+};
+
 export const construirMatrizCobertura = (
   subprocesos = [],
   programacion = []
