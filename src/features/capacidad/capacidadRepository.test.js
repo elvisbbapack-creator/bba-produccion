@@ -96,8 +96,27 @@ test("rechaza una disponibilidad o dotación inválida", () => {
     maquinas_disponibles: 0,
     operarios_disponibles_turno: 2,
     operarios_por_recurso: 1,
-    disponibilidad_pct: 120
+    disponibilidad_pct: 120,
+    motivo: "Ajuste de capacidad inicial"
   });
 
   expect(errores).toHaveLength(2);
+});
+
+test("exige motivo trazable para cambiar capacidad", () => {
+  expect(
+    validarCapacidadProceso({
+      planta_id: "chile",
+      proceso_id: "PR0001",
+      subproceso_id: "SP0001",
+      subproceso_nombre: "Prensa",
+      maquinas_disponibles: 1,
+      operarios_disponibles_turno: 1,
+      operarios_por_recurso: 1,
+      disponibilidad_pct: 100,
+      motivo: "cambio"
+    })
+  ).toContain(
+    "Indica un motivo de al menos 10 caracteres."
+  );
 });

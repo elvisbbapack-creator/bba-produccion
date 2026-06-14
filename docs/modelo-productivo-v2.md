@@ -344,6 +344,29 @@ capacidad entre equipos disponibles y dotación disponible. Si un subproceso aú
 no tiene configuración, la simulación usa de forma conservadora un recurso al
 100% y lo muestra como pendiente de configurar.
 
+Cada creación o cambio exige un motivo de al menos 10 caracteres y se registra
+atómicamente en la subcolección `historial`. El historial es inmutable y conserva
+valores anteriores, valores nuevos, responsable y fecha. La pantalla consulta
+solo las últimas 20 modificaciones del subproceso seleccionado.
+
+### `capacidad_procesos/{capacidadId}/historial/{historialId}`
+
+```text
+empresa_id
+planta_id
+capacidad_id
+proceso_id
+subproceso_id
+tipo_cambio: creacion | actualizacion
+motivo
+valores_anteriores
+valores_nuevos
+actualizado_por_id
+actualizado_por_nombre
+actualizado_en
+modelo_version: 2
+```
+
 Para controlar jornadas y horas extra por persona se agregara una programacion
 semanal de turnos por operario. El simulador actual calcula capacidad por
 proceso y planta; no asigna automaticamente personas a cada franja.

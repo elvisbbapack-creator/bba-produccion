@@ -166,6 +166,19 @@ service cloud.firestore {
         request.resource.data.actualizado_por_id ==
           request.auth.uid;
       allow delete: if false;
+
+      match /historial/{historialId} {
+        allow read: if belongsToPlant(resource.data);
+        allow create: if canManage() &&
+          belongsToPlant(
+            request.resource.data
+          ) &&
+          request.resource.data.capacidad_id ==
+            capacidadId &&
+          request.resource.data.actualizado_por_id ==
+            request.auth.uid;
+        allow update, delete: if false;
+      }
     }
 
     match /programacion_turnos/{programacionId} {

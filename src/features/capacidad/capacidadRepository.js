@@ -2,9 +2,11 @@ import {
   collection,
   doc,
   getDocs,
+  limit,
+  orderBy,
   query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
   where
 } from "firebase/firestore";
 
@@ -205,6 +207,12 @@ export const validarCapacidadProceso = datos => {
     );
   }
 
+  if (limpiarTexto(datos.motivo).length < 10) {
+    errores.push(
+      "Indica un motivo de al menos 10 caracteres."
+    );
+  }
+
   return errores;
 };
 
@@ -259,7 +267,10 @@ export const guardarCapacidadProceso = async ({
     perfil
   });
   const errores = validarCapacidadProceso(
-    capacidad
+    {
+      ...capacidad,
+      motivo: datos.motivo
+    }
   );
 
   if (errores.length > 0) {
@@ -275,18 +286,111 @@ export const guardarCapacidadProceso = async ({
       capacidad.subproceso_id
     )
   );
-
-  await setDoc(
-    referencia,
-    {
-      ...capacidad,
-      actualizado_en: serverTimestamp()
-    },
-    { merge: true }
+  const historialRef = doc(
+    collection(referencia, "historial")
   );
+
+  await runTransaction(db, async transaccion => {
+    const anteriorSnapshot =
+      await transaccion.get(referencia);
+    const anterior = anteriorSnapshot.exists()
+      ? anteriorSnapshot.data()
+      : null;
+    const motivo = limpiarTexto(datos.motivo);
+    const fecha = serverTimestamp();
+
+    transaccion.set(
+      referencia,
+      {
+        ...capacidad,
+        motivo_ultimo_cambio: motivo,
+        actualizado_en: fecha
+      },
+      { merge: true }
+    );
+    transaccion.set(historialRef, {
+      empresa_id: perfil.empresa_id,
+      planta_id: plantaId,
+      capacidad_id: referencia.id,
+      proceso_id: capacidad.proceso_id,
+      proceso_nombre:
+        capacidad.proceso_nombre,
+      subproceso_id:
+        capacidad.subproceso_id,
+      subproceso_nombre:
+        capacidad.subproceso_nombre,
+      tipo_cambio: anterior
+        ? "actualizacion"
+        : "creacion",
+      motivo,
+      valores_anteriores: anterior
+        ? {
+          maquinas_disponibles:
+            anterior.maquinas_disponibles,
+          operarios_disponibles_turno:
+            anterior
+              .operarios_disponibles_turno,
+          operarios_por_recurso:
+            anterior.operarios_por_recurso,
+          disponibilidad_pct:
+            anterior.disponibilidad_pct,
+          recursos_paralelos:
+            anterior.recursos_paralelos,
+          factor_capacidad:
+            anterior.factor_capacidad
+        }
+        : null,
+      valores_nuevos: {
+        maquinas_disponibles:
+          capacidad.maquinas_disponibles,
+        operarios_disponibles_turno:
+          capacidad.operarios_disponibles_turno,
+        operarios_por_recurso:
+          capacidad.operarios_por_recurso,
+        disponibilidad_pct:
+          capacidad.disponibilidad_pct,
+        recursos_paralelos:
+          capacidad.recursos_paralelos,
+        factor_capacidad:
+          capacidad.factor_capacidad
+      },
+      actualizado_por_id: perfil.uid,
+      actualizado_por_nombre:
+        perfil.nombre || perfil.email || "",
+      actualizado_en: fecha,
+      modelo_version: 2
+    });
+  });
 
   return {
     id: referencia.id,
     ...capacidad
   };
+};
+
+export const listarHistorialCapacidad = async (
+  db,
+  capacidadId
+) => {
+  if (!capacidadId) {
+    return [];
+  }
+
+  const snapshot = await getDocs(
+    query(
+      collection(
+        db,
+        COLECCION,
+        capacidadId,
+        "historial"
+      ),
+      orderBy("actualizado_en", "desc"),
+      limit(20)
+    )
+  );
+
+  return snapshot.docs.map(documento => ({
+    id: documento.id,
+    ...documento.data()
+  }));
 };

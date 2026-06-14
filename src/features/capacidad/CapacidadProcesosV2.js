@@ -8,6 +8,7 @@ import {
   calcularCapacidadRecursos,
   extraerSubprocesosOperaciones,
   guardarCapacidadProceso,
+  listarHistorialCapacidad,
   listarCapacidadesProceso,
   validarCapacidadProceso
 } from "./capacidadRepository";
@@ -24,7 +25,8 @@ const estadoInicial = {
   maquinas_disponibles: 1,
   operarios_disponibles_turno: 1,
   operarios_por_recurso: 1,
-  disponibilidad_pct: 100
+  disponibilidad_pct: 100,
+  motivo: ""
 };
 
 const campo = {
@@ -53,6 +55,9 @@ function CapacidadProcesosV2({
     setOrdenReferenciaId] = useState("");
   const [subprocesosReferencia,
     setSubprocesosReferencia] = useState([]);
+  const [historial, setHistorial] = useState([]);
+  const [cargandoHistorial,
+    setCargandoHistorial] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -168,7 +173,7 @@ function CapacidadProcesosV2({
     );
   };
 
-  const editar = capacidad => {
+  const editar = async capacidad => {
     setFormulario({
       proceso_id: capacidad.proceso_id || "",
       proceso_nombre:
@@ -185,12 +190,30 @@ function CapacidadProcesosV2({
       operarios_por_recurso:
         capacidad.operarios_por_recurso || 1,
       disponibilidad_pct:
-        capacidad.disponibilidad_pct || 100
+        capacidad.disponibilidad_pct || 100,
+      motivo: ""
     });
     setMensaje(
       `Editando ${capacidad.subproceso_id}.`
     );
     window.scrollTo({ top: 0, behavior: "smooth" });
+
+    try {
+      setCargandoHistorial(true);
+      setHistorial(
+        await listarHistorialCapacidad(
+          db,
+          capacidad.id
+        )
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo cargar el historial."
+      );
+    } finally {
+      setCargandoHistorial(false);
+    }
   };
 
   const guardar = async evento => {
@@ -216,6 +239,7 @@ function CapacidadProcesosV2({
         datos
       });
       setFormulario(estadoInicial);
+      setHistorial([]);
       setMensaje(
         "Capacidad del subproceso guardada."
       );
@@ -485,6 +509,28 @@ function CapacidadProcesosV2({
                 />
               </label>
             ))}
+            <label>
+              Motivo del cambio
+              <textarea
+                rows={3}
+                value={formulario.motivo}
+                onChange={evento =>
+                  actualizar(
+                    "motivo",
+                    evento.target.value
+                  )
+                }
+                placeholder="Capacidad inicial, incorporación de máquina o ajuste de dotación."
+                style={{ ...campo, marginTop: 5 }}
+              />
+              <small style={{
+                display: "block",
+                color: "#64748B",
+                marginTop: 4
+              }}>
+                Obligatorio. Mínimo 10 caracteres.
+              </small>
+            </label>
 
             <div style={{
               padding: 12,
@@ -588,6 +634,88 @@ function CapacidadProcesosV2({
             )}
           </section>
         </div>
+
+        {(cargandoHistorial ||
+          historial.length > 0) && (
+          <section style={{
+            background: "white",
+            padding: 22,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 10px rgba(15,23,42,0.08)",
+            marginTop: 22
+          }}>
+            <h2 style={{ marginTop: 0 }}>
+              Historial de capacidad
+            </h2>
+            {cargandoHistorial ? (
+              <p>Cargando historial...</p>
+            ) : (
+              <div style={{
+                display: "grid",
+                gap: 10
+              }}>
+                {historial.map(item => {
+                  const fecha =
+                    item.actualizado_en?.toDate
+                      ? item.actualizado_en.toDate()
+                      : new Date(
+                        item.actualizado_en || 0
+                      );
+                  const nuevos =
+                    item.valores_nuevos || {};
+
+                  return (
+                    <article
+                      key={item.id}
+                      style={{
+                        border:
+                          "1px solid #E2E8F0",
+                        borderRadius: 9,
+                        padding: 12
+                      }}
+                    >
+                      <strong>
+                        {item.tipo_cambio ===
+                          "creacion"
+                          ? "Creación"
+                          : "Actualización"}
+                        {" · "}
+                        {Number.isNaN(fecha.getTime())
+                          ? "-"
+                          : fecha.toLocaleString(
+                            "es-CL"
+                          )}
+                      </strong>
+                      <div style={{
+                        color: "#475569",
+                        marginTop: 5
+                      }}>
+                        {item.motivo}
+                      </div>
+                      <div style={{
+                        color: "#0369A1",
+                        marginTop: 5,
+                        fontSize: 14
+                      }}>
+                        {nuevos.maquinas_disponibles}
+                        {" recursos · "}
+                        {
+                          nuevos
+                            .operarios_disponibles_turno
+                        }
+                        {" operarios/turno · "}
+                        {nuevos.disponibilidad_pct}%
+                        {" disponibilidad · "}
+                        {item.actualizado_por_nombre}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );
