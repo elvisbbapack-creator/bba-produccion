@@ -363,7 +363,8 @@ export const simularTurnosOT = (
     horasTercerTurno = 8,
     fechaReferencia = new Date(),
     capacidades = [],
-    programacionTurnos = []
+    programacionTurnos = [],
+    operariosOcupados = []
   } = {}
 ) => {
   if (Number(horasTercerTurno) <= 0) {
@@ -421,7 +422,8 @@ export const simularTurnosOT = (
         programacionTurnos,
         operacion.subproceso_id,
         recursosObjetivo
-          .operarios_requeridos_turno
+          .operarios_requeridos_turno,
+        operariosOcupados
       );
     const operariosDisponiblesReales =
       usaDotacionProgramada

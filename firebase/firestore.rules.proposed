@@ -209,6 +209,19 @@ service cloud.firestore {
       }
     }
 
+    match /ocupacion_operarios/{ocupacionId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isPlantOperator() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isPlantOperator() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope() &&
+        request.resource.data.operario_id ==
+          resource.data.operario_id;
+      allow delete: if false;
+    }
+
     match /sesiones_produccion/{sesionId} {
       allow read: if belongsToPlant(resource.data);
       allow create: if isPlantOperator() &&

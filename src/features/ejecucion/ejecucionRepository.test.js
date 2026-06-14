@@ -2,10 +2,21 @@ import {
   calcularIndicadoresSesion,
   calcularDisponibilidadPorMaterial,
   calcularTiemposSesion,
+  idOcupacionOperario,
   obtenerOperacionesDisponibles,
   validarDatosCalidadReporte,
   validarInicioSesion
 } from "./ejecucionRepository";
+
+test("genera una ocupación estable por operario y planta", () => {
+  expect(
+    idOcupacionOperario({
+      empresaId: "bba",
+      plantaId: "chile",
+      operarioCodigo: " op 001 "
+    })
+  ).toBe("bba__chile__OP001");
+});
 
 const operaciones = [
   {

@@ -207,6 +207,30 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /ocupacion_operarios/{ocupacionId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if canOperate() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if canOperate() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.operario_id ==
+          resource.data.operario_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
+    }
+
     match /productos/{productoId} {
       allow read: if belongsToCompany(
         resource.data

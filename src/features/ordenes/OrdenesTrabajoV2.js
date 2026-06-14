@@ -11,6 +11,7 @@ import {
   listarCapacidadesProceso
 } from "../capacidad/capacidadRepository";
 import {
+  listarOcupacionesOperarios,
   listarProgramacionSemanal,
   lunesDeSemana
 } from "../turnos/turnosRepository";
@@ -122,6 +123,8 @@ function OrdenesTrabajoV2({
     setCapacidadesProceso] = useState([]);
   const [programacionTurnos,
     setProgramacionTurnos] = useState([]);
+  const [operariosOcupados,
+    setOperariosOcupados] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -218,13 +221,15 @@ function OrdenesTrabajoV2({
             .horas_tercer_turno,
         fechaReferencia: new Date(),
         capacidades: capacidadesProceso,
-        programacionTurnos
+        programacionTurnos,
+        operariosOcupados
       }
     ),
     [
       configuracionCapacidad,
       capacidadesProceso,
       programacionTurnos,
+      operariosOcupados,
       formulario.planta_id,
       operaciones
     ]
@@ -264,6 +269,13 @@ function OrdenesTrabajoV2({
           perfil.empresa_id,
           plantaId,
           lunesDeSemana()
+        )
+      );
+      setOperariosOcupados(
+        await listarOcupacionesOperarios(
+          db,
+          perfil.empresa_id,
+          plantaId
         )
       );
     },

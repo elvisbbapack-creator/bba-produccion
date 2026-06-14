@@ -141,16 +141,43 @@ function EjecucionProduccionV2({
             ?.subproceso_id
         ])[0];
 
+      const ocupados = new Set(
+        sesiones
+          .filter(sesion =>
+            ["activa", "pausada"].includes(
+              sesion.estado
+            )
+          )
+          .map(sesion =>
+            (
+              sesion.operario_codigo ||
+              sesion.operario_id ||
+              ""
+            ).toUpperCase()
+          )
+      );
+
       return subproceso
         ? programacionTurnos.filter(
         item =>
+          !ocupados.has(
+            (
+              item.operario_codigo ||
+              item.operario_id ||
+              ""
+            ).toUpperCase()
+          ) &&
           normalizarSubprocesosHabilitados(
             item.subprocesos_habilitados
           ).includes(subproceso)
       )
         : [];
     },
-    [operacionSeleccionada, programacionTurnos]
+    [
+      operacionSeleccionada,
+      programacionTurnos,
+      sesiones
+    ]
   );
   const puedeGestionarEstandar = [
     "jefe",

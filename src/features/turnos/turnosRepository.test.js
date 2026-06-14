@@ -154,6 +154,27 @@ test("no sugiere mover operarios sin excedente calificado", () => {
   ).toEqual([]);
 });
 
+test("excluye operarios ocupados de las reasignaciones", () => {
+  const sugerencias =
+    sugerirReasignacionesDotacion(
+      ["OP01", "OP02", "OP03"].map(codigo => ({
+        operario_codigo: codigo,
+        operario_nombre: codigo,
+        turno_id: "manana",
+        subprocesos_habilitados: ["SP0003"]
+      })),
+      "SP0003",
+      1,
+      ["OP03"]
+    );
+
+  expect(
+    sugerencias.map(item =>
+      item.operario_codigo
+    )
+  ).not.toContain("OP03");
+});
+
 test("normaliza cualquier fecha al lunes de su semana", () => {
   expect(
     lunesDeSemana(

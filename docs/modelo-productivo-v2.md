@@ -449,6 +449,14 @@ el turno de origen conserva la dotación requerida después del movimiento. La
 sugerencia es informativa: el jefe debe revisar la rotación, jornada y
 continuidad de las demás OTs antes de modificar la programación semanal.
 
+### `ocupacion_operarios/{empresa_planta_operario}`
+
+Mantiene un bloqueo liviano por operario. Al iniciar una sesión, la misma
+transacción verifica que `activa` no sea verdadera y registra la sesión, OT y
+operación actuales. Las pausas conservan la ocupación; el cierre de la sesión
+la libera. El selector de ejecución y las sugerencias de reasignación excluyen
+ocupados, evitando asignaciones simultáneas sin consultar historiales.
+
 Para cargar `capacidad_procesos`, el jefe puede elegir una OT V2 de referencia.
 La pantalla lee únicamente las operaciones de esa OT, deduplica sus
 subprocesos y completa códigos y nombres. Esto evita recorrer todas las rutas o

@@ -104,7 +104,8 @@ export const calcularBrechasDotacion = (
 export const sugerirReasignacionesDotacion = (
   programacion = [],
   subprocesoId,
-  operariosRequeridosTurno = 1
+  operariosRequeridosTurno = 1,
+  operariosOcupados = []
 ) => {
   const codigo = limpiar(subprocesoId)
     .toUpperCase()
@@ -118,10 +119,26 @@ export const sugerirReasignacionesDotacion = (
     tarde: [],
     noche: []
   };
+  const ocupados = new Set(
+    operariosOcupados.map(valor =>
+      limpiar(
+        typeof valor === "string"
+          ? valor
+          : valor.operario_codigo ||
+            valor.operario_id
+      ).toUpperCase()
+    )
+  );
 
   programacion.forEach(item => {
+    const codigoOperario = limpiar(
+      item.operario_codigo ||
+      item.operario_id
+    ).toUpperCase();
+
     if (
       item.turno_id in porTurno &&
+      !ocupados.has(codigoOperario) &&
       normalizarSubprocesosHabilitados(
         item.subprocesos_habilitados
       ).includes(codigo)
@@ -201,6 +218,26 @@ export const sugerirReasignacionesDotacion = (
   });
 
   return sugerencias;
+};
+
+export const listarOcupacionesOperarios = async (
+  db,
+  empresaId,
+  plantaId
+) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, "ocupacion_operarios"),
+      where("empresa_id", "==", empresaId),
+      where("planta_id", "==", plantaId),
+      where("activa", "==", true)
+    )
+  );
+
+  return snapshot.docs.map(documento => ({
+    id: documento.id,
+    ...documento.data()
+  }));
 };
 
 export const construirMatrizCobertura = (

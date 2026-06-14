@@ -41,6 +41,18 @@ const slug = (valor) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
+export const idOcupacionOperario = ({
+  empresaId,
+  plantaId,
+  operarioCodigo
+}) => [
+  empresaId,
+  plantaId,
+  limpiarTexto(operarioCodigo)
+    .toUpperCase()
+    .replace(/\s+/g, "")
+].join("__");
+
 const fechaOperativa = () =>
   new Date().toISOString().slice(0, 10);
 
@@ -377,10 +389,24 @@ export const iniciarSesionProduccion = async ({
   let estandarCongelado = Number(
     operacion.unidades_por_hora || 0
   );
+  const ocupacionRef = doc(
+    db,
+    "ocupacion_operarios",
+    idOcupacionOperario({
+      empresaId: perfil.empresa_id,
+      plantaId: orden.planta_id,
+      operarioCodigo:
+        programacion?.operario_codigo ||
+        operarioCodigo ||
+        slug(operarioNombre)
+    })
+  );
 
   await runTransaction(db, async transaccion => {
     const operacionSnap =
       await transaccion.get(operacionRef);
+    const ocupacionSnap =
+      await transaccion.get(ocupacionRef);
     const programacionSnap = programacionRef
       ? await transaccion.get(programacionRef)
       : null;
@@ -388,6 +414,15 @@ export const iniciarSesionProduccion = async ({
     if (!operacionSnap.exists()) {
       throw new Error(
         "La operación ya no existe."
+      );
+    }
+
+    if (
+      ocupacionSnap.exists() &&
+      ocupacionSnap.data().activa === true
+    ) {
+      throw new Error(
+        `El operario ya está ocupado en ${ocupacionSnap.data().ot_codigo || "otra producción"}.`
       );
     }
 
@@ -489,6 +524,22 @@ export const iniciarSesionProduccion = async ({
           : "en_medicion",
       ruta_version: orden.ruta_version,
       fecha_operativa: fechaOperativa(),
+      modelo_version: 2
+    });
+    transaccion.set(ocupacionRef, {
+      empresa_id: perfil.empresa_id,
+      planta_id: orden.planta_id,
+      operario_id: codigo || slug(nombre),
+      operario_codigo: codigo,
+      operario_nombre: nombre,
+      sesion_id: sesionRef.id,
+      ot_id: orden.id,
+      ot_codigo: orden.codigo,
+      operacion_codigo:
+        operacion.operacion_codigo,
+      activa: true,
+      actualizado_por_id: perfil.uid,
+      actualizado_en: serverTimestamp(),
       modelo_version: 2
     });
     transaccion.set(eventoRef, {
@@ -930,6 +981,17 @@ export const registrarReporteProduccion =
       "resumenes_estandar_operacion",
       `${sesion.ot_id}__${sesion.ot_operacion_id}`
     );
+    const ocupacionRef = doc(
+      db,
+      "ocupacion_operarios",
+      idOcupacionOperario({
+        empresaId: perfil.empresa_id,
+        plantaId: sesion.planta_id,
+        operarioCodigo:
+          sesion.operario_codigo ||
+          sesion.operario_id
+      })
+    );
     let resultadoReporte;
 
     await runTransaction(
@@ -1219,6 +1281,28 @@ export const registrarReporteProduccion =
           cantidad_reproceso: valores[2],
           ...indicadores
         });
+        transaccion.set(
+          ocupacionRef,
+          {
+            empresa_id: perfil.empresa_id,
+            planta_id: sesion.planta_id,
+            operario_id: sesion.operario_id,
+            operario_codigo:
+              sesion.operario_codigo || "",
+            operario_nombre:
+              sesion.operario_nombre,
+            sesion_id: sesion.id,
+            ot_id: sesion.ot_id,
+            ot_codigo: sesion.ot_codigo,
+            operacion_codigo:
+              sesion.operacion_codigo,
+            activa: false,
+            actualizado_por_id: perfil.uid,
+            actualizado_en: serverTimestamp(),
+            modelo_version: 2
+          },
+          { merge: true }
+        );
         transaccion.set(eventoRef, {
           sesion_id: sesion.id,
           empresa_id: perfil.empresa_id,
