@@ -167,6 +167,7 @@ test("pide preparar dotacion si el 3er turno ayuda pero no tiene operarios", () 
   });
 
   expect(decision.tipo).toBe("preparar_3_turno");
+  expect(decision.turno_sugerido).toBe("noche");
 });
 
 test("advierte cuando falta capacidad configurada", () => {
@@ -180,6 +181,42 @@ test("advierte cuando falta capacidad configurada", () => {
     })
   ).toMatchObject({
     tipo: "configurar_capacidad"
+  });
+});
+
+test("sugiere el turno base con mayor brecha de dotacion", () => {
+  const decision = construirDecisionTurno({
+    plantaId: "chile",
+    grupo: {
+      subproceso_id: "SP0007",
+      horas_carga_compartida: 20
+    },
+    capacidad: {
+      factor_capacidad: 1,
+      operarios_requeridos_turno: 2
+    },
+    programacion: [
+      {
+        turno_id: "manana",
+        operario_codigo: "OP001",
+        subprocesos_habilitados: ["SP0007"]
+      },
+      {
+        turno_id: "tarde",
+        operario_codigo: "OP002",
+        subprocesos_habilitados: ["SP0007"]
+      },
+      {
+        turno_id: "tarde",
+        operario_codigo: "OP003",
+        subprocesos_habilitados: ["SP0007"]
+      }
+    ]
+  });
+
+  expect(decision).toMatchObject({
+    tipo: "cubrir_dotacion_base",
+    turno_sugerido: "manana"
   });
 });
 

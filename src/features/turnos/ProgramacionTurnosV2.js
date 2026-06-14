@@ -43,7 +43,8 @@ const formularioInicial = {
 function ProgramacionTurnosV2({
   db,
   perfil,
-  onVolver
+  onVolver,
+  contextoInicial = null
 }) {
   const plantas = perfil.planta_ids || [];
   const [plantaId, setPlantaId] =
@@ -108,6 +109,39 @@ function ProgramacionTurnosV2({
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    if (!contextoInicial) {
+      return;
+    }
+
+    const plantaContexto =
+      contextoInicial.planta_id || plantas[0] || "";
+    const turnoContexto =
+      contextoInicial.turno_id || "manana";
+    const subprocesoContexto =
+      normalizarSubprocesosHabilitados([
+        contextoInicial.subproceso_id
+      ])[0] || "";
+
+    if (plantaContexto) {
+      setPlantaId(plantaContexto);
+    }
+
+    setSemanaInicio(lunesDeSemana());
+    setFormulario(actual => ({
+      ...actual,
+      turno_id: turnoContexto,
+      subprocesos_habilitados:
+        subprocesoContexto ||
+        actual.subprocesos_habilitados
+    }));
+    setMensaje(
+      subprocesoContexto
+        ? `${subprocesoContexto} preparado para programar dotación.`
+        : "Contexto cargado desde el planificador."
+    );
+  }, [contextoInicial]);
 
   const cobertura = useMemo(
     () => Object.keys(

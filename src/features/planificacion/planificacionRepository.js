@@ -142,12 +142,19 @@ export const construirDecisionTurno = ({
     carga <= horasTresTurnos;
 
   if (!brechas.cobertura_base_suficiente) {
+    const turnoSugerido =
+      brechas.faltantes_manana >
+      brechas.faltantes_tarde
+        ? "manana"
+        : "tarde";
+
     return {
       tipo: "cubrir_dotacion_base",
       titulo: "Cubrir dotación de mañana y tarde",
       detalle:
         "Antes de ampliar turnos, faltan operarios habilitados en los turnos base.",
       severidad: "riesgo",
+      turno_sugerido: turnoSugerido,
       cobertura,
       brechas,
       horas_base_semana: redondear(horasBaseSemana),
@@ -208,6 +215,7 @@ export const construirDecisionTurno = ({
       detalle:
         "La carga mejora con noche, pero faltan operarios habilitados para cubrir ese turno.",
       severidad: "advertencia",
+      turno_sugerido: "noche",
       cobertura,
       brechas,
       horas_base_semana: redondear(horasBaseSemana),

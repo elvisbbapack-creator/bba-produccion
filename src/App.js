@@ -112,6 +112,8 @@ function App() {
   const [ingresando, setIngresando] = useState(false);
   const [contextoCapacidadV2,
     setContextoCapacidadV2] = useState(null);
+  const [contextoTurnosV2,
+    setContextoTurnosV2] = useState(null);
   const sesionCargaId =
     autenticacionFirebaseActiva
       ? usuarioSeleccionado?.id || ""
@@ -1654,9 +1656,10 @@ const cargarTodosLosParos = async () => {
               usuarioSeleccionado
             ) && (
               <button
-                onClick={() =>
-                  setPantalla("turnosV2")
-                }
+                onClick={() => {
+                  setContextoTurnosV2(null);
+                  setPantalla("turnosV2");
+                }}
                 style={{
                   ...cardHome,
                   background: "#4338CA"
@@ -1733,6 +1736,7 @@ if (
     <ProgramacionTurnosV2
       db={db}
       perfil={usuarioSeleccionado}
+      contextoInicial={contextoTurnosV2}
       onVolver={() => setPantalla("home")}
     />
   );
@@ -1798,6 +1802,10 @@ if (
       onConfigurarCapacidad={contexto => {
         setContextoCapacidadV2(contexto);
         setPantalla("capacidadV2");
+      }}
+      onProgramarTurnos={contexto => {
+        setContextoTurnosV2(contexto);
+        setPantalla("turnosV2");
       }}
     />
   );

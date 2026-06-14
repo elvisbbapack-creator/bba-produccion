@@ -303,7 +303,9 @@ calendarios de Chile/Peru. El resultado puede ser mantener 2 turnos, activar
 capacidad. La recomendacion no reasigna operarios ni modifica OTs; solo orienta
 la decision del jefe. Si falta capacidad, el planificador permite abrir
 `Capacidad por Proceso (V2)` con la planta y el subproceso del cuello ya
-precargados para completar la configuracion.
+precargados para completar la configuracion. Si la capacidad existe pero falta
+dotacion base o nocturna, permite abrir `Programacion de Turnos (V2)` con la
+planta, el subproceso y el turno sugerido precargados.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 

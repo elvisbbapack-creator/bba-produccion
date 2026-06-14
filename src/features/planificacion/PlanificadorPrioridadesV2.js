@@ -64,7 +64,8 @@ function PlanificadorPrioridadesV2({
   db,
   perfil,
   onVolver,
-  onConfigurarCapacidad
+  onConfigurarCapacidad,
+  onProgramarTurnos
 }) {
   const plantas = perfil.planta_ids || [];
   const [plantaId, setPlantaId] =
@@ -624,6 +625,44 @@ function PlanificadorPrioridadesV2({
                         }}
                       >
                         Configurar capacidad de{" "}
+                        {grupo.subproceso_id}
+                      </button>
+                    )}
+                    {[
+                      "cubrir_dotacion_base",
+                      "preparar_3_turno"
+                    ].includes(
+                      grupo.decision_turno.tipo
+                    ) &&
+                      onProgramarTurnos && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onProgramarTurnos({
+                            planta_id: plantaId,
+                            turno_id:
+                              grupo.decision_turno
+                                .turno_sugerido ||
+                              "manana",
+                            subproceso_id:
+                              grupo.subproceso_id,
+                            subproceso_nombre:
+                              grupo.subproceso_nombre
+                          })
+                        }
+                        style={{
+                          marginTop: 10,
+                          marginLeft: 8,
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "9px 12px",
+                          background: "#4338CA",
+                          color: "white",
+                          fontWeight: "bold",
+                          cursor: "pointer"
+                        }}
+                      >
+                        Programar dotación de{" "}
                         {grupo.subproceso_id}
                       </button>
                     )}
