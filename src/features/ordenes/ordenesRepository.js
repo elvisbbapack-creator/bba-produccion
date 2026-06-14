@@ -22,6 +22,7 @@ import {
   calcularCapacidadRecursos
 } from "../capacidad/capacidadRepository";
 import {
+  calcularBrechasDotacion,
   calcularCoberturaSubproceso
 } from "../turnos/turnosRepository";
 
@@ -345,7 +346,28 @@ export const simularTurnosOT = (
       );
     const usaDotacionProgramada =
       cobertura.turnos_base_completos;
-    const operariosDisponibles =
+    const recursosObjetivo =
+      calcularCapacidadRecursos({
+        maquinasDisponibles:
+          capacidadConfigurada
+            ?.maquinas_disponibles ?? 1,
+        operariosDisponibles:
+          capacidadConfigurada
+            ?.operarios_disponibles_turno ?? 1,
+        operariosPorRecurso:
+          capacidadConfigurada
+            ?.operarios_por_recurso ?? 1,
+        disponibilidadPct:
+          capacidadConfigurada
+            ?.disponibilidad_pct ?? 100
+      });
+    const brechasDotacion =
+      calcularBrechasDotacion(
+        cobertura,
+        recursosObjetivo
+          .operarios_requeridos_turno
+      );
+    const operariosDisponiblesReales =
       usaDotacionProgramada
         ? Math.min(
           Number(
@@ -361,7 +383,7 @@ export const simularTurnosOT = (
         capacidadConfigurada
           ?.maquinas_disponibles ?? 1,
       operariosDisponibles:
-        operariosDisponibles,
+        operariosDisponiblesReales,
       operariosPorRecurso:
         capacidadConfigurada
           ?.operarios_por_recurso ?? 1,
@@ -388,6 +410,7 @@ export const simularTurnosOT = (
         Boolean(capacidadConfigurada),
       capacidad_validada: capacidadValidada,
       cobertura_programada: cobertura,
+      brechas_dotacion: brechasDotacion,
       dotacion_programada_aplicada:
         usaDotacionProgramada,
       recursos_paralelos:
@@ -395,13 +418,15 @@ export const simularTurnosOT = (
       disponibilidad_pct:
         recursos.disponibilidad_pct,
       operarios_requeridos_turno:
-        recursos.operarios_requeridos_turno,
+        recursosObjetivo
+          .operarios_requeridos_turno,
       tercer_turno_con_dotacion:
         programacionTurnos.length === 0 ||
         (
-          cobertura.turnos_base_completos &&
-          cobertura.noche >=
-            recursos.operarios_requeridos_turno
+          brechasDotacion
+            .cobertura_base_suficiente &&
+          brechasDotacion
+            .cobertura_noche_suficiente
         ),
       unidades_por_hora_efectivas:
         Number(velocidadEfectiva.toFixed(2)),

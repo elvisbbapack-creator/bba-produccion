@@ -1083,12 +1083,24 @@ function OrdenesTrabajoV2({
                             .cobertura_programada
                             .manana
                         }
+                        {"/"}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .operarios_requeridos_turno
+                        }
                         {" · tarde "}
                         {
                           simulacionTurnos
                             .cuello_botella
                             .cobertura_programada
                             .tarde
+                        }
+                        {"/"}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .operarios_requeridos_turno
                         }
                         {" · noche "}
                         {
@@ -1097,8 +1109,43 @@ function OrdenesTrabajoV2({
                             .cobertura_programada
                             .noche
                         }
+                        {"/"}
+                        {
+                          simulacionTurnos
+                            .cuello_botella
+                            .operarios_requeridos_turno
+                        }
                         .
                       </div>
+                      {programacionTurnos.length > 0 && (
+                        <div style={{
+                          marginTop: 7,
+                          color: "#B45309"
+                        }}>
+                          Brecha de dotación: mañana{" "}
+                          {
+                            simulacionTurnos
+                              .cuello_botella
+                              .brechas_dotacion
+                              .faltantes_manana
+                          }
+                          {" · tarde "}
+                          {
+                            simulacionTurnos
+                              .cuello_botella
+                              .brechas_dotacion
+                              .faltantes_tarde
+                          }
+                          {" · noche "}
+                          {
+                            simulacionTurnos
+                              .cuello_botella
+                              .brechas_dotacion
+                              .faltantes_noche
+                          }
+                          {" operarios."}
+                        </div>
+                      )}
                       <div style={{
                         marginTop: 8,
                         fontWeight: "bold",
@@ -1117,14 +1164,14 @@ function OrdenesTrabajoV2({
                             ? `Proyección provisional: valida la capacidad de ${simulacionTurnos.cuello_botella.subproceso_id} antes de tomar una decisión de turnos.`
                           : !simulacionTurnos
                             .cuello_botella
-                            .cobertura_programada
-                            .turnos_base_completos &&
+                            .brechas_dotacion
+                            .cobertura_base_suficiente &&
                             programacionTurnos.length > 0
-                            ? `No se recomienda ampliar: falta cobertura calificada en mañana o tarde para ${simulacionTurnos.cuello_botella.subproceso_id}.`
+                            ? `No se recomienda ampliar: faltan ${simulacionTurnos.cuello_botella.brechas_dotacion.faltantes_manana} operarios en mañana y ${simulacionTurnos.cuello_botella.brechas_dotacion.faltantes_tarde} en tarde para ${simulacionTurnos.cuello_botella.subproceso_id}.`
                             : !simulacionTurnos
                               .cuello_botella
                             .tercer_turno_con_dotacion
-                            ? `No se recomienda el tercer turno: faltan operarios habilitados en noche para ${simulacionTurnos.cuello_botella.subproceso_id}.`
+                            ? `No se recomienda el tercer turno: faltan ${simulacionTurnos.cuello_botella.brechas_dotacion.faltantes_noche} operarios habilitados en noche para ${simulacionTurnos.cuello_botella.subproceso_id}.`
                             : "El tercer turno no produce una mejora significativa en la fecha final actual."}
                       </div>
                       <div style={{

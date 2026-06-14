@@ -67,18 +67,62 @@ export const calcularCoberturaSubproceso = (
   };
 };
 
+export const calcularBrechasDotacion = (
+  cobertura = {},
+  operariosRequeridosTurno = 1
+) => {
+  const requeridos = Math.max(
+    1,
+    Math.ceil(Number(operariosRequeridosTurno) || 1)
+  );
+  const manana = Number(cobertura.manana || 0);
+  const tarde = Number(cobertura.tarde || 0);
+  const noche = Number(cobertura.noche || 0);
+
+  return {
+    operarios_requeridos_turno: requeridos,
+    faltantes_manana: Math.max(
+      0,
+      requeridos - manana
+    ),
+    faltantes_tarde: Math.max(
+      0,
+      requeridos - tarde
+    ),
+    faltantes_noche: Math.max(
+      0,
+      requeridos - noche
+    ),
+    cobertura_base_suficiente:
+      manana >= requeridos &&
+      tarde >= requeridos,
+    cobertura_noche_suficiente:
+      noche >= requeridos
+  };
+};
+
 export const construirMatrizCobertura = (
   subprocesos = [],
   programacion = []
-) => subprocesos.map(subproceso => ({
-  subproceso_id: subproceso.subproceso_id,
-  subproceso_nombre:
-    subproceso.subproceso_nombre || "",
-  ...calcularCoberturaSubproceso(
+) => subprocesos.map(subproceso => {
+  const cobertura = calcularCoberturaSubproceso(
     programacion,
     subproceso.subproceso_id
-  )
-}));
+  );
+
+  return {
+    subproceso_id: subproceso.subproceso_id,
+    subproceso_nombre:
+      subproceso.subproceso_nombre || "",
+    estado_datos:
+      subproceso.estado_datos || "provisional",
+    ...cobertura,
+    ...calcularBrechasDotacion(
+      cobertura,
+      subproceso.operarios_requeridos_turno
+    )
+  };
+});
 
 export const TURNOS_PLANTA = {
   chile: {

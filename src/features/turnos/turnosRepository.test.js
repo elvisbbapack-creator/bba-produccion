@@ -1,4 +1,5 @@
 import {
+  calcularBrechasDotacion,
   calcularCoberturaSubproceso,
   calcularJornadaSemanal,
   construirMatrizCobertura,
@@ -30,11 +31,15 @@ test("construye la matriz de cobertura por subproceso", () => {
     [
       {
         subproceso_id: "SP0001",
-        subproceso_nombre: "Prensa"
+        subproceso_nombre: "Prensa",
+        operarios_requeridos_turno: 1,
+        estado_datos: "validada"
       },
       {
         subproceso_id: "SP0003",
-        subproceso_nombre: "Láser"
+        subproceso_nombre: "Láser",
+        operarios_requeridos_turno: 2,
+        estado_datos: "validada"
       }
     ],
     [
@@ -57,14 +62,40 @@ test("construye la matriz de cobertura por subproceso", () => {
     manana: 1,
     tarde: 1,
     noche: 0,
-    turnos_base_completos: true
+    turnos_base_completos: true,
+    cobertura_base_suficiente: true,
+    faltantes_manana: 0,
+    faltantes_tarde: 0
   });
   expect(matriz[1]).toMatchObject({
     subproceso_id: "SP0003",
     manana: 1,
     tarde: 0,
     noche: 0,
-    turnos_base_completos: false
+    turnos_base_completos: false,
+    cobertura_base_suficiente: false,
+    faltantes_manana: 1,
+    faltantes_tarde: 2
+  });
+});
+
+test("calcula brechas contra la dotación requerida", () => {
+  expect(
+    calcularBrechasDotacion(
+      {
+        manana: 3,
+        tarde: 1,
+        noche: 0
+      },
+      2
+    )
+  ).toEqual({
+    operarios_requeridos_turno: 2,
+    faltantes_manana: 0,
+    faltantes_tarde: 1,
+    faltantes_noche: 2,
+    cobertura_base_suficiente: false,
+    cobertura_noche_suficiente: false
   });
 });
 

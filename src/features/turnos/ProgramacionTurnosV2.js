@@ -632,7 +632,15 @@ function ProgramacionTurnosV2({
               <tbody>
                 {matrizCobertura.map(item => {
                   const completa =
-                    item.turnos_base_completos;
+                    item.cobertura_base_suficiente;
+                  const brechasBase = [
+                    item.faltantes_manana > 0
+                      ? `${item.faltantes_manana} mañana`
+                      : "",
+                    item.faltantes_tarde > 0
+                      ? `${item.faltantes_tarde} tarde`
+                      : ""
+                  ].filter(Boolean).join(" · ");
 
                   return (
                     <tr key={item.subproceso_id}>
@@ -658,13 +666,20 @@ function ProgramacionTurnosV2({
                             padding: 9,
                             borderBottom:
                               "1px solid #E2E8F0",
-                            color: cantidad > 0
+                            color: cantidad >=
+                              item
+                                .operarios_requeridos_turno
                               ? "#166534"
                               : "#B91C1C",
                             fontWeight: "bold"
                           }}
                         >
                           {cantidad}
+                          {" / "}
+                          {
+                            item
+                              .operarios_requeridos_turno
+                          }
                         </td>
                       ))}
                       <td style={{
@@ -676,9 +691,11 @@ function ProgramacionTurnosV2({
                           : "#B91C1C",
                         fontWeight: "bold"
                       }}>
-                        {completa
-                          ? "Base cubierta"
-                          : "Brecha en turno base"}
+                        {item.estado_datos !== "validada"
+                          ? "Capacidad provisional"
+                          : completa
+                            ? "Base cubierta"
+                            : `Faltan ${brechasBase}`}
                       </td>
                     </tr>
                   );

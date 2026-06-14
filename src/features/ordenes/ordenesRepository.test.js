@@ -149,6 +149,14 @@ test("usa dotación calificada y bloquea tercer turno sin cobertura", () => {
   expect(carga.dotacion_programada_aplicada)
     .toBe(true);
   expect(carga.recursos_paralelos).toBe(1);
+  expect(carga.operarios_requeridos_turno)
+    .toBe(3);
+  expect(carga.brechas_dotacion).toMatchObject({
+    faltantes_manana: 2,
+    faltantes_tarde: 2,
+    faltantes_noche: 3,
+    cobertura_base_suficiente: false
+  });
   expect(carga.cobertura_programada.noche).toBe(0);
   expect(carga.tercer_turno_con_dotacion)
     .toBe(false);

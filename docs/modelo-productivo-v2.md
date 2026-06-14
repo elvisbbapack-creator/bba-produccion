@@ -415,14 +415,18 @@ pero la sesión queda marcada como no programada.
 
 Para proyectar capacidad, el simulador cuenta operarios habilitados por turno.
 En los dos turnos base usa de forma conservadora la menor cobertura entre
-mañana y tarde cuando ambos están cubiertos. Solo recomienda ampliar a noche
-cuando mañana y tarde tienen cobertura y además existe dotación nocturna
-habilitada suficiente para operar los recursos calculados.
+mañana y tarde cuando ambos tienen al menos un operario habilitado. La dotación
+objetivo se obtiene de los recursos configurados y se conserva aunque la
+velocidad proyectada se reduzca por falta de personal. Solo recomienda ampliar
+a noche cuando mañana, tarde y noche tienen la dotación habilitada suficiente
+para operar todos los recursos calculados.
 
 La programación semanal toma su selector de `capacidad_procesos`, evitando leer
 todas las rutas de productos para construir el catálogo. La matriz de cobertura
-muestra por subproceso cuántos operarios habilitados existen en mañana, tarde y
-noche, y marca brechas en los dos turnos base.
+muestra por subproceso la relación `habilitados / requeridos` en mañana, tarde
+y noche. También indica cuántos operarios faltan en cada turno base; el
+simulador muestra la brecha exacta para que el jefe pueda reasignar o incorporar
+personal antes de ampliar el cuello de botella.
 
 Para cargar `capacidad_procesos`, el jefe puede elegir una OT V2 de referencia.
 La pantalla lee únicamente las operaciones de esa OT, deduplica sus
