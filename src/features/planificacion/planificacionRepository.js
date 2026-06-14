@@ -10,6 +10,11 @@ import {
 import {
   clasificarRiesgoOT
 } from "../resumenes/resumenesRepository";
+import {
+  calcularBrechasDotacion,
+  calcularCoberturaSubproceso,
+  TURNOS_PLANTA
+} from "../turnos/turnosRepository";
 
 const fechaAValor = valor => {
   if (!valor) {
@@ -55,6 +60,177 @@ const accionRecomendada = cuello => {
   }
 
   return "producir_ahora";
+};
+
+const numeroPositivo = valor =>
+  Number.isFinite(Number(valor)) &&
+  Number(valor) > 0;
+
+const redondear = valor =>
+  Number((Number(valor) || 0).toFixed(2));
+
+const horasTurnos = (plantaId, turnos = []) => {
+  const turnosPlanta =
+    TURNOS_PLANTA[plantaId]?.turnos || {};
+
+  return turnos.reduce(
+    (total, turnoId) =>
+      total +
+      Number(
+        turnosPlanta[turnoId]?.horas_efectivas || 0
+      ),
+    0
+  );
+};
+
+export const construirDecisionTurno = ({
+  grupo,
+  capacidad,
+  programacion = [],
+  plantaId
+}) => {
+  if (!capacidad) {
+    return {
+      tipo: "configurar_capacidad",
+      titulo: "Configurar capacidad del subproceso",
+      detalle:
+        "Falta capacidad validada para comparar 2 turnos contra 3 turnos.",
+      severidad: "advertencia"
+    };
+  }
+
+  const cobertura = calcularCoberturaSubproceso(
+    programacion,
+    grupo.subproceso_id
+  );
+  const brechas = calcularBrechasDotacion(
+    cobertura,
+    capacidad.operarios_requeridos_turno
+  );
+  const factor = numeroPositivo(
+    capacidad.factor_capacidad
+  )
+    ? Number(capacidad.factor_capacidad)
+    : 1;
+  const carga = Number(
+    grupo.horas_carga_compartida || 0
+  );
+  const horasBaseSemana =
+    horasTurnos(plantaId, ["manana", "tarde"]) *
+    factor;
+  const horasNocheSemana =
+    horasTurnos(plantaId, ["noche"]) * factor;
+  const horasTresTurnos =
+    horasBaseSemana + horasNocheSemana;
+  const semanasBase =
+    horasBaseSemana > 0
+      ? carga / horasBaseSemana
+      : null;
+  const semanasTresTurnos =
+    horasTresTurnos > 0
+      ? carga / horasTresTurnos
+      : null;
+  const baseSuficiente =
+    brechas.cobertura_base_suficiente &&
+    horasBaseSemana > 0 &&
+    carga <= horasBaseSemana * 0.85;
+  const nocheSuficiente =
+    brechas.cobertura_noche_suficiente &&
+    horasNocheSemana > 0;
+  const capacidadTresTurnosSuficiente =
+    horasTresTurnos > 0 &&
+    carga <= horasTresTurnos;
+
+  if (!brechas.cobertura_base_suficiente) {
+    return {
+      tipo: "cubrir_dotacion_base",
+      titulo: "Cubrir dotación de mañana y tarde",
+      detalle:
+        "Antes de ampliar turnos, faltan operarios habilitados en los turnos base.",
+      severidad: "riesgo",
+      cobertura,
+      brechas,
+      horas_base_semana: redondear(horasBaseSemana),
+      horas_3_turnos_semana:
+        redondear(horasTresTurnos),
+      semanas_2_turnos:
+        semanasBase === null
+          ? null
+          : redondear(semanasBase),
+      semanas_3_turnos:
+        semanasTresTurnos === null
+          ? null
+          : redondear(semanasTresTurnos)
+    };
+  }
+
+  if (baseSuficiente) {
+    return {
+      tipo: "mantener_2_turnos",
+      titulo: "Mantener 2 turnos",
+      detalle:
+        "La carga conocida cabe en la capacidad semanal de mañana y tarde.",
+      severidad: "normal",
+      cobertura,
+      brechas,
+      horas_base_semana: redondear(horasBaseSemana),
+      horas_3_turnos_semana:
+        redondear(horasTresTurnos),
+      semanas_2_turnos: redondear(semanasBase),
+      semanas_3_turnos: redondear(semanasTresTurnos)
+    };
+  }
+
+  if (
+    capacidadTresTurnosSuficiente &&
+    nocheSuficiente
+  ) {
+    return {
+      tipo: "activar_3_turno",
+      titulo: "Activar 3er turno en este subproceso",
+      detalle:
+        "El turno noche reduce la presión del cuello de botella con dotación suficiente.",
+      severidad: "accion",
+      cobertura,
+      brechas,
+      horas_base_semana: redondear(horasBaseSemana),
+      horas_3_turnos_semana:
+        redondear(horasTresTurnos),
+      semanas_2_turnos: redondear(semanasBase),
+      semanas_3_turnos: redondear(semanasTresTurnos)
+    };
+  }
+
+  if (capacidadTresTurnosSuficiente) {
+    return {
+      tipo: "preparar_3_turno",
+      titulo: "Preparar dotación para 3er turno",
+      detalle:
+        "La carga mejora con noche, pero faltan operarios habilitados para cubrir ese turno.",
+      severidad: "advertencia",
+      cobertura,
+      brechas,
+      horas_base_semana: redondear(horasBaseSemana),
+      horas_3_turnos_semana:
+        redondear(horasTresTurnos),
+      semanas_2_turnos: redondear(semanasBase),
+      semanas_3_turnos: redondear(semanasTresTurnos)
+    };
+  }
+
+  return {
+    tipo: "reforzar_capacidad",
+    titulo: "Reforzar capacidad adicional",
+    detalle:
+      "Incluso con 3 turnos, la carga supera la capacidad semanal estimada.",
+    severidad: "riesgo",
+    cobertura,
+    brechas,
+    horas_base_semana: redondear(horasBaseSemana),
+    horas_3_turnos_semana: redondear(horasTresTurnos),
+    semanas_2_turnos: redondear(semanasBase),
+    semanas_3_turnos: redondear(semanasTresTurnos)
+  };
 };
 
 export const compararPrioridadPlan = (
@@ -103,7 +279,8 @@ export const compararPrioridadPlan = (
 
 export const construirPlanPrioridades = (
   ordenes = [],
-  fechaReferencia = new Date()
+  fechaReferencia = new Date(),
+  opciones = {}
 ) => {
   const grupos = new Map();
 
@@ -143,8 +320,7 @@ export const construirPlanPrioridades = (
           ...orden,
           prioridad_plan: indice + 1
         }));
-
-      return {
+      const grupo = {
         subproceso_id: subprocesoId,
         subproceso_nombre:
           secuencia[0]?.cuello_carga
@@ -176,6 +352,21 @@ export const construirPlanPrioridades = (
           secuencia.length > 1,
         siguiente_ot: secuencia[0] || null,
         secuencia
+      };
+      const capacidad = (
+        opciones.capacidades || []
+      ).find(item =>
+        item.subproceso_id === subprocesoId
+      );
+
+      return {
+        ...grupo,
+        decision_turno: construirDecisionTurno({
+          grupo,
+          capacidad,
+          programacion: opciones.programacion,
+          plantaId: opciones.plantaId
+        })
       };
     })
     .sort((a, b) => {

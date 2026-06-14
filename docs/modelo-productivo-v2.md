@@ -295,6 +295,14 @@ Las OTs creadas antes de `cuello_carga` pueden recalcularse manualmente desde
 el planificador. Esa acción lee una vez sus operaciones y actualiza el resumen;
 la consulta normal del planificador sigue sin recorrer subcolecciones.
 
+La recomendacion de turnos del planificador compara la carga conocida del
+subproceso contra la capacidad semanal estimada con 2 turnos y con 3 turnos.
+Usa `capacidad_procesos`, `programacion_turnos` de la semana vigente y los
+calendarios de Chile/Peru. El resultado puede ser mantener 2 turnos, activar
+3er turno, preparar dotacion nocturna, cubrir dotacion base o reforzar
+capacidad. La recomendacion no reasigna operarios ni modifica OTs; solo orienta
+la decision del jefe.
+
 ### `configuracion_capacidad/{empresaId_plantaId}`
 
 ```text

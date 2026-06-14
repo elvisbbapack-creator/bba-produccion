@@ -1,4 +1,5 @@
 import {
+  construirDecisionTurno,
   construirPlanPrioridades
 } from "./planificacionRepository";
 
@@ -52,6 +53,134 @@ test("agrupa OTs por subproceso y prioriza riesgo y entrega", () => {
   expect(
     plan[0].secuencia.map(orden => orden.id)
   ).toEqual(["ot-2", "ot-1"]);
+});
+
+test("sugiere mantener 2 turnos cuando la carga cabe en capacidad base", () => {
+  const plan = construirPlanPrioridades(
+    [
+      {
+        id: "ot-1",
+        codigo: "OT-CHI-000001",
+        correlativo: 1,
+        cuello_carga: {
+          subproceso_id: "SP0003",
+          cantidad_pendiente: 320,
+          horas_restantes: 4,
+          estado: "disponible"
+        }
+      }
+    ],
+    new Date("2026-06-15T12:00:00Z"),
+    {
+      plantaId: "chile",
+      capacidades: [
+        {
+          subproceso_id: "SP0003",
+          factor_capacidad: 1,
+          operarios_requeridos_turno: 1
+        }
+      ],
+      programacion: [
+        {
+          turno_id: "manana",
+          operario_codigo: "OP001",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "tarde",
+          operario_codigo: "OP002",
+          subprocesos_habilitados: ["SP0003"]
+        }
+      ]
+    }
+  );
+
+  expect(plan[0].decision_turno).toMatchObject({
+    tipo: "mantener_2_turnos",
+    horas_base_semana: 83.25,
+    horas_3_turnos_semana: 135
+  });
+});
+
+test("sugiere activar 3er turno cuando la carga excede 2 turnos y noche esta cubierta", () => {
+  const decision = construirDecisionTurno({
+    plantaId: "peru",
+    grupo: {
+      subproceso_id: "SP0005",
+      horas_carga_compartida: 120
+    },
+    capacidad: {
+      factor_capacidad: 1,
+      operarios_requeridos_turno: 1
+    },
+    programacion: [
+      {
+        turno_id: "manana",
+        operario_codigo: "OP001",
+        subprocesos_habilitados: ["SP0005"]
+      },
+      {
+        turno_id: "tarde",
+        operario_codigo: "OP002",
+        subprocesos_habilitados: ["SP0005"]
+      },
+      {
+        turno_id: "noche",
+        operario_codigo: "OP003",
+        subprocesos_habilitados: ["SP0005"]
+      }
+    ]
+  });
+
+  expect(decision).toMatchObject({
+    tipo: "activar_3_turno",
+    horas_base_semana: 96,
+    horas_3_turnos_semana: 144,
+    semanas_2_turnos: 1.25,
+    semanas_3_turnos: 0.83
+  });
+});
+
+test("pide preparar dotacion si el 3er turno ayuda pero no tiene operarios", () => {
+  const decision = construirDecisionTurno({
+    plantaId: "peru",
+    grupo: {
+      subproceso_id: "SP0005",
+      horas_carga_compartida: 120
+    },
+    capacidad: {
+      factor_capacidad: 1,
+      operarios_requeridos_turno: 1
+    },
+    programacion: [
+      {
+        turno_id: "manana",
+        operario_codigo: "OP001",
+        subprocesos_habilitados: ["SP0005"]
+      },
+      {
+        turno_id: "tarde",
+        operario_codigo: "OP002",
+        subprocesos_habilitados: ["SP0005"]
+      }
+    ]
+  });
+
+  expect(decision.tipo).toBe("preparar_3_turno");
+});
+
+test("advierte cuando falta capacidad configurada", () => {
+  expect(
+    construirDecisionTurno({
+      plantaId: "chile",
+      grupo: {
+        subproceso_id: "SP0001",
+        horas_carga_compartida: 10
+      }
+    })
+  ).toMatchObject({
+    tipo: "configurar_capacidad"
+  });
 });
 
 test("prioriza un DT disponible antes que uno bloqueado", () => {

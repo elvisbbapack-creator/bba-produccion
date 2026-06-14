@@ -7,6 +7,13 @@ import {
   observarOrdenesActivas
 } from "../resumenes/resumenesRepository";
 import {
+  listarCapacidadesProceso
+} from "../capacidad/capacidadRepository";
+import {
+  listarProgramacionSemanal,
+  lunesDeSemana
+} from "../turnos/turnosRepository";
+import {
   construirPlanPrioridades,
   recalcularResumenesPlanificacion
 } from "./planificacionRepository";
@@ -23,6 +30,20 @@ const accionTexto = {
   producir_ahora: "Producir ahora",
   desbloquear_dt: "Resolver dependencia o RF",
   definir_estandar: "Definir estándar antes de proyectar"
+};
+
+const colorDecision = {
+  normal: "#166534",
+  accion: "#1D4ED8",
+  advertencia: "#92400E",
+  riesgo: "#B91C1C"
+};
+
+const fondoDecision = {
+  normal: "#F0FDF4",
+  accion: "#EFF6FF",
+  advertencia: "#FFFBEB",
+  riesgo: "#FEF2F2"
 };
 
 const fechaVisible = valor => {
@@ -48,14 +69,28 @@ function PlanificadorPrioridadesV2({
   const [plantaId, setPlantaId] =
     useState(plantas[0] || "");
   const [ordenes, setOrdenes] = useState([]);
+  const [capacidades, setCapacidades] =
+    useState([]);
+  const [programacion, setProgramacion] =
+    useState([]);
   const [cargando, setCargando] = useState(true);
+  const [cargandoDecision, setCargandoDecision] =
+    useState(false);
   const [recalculando, setRecalculando] =
     useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const plan = useMemo(
-    () => construirPlanPrioridades(ordenes),
-    [ordenes]
+    () => construirPlanPrioridades(
+      ordenes,
+      new Date(),
+      {
+        capacidades,
+        programacion,
+        plantaId
+      }
+    ),
+    [capacidades, ordenes, plantaId, programacion]
   );
   const ordenesSinCuello = ordenes.filter(
     orden => !orden.cuello_carga
@@ -85,6 +120,60 @@ function PlanificadorPrioridadesV2({
         setCargando(false);
       }
     );
+  }, [db, perfil.empresa_id, plantaId]);
+
+  useEffect(() => {
+    if (!plantaId) {
+      return;
+    }
+
+    let cancelado = false;
+    const cargarDecision = async () => {
+      try {
+        setCargandoDecision(true);
+        const semanaInicio = lunesDeSemana(
+          new Date()
+        );
+        const [
+          capacidadesProceso,
+          programacionSemanal
+        ] = await Promise.all([
+          listarCapacidadesProceso(
+            db,
+            perfil.empresa_id,
+            plantaId
+          ),
+          listarProgramacionSemanal(
+            db,
+            perfil.empresa_id,
+            plantaId,
+            semanaInicio
+          )
+        ]);
+
+        if (!cancelado) {
+          setCapacidades(capacidadesProceso);
+          setProgramacion(programacionSemanal);
+        }
+      } catch (fallo) {
+        if (!cancelado) {
+          setError(
+            fallo?.message ||
+            "No se pudo cargar capacidad y turnos."
+          );
+        }
+      } finally {
+        if (!cancelado) {
+          setCargandoDecision(false);
+        }
+      }
+    };
+
+    cargarDecision();
+
+    return () => {
+      cancelado = true;
+    };
   }, [db, perfil.empresa_id, plantaId]);
 
   return (
@@ -128,7 +217,8 @@ function PlanificadorPrioridadesV2({
               marginTop: 0
             }}>
               Ordena OTs que compiten por el mismo
-              subproceso sin modificar la programación.
+              subproceso y sugiere si conviene activar
+              3er turno sin modificar la programación.
             </p>
           </div>
           {plantas.length > 1 && (
@@ -232,6 +322,18 @@ function PlanificadorPrioridadesV2({
             {ordenesSinCuello}
             {" OTs antiguas requieren recálculo para "}
             identificar su DT prioritario.
+          </div>
+        )}
+        {cargandoDecision && (
+          <div style={{
+            background: "#EFF6FF",
+            color: "#1D4ED8",
+            padding: 12,
+            borderRadius: 9,
+            marginBottom: 15
+          }}>
+            Cargando capacidad y turnos para sugerir
+            decisiones...
           </div>
         )}
 
@@ -413,6 +515,78 @@ function PlanificadorPrioridadesV2({
                   }
                   .
                 </div>
+
+                {grupo.decision_turno && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: 12,
+                    borderRadius: 10,
+                    background:
+                      fondoDecision[
+                        grupo.decision_turno.severidad
+                      ] || "#F8FAFC",
+                    color:
+                      colorDecision[
+                        grupo.decision_turno.severidad
+                      ] || "#334155"
+                  }}>
+                    <strong>
+                      Decisión sugerida:{" "}
+                      {grupo.decision_turno.titulo}
+                    </strong>
+                    <div style={{ marginTop: 5 }}>
+                      {grupo.decision_turno.detalle}
+                    </div>
+                    {
+                      grupo.decision_turno
+                        .horas_base_semana !== undefined &&
+                      (
+                        <div style={{
+                          display: "flex",
+                          gap: 12,
+                          flexWrap: "wrap",
+                          marginTop: 8,
+                          fontSize: 13
+                        }}>
+                          <span>
+                            2 turnos:{" "}
+                            {
+                              grupo.decision_turno
+                                .horas_base_semana
+                            }
+                            {" h/sem"}
+                          </span>
+                          <span>
+                            3 turnos:{" "}
+                            {
+                              grupo.decision_turno
+                                .horas_3_turnos_semana
+                            }
+                            {" h/sem"}
+                          </span>
+                          <span>
+                            Estimado 2 turnos:{" "}
+                            {
+                              grupo.decision_turno
+                                .semanas_2_turnos ??
+                              "s/d"
+                            }
+                            {" semanas"}
+                          </span>
+                          <span>
+                            Estimado 3 turnos:{" "}
+                            {
+                              grupo.decision_turno
+                                .semanas_3_turnos ??
+                              "s/d"
+                            }
+                            {" semanas"}
+                          </span>
+                        </div>
+                      )
+                    }
+                  </div>
+                )}
               </section>
             ))}
           </div>
