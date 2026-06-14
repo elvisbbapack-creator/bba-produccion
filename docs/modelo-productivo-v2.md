@@ -285,6 +285,16 @@ denormalizado; no recorre sus subcolecciones de operaciones ni historiales.
 Ordena primero OTs atrasadas, luego proyecciones posteriores a la entrega y
 operaciones pendientes de estándar.
 
+El Planificador de Prioridades agrupa las OTs activas por el
+`subproceso_id` de su `cuello_carga`. Dentro de cada grupo prioriza DT
+disponibles o en proceso, riesgo de entrega y fecha comprometida. Las
+operaciones bloqueadas indican que primero debe resolverse su dependencia o RF,
+y las que no tienen estándar se excluyen de una proyección confiable. La
+secuencia es una recomendación y no cambia automáticamente ninguna OT.
+Las OTs creadas antes de `cuello_carga` pueden recalcularse manualmente desde
+el planificador. Esa acción lee una vez sus operaciones y actualiza el resumen;
+la consulta normal del planificador sigue sin recorrer subcolecciones.
+
 ### `configuracion_capacidad/{empresaId_plantaId}`
 
 ```text

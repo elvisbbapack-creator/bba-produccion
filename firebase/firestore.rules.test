@@ -350,6 +350,7 @@ service cloud.firestore {
           'cantidad_total_pendiente',
           'estimado_horas_restantes',
           'fecha_estimada_fin',
+          'cuello_carga',
           'fecha_real_inicio',
           'fecha_real_fin',
           'merma_total',

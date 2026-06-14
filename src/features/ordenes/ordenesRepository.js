@@ -99,6 +99,11 @@ export const calcularProyeccionOT = (
         "",
       subproceso_id:
         operacion.subproceso_id || "",
+      subproceso_nombre:
+        operacion.subproceso_nombre || "",
+      material_entrada_codigo:
+        operacion.material_entrada_codigo || "",
+      estado: operacion.estado || "",
       cantidad_pendiente: Number(
         operacion.cantidad_pendiente || 0
       ),

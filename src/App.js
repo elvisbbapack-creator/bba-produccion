@@ -59,6 +59,8 @@ import CalidadV2 from
   "./features/calidad/CalidadV2";
 import ParosV2 from
   "./features/paros/ParosV2";
+import PlanificadorPrioridadesV2 from
+  "./features/planificacion/PlanificadorPrioridadesV2";
 
 function App() {
   const esMobile =
@@ -1379,6 +1381,24 @@ const cargarTodosLosParos = async () => {
             </button>
           )}
 
+        {interfazV2Activa &&
+          autenticacionFirebaseActiva &&
+          puedeAdministrarV2(
+            usuarioSeleccionado
+          ) && (
+            <button
+              onClick={() =>
+                setPantalla("planificadorV2")
+              }
+              style={{
+                ...cardHome,
+                background: "#0F766E"
+              }}
+            >
+              Planificador de Prioridades (V2)
+            </button>
+          )}
+
         <button
           onClick={() => setPantalla("registro")}
           style={{
@@ -1690,6 +1710,21 @@ if (
 ) {
   return (
     <OrdenesTrabajoV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "planificadorV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <PlanificadorPrioridadesV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
