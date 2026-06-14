@@ -662,6 +662,30 @@ function CapacidadProcesosV2({
               </div>
             </div>
 
+            <div style={{
+              padding: 12,
+              borderRadius: 9,
+              background:
+                formulario.datos_validados
+                  ? "#F0FDF4"
+                  : "#FFFBEB",
+              color:
+                formulario.datos_validados
+                  ? "#166534"
+                  : "#92400E"
+            }}>
+              <strong>
+                {formulario.datos_validados
+                  ? "Esta capacidad habilitará recomendaciones."
+                  : "Capacidad provisional."}
+              </strong>
+              <div style={{ marginTop: 5 }}>
+                {formulario.datos_validados
+                  ? "El planificador podrá usar estos datos para comparar 2 turnos contra 3 turnos."
+                  : "Se puede guardar para avanzar, pero el planificador pedirá validarla antes de sugerir turnos."}
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={guardando}
@@ -751,6 +775,17 @@ function CapacidadProcesosV2({
                         ? "Datos validados en planta"
                         : "Datos provisionales"}
                     </div>
+                    {capacidad.estado_datos !==
+                      "validada" && (
+                      <small style={{
+                        display: "block",
+                        color: "#92400E",
+                        marginTop: 4
+                      }}>
+                        No se usará para recomendar 3er
+                        turno hasta validarla.
+                      </small>
+                    )}
                   </button>
                 ))}
               </div>

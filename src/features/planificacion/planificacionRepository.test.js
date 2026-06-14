@@ -76,6 +76,7 @@ test("sugiere mantener 2 turnos cuando la carga cabe en capacidad base", () => {
       capacidades: [
         {
           subproceso_id: "SP0003",
+          estado_datos: "validada",
           factor_capacidad: 1,
           operarios_requeridos_turno: 1
         }
@@ -100,6 +101,51 @@ test("sugiere mantener 2 turnos cuando la carga cabe en capacidad base", () => {
     horas_base_semana: 83.25,
     horas_3_turnos_semana: 135
   });
+});
+
+test("no usa capacidad provisional para decidir turnos", () => {
+  const plan = construirPlanPrioridades(
+    [
+      {
+        id: "ot-1",
+        codigo: "OT-CHI-000001",
+        correlativo: 1,
+        cuello_carga: {
+          subproceso_id: "SP0003",
+          cantidad_pendiente: 320,
+          horas_restantes: 4,
+          estado: "disponible"
+        }
+      }
+    ],
+    new Date("2026-06-15T12:00:00Z"),
+    {
+      plantaId: "chile",
+      capacidades: [
+        {
+          subproceso_id: "SP0003",
+          estado_datos: "provisional",
+          factor_capacidad: 1,
+          operarios_requeridos_turno: 1
+        }
+      ],
+      programacion: [
+        {
+          turno_id: "manana",
+          operario_codigo: "OP001",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "tarde",
+          operario_codigo: "OP002",
+          subprocesos_habilitados: ["SP0003"]
+        }
+      ]
+    }
+  );
+
+  expect(plan[0].decision_turno.tipo)
+    .toBe("configurar_capacidad");
 });
 
 test("sugiere activar 3er turno cuando la carga excede 2 turnos y noche esta cubierta", () => {

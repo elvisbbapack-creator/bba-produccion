@@ -364,7 +364,8 @@ export const construirPlanPrioridades = (
       const capacidad = (
         opciones.capacidades || []
       ).find(item =>
-        item.subproceso_id === subprocesoId
+        item.subproceso_id === subprocesoId &&
+        item.estado_datos === "validada"
       );
 
       return {

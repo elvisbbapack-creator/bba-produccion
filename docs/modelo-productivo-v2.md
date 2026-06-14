@@ -297,11 +297,12 @@ la consulta normal del planificador sigue sin recorrer subcolecciones.
 
 La recomendacion de turnos del planificador compara la carga conocida del
 subproceso contra la capacidad semanal estimada con 2 turnos y con 3 turnos.
-Usa `capacidad_procesos`, `programacion_turnos` de la semana vigente y los
-calendarios de Chile/Peru. El resultado puede ser mantener 2 turnos, activar
-3er turno, preparar dotacion nocturna, cubrir dotacion base o reforzar
-capacidad. La recomendacion no reasigna operarios ni modifica OTs; solo orienta
-la decision del jefe. Si falta capacidad, el planificador permite abrir
+Usa capacidades validadas de `capacidad_procesos`, `programacion_turnos` de la
+semana vigente y los calendarios de Chile/Peru. El resultado puede ser mantener
+2 turnos, activar 3er turno, preparar dotacion nocturna, cubrir dotacion base o
+reforzar capacidad. La recomendacion no reasigna operarios ni modifica OTs;
+solo orienta la decision del jefe. Si falta capacidad validada, el planificador
+permite abrir
 `Capacidad por Proceso (V2)` con la planta y el subproceso del cuello ya
 precargados para completar la configuracion. Si la capacidad existe pero falta
 dotacion base o nocturna, permite abrir `Programacion de Turnos (V2)` con la
