@@ -436,6 +436,13 @@ y noche. También indica cuántos operarios faltan en cada turno base; el
 simulador muestra la brecha exacta para que el jefe pueda reasignar o incorporar
 personal antes de ampliar el cuello de botella.
 
+La recomendación sigue un orden operativo. Si la capacidad está validada pero
+mañana o tarde no alcanzan la dotación objetivo, primero simula completar los
+turnos base y muestra el ahorro calendario y la nueva fecha estimada. Solo
+después evalúa habilitar la brecha nocturna y el ahorro adicional de un tercer
+turno. Esto evita usar horas extra para compensar una asignación base
+incompleta.
+
 Para cargar `capacidad_procesos`, el jefe puede elegir una OT V2 de referencia.
 La pantalla lee únicamente las operaciones de esa OT, deduplica sus
 subprocesos y completa códigos y nombres. Esto evita recorrer todas las rutas o

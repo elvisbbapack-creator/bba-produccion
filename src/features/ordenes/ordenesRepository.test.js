@@ -162,6 +162,115 @@ test("usa dotación calificada y bloquea tercer turno sin cobertura", () => {
     .toBe(false);
   expect(carga.turnos_escenario).toBe(2);
   expect(simulacion.recomienda_ampliar).toBe(false);
+  expect(simulacion.accion_prioritaria)
+    .toBe("validar_capacidad");
+});
+
+test("prioriza completar turnos base antes de ampliar noche", () => {
+  const simulacion = simularTurnosOT(
+    [
+      {
+        id: "DT0005",
+        operacion_codigo: "DT0005",
+        operacion_nombre: "Láser",
+        subproceso_id: "SP0003",
+        cantidad_pendiente: 9000,
+        unidades_por_hora: 100
+      }
+    ],
+    {
+      plantaId: "peru",
+      fechaReferencia:
+        new Date("2026-06-15T06:00:00"),
+      capacidades: [
+        {
+          subproceso_id: "SP0003",
+          maquinas_disponibles: 3,
+          operarios_disponibles_turno: 3,
+          operarios_por_recurso: 1,
+          disponibilidad_pct: 100,
+          estado_datos: "validada"
+        }
+      ],
+      programacionTurnos: [
+        {
+          turno_id: "manana",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "tarde",
+          subprocesos_habilitados: ["SP0003"]
+        },
+        {
+          turno_id: "noche",
+          subprocesos_habilitados: ["SP0003"]
+        }
+      ]
+    }
+  );
+
+  expect(simulacion.accion_prioritaria)
+    .toBe("completar_turnos_base");
+  expect(
+    simulacion.ahorro_dotacion_horas_calendario
+  ).toBeGreaterThan(0);
+  expect(
+    simulacion.fecha_fin_dotacion_objetivo
+      .getTime()
+  ).toBeLessThan(
+    simulacion.fecha_fin_base.getTime()
+  );
+});
+
+test("prioriza completar noche con turnos base cubiertos", () => {
+  const programacionTurnos = [
+    "manana",
+    "tarde"
+  ].flatMap(turno =>
+    [1, 2].map(indice => ({
+      turno_id: turno,
+      operario_id: `${turno}-${indice}`,
+      subprocesos_habilitados: ["SP0003"]
+    }))
+  );
+
+  const simulacion = simularTurnosOT(
+    [
+      {
+        id: "DT0005",
+        operacion_codigo: "DT0005",
+        subproceso_id: "SP0003",
+        cantidad_pendiente: 9000,
+        unidades_por_hora: 100
+      }
+    ],
+    {
+      plantaId: "peru",
+      fechaReferencia:
+        new Date("2026-06-15T06:00:00"),
+      capacidades: [
+        {
+          subproceso_id: "SP0003",
+          maquinas_disponibles: 2,
+          operarios_disponibles_turno: 2,
+          operarios_por_recurso: 1,
+          disponibilidad_pct: 100,
+          estado_datos: "validada"
+        }
+      ],
+      programacionTurnos
+    }
+  );
+
+  expect(simulacion.accion_prioritaria)
+    .toBe("completar_turno_noche");
+  expect(
+    simulacion.cuello_botella
+      .brechas_dotacion.faltantes_noche
+  ).toBe(2);
+  expect(
+    simulacion.ahorro_noche_adicional_horas
+  ).toBeGreaterThan(0);
 });
 
 test("no recomienda noche si falta un turno base calificado", () => {
@@ -301,6 +410,19 @@ test("usa los calendarios semanales de Chile y Perú", () => {
     }).toISOString()
   ).toBe(
     new Date("2026-06-19T06:30:00")
+      .toISOString()
+  );
+
+  expect(
+    sumarHorasEnCalendario({
+      fechaReferencia:
+        new Date("2026-06-15T06:00:00"),
+      horasTrabajo: 30,
+      plantaId: "peru",
+      horasTercerTurno: 8
+    }).toISOString()
+  ).toBe(
+    new Date("2026-06-16T12:00:00")
       .toISOString()
   );
 });

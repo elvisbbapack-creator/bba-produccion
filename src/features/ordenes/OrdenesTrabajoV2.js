@@ -1174,6 +1174,74 @@ function OrdenesTrabajoV2({
                             ? `No se recomienda el tercer turno: faltan ${simulacionTurnos.cuello_botella.brechas_dotacion.faltantes_noche} operarios habilitados en noche para ${simulacionTurnos.cuello_botella.subproceso_id}.`
                             : "El tercer turno no produce una mejora significativa en la fecha final actual."}
                       </div>
+                      {simulacionTurnos
+                        .accion_prioritaria ===
+                        "completar_turnos_base" && (
+                        <div style={{
+                          marginTop: 8,
+                          padding: 10,
+                          borderRadius: 8,
+                          background: "#EFF6FF",
+                          color: "#1D4ED8"
+                        }}>
+                          <strong>
+                            Acción prioritaria:
+                          </strong>
+                          {" reasignar o incorporar "}
+                          {
+                            simulacionTurnos
+                              .cuello_botella
+                              .brechas_dotacion
+                              .faltantes_manana
+                          }
+                          {" operarios en mañana y "}
+                          {
+                            simulacionTurnos
+                              .cuello_botella
+                              .brechas_dotacion
+                              .faltantes_tarde
+                          }
+                          {" en tarde. Ahorro potencial: "}
+                          {
+                            simulacionTurnos
+                              .ahorro_dotacion_horas_calendario
+                          }
+                          {" horas calendario; nuevo fin estimado "}
+                          {fechaHoraVisible(
+                            simulacionTurnos
+                              .fecha_fin_dotacion_objetivo
+                          )}
+                          .
+                        </div>
+                      )}
+                      {simulacionTurnos
+                        .accion_prioritaria ===
+                        "completar_turno_noche" && (
+                        <div style={{
+                          marginTop: 8,
+                          padding: 10,
+                          borderRadius: 8,
+                          background: "#EFF6FF",
+                          color: "#1D4ED8"
+                        }}>
+                          <strong>
+                            Acción prioritaria:
+                          </strong>
+                          {" habilitar "}
+                          {
+                            simulacionTurnos
+                              .cuello_botella
+                              .brechas_dotacion
+                              .faltantes_noche
+                          }
+                          {" operarios para noche. El tercer turno podría ahorrar "}
+                          {
+                            simulacionTurnos
+                              .ahorro_noche_adicional_horas
+                          }
+                          {" horas adicionales."}
+                        </div>
+                      )}
                       <div style={{
                         marginTop: 7
                       }}>

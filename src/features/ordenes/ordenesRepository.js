@@ -283,8 +283,11 @@ export const sumarHorasEnCalendario = ({
   let guardia = 0;
 
   while (pendiente > 0 && guardia < 370) {
+    const diaCalendario = new Date(cursor);
     const ventanasBase =
-      calendario.dias[cursor.getDay()] || [];
+      calendario.dias[
+        diaCalendario.getDay()
+      ] || [];
     const ventanas = [...ventanasBase];
 
     if (
@@ -294,7 +297,7 @@ export const sumarHorasEnCalendario = ({
       const tercerTurnoDia =
         calendario.tercer_turno_por_dia
           ? calendario.tercer_turno_por_dia[
-            cursor.getDay()
+            diaCalendario.getDay()
           ]
           : calendario.tercer_turno;
 
@@ -345,7 +348,7 @@ export const sumarHorasEnCalendario = ({
       cursor = finVentana;
     }
 
-    cursor = siguienteDia(cursor);
+    cursor = siguienteDia(diaCalendario);
     guardia += 1;
   }
 
@@ -438,9 +441,16 @@ export const simularTurnosOT = (
     });
     const velocidadEfectiva =
       velocidad * recursos.factor_capacidad;
+    const velocidadObjetivo =
+      velocidad *
+      recursosObjetivo.factor_capacidad;
     const horasTrabajo = velocidadEfectiva > 0
       ? pendiente / velocidadEfectiva
       : 0;
+    const horasTrabajoObjetivo =
+      velocidadObjetivo > 0
+        ? pendiente / velocidadObjetivo
+        : 0;
 
     return {
       id:
@@ -475,14 +485,31 @@ export const simularTurnosOT = (
         ),
       unidades_por_hora_efectivas:
         Number(velocidadEfectiva.toFixed(2)),
+      unidades_por_hora_objetivo:
+        Number(velocidadObjetivo.toFixed(2)),
       horas_trabajo: Number(
         horasTrabajo.toFixed(2)
       ),
+      horas_trabajo_dotacion_objetivo:
+        Number(horasTrabajoObjetivo.toFixed(2)),
       fecha_fin_base: sumarHorasEnCalendario({
         fechaReferencia,
         horasTrabajo,
         plantaId
-      })
+      }),
+      fecha_fin_dotacion_objetivo:
+        sumarHorasEnCalendario({
+          fechaReferencia,
+          horasTrabajo: horasTrabajoObjetivo,
+          plantaId
+        }),
+      fecha_fin_dotacion_y_noche:
+        sumarHorasEnCalendario({
+          fechaReferencia,
+          horasTrabajo: horasTrabajoObjetivo,
+          plantaId,
+          horasTercerTurno
+        })
     };
   });
   const cuello = [...cargas].sort(
@@ -490,6 +517,31 @@ export const simularTurnosOT = (
       b.fecha_fin_base.getTime() -
       a.fecha_fin_base.getTime()
   )[0] || null;
+  const fechaEscenarioPara = (
+    carga,
+    campoCuello
+  ) => carga.id === cuello?.id
+    ? carga[campoCuello]
+    : carga.fecha_fin_base;
+  const fechaFinDotacion = new Date(Math.max(
+    new Date(fechaReferencia).getTime(),
+    ...cargas.map(carga =>
+      fechaEscenarioPara(
+        carga,
+        "fecha_fin_dotacion_objetivo"
+      ).getTime()
+    )
+  ));
+  const fechaFinDotacionYNoche =
+    new Date(Math.max(
+      new Date(fechaReferencia).getTime(),
+      ...cargas.map(carga =>
+        fechaEscenarioPara(
+          carga,
+          "fecha_fin_dotacion_y_noche"
+        ).getTime()
+      )
+    ));
   const escenario = cargas.map(carga => {
     const ampliada =
       carga.id === cuello?.id &&
@@ -532,6 +584,35 @@ export const simularTurnosOT = (
     ) /
     (60 * 60 * 1000)
   );
+  const ahorroDotacionHoras = Math.max(
+    0,
+    (
+      fechaBase.getTime() -
+      fechaFinDotacion.getTime()
+    ) /
+    (60 * 60 * 1000)
+  );
+  const ahorroNocheAdicional = Math.max(
+    0,
+    (
+      fechaFinDotacion.getTime() -
+      fechaFinDotacionYNoche.getTime()
+    ) /
+    (60 * 60 * 1000)
+  );
+  const accionPrioritaria = !cuello
+    ? "sin_carga"
+    : !cuello.capacidad_validada
+      ? "validar_capacidad"
+      : !cuello.brechas_dotacion
+        .cobertura_base_suficiente
+        ? "completar_turnos_base"
+        : !cuello.brechas_dotacion
+          .cobertura_noche_suficiente
+          ? "completar_turno_noche"
+          : ahorroHoras >= 0.5
+            ? "ampliar_tercer_turno"
+            : "mantener_dos_turnos";
 
   return {
     planta_id: plantaId,
@@ -545,9 +626,20 @@ export const simularTurnosOT = (
     operaciones: escenario,
     fecha_fin_base: fechaBase,
     fecha_fin_escenario: fechaEscenario,
+    fecha_fin_dotacion_objetivo:
+      fechaFinDotacion,
+    fecha_fin_dotacion_y_noche:
+      fechaFinDotacionYNoche,
     ahorro_horas_calendario: Number(
       ahorroHoras.toFixed(2)
     ),
+    ahorro_dotacion_horas_calendario: Number(
+      ahorroDotacionHoras.toFixed(2)
+    ),
+    ahorro_noche_adicional_horas: Number(
+      ahorroNocheAdicional.toFixed(2)
+    ),
+    accion_prioritaria: accionPrioritaria,
     recomienda_ampliar:
       Boolean(cuello) &&
       cuello.capacidad_validada &&
