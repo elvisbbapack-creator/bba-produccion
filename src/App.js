@@ -14,6 +14,7 @@ import {
   query,
   orderBy,
   limit,
+  where,
 } from "firebase/firestore";
 import {
   BarChart,
@@ -295,18 +296,80 @@ const [unidadesHoraOperacionProducto,
     transition: "0.25s"
   };
 
+const cargarOrdenesTrabajo = useCallback(async () => {
+  if (
+    !autenticacionFirebaseActiva ||
+    !usuarioSeleccionado
+  ) {
+    const otSnap = await getDocs(
+      collection(db, "ordenes_trabajo")
+    );
+
+    return otSnap.docs.map(doc =>
+      normalizarOrdenTrabajo(doc.id, doc.data())
+    );
+  }
+
+  const filtrosBase = [
+    where(
+      "empresa_id",
+      "==",
+      usuarioSeleccionado.empresa_id
+    ),
+    where("modelo_version", "==", 2)
+  ];
+  const plantasPermitidas =
+    usuarioSeleccionado.rol === "gerencia"
+      ? []
+      : (usuarioSeleccionado.planta_ids || []);
+  if (
+    usuarioSeleccionado.rol !== "gerencia" &&
+    plantasPermitidas.length === 0
+  ) {
+    return [];
+  }
+
+  const consultas = plantasPermitidas.length > 0
+    ? plantasPermitidas.map(plantaId =>
+      query(
+        collection(db, "ordenes_trabajo"),
+        ...filtrosBase,
+        where("planta_id", "==", plantaId)
+      )
+    )
+    : [
+      query(
+        collection(db, "ordenes_trabajo"),
+        ...filtrosBase
+      )
+    ];
+  const snaps = await Promise.all(
+    consultas.map(consulta => getDocs(consulta))
+  );
+  const ordenesPorId = new Map();
+
+  snaps.forEach(snap => {
+    snap.docs.forEach(documento => {
+      ordenesPorId.set(
+        documento.id,
+        normalizarOrdenTrabajo(
+          documento.id,
+          documento.data()
+        )
+      );
+    });
+  });
+
+  return [...ordenesPorId.values()];
+}, [usuarioSeleccionado]);
+
 const cargarDatos = useCallback(async () => {
 
   try {
 
     await cargarProduccionActiva();
 
-    const otSnap = await getDocs(collection(db, "ordenes_trabajo"));
-    setOts(
-      otSnap.docs.map(doc =>
-        normalizarOrdenTrabajo(doc.id, doc.data())
-      )
-    );
+    setOts(await cargarOrdenesTrabajo());
 
     const procSnap = await getDocs(collection(db, "procesos"));
     setProcesos(procSnap.docs.map(doc => doc.data()));
@@ -410,7 +473,7 @@ setDashboard(
     console.error("ERROR:", error);
   }
 
-}, []);
+}, [cargarOrdenesTrabajo]);
 
 useEffect(() => {
 
