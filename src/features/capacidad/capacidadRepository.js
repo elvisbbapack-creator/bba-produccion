@@ -68,6 +68,41 @@ export const calcularCapacidadRecursos = ({
   };
 };
 
+export const extraerSubprocesosOperaciones = (
+  operaciones = []
+) => {
+  const unicos = new Map();
+
+  operaciones.forEach(operacion => {
+    const subprocesoId = normalizarCodigo(
+      operacion.subproceso_id
+    );
+
+    if (!subprocesoId || unicos.has(subprocesoId)) {
+      return;
+    }
+
+    unicos.set(subprocesoId, {
+      proceso_id: normalizarCodigo(
+        operacion.proceso_id
+      ),
+      proceso_nombre: limpiarTexto(
+        operacion.proceso_nombre
+      ),
+      subproceso_id: subprocesoId,
+      subproceso_nombre: limpiarTexto(
+        operacion.subproceso_nombre
+      )
+    });
+  });
+
+  return [...unicos.values()].sort((a, b) =>
+    a.subproceso_id.localeCompare(
+      b.subproceso_id
+    )
+  );
+};
+
 export const prepararCapacidadProceso = ({
   empresaId,
   plantaId,

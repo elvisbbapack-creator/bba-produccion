@@ -6,10 +6,15 @@ import {
 } from "react";
 import {
   calcularCapacidadRecursos,
+  extraerSubprocesosOperaciones,
   guardarCapacidadProceso,
   listarCapacidadesProceso,
   validarCapacidadProceso
 } from "./capacidadRepository";
+import {
+  listarOperacionesOT,
+  listarOrdenesV2
+} from "../ordenes/ordenesRepository";
 
 const estadoInicial = {
   proceso_id: "",
@@ -43,6 +48,11 @@ function CapacidadProcesosV2({
   const [formulario, setFormulario] =
     useState(estadoInicial);
   const [capacidades, setCapacidades] = useState([]);
+  const [ordenes, setOrdenes] = useState([]);
+  const [ordenReferenciaId,
+    setOrdenReferenciaId] = useState("");
+  const [subprocesosReferencia,
+    setSubprocesosReferencia] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -52,13 +62,23 @@ function CapacidadProcesosV2({
     try {
       setCargando(true);
       setError("");
-      setCapacidades(
-        await listarCapacidadesProceso(
+      const [
+        capacidadesData,
+        ordenesData
+      ] = await Promise.all([
+        listarCapacidadesProceso(
+          db,
+          perfil.empresa_id,
+          plantaId
+        ),
+        listarOrdenesV2(
           db,
           perfil.empresa_id,
           plantaId
         )
-      );
+      ]);
+      setCapacidades(capacidadesData);
+      setOrdenes(ordenesData);
     } catch (fallo) {
       setError(
         fallo?.message ||
@@ -94,6 +114,58 @@ function CapacidadProcesosV2({
     }));
     setError("");
     setMensaje("");
+  };
+
+  const seleccionarOrdenReferencia = async (
+    otId
+  ) => {
+    setOrdenReferenciaId(otId);
+    setSubprocesosReferencia([]);
+    setError("");
+    setMensaje("");
+
+    if (!otId) {
+      return;
+    }
+
+    try {
+      const operaciones =
+        await listarOperacionesOT(
+          db,
+          perfil.empresa_id,
+          plantaId,
+          otId
+        );
+
+      setSubprocesosReferencia(
+        extraerSubprocesosOperaciones(operaciones)
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudieron leer los subprocesos de la OT."
+      );
+    }
+  };
+
+  const seleccionarSubproceso = codigo => {
+    const subproceso =
+      subprocesosReferencia.find(
+        item => item.subproceso_id === codigo
+      );
+
+    if (!subproceso) {
+      return;
+    }
+
+    setFormulario(actual => ({
+      ...actual,
+      ...subproceso
+    }));
+    setError("");
+    setMensaje(
+      `${codigo} cargado desde la OT de referencia.`
+    );
   };
 
   const editar = capacidad => {
@@ -207,6 +279,8 @@ function CapacidadProcesosV2({
             onChange={evento => {
               setPlantaId(evento.target.value);
               setFormulario(estadoInicial);
+              setOrdenReferenciaId("");
+              setSubprocesosReferencia([]);
             }}
             style={{ ...campo, marginTop: 6 }}
           >
@@ -263,6 +337,81 @@ function CapacidadProcesosV2({
             <h2 style={{ margin: 0 }}>
               Configurar subproceso
             </h2>
+            <label>
+              OT de referencia
+              <select
+                value={ordenReferenciaId}
+                onChange={evento =>
+                  seleccionarOrdenReferencia(
+                    evento.target.value
+                  )
+                }
+                style={{ ...campo, marginTop: 5 }}
+              >
+                <option value="">
+                  Seleccionar OT
+                </option>
+                {ordenes.map(orden => (
+                  <option
+                    key={orden.id}
+                    value={orden.id}
+                  >
+                    {orden.codigo}
+                    {" - "}
+                    {orden.producto_codigo}
+                    {" · "}
+                    {orden.producto_nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {ordenReferenciaId && (
+              <label>
+                Subproceso encontrado
+                <select
+                  value=""
+                  onChange={evento =>
+                    seleccionarSubproceso(
+                      evento.target.value
+                    )
+                  }
+                  style={{ ...campo, marginTop: 5 }}
+                >
+                  <option value="">
+                    Seleccionar subproceso
+                  </option>
+                  {subprocesosReferencia.map(
+                    subproceso => (
+                      <option
+                        key={
+                          subproceso.subproceso_id
+                        }
+                        value={
+                          subproceso.subproceso_id
+                        }
+                      >
+                        {subproceso.subproceso_id}
+                        {" - "}
+                        {
+                          subproceso
+                            .subproceso_nombre
+                        }
+                      </option>
+                    )
+                  )}
+                </select>
+                {subprocesosReferencia.length ===
+                  0 && (
+                  <small style={{
+                    display: "block",
+                    color: "#B45309",
+                    marginTop: 5
+                  }}>
+                    La OT no contiene subprocesos V2.
+                  </small>
+                )}
+              </label>
+            )}
             {[
               ["proceso_id", "Código proceso", "PR0001"],
               [

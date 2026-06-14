@@ -392,6 +392,11 @@ todas las rutas de productos para construir el catálogo. La matriz de cobertura
 muestra por subproceso cuántos operarios habilitados existen en mañana, tarde y
 noche, y marca brechas en los dos turnos base.
 
+Para cargar `capacidad_procesos`, el jefe puede elegir una OT V2 de referencia.
+La pantalla lee únicamente las operaciones de esa OT, deduplica sus
+subprocesos y completa códigos y nombres. Esto evita recorrer todas las rutas o
+todas las OT; la entrada manual queda disponible para subprocesos nuevos.
+
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 
 Es la copia congelada de una operacion de ruta:

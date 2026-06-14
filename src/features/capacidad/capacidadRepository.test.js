@@ -1,5 +1,6 @@
 import {
   calcularCapacidadRecursos,
+  extraerSubprocesosOperaciones,
   prepararCapacidadProceso,
   validarCapacidadProceso
 } from "./capacidadRepository";
@@ -21,6 +22,44 @@ test("limita los recursos paralelos por máquinas y dotación", () => {
     factor_capacidad: 1.8,
     operarios_requeridos_turno: 4
   });
+});
+
+test("deduplica subprocesos de una OT de referencia", () => {
+  expect(
+    extraerSubprocesosOperaciones([
+      {
+        proceso_id: "pr0001",
+        proceso_nombre: "Corte",
+        subproceso_id: "sp0003",
+        subproceso_nombre: "Láser"
+      },
+      {
+        proceso_id: "PR0001",
+        proceso_nombre: "Corte",
+        subproceso_id: "SP0003",
+        subproceso_nombre: "Láser"
+      },
+      {
+        proceso_id: "PR0002",
+        proceso_nombre: "Doblez",
+        subproceso_id: "SP0005",
+        subproceso_nombre: "Doblez lata"
+      }
+    ])
+  ).toEqual([
+    {
+      proceso_id: "PR0001",
+      proceso_nombre: "Corte",
+      subproceso_id: "SP0003",
+      subproceso_nombre: "Láser"
+    },
+    {
+      proceso_id: "PR0002",
+      proceso_nombre: "Doblez",
+      subproceso_id: "SP0005",
+      subproceso_nombre: "Doblez lata"
+    }
+  ]);
 });
 
 test("prepara una capacidad identificada por subproceso", () => {
