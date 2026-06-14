@@ -44,6 +44,7 @@ function ProgramacionTurnosV2({
   db,
   perfil,
   onVolver,
+  textoVolver = "Volver a Ingeniería",
   contextoInicial = null
 }) {
   const plantas = perfil.planta_ids || [];
@@ -257,7 +258,7 @@ function ProgramacionTurnosV2({
             fontWeight: "bold"
           }}
         >
-          Volver a Ingeniería
+          {textoVolver}
         </button>
 
         <h1 style={{ marginBottom: 4 }}>

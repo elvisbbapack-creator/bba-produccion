@@ -1737,7 +1737,18 @@ if (
       db={db}
       perfil={usuarioSeleccionado}
       contextoInicial={contextoTurnosV2}
-      onVolver={() => setPantalla("home")}
+      textoVolver={
+        contextoTurnosV2
+          ? "Volver al Planificador"
+          : "Volver a Ingeniería"
+      }
+      onVolver={() =>
+        setPantalla(
+          contextoTurnosV2
+            ? "planificadorV2"
+            : "home"
+        )
+      }
     />
   );
 }
@@ -1753,7 +1764,18 @@ if (
       db={db}
       perfil={usuarioSeleccionado}
       contextoInicial={contextoCapacidadV2}
-      onVolver={() => setPantalla("home")}
+      textoVolver={
+        contextoCapacidadV2
+          ? "Volver al Planificador"
+          : "Volver a Ingeniería"
+      }
+      onVolver={() =>
+        setPantalla(
+          contextoCapacidadV2
+            ? "planificadorV2"
+            : "home"
+        )
+      }
     />
   );
 }

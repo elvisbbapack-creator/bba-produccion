@@ -44,6 +44,7 @@ function CapacidadProcesosV2({
   db,
   perfil,
   onVolver,
+  textoVolver = "Volver a Ingeniería",
   contextoInicial = null
 }) {
   const plantas = perfil.planta_ids || [];
@@ -324,7 +325,7 @@ function CapacidadProcesosV2({
             fontWeight: "bold"
           }}
         >
-          Volver a Ingeniería
+          {textoVolver}
         </button>
 
         <h1 style={{ marginBottom: 4 }}>

@@ -306,7 +306,9 @@ permite abrir
 `Capacidad por Proceso (V2)` con la planta y el subproceso del cuello ya
 precargados para completar la configuracion. Si la capacidad existe pero falta
 dotacion base o nocturna, permite abrir `Programacion de Turnos (V2)` con la
-planta, el subproceso y el turno sugerido precargados.
+planta, el subproceso y el turno sugerido precargados. En ambos casos, al venir
+desde el planificador la pantalla permite volver directamente al planificador
+para recalcular la decision.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 
