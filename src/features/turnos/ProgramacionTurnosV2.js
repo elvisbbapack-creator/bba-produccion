@@ -294,6 +294,41 @@ function ProgramacionTurnosV2({
             {mensaje}
           </div>
         )}
+        {contextoInicial && (
+          <div style={{
+            background: "#EEF2FF",
+            color: "#3730A3",
+            padding: 12,
+            borderRadius: 9,
+            marginBottom: 14,
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap"
+          }}>
+            <span>
+              Estás programando dotación solicitada por
+              el planificador. Al terminar, vuelve para
+              revisar si el cuello sigue activo.
+            </span>
+            <button
+              type="button"
+              onClick={onVolver}
+              style={{
+                border: "none",
+                borderRadius: 8,
+                padding: "8px 11px",
+                background: "#4338CA",
+                color: "white",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              Revisar decisión en el Planificador
+            </button>
+          </div>
+        )}
 
         <div style={{
           display: "grid",

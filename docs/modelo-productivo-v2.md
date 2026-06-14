@@ -308,7 +308,8 @@ precargados para completar la configuracion. Si la capacidad existe pero falta
 dotacion base o nocturna, permite abrir `Programacion de Turnos (V2)` con la
 planta, el subproceso y el turno sugerido precargados. En ambos casos, al venir
 desde el planificador la pantalla permite volver directamente al planificador
-para recalcular la decision.
+para recalcular la decision y muestra una franja contextual con ese siguiente
+paso.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 

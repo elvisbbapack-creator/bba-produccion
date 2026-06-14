@@ -387,6 +387,41 @@ function CapacidadProcesosV2({
             {mensaje}
           </div>
         )}
+        {contextoInicial && (
+          <div style={{
+            background: "#EFF6FF",
+            color: "#1D4ED8",
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 14,
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap"
+          }}>
+            <span>
+              Estás configurando la capacidad solicitada
+              por el planificador. Al terminar, vuelve
+              para recalcular la decisión.
+            </span>
+            <button
+              type="button"
+              onClick={onVolver}
+              style={{
+                border: "none",
+                borderRadius: 8,
+                padding: "8px 11px",
+                background: "#1D4ED8",
+                color: "white",
+                fontWeight: "bold",
+                cursor: "pointer"
+              }}
+            >
+              Revisar decisión en el Planificador
+            </button>
+          </div>
+        )}
 
         <div style={{
           display: "grid",
