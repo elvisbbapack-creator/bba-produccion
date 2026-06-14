@@ -387,6 +387,11 @@ mañana y tarde cuando ambos están cubiertos. Solo recomienda ampliar a noche
 cuando mañana y tarde tienen cobertura y además existe dotación nocturna
 habilitada suficiente para operar los recursos calculados.
 
+La programación semanal toma su selector de `capacidad_procesos`, evitando leer
+todas las rutas de productos para construir el catálogo. La matriz de cobertura
+muestra por subproceso cuántos operarios habilitados existen en mañana, tarde y
+noche, y marca brechas en los dos turnos base.
+
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 
 Es la copia congelada de una operacion de ruta:

@@ -1,6 +1,7 @@
 import {
   calcularCoberturaSubproceso,
   calcularJornadaSemanal,
+  construirMatrizCobertura,
   datosTurnoParaSesion,
   lunesDeSemana,
   normalizarSubprocesosHabilitados,
@@ -21,6 +22,49 @@ test("calcula horas extra del turno noche en Chile", () => {
     horas_efectivas: 48,
     horas_ordinarias: 48,
     horas_extra: 0
+  });
+});
+
+test("construye la matriz de cobertura por subproceso", () => {
+  const matriz = construirMatrizCobertura(
+    [
+      {
+        subproceso_id: "SP0001",
+        subproceso_nombre: "Prensa"
+      },
+      {
+        subproceso_id: "SP0003",
+        subproceso_nombre: "Láser"
+      }
+    ],
+    [
+      {
+        turno_id: "manana",
+        subprocesos_habilitados: [
+          "SP0001",
+          "SP0003"
+        ]
+      },
+      {
+        turno_id: "tarde",
+        subprocesos_habilitados: ["SP0001"]
+      }
+    ]
+  );
+
+  expect(matriz[0]).toMatchObject({
+    subproceso_id: "SP0001",
+    manana: 1,
+    tarde: 1,
+    noche: 0,
+    turnos_base_completos: true
+  });
+  expect(matriz[1]).toMatchObject({
+    subproceso_id: "SP0003",
+    manana: 1,
+    tarde: 0,
+    noche: 0,
+    turnos_base_completos: false
   });
 });
 

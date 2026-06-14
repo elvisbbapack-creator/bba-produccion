@@ -6,10 +6,15 @@ import {
 } from "react";
 import {
   TURNOS_PLANTA,
+  construirMatrizCobertura,
   guardarProgramacionTurno,
   listarProgramacionSemanal,
-  lunesDeSemana
+  lunesDeSemana,
+  normalizarSubprocesosHabilitados
 } from "./turnosRepository";
+import {
+  listarCapacidadesProceso
+} from "../capacidad/capacidadRepository";
 
 const campo = {
   width: "100%",
@@ -47,6 +52,8 @@ function ProgramacionTurnosV2({
     useState(lunesDeSemana());
   const [programacion, setProgramacion] =
     useState([]);
+  const [subprocesos, setSubprocesos] =
+    useState([]);
   const [formulario, setFormulario] =
     useState(formularioInicial);
   const [guardando, setGuardando] =
@@ -65,14 +72,24 @@ function ProgramacionTurnosV2({
     try {
       setCargando(true);
       setError("");
-      setProgramacion(
-        await listarProgramacionSemanal(
+      const [
+        programacionData,
+        subprocesosData
+      ] = await Promise.all([
+        listarProgramacionSemanal(
           db,
           perfil.empresa_id,
           plantaId,
           semanaInicio
+        ),
+        listarCapacidadesProceso(
+          db,
+          perfil.empresa_id,
+          plantaId
         )
-      );
+      ]);
+      setProgramacion(programacionData);
+      setSubprocesos(subprocesosData);
     } catch (fallo) {
       setError(
         fallo?.message ||
@@ -111,6 +128,19 @@ function ProgramacionTurnosV2({
       total + Number(item.horas_extra || 0),
     0
   );
+  const subprocesosSeleccionados = useMemo(
+    () => normalizarSubprocesosHabilitados(
+      formulario.subprocesos_habilitados
+    ),
+    [formulario.subprocesos_habilitados]
+  );
+  const matrizCobertura = useMemo(
+    () => construirMatrizCobertura(
+      subprocesos,
+      programacion
+    ),
+    [programacion, subprocesos]
+  );
 
   const actualizar = (nombre, valor) => {
     setFormulario(actual => ({
@@ -119,6 +149,23 @@ function ProgramacionTurnosV2({
     }));
     setError("");
     setMensaje("");
+  };
+
+  const alternarSubproceso = codigo => {
+    const normalizados = new Set(
+      subprocesosSeleccionados
+    );
+
+    if (normalizados.has(codigo)) {
+      normalizados.delete(codigo);
+    } else {
+      normalizados.add(codigo);
+    }
+
+    actualizar(
+      "subprocesos_habilitados",
+      [...normalizados].sort().join(", ")
+    );
   };
 
   const guardar = async evento => {
@@ -320,32 +367,87 @@ function ProgramacionTurnosV2({
                   ))}
                 </select>
               </label>
-              <label>
-                Subprocesos habilitados
-                <input
-                  value={
-                    formulario
-                      .subprocesos_habilitados
-                  }
-                  onChange={evento =>
-                    actualizar(
-                      "subprocesos_habilitados",
-                      evento.target.value
-                    )
-                  }
-                  placeholder="SP0001, SP0003"
-                  style={campo}
-                />
-                <small style={{
-                  display: "block",
-                  color: "#64748B",
-                  marginTop: 4
-                }}>
-                  Separa los códigos con comas. Esta
-                  competencia quedará congelada para la
-                  semana programada.
-                </small>
-              </label>
+              <fieldset style={{
+                border: "1px solid #CBD5E1",
+                borderRadius: 8,
+                padding: 10
+              }}>
+                <legend>
+                  Subprocesos habilitados
+                </legend>
+                {subprocesos.length > 0 ? (
+                  <div style={{
+                    display: "grid",
+                    gap: 8
+                  }}>
+                    {subprocesos.map(subproceso => (
+                      <label
+                        key={subproceso.id}
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "flex-start"
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={
+                            subprocesosSeleccionados
+                              .includes(
+                                subproceso
+                                  .subproceso_id
+                              )
+                          }
+                          onChange={() =>
+                            alternarSubproceso(
+                              subproceso
+                                .subproceso_id
+                            )
+                          }
+                        />
+                        <span>
+                          <strong>
+                            {
+                              subproceso
+                                .subproceso_id
+                            }
+                          </strong>
+                          {" - "}
+                          {
+                            subproceso
+                              .subproceso_nombre
+                          }
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      value={
+                        formulario
+                          .subprocesos_habilitados
+                      }
+                      onChange={evento =>
+                        actualizar(
+                          "subprocesos_habilitados",
+                          evento.target.value
+                        )
+                      }
+                      placeholder="SP0001, SP0003"
+                      style={campo}
+                    />
+                    <small style={{
+                      display: "block",
+                      color: "#B45309",
+                      marginTop: 5
+                    }}>
+                      Configura primero Capacidad por
+                      Proceso para habilitar el selector.
+                    </small>
+                  </>
+                )}
+              </fieldset>
               <button
                 type="submit"
                 disabled={guardando}
@@ -480,6 +582,111 @@ function ProgramacionTurnosV2({
             )}
           </section>
         </div>
+
+        <section style={{
+          ...tarjeta,
+          marginTop: 20,
+          overflowX: "auto"
+        }}>
+          <h2 style={{ marginTop: 0 }}>
+            Matriz de cobertura calificada
+          </h2>
+          <p style={{ color: "#64748B" }}>
+            Permite detectar subprocesos sin cobertura
+            antes de liberar o ampliar turnos.
+          </p>
+          {matrizCobertura.length === 0 ? (
+            <p style={{ color: "#B45309" }}>
+              No hay capacidades por proceso configuradas
+              para esta planta.
+            </p>
+          ) : (
+            <table style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              minWidth: 620
+            }}>
+              <thead>
+                <tr>
+                  {[
+                    "Subproceso",
+                    "Mañana",
+                    "Tarde",
+                    "Noche",
+                    "Estado"
+                  ].map(titulo => (
+                    <th
+                      key={titulo}
+                      style={{
+                        padding: 9,
+                        textAlign: "left",
+                        borderBottom:
+                          "2px solid #CBD5E1"
+                      }}
+                    >
+                      {titulo}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {matrizCobertura.map(item => {
+                  const completa =
+                    item.turnos_base_completos;
+
+                  return (
+                    <tr key={item.subproceso_id}>
+                      <td style={{
+                        padding: 9,
+                        borderBottom:
+                          "1px solid #E2E8F0"
+                      }}>
+                        <strong>
+                          {item.subproceso_id}
+                        </strong>
+                        {" - "}
+                        {item.subproceso_nombre}
+                      </td>
+                      {[
+                        item.manana,
+                        item.tarde,
+                        item.noche
+                      ].map((cantidad, indice) => (
+                        <td
+                          key={indice}
+                          style={{
+                            padding: 9,
+                            borderBottom:
+                              "1px solid #E2E8F0",
+                            color: cantidad > 0
+                              ? "#166534"
+                              : "#B91C1C",
+                            fontWeight: "bold"
+                          }}
+                        >
+                          {cantidad}
+                        </td>
+                      ))}
+                      <td style={{
+                        padding: 9,
+                        borderBottom:
+                          "1px solid #E2E8F0",
+                        color: completa
+                          ? "#166534"
+                          : "#B91C1C",
+                        fontWeight: "bold"
+                      }}>
+                        {completa
+                          ? "Base cubierta"
+                          : "Brecha en turno base"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </section>
       </div>
     </div>
   );

@@ -67,6 +67,19 @@ export const calcularCoberturaSubproceso = (
   };
 };
 
+export const construirMatrizCobertura = (
+  subprocesos = [],
+  programacion = []
+) => subprocesos.map(subproceso => ({
+  subproceso_id: subproceso.subproceso_id,
+  subproceso_nombre:
+    subproceso.subproceso_nombre || "",
+  ...calcularCoberturaSubproceso(
+    programacion,
+    subproceso.subproceso_id
+  )
+}));
+
 export const TURNOS_PLANTA = {
   chile: {
     limite_semanal: 42,
