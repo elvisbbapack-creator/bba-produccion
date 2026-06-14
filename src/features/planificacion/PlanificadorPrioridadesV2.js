@@ -63,7 +63,8 @@ const fechaVisible = valor => {
 function PlanificadorPrioridadesV2({
   db,
   perfil,
-  onVolver
+  onVolver,
+  onConfigurarCapacidad
 }) {
   const plantas = perfil.planta_ids || [];
   const [plantaId, setPlantaId] =
@@ -585,6 +586,47 @@ function PlanificadorPrioridadesV2({
                         </div>
                       )
                     }
+                    {[
+                      "configurar_capacidad",
+                      "reforzar_capacidad"
+                    ].includes(
+                      grupo.decision_turno.tipo
+                    ) &&
+                      onConfigurarCapacidad && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onConfigurarCapacidad({
+                            planta_id: plantaId,
+                            proceso_id:
+                              grupo.siguiente_ot
+                                ?.cuello_carga
+                                ?.proceso_id || "",
+                            proceso_nombre:
+                              grupo.siguiente_ot
+                                ?.cuello_carga
+                                ?.proceso_nombre || "",
+                            subproceso_id:
+                              grupo.subproceso_id,
+                            subproceso_nombre:
+                              grupo.subproceso_nombre
+                          })
+                        }
+                        style={{
+                          marginTop: 10,
+                          border: "none",
+                          borderRadius: 8,
+                          padding: "9px 12px",
+                          background: "#0E7490",
+                          color: "white",
+                          fontWeight: "bold",
+                          cursor: "pointer"
+                        }}
+                      >
+                        Configurar capacidad de{" "}
+                        {grupo.subproceso_id}
+                      </button>
+                    )}
                   </div>
                 )}
               </section>

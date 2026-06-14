@@ -110,6 +110,8 @@ function App() {
   const [passwordAcceso, setPasswordAcceso] = useState("");
   const [errorAcceso, setErrorAcceso] = useState("");
   const [ingresando, setIngresando] = useState(false);
+  const [contextoCapacidadV2,
+    setContextoCapacidadV2] = useState(null);
   const sesionCargaId =
     autenticacionFirebaseActiva
       ? usuarioSeleccionado?.id || ""
@@ -1670,9 +1672,10 @@ const cargarTodosLosParos = async () => {
               usuarioSeleccionado
             ) && (
               <button
-                onClick={() =>
-                  setPantalla("capacidadV2")
-                }
+                onClick={() => {
+                  setContextoCapacidadV2(null);
+                  setPantalla("capacidadV2");
+                }}
                 style={{
                   ...cardHome,
                   background: "#0E7490"
@@ -1745,6 +1748,7 @@ if (
     <CapacidadProcesosV2
       db={db}
       perfil={usuarioSeleccionado}
+      contextoInicial={contextoCapacidadV2}
       onVolver={() => setPantalla("home")}
     />
   );
@@ -1791,6 +1795,10 @@ if (
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
+      onConfigurarCapacidad={contexto => {
+        setContextoCapacidadV2(contexto);
+        setPantalla("capacidadV2");
+      }}
     />
   );
 }

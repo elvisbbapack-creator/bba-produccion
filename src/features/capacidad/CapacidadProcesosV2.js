@@ -43,7 +43,8 @@ const campo = {
 function CapacidadProcesosV2({
   db,
   perfil,
-  onVolver
+  onVolver,
+  contextoInicial = null
 }) {
   const plantas = perfil.planta_ids || [];
   const [plantaId, setPlantaId] = useState(
@@ -99,6 +100,42 @@ function CapacidadProcesosV2({
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    if (!contextoInicial) {
+      return;
+    }
+
+    const plantaContexto =
+      contextoInicial.planta_id || plantas[0] || "";
+
+    if (plantaContexto) {
+      setPlantaId(plantaContexto);
+    }
+
+    setFormulario(actual => ({
+      ...actual,
+      proceso_id:
+        contextoInicial.proceso_id ||
+        actual.proceso_id,
+      proceso_nombre:
+        contextoInicial.proceso_nombre ||
+        actual.proceso_nombre,
+      subproceso_id:
+        contextoInicial.subproceso_id ||
+        actual.subproceso_id,
+      subproceso_nombre:
+        contextoInicial.subproceso_nombre ||
+        actual.subproceso_nombre,
+      motivo: actual.motivo ||
+        "Configuracion desde planificador"
+    }));
+    setMensaje(
+      contextoInicial.subproceso_id
+        ? `${contextoInicial.subproceso_id} cargado desde el planificador.`
+        : "Contexto cargado desde el planificador."
+    );
+  }, [contextoInicial]);
 
   const calculo = useMemo(
     () => calcularCapacidadRecursos({

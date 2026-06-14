@@ -97,6 +97,10 @@ export const calcularProyeccionOT = (
         operacion.operacion_nombre ||
         operacion.nombre ||
         "",
+      proceso_id:
+        operacion.proceso_id || "",
+      proceso_nombre:
+        operacion.proceso_nombre || "",
       subproceso_id:
         operacion.subproceso_id || "",
       subproceso_nombre:

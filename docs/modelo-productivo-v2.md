@@ -301,7 +301,9 @@ Usa `capacidad_procesos`, `programacion_turnos` de la semana vigente y los
 calendarios de Chile/Peru. El resultado puede ser mantener 2 turnos, activar
 3er turno, preparar dotacion nocturna, cubrir dotacion base o reforzar
 capacidad. La recomendacion no reasigna operarios ni modifica OTs; solo orienta
-la decision del jefe.
+la decision del jefe. Si falta capacidad, el planificador permite abrir
+`Capacidad por Proceso (V2)` con la planta y el subproceso del cuello ya
+precargados para completar la configuracion.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 
