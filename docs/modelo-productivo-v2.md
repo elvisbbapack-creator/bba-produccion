@@ -426,6 +426,11 @@ El estándar se interpreta como unidades por hora de un recurso productivo
 capacidad entre equipos disponibles y dotación disponible. Si un subproceso aún
 no tiene configuración, la simulación usa de forma conservadora un recurso al
 100% y lo muestra como pendiente de configurar.
+`operarios_por_recurso` representa la dotacion real de una estacion. Si la
+estacion trabaja con operario principal y ayudante, se registra `2`; si requiere
+dos ayudantes, se registra `3`. Esto reduce los recursos paralelos disponibles
+cuando la dotacion no alcanza y aumenta `operarios_requeridos_turno`, afectando
+directamente la brecha que ve el Planificador.
 
 Una capacidad solo queda `validada` cuando el jefe confirma que máquinas,
 dotación y disponibilidad fueron verificadas en planta. Las capacidades

@@ -70,6 +70,27 @@ export const calcularCapacidadRecursos = ({
   };
 };
 
+export const describirDotacionPorRecurso = (
+  operariosPorRecurso = 1
+) => {
+  const dotacion = numeroEnteroPositivo(
+    operariosPorRecurso
+  )
+    ? Number(operariosPorRecurso)
+    : 1;
+  const ayudantes = Math.max(0, dotacion - 1);
+
+  return {
+    operarios_por_recurso: dotacion,
+    operario_principal: 1,
+    ayudantes_por_recurso: ayudantes,
+    requiere_ayudante: ayudantes > 0,
+    texto: ayudantes > 0
+      ? `1 operario principal + ${ayudantes} ayudante${ayudantes === 1 ? "" : "s"} por estación.`
+      : "1 operario por estación, sin ayudante requerido."
+  };
+};
+
 export const extraerSubprocesosOperaciones = (
   operaciones = []
 ) => {
@@ -235,6 +256,10 @@ export const construirGuiaValidacionCapacidad = ({
     : completitud.completa
       ? "La OT de referencia quedara lista para recalcular decisiones."
       : `La OT de referencia aun tendra ${completitud.provisionales} provisionales y ${completitud.faltantes} faltantes.`;
+  const dotacionEstacion =
+    describirDotacionPorRecurso(
+      datos.operarios_por_recurso
+    );
 
   return {
     titulo: validada
@@ -248,6 +273,7 @@ export const construirGuiaValidacionCapacidad = ({
       `${calculo.recursos_paralelos} recursos × ${calculo.disponibilidad_pct}% = ${calculo.factor_capacidad.toFixed(2)} veces el estandar.`,
     dotacion_turno:
       `${calculo.operarios_requeridos_turno} operarios por turno.`,
+    dotacion_estacion: dotacionEstacion.texto,
     impacto_planificador: impactoPlanificador,
     estado_referencia: estadoReferencia,
     advertencias: [

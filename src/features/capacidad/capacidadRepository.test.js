@@ -2,6 +2,7 @@ import {
   calcularCapacidadRecursos,
   construirGuiaValidacionCapacidad,
   construirMensajeGuardadoCapacidad,
+  describirDotacionPorRecurso,
   evaluarCompletitudCapacidad,
   extraerSubprocesosOperaciones,
   prepararCapacidadProceso,
@@ -25,6 +26,32 @@ test("limita los recursos paralelos por máquinas y dotación", () => {
     recursos_paralelos: 2,
     factor_capacidad: 1.8,
     operarios_requeridos_turno: 4
+  });
+});
+
+test("modela estaciones que requieren operario principal y ayudante", () => {
+  expect(
+    describirDotacionPorRecurso(2)
+  ).toMatchObject({
+    operarios_por_recurso: 2,
+    operario_principal: 1,
+    ayudantes_por_recurso: 1,
+    requiere_ayudante: true,
+    texto:
+      "1 operario principal + 1 ayudante por estación."
+  });
+
+  expect(
+    calcularCapacidadRecursos({
+      maquinasDisponibles: 3,
+      operariosDisponibles: 3,
+      operariosPorRecurso: 2,
+      disponibilidadPct: 100
+    })
+  ).toMatchObject({
+    recursos_paralelos: 1,
+    factor_capacidad: 1,
+    operarios_requeridos_turno: 2
   });
 });
 

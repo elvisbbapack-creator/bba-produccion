@@ -692,7 +692,7 @@ function CapacidadProcesosV2({
               ],
               [
                 "operarios_por_recurso",
-                "Operarios necesarios por recurso"
+                "Dotación por estación (operario + ayudantes)"
               ],
               [
                 "disponibilidad_pct",
@@ -719,6 +719,17 @@ function CapacidadProcesosV2({
                   }
                   style={{ ...campo, marginTop: 5 }}
                 />
+                {nombre === "operarios_por_recurso" && (
+                  <small style={{
+                    display: "block",
+                    color: "#64748B",
+                    marginTop: 4
+                  }}>
+                    Usa 1 si trabaja solo un operario.
+                    Usa 2 cuando la estación requiere
+                    operario principal + ayudante.
+                  </small>
+                )}
               </label>
             ))}
             <label>
@@ -793,6 +804,10 @@ function CapacidadProcesosV2({
                 {" veces el estándar"}
               </strong>
               <div style={{ marginTop: 5 }}>
+                Dotación por estación:{" "}
+                {guiaValidacion.dotacion_estacion}
+              </div>
+              <div style={{ marginTop: 5 }}>
                 Dotación usada por turno:{" "}
                 {calculo.operarios_requeridos_turno}
                 {" operarios."}
@@ -826,6 +841,11 @@ function CapacidadProcesosV2({
                 <strong>Capacidad por turno:</strong>
                 {" "}
                 {guiaValidacion.capacidad_turno}
+              </div>
+              <div style={{ marginTop: 5 }}>
+                <strong>Dotación por estación:</strong>
+                {" "}
+                {guiaValidacion.dotacion_estacion}
               </div>
               <div style={{ marginTop: 5 }}>
                 <strong>Dotación:</strong>
