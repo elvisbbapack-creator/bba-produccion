@@ -327,10 +327,13 @@ precargados para completar la configuracion. Cuando existe OT de referencia, la
 pantalla intenta completar tambien proceso y nombre desde sus operaciones. Si
 la capacidad existe pero falta
 dotacion base o nocturna, permite abrir `Programacion de Turnos (V2)` con la
-planta, el subproceso y el turno sugerido precargados. En ambos casos, al venir
-desde el planificador la pantalla permite volver directamente al planificador
-para recalcular la decision y muestra una franja contextual con ese siguiente
-paso. Al guardar una capacidad desde una OT de referencia, la pantalla recalcula
+planta, semana operativa, subproceso y turno sugerido precargados. En Turnos la
+franja contextual muestra que la programacion viene del Planificador, indica el
+subproceso, turno y semana, y al volver deja una alerta en el Planificador para
+recalcular y confirmar si la brecha de dotacion desaparecio. En ambos casos, al
+venir desde el planificador la pantalla permite volver directamente al
+planificador para recalcular la decision y muestra una franja contextual con ese
+siguiente paso. Al guardar una capacidad desde una OT de referencia, la pantalla recalcula
 la preparacion de esa OT y avisa si ya estan todas sus capacidades validadas
 para volver al Planificador o si aun quedan capacidades provisionales/faltantes.
 El encabezado del Planificador resume subprocesos con carga, OTs involucradas,

@@ -169,6 +169,13 @@ function ProgramacionTurnosV2({
       total + Number(item.horas_extra || 0),
     0
   );
+  const turnoContextoNombre =
+    contextoInicial?.turno_id
+      ? TURNOS_PLANTA[
+        contextoInicial.planta_id || plantaId
+      ]?.turnos?.[contextoInicial.turno_id]
+        ?.nombre || contextoInicial.turno_id
+      : "";
   const subprocesosSeleccionados = useMemo(
     () => normalizarSubprocesosHabilitados(
       formulario.subprocesos_habilitados
@@ -230,7 +237,9 @@ function ProgramacionTurnosV2({
       setFormulario(formularioInicial);
       await cargar();
       setMensaje(
-        "Turno semanal guardado. Si el operario ya estaba programado, su asignación fue actualizada."
+        contextoInicial
+          ? "Turno semanal guardado. Vuelve al Planificador para recalcular y confirmar la brecha."
+          : "Turno semanal guardado. Si el operario ya estaba programado, su asignación fue actualizada."
       );
     } catch (fallo) {
       setError(
@@ -315,8 +324,23 @@ function ProgramacionTurnosV2({
           }}>
             <span>
               Estás programando dotación solicitada por
-              el planificador. Al terminar, vuelve para
-              revisar si el cuello sigue activo.
+              el planificador para{" "}
+              <strong>
+                {
+                  contextoInicial.subproceso_id ||
+                  "el subproceso"
+                }
+              </strong>
+              {turnoContextoNombre
+                ? ` · turno ${turnoContextoNombre}`
+                : ""}
+              {" · semana "}
+              {
+                contextoInicial.semana_inicio ||
+                semanaInicio
+              }
+              . Al terminar, vuelve para recalcular y
+              confirmar si la brecha desapareció.
             </span>
             <button
               type="button"
@@ -331,7 +355,7 @@ function ProgramacionTurnosV2({
                 cursor: "pointer"
               }}
             >
-              Revisar decisión en el Planificador
+              Volver y recalcular Planificador
             </button>
           </div>
         )}

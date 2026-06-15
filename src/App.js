@@ -116,6 +116,8 @@ function App() {
     setContextoCapacidadV2] = useState(null);
   const [contextoTurnosV2,
     setContextoTurnosV2] = useState(null);
+  const [retornoPlanificadorV2,
+    setRetornoPlanificadorV2] = useState(null);
   const [contextoEjecucionV2,
     setContextoEjecucionV2] = useState(null);
   const sesionCargaId =
@@ -1766,13 +1768,19 @@ if (
           ? "Volver al Planificador"
           : "Volver a Ingeniería"
       }
-      onVolver={() =>
+      onVolver={() => {
+        if (contextoTurnosV2) {
+          setRetornoPlanificadorV2({
+            origen: "turnos",
+            ...contextoTurnosV2
+          });
+        }
         setPantalla(
           contextoTurnosV2
             ? "planificadorV2"
             : "home"
-        )
-      }
+        );
+      }}
     />
   );
 }
@@ -1844,6 +1852,10 @@ if (
     <PlanificadorPrioridadesV2
       db={db}
       perfil={usuarioSeleccionado}
+      contextoRetorno={retornoPlanificadorV2}
+      onContextoRetornoConsumido={() =>
+        setRetornoPlanificadorV2(null)
+      }
       onVolver={() => setPantalla("home")}
       onConfigurarCapacidad={contexto => {
         setContextoCapacidadV2(contexto);

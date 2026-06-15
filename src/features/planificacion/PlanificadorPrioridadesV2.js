@@ -155,6 +155,8 @@ const estiloEscenarioTurno = destacado => ({
 function PlanificadorPrioridadesV2({
   db,
   perfil,
+  contextoRetorno = null,
+  onContextoRetornoConsumido,
   onVolver,
   onConfigurarCapacidad,
   onProgramarTurnos
@@ -187,6 +189,10 @@ function PlanificadorPrioridadesV2({
     setGuardandoDecision
   ] = useState("");
   const [
+    avisoRetorno,
+    setAvisoRetorno
+  ] = useState(null);
+  const [
     detallesOperaciones,
     setDetallesOperaciones
   ] = useState({});
@@ -216,6 +222,28 @@ function PlanificadorPrioridadesV2({
   const ordenesSinCuello = ordenes.filter(
     orden => !orden.cuello_carga
   ).length;
+
+  useEffect(() => {
+    if (!contextoRetorno) {
+      return;
+    }
+
+    if (contextoRetorno.origen === "turnos") {
+      setAvisoRetorno({
+        tipo: "turnos",
+        titulo:
+          "Dotación actualizada desde Programación de Turnos",
+        detalle:
+          `Recalcula el plan para confirmar si la brecha de ${contextoRetorno.subproceso_id || "este subproceso"} desapareció en la semana ${contextoRetorno.semana_inicio || semanaInicio}.`
+      });
+    }
+
+    onContextoRetornoConsumido?.();
+  }, [
+    contextoRetorno,
+    onContextoRetornoConsumido,
+    semanaInicio
+  ]);
 
   const cargarDetalleOrden = async (
     orden,
@@ -337,6 +365,32 @@ function PlanificadorPrioridadesV2({
       );
     } finally {
       setGuardandoDecision("");
+    }
+  };
+
+  const recalcularOrdenesActivas = async () => {
+    try {
+      setRecalculando(true);
+      setError("");
+      const actualizadas =
+        await recalcularResumenesPlanificacion({
+          db,
+          perfil,
+          plantaId,
+          ordenes
+        });
+      setOrdenes(actualizadas);
+      setAvisoRetorno(null);
+      setMensaje(
+        `${actualizadas.length} OTs recalculadas para planificación.`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudieron recalcular las OTs."
+      );
+    } finally {
+      setRecalculando(false);
     }
   };
 
@@ -494,30 +548,7 @@ function PlanificadorPrioridadesV2({
               recalculando ||
               ordenes.length === 0
             }
-            onClick={async () => {
-              try {
-                setRecalculando(true);
-                setError("");
-                const actualizadas =
-                  await recalcularResumenesPlanificacion({
-                    db,
-                    perfil,
-                    plantaId,
-                    ordenes
-                  });
-                setOrdenes(actualizadas);
-                setMensaje(
-                  `${actualizadas.length} OTs recalculadas para planificación.`
-                );
-              } catch (fallo) {
-                setError(
-                  fallo?.message ||
-                  "No se pudieron recalcular las OTs."
-                );
-              } finally {
-                setRecalculando(false);
-              }
-            }}
+            onClick={recalcularOrdenesActivas}
             style={{
               padding: "10px 14px",
               border: "none",
@@ -554,6 +585,50 @@ function PlanificadorPrioridadesV2({
             marginBottom: 15
           }}>
             {mensaje}
+          </div>
+        )}
+        {avisoRetorno && (
+          <div style={{
+            background: "#EEF2FF",
+            color: "#3730A3",
+            padding: 12,
+            borderRadius: 9,
+            marginBottom: 15,
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap"
+          }}>
+            <div>
+              <strong>{avisoRetorno.titulo}</strong>
+              <div style={{ marginTop: 4 }}>
+                {avisoRetorno.detalle}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={
+                recalculando ||
+                ordenes.length === 0
+              }
+              onClick={recalcularOrdenesActivas}
+              style={{
+                border: "none",
+                borderRadius: 8,
+                padding: "9px 12px",
+                background: "#4338CA",
+                color: "white",
+                fontWeight: "bold",
+                cursor: recalculando
+                  ? "wait"
+                  : "pointer"
+              }}
+            >
+              {recalculando
+                ? "Recalculando..."
+                : "Recalcular ahora"}
+            </button>
           </div>
         )}
         {ordenesSinCuello > 0 && (
