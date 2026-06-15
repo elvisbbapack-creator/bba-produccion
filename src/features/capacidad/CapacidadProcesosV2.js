@@ -47,7 +47,10 @@ function CapacidadProcesosV2({
   textoVolver = "Volver a Ingeniería",
   contextoInicial = null
 }) {
-  const plantas = perfil.planta_ids || [];
+  const plantas = useMemo(
+    () => perfil.planta_ids || [],
+    [perfil.planta_ids]
+  );
   const [plantaId, setPlantaId] = useState(
     plantas[0] || ""
   );
@@ -107,11 +110,15 @@ function CapacidadProcesosV2({
       return;
     }
 
+    let cancelado = false;
     const plantaContexto =
       contextoInicial.planta_id || plantas[0] || "";
 
     if (plantaContexto) {
       setPlantaId(plantaContexto);
+    }
+    if (contextoInicial.ot_id) {
+      setOrdenReferenciaId(contextoInicial.ot_id);
     }
 
     setFormulario(actual => ({
@@ -136,7 +143,69 @@ function CapacidadProcesosV2({
         ? `${contextoInicial.subproceso_id} cargado desde el planificador.`
         : "Contexto cargado desde el planificador."
     );
-  }, [contextoInicial]);
+
+    const completarDesdeOT = async () => {
+      if (
+        !contextoInicial.ot_id ||
+        !contextoInicial.subproceso_id ||
+        !plantaContexto
+      ) {
+        return;
+      }
+
+      try {
+        const operaciones =
+          await listarOperacionesOT(
+            db,
+            perfil.empresa_id,
+            plantaContexto,
+            contextoInicial.ot_id
+          );
+        const subprocesos =
+          extraerSubprocesosOperaciones(operaciones);
+        const subproceso = subprocesos.find(
+          item =>
+            item.subproceso_id ===
+            contextoInicial.subproceso_id
+        );
+
+        if (cancelado) {
+          return;
+        }
+
+        setSubprocesosReferencia(subprocesos);
+        if (subproceso) {
+          setFormulario(actual => ({
+            ...actual,
+            ...subproceso,
+            motivo: actual.motivo ||
+              "Configuracion desde planificador"
+          }));
+          setMensaje(
+            `${subproceso.subproceso_id} cargado desde ${contextoInicial.ot_codigo || "la OT de referencia"}.`
+          );
+        }
+      } catch (fallo) {
+        if (!cancelado) {
+          setError(
+            fallo?.message ||
+            "No se pudo completar el subproceso desde la OT."
+          );
+        }
+      }
+    };
+
+    completarDesdeOT();
+
+    return () => {
+      cancelado = true;
+    };
+  }, [
+    contextoInicial,
+    db,
+    perfil.empresa_id,
+    plantas
+  ]);
 
   const calculo = useMemo(
     () => calcularCapacidadRecursos({

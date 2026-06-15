@@ -599,6 +599,12 @@ function PlanificadorPrioridadesV2({
                         onClick={() =>
                           onConfigurarCapacidad({
                             planta_id: plantaId,
+                            ot_id:
+                              grupo.siguiente_ot?.id ||
+                              "",
+                            ot_codigo:
+                              grupo.siguiente_ot
+                                ?.codigo || "",
                             proceso_id:
                               grupo.siguiente_ot
                                 ?.cuello_carga

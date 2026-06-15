@@ -304,7 +304,9 @@ reforzar capacidad. La recomendacion no reasigna operarios ni modifica OTs;
 solo orienta la decision del jefe. Si falta capacidad validada, el planificador
 permite abrir
 `Capacidad por Proceso (V2)` con la planta y el subproceso del cuello ya
-precargados para completar la configuracion. Si la capacidad existe pero falta
+precargados para completar la configuracion. Cuando existe OT de referencia, la
+pantalla intenta completar tambien proceso y nombre desde sus operaciones. Si
+la capacidad existe pero falta
 dotacion base o nocturna, permite abrir `Programacion de Turnos (V2)` con la
 planta, el subproceso y el turno sugerido precargados. En ambos casos, al venir
 desde el planificador la pantalla permite volver directamente al planificador
