@@ -181,10 +181,24 @@ test("sugiere activar 3er turno cuando la carga excede 2 turnos y noche esta cub
   expect(decision).toMatchObject({
     tipo: "activar_3_turno",
     horas_base_semana: 96,
+    horas_noche_semana: 48,
     horas_3_turnos_semana: 144,
+    horas_faltantes_2_turnos: 24,
+    horas_faltantes_3_turnos: 0,
     semanas_2_turnos: 1.25,
-    semanas_3_turnos: 0.83
+    semanas_3_turnos: 0.83,
+    ahorro_semanas_con_noche: 0.42,
+    dotacion: {
+      requerida_por_turno: 1,
+      manana: 1,
+      tarde: 1,
+      noche: 1,
+      faltantes_base: 0,
+      faltantes_noche: 0
+    }
   });
+  expect(decision.accion_operativa)
+    .toContain("Activar noche");
 });
 
 test("pide preparar dotacion si el 3er turno ayuda pero no tiene operarios", () => {

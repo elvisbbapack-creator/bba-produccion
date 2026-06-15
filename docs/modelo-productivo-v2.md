@@ -301,7 +301,10 @@ Usa capacidades validadas de `capacidad_procesos`, `programacion_turnos` de la
 semana vigente y los calendarios de Chile/Peru. El resultado puede ser mantener
 2 turnos, activar 3er turno, preparar dotacion nocturna, cubrir dotacion base o
 reforzar capacidad. La recomendacion no reasigna operarios ni modifica OTs;
-solo orienta la decision del jefe. Si falta capacidad validada, el planificador
+solo orienta la decision del jefe. La tarjeta de decision muestra carga en
+horas, capacidad con 2 turnos, aporte del turno noche, horas que seguirian
+faltando, ahorro estimado en semanas y dotacion cubierta por turno para explicar
+por que sugiere mantener, ampliar o reforzar. Si falta capacidad validada, el planificador
 permite abrir
 `Capacidad por Proceso (V2)` con la planta y el subproceso del cuello ya
 precargados para completar la configuracion. Cuando existe OT de referencia, la

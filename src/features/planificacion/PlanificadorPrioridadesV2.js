@@ -60,6 +60,20 @@ const fechaVisible = valor => {
     : fecha.toLocaleDateString("es-CL");
 };
 
+const etiquetaDotacion = decision => {
+  if (!decision?.dotacion) {
+    return "";
+  }
+
+  const { dotacion, turnos } = decision;
+
+  return [
+    `${turnos.manana}: ${dotacion.manana}/${dotacion.requerida_por_turno}`,
+    `${turnos.tarde}: ${dotacion.tarde}/${dotacion.requerida_por_turno}`,
+    `${turnos.noche}: ${dotacion.noche}/${dotacion.requerida_por_turno}`
+  ].join(" · ");
+};
+
 function PlanificadorPrioridadesV2({
   db,
   perfil,
@@ -539,6 +553,22 @@ function PlanificadorPrioridadesV2({
                     <div style={{ marginTop: 5 }}>
                       {grupo.decision_turno.detalle}
                     </div>
+                    {grupo.decision_turno
+                      .accion_operativa && (
+                      <div style={{
+                        marginTop: 8,
+                        padding: 9,
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.7)"
+                      }}>
+                        <strong>Acción recomendada:</strong>
+                        {" "}
+                        {
+                          grupo.decision_turno
+                            .accion_operativa
+                        }
+                      </div>
+                    )}
                     {
                       grupo.decision_turno
                         .horas_base_semana !== undefined &&
@@ -551,10 +581,26 @@ function PlanificadorPrioridadesV2({
                           fontSize: 13
                         }}>
                           <span>
+                            Carga:{" "}
+                            {
+                              grupo.decision_turno
+                                .carga_horas
+                            }
+                            {" h"}
+                          </span>
+                          <span>
                             2 turnos:{" "}
                             {
                               grupo.decision_turno
                                 .horas_base_semana
+                            }
+                            {" h/sem"}
+                          </span>
+                          <span>
+                            Noche aporta:{" "}
+                            {
+                              grupo.decision_turno
+                                .horas_noche_semana
                             }
                             {" h/sem"}
                           </span>
@@ -584,9 +630,67 @@ function PlanificadorPrioridadesV2({
                             }
                             {" semanas"}
                           </span>
+                          <span>
+                            Falta con 2 turnos:{" "}
+                            {
+                              grupo.decision_turno
+                                .horas_faltantes_2_turnos
+                            }
+                            {" h"}
+                          </span>
+                          <span>
+                            Falta con 3 turnos:{" "}
+                            {
+                              grupo.decision_turno
+                                .horas_faltantes_3_turnos
+                            }
+                            {" h"}
+                          </span>
+                          <span>
+                            Ahorro estimado:{" "}
+                            {
+                              grupo.decision_turno
+                                .ahorro_semanas_con_noche
+                            }
+                            {" semanas"}
+                          </span>
                         </div>
                       )
                     }
+                    {grupo.decision_turno.dotacion && (
+                      <div style={{
+                        marginTop: 8,
+                        fontSize: 13
+                      }}>
+                        <strong>Dotación cubierta:</strong>
+                        {" "}
+                        {etiquetaDotacion(
+                          grupo.decision_turno
+                        )}
+                        {grupo.decision_turno.dotacion
+                          .faltantes_base > 0 && (
+                          <>
+                            {" · Faltan base: "}
+                            {
+                              grupo.decision_turno
+                                .dotacion
+                                .faltantes_base
+                            }
+                          </>
+                        )}
+                        {grupo.decision_turno.dotacion
+                          .faltantes_noche > 0 && (
+                          <>
+                            {" · Faltan noche: "}
+                            {
+                              grupo.decision_turno
+                                .dotacion
+                                .faltantes_noche
+                            }
+                          </>
+                        )}
+                      </div>
+                    )}
                     {[
                       "configurar_capacidad",
                       "reforzar_capacidad"

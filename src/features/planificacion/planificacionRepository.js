@@ -69,6 +69,10 @@ const numeroPositivo = valor =>
 const redondear = valor =>
   Number((Number(valor) || 0).toFixed(2));
 
+const nombreTurno = (plantaId, turnoId) =>
+  TURNOS_PLANTA[plantaId]?.turnos?.[turnoId]
+    ?.nombre || turnoId;
+
 const horasTurnos = (plantaId, turnos = []) => {
   const turnosPlanta =
     TURNOS_PLANTA[plantaId]?.turnos || {};
@@ -81,6 +85,85 @@ const horasTurnos = (plantaId, turnos = []) => {
       ),
     0
   );
+};
+
+const construirResumenDecision = ({
+  plantaId,
+  cobertura,
+  brechas,
+  carga,
+  horasBaseSemana,
+  horasNocheSemana,
+  horasTresTurnos,
+  semanasBase,
+  semanasTresTurnos
+}) => {
+  const faltantesBase =
+    Number(brechas.faltantes_manana || 0) +
+    Number(brechas.faltantes_tarde || 0);
+  const faltantesNoche =
+    Number(brechas.faltantes_noche || 0);
+  const horasFaltantesBase = Math.max(
+    0,
+    carga - horasBaseSemana
+  );
+  const horasFaltantesTresTurnos = Math.max(
+    0,
+    carga - horasTresTurnos
+  );
+  const ahorroSemanas =
+    semanasBase !== null &&
+    semanasTresTurnos !== null
+      ? Math.max(
+        0,
+        semanasBase - semanasTresTurnos
+      )
+      : 0;
+
+  return {
+    carga_horas: redondear(carga),
+    horas_base_semana: redondear(horasBaseSemana),
+    horas_noche_semana: redondear(horasNocheSemana),
+    horas_3_turnos_semana:
+      redondear(horasTresTurnos),
+    horas_faltantes_2_turnos:
+      redondear(horasFaltantesBase),
+    horas_faltantes_3_turnos:
+      redondear(horasFaltantesTresTurnos),
+    ahorro_horas_con_noche:
+      redondear(
+        Math.min(
+          horasFaltantesBase,
+          horasNocheSemana
+        )
+      ),
+    semanas_2_turnos:
+      semanasBase === null
+        ? null
+        : redondear(semanasBase),
+    semanas_3_turnos:
+      semanasTresTurnos === null
+        ? null
+        : redondear(semanasTresTurnos),
+    ahorro_semanas_con_noche:
+      redondear(ahorroSemanas),
+    cobertura,
+    brechas,
+    dotacion: {
+      requerida_por_turno:
+        brechas.operarios_requeridos_turno,
+      manana: cobertura.manana || 0,
+      tarde: cobertura.tarde || 0,
+      noche: cobertura.noche || 0,
+      faltantes_base: faltantesBase,
+      faltantes_noche: faltantesNoche
+    },
+    turnos: {
+      manana: nombreTurno(plantaId, "manana"),
+      tarde: nombreTurno(plantaId, "tarde"),
+      noche: nombreTurno(plantaId, "noche")
+    }
+  };
 };
 
 export const construirDecisionTurno = ({
@@ -140,6 +223,17 @@ export const construirDecisionTurno = ({
   const capacidadTresTurnosSuficiente =
     horasTresTurnos > 0 &&
     carga <= horasTresTurnos;
+  const resumen = construirResumenDecision({
+    plantaId,
+    cobertura,
+    brechas,
+    carga,
+    horasBaseSemana,
+    horasNocheSemana,
+    horasTresTurnos,
+    semanasBase,
+    semanasTresTurnos
+  });
 
   if (!brechas.cobertura_base_suficiente) {
     const turnoSugerido =
@@ -155,19 +249,9 @@ export const construirDecisionTurno = ({
         "Antes de ampliar turnos, faltan operarios habilitados en los turnos base.",
       severidad: "riesgo",
       turno_sugerido: turnoSugerido,
-      cobertura,
-      brechas,
-      horas_base_semana: redondear(horasBaseSemana),
-      horas_3_turnos_semana:
-        redondear(horasTresTurnos),
-      semanas_2_turnos:
-        semanasBase === null
-          ? null
-          : redondear(semanasBase),
-      semanas_3_turnos:
-        semanasTresTurnos === null
-          ? null
-          : redondear(semanasTresTurnos)
+      accion_operativa:
+        `Asignar ${resumen.dotacion.faltantes_base} operarios faltantes en turnos base antes de evaluar noche.`,
+      ...resumen
     };
   }
 
@@ -178,13 +262,9 @@ export const construirDecisionTurno = ({
       detalle:
         "La carga conocida cabe en la capacidad semanal de mañana y tarde.",
       severidad: "normal",
-      cobertura,
-      brechas,
-      horas_base_semana: redondear(horasBaseSemana),
-      horas_3_turnos_semana:
-        redondear(horasTresTurnos),
-      semanas_2_turnos: redondear(semanasBase),
-      semanas_3_turnos: redondear(semanasTresTurnos)
+      accion_operativa:
+        "Mantener mañana y tarde; no se justifica activar noche para esta carga.",
+      ...resumen
     };
   }
 
@@ -198,13 +278,9 @@ export const construirDecisionTurno = ({
       detalle:
         "El turno noche reduce la presión del cuello de botella con dotación suficiente.",
       severidad: "accion",
-      cobertura,
-      brechas,
-      horas_base_semana: redondear(horasBaseSemana),
-      horas_3_turnos_semana:
-        redondear(horasTresTurnos),
-      semanas_2_turnos: redondear(semanasBase),
-      semanas_3_turnos: redondear(semanasTresTurnos)
+      accion_operativa:
+        `Activar noche: aporta ${resumen.horas_noche_semana} h/sem y reduce ${resumen.ahorro_semanas_con_noche} semanas estimadas.`,
+      ...resumen
     };
   }
 
@@ -216,13 +292,9 @@ export const construirDecisionTurno = ({
         "La carga mejora con noche, pero faltan operarios habilitados para cubrir ese turno.",
       severidad: "advertencia",
       turno_sugerido: "noche",
-      cobertura,
-      brechas,
-      horas_base_semana: redondear(horasBaseSemana),
-      horas_3_turnos_semana:
-        redondear(horasTresTurnos),
-      semanas_2_turnos: redondear(semanasBase),
-      semanas_3_turnos: redondear(semanasTresTurnos)
+      accion_operativa:
+        `Preparar ${resumen.dotacion.faltantes_noche} operarios para noche antes de activar el 3er turno.`,
+      ...resumen
     };
   }
 
@@ -232,12 +304,9 @@ export const construirDecisionTurno = ({
     detalle:
       "Incluso con 3 turnos, la carga supera la capacidad semanal estimada.",
     severidad: "riesgo",
-    cobertura,
-    brechas,
-    horas_base_semana: redondear(horasBaseSemana),
-    horas_3_turnos_semana: redondear(horasTresTurnos),
-    semanas_2_turnos: redondear(semanasBase),
-    semanas_3_turnos: redondear(semanasTresTurnos)
+    accion_operativa:
+      `Aun con noche faltarían ${resumen.horas_faltantes_3_turnos} h; revisar máquina, estándar o más recursos paralelos.`,
+    ...resumen
   };
 };
 
