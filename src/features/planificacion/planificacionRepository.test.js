@@ -548,6 +548,7 @@ test("construye registro de decision tomada por el jefe", () => {
         empresa_id: "bba"
       },
       plantaId: "chile",
+      semanaInicio: "2026-06-08",
       decisionTomada: "activar_3_turno",
       comentario: "  Se activa solo en laser. ",
       grupo: {
@@ -595,6 +596,7 @@ test("construye registro de decision tomada por el jefe", () => {
   expect(registro).toMatchObject({
     empresa_id: "bba",
     planta_id: "chile",
+    semana_inicio: "2026-06-08",
     usuario_id: "user-1",
     usuario_nombre: "Jefe Planta",
     usuario_rol: "jefe",

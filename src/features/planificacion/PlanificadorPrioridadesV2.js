@@ -163,6 +163,8 @@ function PlanificadorPrioridadesV2({
     useState([]);
   const [programacion, setProgramacion] =
     useState([]);
+  const [semanaInicio, setSemanaInicio] =
+    useState(lunesDeSemana());
   const [cargando, setCargando] = useState(true);
   const [cargandoDecision, setCargandoDecision] =
     useState(false);
@@ -221,6 +223,7 @@ function PlanificadorPrioridadesV2({
         perfil,
         plantaId,
         grupo,
+        semanaInicio,
         decisionTomada,
         comentario:
           comentariosDecision[
@@ -279,9 +282,10 @@ function PlanificadorPrioridadesV2({
     const cargarDecision = async () => {
       try {
         setCargandoDecision(true);
-        const semanaInicio = lunesDeSemana(
+        const semanaActual = lunesDeSemana(
           new Date()
         );
+        setSemanaInicio(semanaActual);
         const [
           capacidadesProceso,
           programacionSemanal
@@ -295,7 +299,7 @@ function PlanificadorPrioridadesV2({
             db,
             perfil.empresa_id,
             plantaId,
-            semanaInicio
+            semanaActual
           )
         ]);
 
@@ -1268,7 +1272,9 @@ function PlanificadorPrioridadesV2({
                             subproceso_id:
                               grupo.subproceso_id,
                             subproceso_nombre:
-                              grupo.subproceso_nombre
+                              grupo.subproceso_nombre,
+                            semana_inicio:
+                              semanaInicio
                           })
                         }
                         style={{

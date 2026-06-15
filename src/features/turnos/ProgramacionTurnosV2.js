@@ -47,7 +47,10 @@ function ProgramacionTurnosV2({
   textoVolver = "Volver a Ingeniería",
   contextoInicial = null
 }) {
-  const plantas = perfil.planta_ids || [];
+  const plantas = useMemo(
+    () => perfil.planta_ids || [],
+    [perfil.planta_ids]
+  );
   const [plantaId, setPlantaId] =
     useState(plantas[0] || "");
   const [semanaInicio, setSemanaInicio] =
@@ -129,7 +132,10 @@ function ProgramacionTurnosV2({
       setPlantaId(plantaContexto);
     }
 
-    setSemanaInicio(lunesDeSemana());
+    setSemanaInicio(
+      contextoInicial.semana_inicio ||
+      lunesDeSemana()
+    );
     setFormulario(actual => ({
       ...actual,
       turno_id: turnoContexto,
@@ -142,7 +148,7 @@ function ProgramacionTurnosV2({
         ? `${subprocesoContexto} preparado para programar dotación.`
         : "Contexto cargado desde el planificador."
     );
-  }, [contextoInicial]);
+  }, [contextoInicial, plantas]);
 
   const cobertura = useMemo(
     () => Object.keys(

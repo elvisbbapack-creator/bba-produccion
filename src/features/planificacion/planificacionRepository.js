@@ -745,6 +745,7 @@ export const construirRegistroDecisionPlanificador =
     perfil,
     plantaId,
     grupo,
+    semanaInicio = "",
     decisionTomada,
     comentario = ""
   }) => {
@@ -760,6 +761,7 @@ export const construirRegistroDecisionPlanificador =
     return {
       empresa_id: perfil?.empresa_id || "",
       planta_id: plantaId || "",
+      semana_inicio: semanaInicio || "",
       usuario_id:
         perfil?.uid || perfil?.id || "",
       usuario_nombre: perfil?.nombre || "",
@@ -841,6 +843,7 @@ export const registrarDecisionPlanificador =
     perfil,
     plantaId,
     grupo,
+    semanaInicio = "",
     decisionTomada,
     comentario = ""
   }) => {
@@ -855,6 +858,7 @@ export const registrarDecisionPlanificador =
         perfil,
         plantaId,
         grupo,
+        semanaInicio,
         decisionTomada,
         comentario
       });

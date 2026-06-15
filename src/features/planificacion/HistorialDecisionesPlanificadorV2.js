@@ -8,6 +8,9 @@ import {
   listarImpactosDecisionesPlanificador,
   listarDecisionesPlanificador
 } from "./planificacionRepository";
+import {
+  lunesDeSemana
+} from "../turnos/turnosRepository";
 
 const decisionTexto = {
   mantener_2_turnos: "Mantener 2 turnos",
@@ -686,6 +689,16 @@ function HistorialDecisionesPlanificadorV2({
                               .ot_operacion_priorizada_id,
                           subproceso_id:
                             item.subproceso_id,
+                          semana_inicio:
+                            item.semana_inicio ||
+                            lunesDeSemana(
+                              typeof item.creado_en
+                                ?.toDate ===
+                                "function"
+                                ? item.creado_en
+                                  .toDate()
+                                : item.creado_en
+                            ),
                           origen:
                             "historial_planificador"
                         })

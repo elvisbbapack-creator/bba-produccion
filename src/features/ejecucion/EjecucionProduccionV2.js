@@ -76,6 +76,11 @@ function EjecucionProduccionV2({
   const plantas = perfil.planta_ids || [];
   const [plantaId, setPlantaId] =
     useState(plantas[0] || "");
+  const [semanaInicio, setSemanaInicio] =
+    useState(
+      contextoInicial?.semana_inicio ||
+      lunesDeSemana()
+    );
   const [ordenes, setOrdenes] = useState([]);
   const [ordenId, setOrdenId] = useState("");
   const [operaciones, setOperaciones] = useState([]);
@@ -235,9 +240,9 @@ function EjecucionProduccionV2({
   }, [db, operacionId, ordenId]);
 
   const cargarPlanta = useCallback(
-    async (planta) => {
+    async (planta, semana = semanaInicio) => {
       if (!planta) {
-        return;
+        return null;
       }
 
       const [
@@ -260,14 +265,19 @@ function EjecucionProduccionV2({
             db,
             perfil.empresa_id,
             planta,
-            lunesDeSemana()
+            semana
           )
         ]);
       setOrdenes(ordenesData);
       setSesiones(sesionesData);
       setProgramacionTurnos(programacionData);
+      return {
+        ordenesData,
+        sesionesData,
+        programacionData
+      };
     },
-    [db, perfil.empresa_id]
+    [db, perfil.empresa_id, semanaInicio]
   );
 
   const cargarInicial = useCallback(
@@ -281,7 +291,7 @@ function EjecucionProduccionV2({
           causasData,
           motivosData
         ] = await Promise.all([
-          cargarPlanta(plantaId),
+          cargarPlanta(plantaId, semanaInicio),
           listarDefectos(
             db,
             perfil.empresa_id
@@ -323,7 +333,8 @@ function EjecucionProduccionV2({
       cargarPlanta,
       db,
       perfil.empresa_id,
-      plantaId
+      plantaId,
+      semanaInicio
     ]
   );
 
@@ -343,20 +354,49 @@ function EjecucionProduccionV2({
     let vigente = true;
 
     const aplicarContexto = async () => {
-      const ordenContexto = ordenes.find(
+      const semanaContexto =
+        contextoInicial.semana_inicio ||
+        semanaInicio ||
+        lunesDeSemana();
+      const plantaContexto =
+        contextoInicial.planta_id || plantaId;
+      let ordenesContexto = ordenes;
+
+      if (semanaContexto !== semanaInicio) {
+        setSemanaInicio(semanaContexto);
+      }
+
+      if (
+        plantaContexto &&
+        (
+          plantaContexto !== plantaId ||
+          semanaContexto !== semanaInicio
+        )
+      ) {
+        if (plantaContexto !== plantaId) {
+          setPlantaId(plantaContexto);
+        }
+
+        const datosPlanta = await cargarPlanta(
+          plantaContexto,
+          semanaContexto
+        );
+
+        if (!vigente) {
+          return;
+        }
+
+        ordenesContexto =
+          datosPlanta?.ordenesData || [];
+      }
+
+      const ordenContexto = ordenesContexto.find(
         orden => orden.id === contextoInicial.ot_id
       );
 
       if (!ordenContexto) {
         setContextoAplicado(true);
         return;
-      }
-
-      if (
-        contextoInicial.planta_id &&
-        contextoInicial.planta_id !== plantaId
-      ) {
-        setPlantaId(contextoInicial.planta_id);
       }
 
       setOrdenId(ordenContexto.id);
@@ -418,10 +458,12 @@ function EjecucionProduccionV2({
   }, [
     contextoAplicado,
     contextoInicial,
+    cargarPlanta,
     db,
     ordenes,
     perfil.empresa_id,
-    plantaId
+    plantaId,
+    semanaInicio
   ]);
 
   const cambiarPlanta = async (valor) => {
@@ -438,7 +480,7 @@ function EjecucionProduccionV2({
     setMensaje("");
 
     try {
-      await cargarPlanta(valor);
+      await cargarPlanta(valor, semanaInicio);
     } catch (fallo) {
       setError(
         fallo?.message ||
