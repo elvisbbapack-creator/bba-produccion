@@ -509,6 +509,11 @@ semanal que esté habilitado para el subproceso del DT. La transacción vuelve a
 validar esa competencia y la sesión congela turno, semana, horas ordinarias y
 horas extra planificadas. Existe un ingreso excepcional para contingencias,
 pero la sesión queda marcada como no programada.
+Si la capacidad del subproceso indica que la estacion requiere ayudante, la
+sesion exige registrar equipo de apoyo. El operario principal mantiene la
+medicion de eficiencia/ranking, pero los ayudantes quedan guardados en
+`equipo_apoyo` y bloqueados en `ocupacion_operarios` hasta finalizar el turno,
+evitando asignaciones simultaneas.
 
 Para proyectar capacidad, el simulador cuenta operarios habilitados por turno.
 En los dos turnos base usa de forma conservadora la menor cobertura entre

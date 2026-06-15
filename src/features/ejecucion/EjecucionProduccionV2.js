@@ -15,6 +15,9 @@ import {
   listarMotivosParo
 } from "../paros/parosRepository";
 import {
+  listarCapacidadesProceso
+} from "../capacidad/capacidadRepository";
+import {
   obtenerResumenEstandar
 } from "../resumenes/resumenesRepository";
 import {
@@ -90,8 +93,12 @@ function EjecucionProduccionV2({
     useState("");
   const [operarioNombre, setOperarioNombre] =
     useState("");
+  const [ayudantesTexto, setAyudantesTexto] =
+    useState("");
   const [programacionTurnos,
     setProgramacionTurnos] = useState([]);
+  const [capacidades, setCapacidades] =
+    useState([]);
   const [programacionId, setProgramacionId] =
     useState("");
   const [ingresoExcepcional,
@@ -141,6 +148,43 @@ function EjecucionProduccionV2({
     programacionTurnos.find(
       item => item.id === programacionId
     );
+  const capacidadOperacion =
+    capacidades.find(
+      capacidad =>
+        capacidad.subproceso_id ===
+        operacionSeleccionada?.subproceso_id
+    );
+  const operariosPorRecurso = Math.max(
+    1,
+    Math.ceil(
+      Number(
+        capacidadOperacion?.operarios_por_recurso ||
+        1
+      )
+    )
+  );
+  const ayudantesRequeridos =
+    Math.max(0, operariosPorRecurso - 1);
+  const ayudantes = useMemo(
+    () => ayudantesTexto
+      .split("\n")
+      .map(linea => {
+        const [codigo, ...nombrePartes] =
+          linea.split("-");
+        return {
+          operario_codigo: (
+            codigo || ""
+          ).trim(),
+          operario_nombre:
+            nombrePartes.join("-").trim()
+        };
+      })
+      .filter(ayudante =>
+        ayudante.operario_codigo ||
+        ayudante.operario_nombre
+      ),
+    [ayudantesTexto]
+  );
   const programacionHabilitada = useMemo(
     () => {
       const subproceso =
@@ -156,13 +200,21 @@ function EjecucionProduccionV2({
               sesion.estado
             )
           )
-          .map(sesion =>
+          .flatMap(sesion => [
             (
               sesion.operario_codigo ||
               sesion.operario_id ||
               ""
-            ).toUpperCase()
-          )
+            ).toUpperCase(),
+            ...(sesion.equipo_apoyo || [])
+              .map(ayudante =>
+                (
+                  ayudante.operario_codigo ||
+                  ayudante.operario_id ||
+                  ""
+                ).toUpperCase()
+              )
+          ])
       );
 
       return subproceso
@@ -248,7 +300,8 @@ function EjecucionProduccionV2({
       const [
         ordenesData,
         sesionesData,
-        programacionData
+        programacionData,
+        capacidadesData
       ] =
         await Promise.all([
           listarOrdenesEjecutables(
@@ -266,11 +319,17 @@ function EjecucionProduccionV2({
             perfil.empresa_id,
             planta,
             semana
+          ),
+          listarCapacidadesProceso(
+            db,
+            perfil.empresa_id,
+            planta
           )
         ]);
       setOrdenes(ordenesData);
       setSesiones(sesionesData);
       setProgramacionTurnos(programacionData);
+      setCapacidades(capacidadesData);
       return {
         ordenesData,
         sesionesData,
@@ -475,6 +534,7 @@ function EjecucionProduccionV2({
     setProgramacionId("");
     setOperarioCodigo("");
     setOperarioNombre("");
+    setAyudantesTexto("");
     setIngresoExcepcional(false);
     setError("");
     setMensaje("");
@@ -495,6 +555,7 @@ function EjecucionProduccionV2({
   ) => {
     setOrdenId(valor);
     setOperacionId("");
+    setAyudantesTexto("");
 
     if (limpiarFeedback) {
       setError("");
@@ -540,6 +601,8 @@ function EjecucionProduccionV2({
           operacion: operacionSeleccionada,
           operarioCodigo,
           operarioNombre,
+          ayudantes,
+          operariosPorRecurso,
           programacion:
             programacionSeleccionada || null
         });
@@ -549,6 +612,7 @@ function EjecucionProduccionV2({
       ]);
       setSesionId(sesion.id);
       setOperacionId("");
+      setAyudantesTexto("");
       await cambiarOrden(
         ordenSeleccionada.id,
         false
@@ -869,6 +933,7 @@ function EjecucionProduccionV2({
                     setProgramacionId("");
                     setOperarioCodigo("");
                     setOperarioNombre("");
+                    setAyudantesTexto("");
                   }}
                   style={campo}
                 >
@@ -1283,11 +1348,74 @@ function EjecucionProduccionV2({
                 </>
               )}
 
+              {operacionSeleccionada &&
+                ayudantesRequeridos > 0 && (
+                <div style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  background:
+                    ayudantes.length >=
+                      ayudantesRequeridos
+                      ? "#F0FDF4"
+                      : "#FFFBEB",
+                  color:
+                    ayudantes.length >=
+                      ayudantesRequeridos
+                      ? "#166534"
+                      : "#92400E"
+                }}>
+                  <strong>
+                    Esta estación requiere equipo de{" "}
+                    {operariosPorRecurso} personas
+                  </strong>
+                  <div style={{
+                    marginTop: 5,
+                    fontSize: 13
+                  }}>
+                    Selecciona el operario principal y
+                    registra {ayudantesRequeridos}
+                    {" ayudante"}
+                    {ayudantesRequeridos === 1
+                      ? ""
+                      : "s"}
+                    . Los ayudantes quedarán ocupados
+                    hasta finalizar el turno.
+                  </div>
+                  <label style={{
+                    ...etiqueta,
+                    marginTop: 10
+                  }}>
+                    Ayudantes
+                    <textarea
+                      rows={Math.max(
+                        2,
+                        ayudantesRequeridos
+                      )}
+                      value={ayudantesTexto}
+                      onChange={evento =>
+                        setAyudantesTexto(
+                          evento.target.value
+                        )
+                      }
+                      placeholder={
+                        "OP0002 - Nombre ayudante"
+                      }
+                      style={campo}
+                    />
+                  </label>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={
                   guardando ||
                   !operacionSeleccionada ||
+                  (
+                    ayudantesRequeridos > 0 &&
+                    ayudantes.length <
+                      ayudantesRequeridos
+                  ) ||
                   (
                     !ingresoExcepcional &&
                     !programacionSeleccionada
@@ -1367,6 +1495,26 @@ function EjecucionProduccionV2({
                         {" - "}
                         {sesion.operario_nombre}
                       </div>
+                      {(sesion.equipo_apoyo || [])
+                        .length > 0 && (
+                        <div style={{
+                          color: "#64748B",
+                          marginTop: 3
+                        }}>
+                          Ayudantes:{" "}
+                          {sesion.equipo_apoyo
+                            .map(ayudante =>
+                              [
+                                ayudante
+                                  .operario_codigo,
+                                ayudante
+                                  .operario_nombre
+                              ].filter(Boolean)
+                                .join(" - ")
+                            )
+                            .join(", ")}
+                        </div>
+                      )}
                       <div style={{
                         color: "#64748B",
                         marginTop: 3

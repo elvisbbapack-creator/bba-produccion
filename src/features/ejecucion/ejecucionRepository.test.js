@@ -3,6 +3,7 @@ import {
   calcularDisponibilidadPorMaterial,
   calcularTiemposSesion,
   idOcupacionOperario,
+  normalizarEquipoApoyo,
   obtenerOperacionesDisponibles,
   validarDatosCalidadReporte,
   validarInicioSesion
@@ -146,6 +147,52 @@ test("exige OT, operación y operario", () => {
       operarioNombre: ""
     })
   ).toHaveLength(4);
+});
+
+test("normaliza y exige ayudantes cuando la estación requiere apoyo", () => {
+  expect(
+    normalizarEquipoApoyo([
+      {
+        codigo: " op002 ",
+        nombre: " Ayudante Uno "
+      }
+    ])
+  ).toEqual([
+    {
+      operario_codigo: "OP002",
+      operario_nombre: "Ayudante Uno",
+      rol: "ayudante"
+    }
+  ]);
+
+  expect(
+    validarInicioSesion({
+      orden: { id: "ot-1" },
+      operacion: { id: "op-1" },
+      operarioCodigo: "OP001",
+      operarioNombre: "Principal",
+      operariosPorRecurso: 2,
+      ayudantes: []
+    })
+  ).toContain(
+    "Esta estación requiere 1 ayudante."
+  );
+
+  expect(
+    validarInicioSesion({
+      orden: { id: "ot-1" },
+      operacion: { id: "op-1" },
+      operarioCodigo: "OP001",
+      operarioNombre: "Principal",
+      operariosPorRecurso: 2,
+      ayudantes: [{
+        operario_codigo: "OP001",
+        operario_nombre: "Principal"
+      }]
+    })
+  ).toContain(
+    "El operario principal y los ayudantes deben ser personas distintas."
+  );
 });
 
 test("exige defecto y causa cuando hay merma o reproceso", () => {

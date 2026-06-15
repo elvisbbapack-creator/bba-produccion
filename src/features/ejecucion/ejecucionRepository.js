@@ -139,9 +139,19 @@ export const validarInicioSesion = ({
   orden,
   operacion,
   operarioCodigo,
-  operarioNombre
+  operarioNombre,
+  ayudantes = [],
+  operariosPorRecurso = 1
 }) => {
   const errores = [];
+  const dotacionRequerida = Math.max(
+    1,
+    Math.ceil(Number(operariosPorRecurso) || 1)
+  );
+  const ayudantesRequeridos =
+    dotacionRequerida - 1;
+  const ayudantesNormalizados =
+    normalizarEquipoApoyo(ayudantes);
 
   if (!orden) {
     errores.push("Selecciona una OT.");
@@ -165,8 +175,63 @@ export const validarInicioSesion = ({
     );
   }
 
+  if (
+    ayudantesNormalizados.length <
+    ayudantesRequeridos
+  ) {
+    errores.push(
+      `Esta estación requiere ${ayudantesRequeridos} ayudante${ayudantesRequeridos === 1 ? "" : "s"}.`
+    );
+  }
+
+  ayudantesNormalizados.forEach(ayudante => {
+    if (!ayudante.operario_codigo) {
+      errores.push(
+        "Ingresa el código de cada ayudante."
+      );
+    }
+    if (!ayudante.operario_nombre) {
+      errores.push(
+        "Ingresa el nombre de cada ayudante."
+      );
+    }
+  });
+
+  const codigos = [
+    limpiarTexto(operarioCodigo).toUpperCase(),
+    ...ayudantesNormalizados.map(
+      ayudante => ayudante.operario_codigo
+    )
+  ].filter(Boolean);
+
+  if (new Set(codigos).size !== codigos.length) {
+    errores.push(
+      "El operario principal y los ayudantes deben ser personas distintas."
+    );
+  }
+
   return errores;
 };
+
+export const normalizarEquipoApoyo = (
+  ayudantes = []
+) =>
+  (Array.isArray(ayudantes) ? ayudantes : [])
+    .map(ayudante => ({
+      operario_codigo: limpiarTexto(
+        ayudante.operario_codigo ||
+        ayudante.codigo
+      ).toUpperCase(),
+      operario_nombre: limpiarTexto(
+        ayudante.operario_nombre ||
+        ayudante.nombre
+      ),
+      rol: ayudante.rol || "ayudante"
+    }))
+    .filter(ayudante =>
+      ayudante.operario_codigo ||
+      ayudante.operario_nombre
+    );
 
 export const calcularIndicadoresSesion = ({
   cantidadOk = 0,
@@ -342,13 +407,19 @@ export const iniciarSesionProduccion = async ({
   operacion,
   operarioCodigo,
   operarioNombre,
+  ayudantes = [],
+  operariosPorRecurso = 1,
   programacion = null
 }) => {
+  const equipoApoyo =
+    normalizarEquipoApoyo(ayudantes);
   const errores = validarInicioSesion({
     orden,
     operacion,
     operarioCodigo,
-    operarioNombre
+    operarioNombre,
+    ayudantes: equipoApoyo,
+    operariosPorRecurso
   });
 
   if (errores.length > 0) {
@@ -399,6 +470,21 @@ export const iniciarSesionProduccion = async ({
         programacion?.operario_codigo ||
         operarioCodigo ||
         slug(operarioNombre)
+      })
+  );
+  const ocupacionesApoyo = equipoApoyo.map(
+    ayudante => ({
+      ayudante,
+      ref: doc(
+        db,
+        "ocupacion_operarios",
+        idOcupacionOperario({
+          empresaId: perfil.empresa_id,
+          plantaId: orden.planta_id,
+          operarioCodigo:
+            ayudante.operario_codigo
+        })
+      )
     })
   );
 
@@ -407,6 +493,12 @@ export const iniciarSesionProduccion = async ({
       await transaccion.get(operacionRef);
     const ocupacionSnap =
       await transaccion.get(ocupacionRef);
+    const ocupacionesApoyoSnap =
+      await Promise.all(
+        ocupacionesApoyo.map(item =>
+          transaccion.get(item.ref)
+        )
+      );
     const programacionSnap = programacionRef
       ? await transaccion.get(programacionRef)
       : null;
@@ -425,6 +517,19 @@ export const iniciarSesionProduccion = async ({
         `El operario ya está ocupado en ${ocupacionSnap.data().ot_codigo || "otra producción"}.`
       );
     }
+
+    ocupacionesApoyoSnap.forEach(
+      (snapshot, indice) => {
+        if (
+          snapshot.exists() &&
+          snapshot.data().activa === true
+        ) {
+          throw new Error(
+            `El ayudante ${ocupacionesApoyo[indice].ayudante.operario_codigo} ya está ocupado en ${snapshot.data().ot_codigo || "otra producción"}.`
+          );
+        }
+      }
+    );
 
     if (
       Number(
@@ -503,6 +608,23 @@ export const iniciarSesionProduccion = async ({
       operario_id: codigo || slug(nombre),
       operario_codigo: codigo,
       operario_nombre: nombre,
+      operarios_por_recurso:
+        Math.max(
+          1,
+          Math.ceil(
+            Number(operariosPorRecurso) || 1
+          )
+        ),
+      equipo_apoyo: equipoApoyo,
+      equipo_trabajo: [
+        {
+          operario_id: codigo || slug(nombre),
+          operario_codigo: codigo,
+          operario_nombre: nombre,
+          rol: "principal"
+        },
+        ...equipoApoyo
+      ],
       supervisor_id: perfil.uid,
       supervisor_nombre: perfil.nombre,
       estado: "activa",
@@ -541,6 +663,28 @@ export const iniciarSesionProduccion = async ({
       actualizado_por_id: perfil.uid,
       actualizado_en: serverTimestamp(),
       modelo_version: 2
+    });
+    ocupacionesApoyo.forEach(({ ayudante, ref }) => {
+      transaccion.set(ref, {
+        empresa_id: perfil.empresa_id,
+        planta_id: orden.planta_id,
+        operario_id:
+          ayudante.operario_codigo,
+        operario_codigo:
+          ayudante.operario_codigo,
+        operario_nombre:
+          ayudante.operario_nombre,
+        rol: ayudante.rol,
+        sesion_id: sesionRef.id,
+        ot_id: orden.id,
+        ot_codigo: orden.codigo,
+        operacion_codigo:
+          operacion.operacion_codigo,
+        activa: true,
+        actualizado_por_id: perfil.uid,
+        actualizado_en: serverTimestamp(),
+        modelo_version: 2
+      });
     });
     transaccion.set(eventoRef, {
       sesion_id: sesionRef.id,
@@ -992,6 +1136,21 @@ export const registrarReporteProduccion =
           sesion.operario_id
       })
     );
+    const ocupacionesApoyo = (
+      sesion.equipo_apoyo || []
+    ).map(ayudante => ({
+      ayudante,
+      ref: doc(
+        db,
+        "ocupacion_operarios",
+        idOcupacionOperario({
+          empresaId: perfil.empresa_id,
+          plantaId: sesion.planta_id,
+          operarioCodigo:
+            ayudante.operario_codigo
+        })
+      )
+    }));
     let resultadoReporte;
 
     await runTransaction(
@@ -1302,6 +1461,37 @@ export const registrarReporteProduccion =
             modelo_version: 2
           },
           { merge: true }
+        );
+        ocupacionesApoyo.forEach(
+          ({ ayudante, ref }) => {
+            transaccion.set(
+              ref,
+              {
+                empresa_id: perfil.empresa_id,
+                planta_id: sesion.planta_id,
+                operario_id:
+                  ayudante.operario_codigo,
+                operario_codigo:
+                  ayudante.operario_codigo,
+                operario_nombre:
+                  ayudante.operario_nombre,
+                rol:
+                  ayudante.rol || "ayudante",
+                sesion_id: sesion.id,
+                ot_id: sesion.ot_id,
+                ot_codigo: sesion.ot_codigo,
+                operacion_codigo:
+                  sesion.operacion_codigo,
+                activa: false,
+                actualizado_por_id:
+                  perfil.uid,
+                actualizado_en:
+                  serverTimestamp(),
+                modelo_version: 2
+              },
+              { merge: true }
+            );
+          }
         );
         transaccion.set(eventoRef, {
           sesion_id: sesion.id,
