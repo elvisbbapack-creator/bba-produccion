@@ -1331,6 +1331,13 @@ function PlanificadorPrioridadesV2({
                           }
                         </span>
                         <span>
+                          Dotación estación:{" "}
+                          {
+                            grupo.capacidad_estado
+                              .dotacion_estacion
+                          }
+                        </span>
+                        <span>
                           Factor:{" "}
                           {
                             grupo.capacidad_estado
@@ -1627,6 +1634,17 @@ function PlanificadorPrioridadesV2({
                         {" "}
                         {etiquetaDotacion(
                           grupo.decision_turno
+                        )}
+                        {grupo.decision_turno.dotacion
+                          .dotacion_estacion && (
+                          <>
+                            {" · Estación: "}
+                            {
+                              grupo.decision_turno
+                                .dotacion
+                                .dotacion_estacion
+                            }
+                          </>
                         )}
                         {grupo.decision_turno.dotacion
                           .faltantes_base > 0 && (

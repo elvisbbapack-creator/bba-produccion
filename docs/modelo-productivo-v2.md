@@ -318,6 +318,9 @@ faltando y ahorro estimado en dias/semanas. Tambien resume el aporte del turno
 noche y la dotacion cubierta por turno para explicar por que sugiere mantener,
 ampliar o reforzar. Cada tarjeta muestra tambien el estado de capacidad del
 subproceso: `faltante`, `provisional` o `validada`.
+Cuando la estacion requiere ayudante, la tarjeta muestra la dotacion por
+estacion, por ejemplo `1 principal + 1 ayudante`, junto con los operarios
+requeridos por turno para explicar la brecha real.
 Las capacidades provisionales se muestran con sus recursos, factor, dotacion y
 disponibilidad, pero bloquean recomendaciones de turnos hasta que el jefe las
 valide en planta. Si falta capacidad validada, el planificador

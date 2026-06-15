@@ -437,6 +437,45 @@ test("sugiere activar 3er turno cuando la carga excede 2 turnos y noche esta cub
     .toContain("Activar noche");
 });
 
+test("explica dotacion por estacion con ayudante en la decision", () => {
+  const decision = construirDecisionTurno({
+    plantaId: "chile",
+    grupo: {
+      subproceso_id: "SP0008",
+      horas_carga_compartida: 12
+    },
+    capacidad: {
+      recursos_paralelos: 1,
+      factor_capacidad: 1,
+      operarios_por_recurso: 2,
+      operarios_requeridos_turno: 2
+    },
+    programacion: [
+      {
+        turno_id: "manana",
+        operario_codigo: "OP001",
+        subprocesos_habilitados: ["SP0008"]
+      },
+      {
+        turno_id: "tarde",
+        operario_codigo: "OP002",
+        subprocesos_habilitados: ["SP0008"]
+      }
+    ]
+  });
+
+  expect(decision.dotacion).toMatchObject({
+    requerida_por_turno: 2,
+    recursos_paralelos: 1,
+    operarios_por_recurso: 2,
+    ayudantes_por_recurso: 1,
+    requiere_ayudante: true,
+    dotacion_estacion:
+      "1 principal + 1 ayudante",
+    faltantes_base: 2
+  });
+});
+
 test("pide preparar dotacion si el 3er turno ayuda pero no tiene operarios", () => {
   const decision = construirDecisionTurno({
     plantaId: "peru",

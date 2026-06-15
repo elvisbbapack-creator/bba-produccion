@@ -157,6 +157,25 @@ const horasTurnos = (plantaId, turnos = []) => {
   );
 };
 
+const describirDotacionEstacion = (
+  operariosPorRecurso = 1
+) => {
+  const dotacion = Math.max(
+    1,
+    Math.ceil(Number(operariosPorRecurso) || 1)
+  );
+  const ayudantes = Math.max(0, dotacion - 1);
+
+  return {
+    operarios_por_recurso: dotacion,
+    ayudantes_por_recurso: ayudantes,
+    requiere_ayudante: ayudantes > 0,
+    texto: ayudantes > 0
+      ? `1 principal + ${ayudantes} ayudante${ayudantes === 1 ? "" : "s"}`
+      : "1 principal"
+  };
+};
+
 const construirEstadoCapacidadPlan = capacidad => {
   if (!capacidad) {
     return {
@@ -170,6 +189,10 @@ const construirEstadoCapacidadPlan = capacidad => {
 
   const validada =
     capacidad.estado_datos === "validada";
+  const dotacionEstacion =
+    describirDotacionEstacion(
+      capacidad.operarios_por_recurso
+    );
   const resumen = {
     capacidad_id: capacidad.id || "",
     estado: validada ? "validada" : "provisional",
@@ -182,6 +205,14 @@ const construirEstadoCapacidadPlan = capacidad => {
     bloquea_recomendacion: !validada,
     recursos_paralelos:
       capacidad.recursos_paralelos || 0,
+    operarios_por_recurso:
+      dotacionEstacion.operarios_por_recurso,
+    ayudantes_por_recurso:
+      dotacionEstacion.ayudantes_por_recurso,
+    requiere_ayudante:
+      dotacionEstacion.requiere_ayudante,
+    dotacion_estacion:
+      dotacionEstacion.texto,
     factor_capacidad:
       capacidad.factor_capacidad || 0,
     operarios_requeridos_turno:
@@ -197,6 +228,7 @@ const construirResumenDecision = ({
   plantaId,
   cobertura,
   brechas,
+  capacidad,
   carga,
   horasBaseSemana,
   horasNocheSemana,
@@ -243,6 +275,10 @@ const construirResumenDecision = ({
       horasNocheSemana
     )
   );
+  const dotacionEstacion =
+    describirDotacionEstacion(
+      capacidad?.operarios_por_recurso
+    );
 
   return {
     carga_horas: redondear(carga),
@@ -308,6 +344,16 @@ const construirResumenDecision = ({
     dotacion: {
       requerida_por_turno:
         brechas.operarios_requeridos_turno,
+      recursos_paralelos:
+        capacidad?.recursos_paralelos || 0,
+      operarios_por_recurso:
+        dotacionEstacion.operarios_por_recurso,
+      ayudantes_por_recurso:
+        dotacionEstacion.ayudantes_por_recurso,
+      requiere_ayudante:
+        dotacionEstacion.requiere_ayudante,
+      dotacion_estacion:
+        dotacionEstacion.texto,
       manana: cobertura.manana || 0,
       tarde: cobertura.tarde || 0,
       noche: cobertura.noche || 0,
@@ -397,6 +443,7 @@ export const construirDecisionTurno = ({
     plantaId,
     cobertura,
     brechas,
+    capacidad,
     carga,
     horasBaseSemana,
     horasNocheSemana,
