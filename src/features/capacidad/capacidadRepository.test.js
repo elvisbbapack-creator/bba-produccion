@@ -1,5 +1,6 @@
 import {
   calcularCapacidadRecursos,
+  construirGuiaValidacionCapacidad,
   construirMensajeGuardadoCapacidad,
   evaluarCompletitudCapacidad,
   extraerSubprocesosOperaciones,
@@ -254,5 +255,62 @@ test("advierte pendientes cuando la capacidad queda provisional", () => {
     })
   ).toContain(
     "1 provisionales y 1 faltantes"
+  );
+});
+
+test("guia validacion provisional sin habilitar planificador", () => {
+  const guia = construirGuiaValidacionCapacidad({
+    datos: {
+      subproceso_id: "sp0003",
+      subproceso_nombre: "Laser fibra tubo",
+      maquinas_disponibles: 1,
+      operarios_disponibles_turno: 1,
+      operarios_por_recurso: 1,
+      disponibilidad_pct: 100,
+      datos_validados: false
+    }
+  });
+
+  expect(guia).toMatchObject({
+    estado: "provisional",
+    subproceso: "SP0003 - Laser fibra tubo",
+    capacidad_turno:
+      "1 recursos × 100% = 1.00 veces el estandar.",
+    dotacion_turno: "1 operarios por turno."
+  });
+  expect(guia.impacto_planificador)
+    .toContain("seguira pidiendo validar");
+});
+
+test("guia validacion lista para recalcular desde planificador", () => {
+  const guia = construirGuiaValidacionCapacidad({
+    datos: {
+      subproceso_id: "SP0003",
+      subproceso_nombre: "Laser fibra tubo",
+      maquinas_disponibles: 2,
+      operarios_disponibles_turno: 2,
+      operarios_por_recurso: 1,
+      disponibilidad_pct: 85,
+      datos_validados: true
+    },
+    desdePlanificador: true,
+    completitud: {
+      total: 2,
+      validadas: 2,
+      provisionales: 0,
+      faltantes: 0,
+      completa: true
+    }
+  });
+
+  expect(guia.estado).toBe("validada");
+  expect(guia.capacidad_turno)
+    .toBe("2 recursos × 85% = 1.70 veces el estandar.");
+  expect(guia.impacto_planificador)
+    .toContain("comparar 2 turnos contra 3 turnos");
+  expect(guia.estado_referencia)
+    .toContain("lista para recalcular");
+  expect(guia.advertencias).toContain(
+    "Al validar, vuelve al Planificador para recalcular la decision."
   );
 });

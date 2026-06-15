@@ -6,6 +6,7 @@ import {
 } from "react";
 import {
   calcularCapacidadRecursos,
+  construirGuiaValidacionCapacidad,
   construirMensajeGuardadoCapacidad,
   evaluarCompletitudCapacidad,
   extraerSubprocesosOperaciones,
@@ -228,6 +229,20 @@ function CapacidadProcesosV2({
       capacidades
     ),
     [capacidades, subprocesosReferencia]
+  );
+  const guiaValidacion = useMemo(
+    () => construirGuiaValidacionCapacidad({
+      datos: formulario,
+      calculo,
+      completitud,
+      desdePlanificador: Boolean(contextoInicial)
+    }),
+    [
+      calculo,
+      completitud,
+      contextoInicial,
+      formulario
+    ]
   );
 
   const actualizar = (nombre, valor) => {
@@ -782,6 +797,66 @@ function CapacidadProcesosV2({
                 {calculo.operarios_requeridos_turno}
                 {" operarios."}
               </div>
+            </div>
+
+            <div style={{
+              padding: 12,
+              borderRadius: 9,
+              background:
+                guiaValidacion.estado === "validada"
+                  ? "#ECFDF5"
+                  : "#FFF7ED",
+              color:
+                guiaValidacion.estado === "validada"
+                  ? "#065F46"
+                  : "#9A3412"
+            }}>
+              <strong>{guiaValidacion.titulo}</strong>
+              <div style={{ marginTop: 6 }}>
+                <strong>Subproceso:</strong>
+                {" "}
+                {guiaValidacion.subproceso}
+              </div>
+              <div style={{ marginTop: 5 }}>
+                <strong>Estándar actual:</strong>
+                {" "}
+                {guiaValidacion.estandar_actual}
+              </div>
+              <div style={{ marginTop: 5 }}>
+                <strong>Capacidad por turno:</strong>
+                {" "}
+                {guiaValidacion.capacidad_turno}
+              </div>
+              <div style={{ marginTop: 5 }}>
+                <strong>Dotación:</strong>
+                {" "}
+                {guiaValidacion.dotacion_turno}
+              </div>
+              <div style={{ marginTop: 5 }}>
+                <strong>Impacto:</strong>
+                {" "}
+                {
+                  guiaValidacion
+                    .impacto_planificador
+                }
+              </div>
+              <div style={{ marginTop: 5 }}>
+                <strong>OT de referencia:</strong>
+                {" "}
+                {guiaValidacion.estado_referencia}
+              </div>
+              <ul style={{
+                margin: "8px 0 0 18px",
+                padding: 0
+              }}>
+                {guiaValidacion.advertencias.map(
+                  advertencia => (
+                    <li key={advertencia}>
+                      {advertencia}
+                    </li>
+                  )
+                )}
+              </ul>
             </div>
 
             <div style={{

@@ -201,6 +201,65 @@ export const construirMensajeGuardadoCapacidad = ({
   ].join(" ");
 };
 
+export const construirGuiaValidacionCapacidad = ({
+  datos = {},
+  calculo = calcularCapacidadRecursos({
+    maquinasDisponibles:
+      datos.maquinas_disponibles,
+    operariosDisponibles:
+      datos.operarios_disponibles_turno,
+    operariosPorRecurso:
+      datos.operarios_por_recurso,
+    disponibilidadPct:
+      datos.disponibilidad_pct
+  }),
+  completitud = null,
+  desdePlanificador = false
+} = {}) => {
+  const validada = Boolean(datos.datos_validados);
+  const subprocesoId = normalizarCodigo(
+    datos.subproceso_id
+  );
+  const nombreSubproceso = limpiarTexto(
+    datos.subproceso_nombre
+  );
+  const etiquetaSubproceso = [
+    subprocesoId,
+    nombreSubproceso
+  ].filter(Boolean).join(" - ");
+  const impactoPlanificador = validada
+    ? "El Planificador usara esta capacidad para comparar 2 turnos contra 3 turnos."
+    : "El Planificador seguira pidiendo validar capacidad antes de recomendar turnos.";
+  const estadoReferencia = !completitud?.total
+    ? "Sin OT de referencia seleccionada."
+    : completitud.completa
+      ? "La OT de referencia quedara lista para recalcular decisiones."
+      : `La OT de referencia aun tendra ${completitud.provisionales} provisionales y ${completitud.faltantes} faltantes.`;
+
+  return {
+    titulo: validada
+      ? "Validacion lista para recomendaciones"
+      : "Validacion pendiente",
+    estado: validada ? "validada" : "provisional",
+    subproceso: etiquetaSubproceso || "Subproceso sin codigo",
+    estandar_actual:
+      "Usa el estandar por hora del subproceso en la OT/ruta.",
+    capacidad_turno:
+      `${calculo.recursos_paralelos} recursos × ${calculo.disponibilidad_pct}% = ${calculo.factor_capacidad.toFixed(2)} veces el estandar.`,
+    dotacion_turno:
+      `${calculo.operarios_requeridos_turno} operarios por turno.`,
+    impacto_planificador: impactoPlanificador,
+    estado_referencia: estadoReferencia,
+    advertencias: [
+      "Confirma maquinas, dotacion y disponibilidad reales en planta.",
+      "Si el dato viene de una primera hora de arranque, guardalo como provisional y ajustalo despues.",
+      desdePlanificador
+        ? "Al validar, vuelve al Planificador para recalcular la decision."
+        : "Valida solo cuando el jefe pueda respaldar el dato."
+    ]
+  };
+};
+
 export const prepararCapacidadProceso = ({
   empresaId,
   plantaId,

@@ -394,6 +394,13 @@ cuello de botella. Una estimación puede guardarse como provisional con su
 motivo, sin marcar la confirmación. La OT de referencia resume capacidades validadas,
 provisionales y faltantes.
 
+La pantalla de capacidad muestra una guia de validacion antes de guardar:
+estandar usado por el subproceso, capacidad calculada por turno, dotacion
+requerida, impacto en el Planificador y advertencias para confirmar maquinas,
+dotacion y disponibilidad reales. Si el dato corresponde a la primera hora de
+arranque, debe guardarse como provisional y ajustarse despues de observar la
+produccion real.
+
 Cada creación o cambio exige un motivo de al menos 10 caracteres y se registra
 atómicamente en la subcolección `historial`. El historial es inmutable y conserva
 valores anteriores, valores nuevos, responsable y fecha. La pantalla consulta
@@ -757,6 +764,21 @@ duracion real de la sesion.
   `bba-erp-pruebas` con una sola escucha por planta para el televisor.
 - Activar multi-planta.
 - Preparar exportacion analitica para IA.
+
+### Backlog posterior a mejoras prioritarias
+
+Orden sugerido despues de estabilizar Planificador, capacidad, turnos,
+ejecucion, calidad y bajo consumo de lecturas:
+
+1. Almacen V2: recepcion, stock MP/RF, consumo por OT, movimientos entre planta
+   y bodega, reservas para procesos y alertas de faltantes antes de iniciar
+   produccion.
+2. Compras/abastecimiento: solicitudes por faltantes de MP/RF y trazabilidad
+   contra recepcion de almacen.
+3. Costeo productivo: consumo real, horas hombre, reprocesos, merma y costo
+   por OT/producto.
+4. Analitica IA: prediccion de cuellos, recomendacion de dotacion y deteccion
+   de estandares desactualizados.
 
 ## Criterios de cierre de OT
 
