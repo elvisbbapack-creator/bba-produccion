@@ -1414,6 +1414,77 @@ function PlanificadorPrioridadesV2({
                         }
                       </div>
                     )}
+                    {grupo.decision_turno
+                      .reasignaciones_sugeridas
+                      ?.length > 0 && (
+                      <div style={{
+                        marginTop: 8,
+                        padding: 9,
+                        borderRadius: 8,
+                        background: "rgba(255,255,255,0.78)",
+                        color: "#334155"
+                      }}>
+                        <strong>
+                          Candidatos para cubrir brecha:
+                        </strong>
+                        <div style={{
+                          display: "grid",
+                          gap: 6,
+                          marginTop: 7
+                        }}>
+                          {grupo.decision_turno
+                            .reasignaciones_sugeridas
+                            .map(sugerencia => (
+                              <div
+                                key={[
+                                  sugerencia.operario_codigo,
+                                  sugerencia.turno_origen,
+                                  sugerencia.turno_destino
+                                ].join(":")}
+                                style={{
+                                  display: "flex",
+                                  gap: 8,
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                  fontSize: 13
+                                }}
+                              >
+                                <strong>
+                                  {
+                                    sugerencia
+                                      .operario_codigo
+                                  }
+                                  {sugerencia
+                                    .operario_nombre
+                                    ? ` - ${sugerencia.operario_nombre}`
+                                    : ""}
+                                </strong>
+                                <span>
+                                  mover de{" "}
+                                  {
+                                    sugerencia
+                                      .turno_origen_nombre
+                                  }
+                                  {" a "}
+                                  {
+                                    sugerencia
+                                      .turno_destino_nombre
+                                  }
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                        <div style={{
+                          marginTop: 7,
+                          color: "#64748B",
+                          fontSize: 12
+                        }}>
+                          Sugerencia informativa: valida
+                          disponibilidad real antes de
+                          cambiar la rotación.
+                        </div>
+                      </div>
+                    )}
                     {
                       grupo.decision_turno
                         .horas_base_semana !== undefined &&

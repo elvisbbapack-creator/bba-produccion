@@ -21,6 +21,7 @@ import {
 import {
   calcularBrechasDotacion,
   calcularCoberturaSubproceso,
+  sugerirReasignacionesDotacion,
   TURNOS_PLANTA
 } from "../turnos/turnosRepository";
 
@@ -321,11 +322,25 @@ const construirResumenDecision = ({
   };
 };
 
+const construirReasignacionesPlan = ({
+  programacion = [],
+  subprocesoId,
+  operariosRequeridosTurno = 1,
+  operariosOcupados = []
+}) =>
+  sugerirReasignacionesDotacion(
+    programacion,
+    subprocesoId,
+    operariosRequeridosTurno,
+    operariosOcupados
+  );
+
 export const construirDecisionTurno = ({
   grupo,
   capacidad,
   programacion = [],
-  plantaId
+  plantaId,
+  operariosOcupados = []
 }) => {
   if (!capacidad) {
     return {
@@ -389,6 +404,26 @@ export const construirDecisionTurno = ({
     semanasBase,
     semanasTresTurnos
   });
+  const reasignacionesSugeridas =
+    construirReasignacionesPlan({
+      programacion,
+      subprocesoId: grupo.subproceso_id,
+      operariosRequeridosTurno:
+        capacidad.operarios_requeridos_turno,
+      operariosOcupados
+    }).map(sugerencia => ({
+      ...sugerencia,
+      turno_origen_nombre:
+        nombreTurno(
+          plantaId,
+          sugerencia.turno_origen
+        ),
+      turno_destino_nombre:
+        nombreTurno(
+          plantaId,
+          sugerencia.turno_destino
+        )
+    }));
 
   if (!brechas.cobertura_base_suficiente) {
     const turnoSugerido =
@@ -406,6 +441,13 @@ export const construirDecisionTurno = ({
       turno_sugerido: turnoSugerido,
       accion_operativa:
         `Asignar ${resumen.dotacion.faltantes_base} operarios faltantes en turnos base antes de evaluar noche.`,
+      reasignaciones_sugeridas:
+        reasignacionesSugeridas.filter(
+          sugerencia =>
+            ["manana", "tarde"].includes(
+              sugerencia.turno_destino
+            )
+        ),
       ...resumen
     };
   }
@@ -449,6 +491,11 @@ export const construirDecisionTurno = ({
       turno_sugerido: "noche",
       accion_operativa:
         `Preparar ${resumen.dotacion.faltantes_noche} operarios para noche antes de activar el 3er turno.`,
+      reasignaciones_sugeridas:
+        reasignacionesSugeridas.filter(
+          sugerencia =>
+            sugerencia.turno_destino === "noche"
+        ),
       ...resumen
     };
   }
@@ -461,6 +508,8 @@ export const construirDecisionTurno = ({
     severidad: "riesgo",
     accion_operativa:
       `Aun con noche faltarían ${resumen.horas_faltantes_3_turnos} h; revisar máquina, estándar o más recursos paralelos.`,
+    reasignaciones_sugeridas:
+      reasignacionesSugeridas,
     ...resumen
   };
 };
@@ -606,7 +655,9 @@ export const construirPlanPrioridades = (
           grupo,
           capacidad: capacidadValidada,
           programacion: opciones.programacion,
-          plantaId: opciones.plantaId
+          plantaId: opciones.plantaId,
+          operariosOcupados:
+            opciones.operariosOcupados || []
         })
       };
     })

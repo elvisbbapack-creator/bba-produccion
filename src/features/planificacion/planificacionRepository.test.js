@@ -547,6 +547,78 @@ test("sugiere el turno base con mayor brecha de dotacion", () => {
   });
 });
 
+test("sugiere candidatos de reasignacion para cubrir brecha base", () => {
+  const decision = construirDecisionTurno({
+    plantaId: "chile",
+    grupo: {
+      subproceso_id: "SP0003",
+      horas_carga_compartida: 20
+    },
+    capacidad: {
+      factor_capacidad: 1,
+      operarios_requeridos_turno: 1
+    },
+    programacion: [
+      {
+        turno_id: "manana",
+        operario_codigo: "OP001",
+        operario_nombre: "Operaria Uno",
+        subprocesos_habilitados: ["SP0003"]
+      },
+      {
+        turno_id: "manana",
+        operario_codigo: "OP002",
+        operario_nombre: "Operaria Dos",
+        subprocesos_habilitados: ["SP0003"]
+      }
+    ]
+  });
+
+  expect(decision.tipo).toBe("cubrir_dotacion_base");
+  expect(decision.reasignaciones_sugeridas)
+    .toEqual([
+      expect.objectContaining({
+        operario_codigo: "OP002",
+        turno_origen: "manana",
+        turno_origen_nombre: "Mañana",
+        turno_destino: "tarde",
+        turno_destino_nombre: "Tarde",
+        subproceso_id: "SP0003"
+      })
+    ]);
+});
+
+test("no sugiere reasignar operarios ocupados en produccion activa", () => {
+  const decision = construirDecisionTurno({
+    plantaId: "chile",
+    grupo: {
+      subproceso_id: "SP0003",
+      horas_carga_compartida: 20
+    },
+    capacidad: {
+      factor_capacidad: 1,
+      operarios_requeridos_turno: 1
+    },
+    programacion: [
+      {
+        turno_id: "manana",
+        operario_codigo: "OP001",
+        subprocesos_habilitados: ["SP0003"]
+      },
+      {
+        turno_id: "manana",
+        operario_codigo: "OP002",
+        subprocesos_habilitados: ["SP0003"]
+      }
+    ],
+    operariosOcupados: ["OP002"]
+  });
+
+  expect(decision.tipo).toBe("cubrir_dotacion_base");
+  expect(decision.reasignaciones_sugeridas)
+    .toEqual([]);
+});
+
 test("prioriza un DT disponible antes que uno bloqueado", () => {
   const plan = construirPlanPrioridades(
     [

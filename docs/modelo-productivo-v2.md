@@ -529,6 +529,10 @@ identifica candidatos concretos para reasignación. Solo propone una persona si
 el turno de origen conserva la dotación requerida después del movimiento. La
 sugerencia es informativa: el jefe debe revisar la rotación, jornada y
 continuidad de las demás OTs antes de modificar la programación semanal.
+El Planificador muestra esas mismas reasignaciones sugeridas cuando la brecha
+de dotacion base o nocturna tiene candidatos concretos. La tarjeta indica
+operario, turno de origen y turno destino, pero no modifica la rotacion
+automaticamente.
 
 ### `ocupacion_operarios/{empresa_planta_operario}`
 
