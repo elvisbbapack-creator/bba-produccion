@@ -46,6 +46,18 @@ const fondoDecision = {
   riesgo: "#FEF2F2"
 };
 
+const colorCapacidad = {
+  validada: "#166534",
+  provisional: "#92400E",
+  faltante: "#B91C1C"
+};
+
+const fondoCapacidad = {
+  validada: "#F0FDF4",
+  provisional: "#FFFBEB",
+  faltante: "#FEF2F2"
+};
+
 const fechaVisible = valor => {
   if (!valor) {
     return "Sin fecha";
@@ -512,6 +524,69 @@ function PlanificadorPrioridadesV2({
                   ))}
                 </div>
 
+                {grupo.capacidad_estado && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: 10,
+                    borderRadius: 8,
+                    background:
+                      fondoCapacidad[
+                        grupo.capacidad_estado.estado
+                      ] || "#F8FAFC",
+                    color:
+                      colorCapacidad[
+                        grupo.capacidad_estado.estado
+                      ] || "#334155"
+                  }}>
+                    <strong>
+                      {grupo.capacidad_estado.titulo}
+                    </strong>
+                    <div style={{ marginTop: 4 }}>
+                      {grupo.capacidad_estado.detalle}
+                    </div>
+                    {grupo.capacidad_estado.estado !==
+                      "faltante" && (
+                      <div style={{
+                        display: "flex",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        marginTop: 6,
+                        fontSize: 13
+                      }}>
+                        <span>
+                          Recursos:{" "}
+                          {
+                            grupo.capacidad_estado
+                              .recursos_paralelos
+                          }
+                        </span>
+                        <span>
+                          Factor:{" "}
+                          {
+                            grupo.capacidad_estado
+                              .factor_capacidad
+                          }
+                        </span>
+                        <span>
+                          Operarios/turno:{" "}
+                          {
+                            grupo.capacidad_estado
+                              .operarios_requeridos_turno
+                          }
+                        </span>
+                        <span>
+                          Disponibilidad:{" "}
+                          {
+                            grupo.capacidad_estado
+                              .disponibilidad_pct
+                          }
+                          %
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{
                   marginTop: 12,
                   padding: 10,
@@ -734,7 +809,10 @@ function PlanificadorPrioridadesV2({
                           cursor: "pointer"
                         }}
                       >
-                        Configurar capacidad de{" "}
+                        {grupo.capacidad_estado
+                          ?.estado === "provisional"
+                          ? "Validar capacidad de "
+                          : "Configurar capacidad de "}
                         {grupo.subproceso_id}
                       </button>
                     )}

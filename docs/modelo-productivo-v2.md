@@ -304,7 +304,11 @@ reforzar capacidad. La recomendacion no reasigna operarios ni modifica OTs;
 solo orienta la decision del jefe. La tarjeta de decision muestra carga en
 horas, capacidad con 2 turnos, aporte del turno noche, horas que seguirian
 faltando, ahorro estimado en semanas y dotacion cubierta por turno para explicar
-por que sugiere mantener, ampliar o reforzar. Si falta capacidad validada, el planificador
+por que sugiere mantener, ampliar o reforzar. Cada tarjeta muestra tambien el
+estado de capacidad del subproceso: `faltante`, `provisional` o `validada`.
+Las capacidades provisionales se muestran con sus recursos, factor, dotacion y
+disponibilidad, pero bloquean recomendaciones de turnos hasta que el jefe las
+valide en planta. Si falta capacidad validada, el planificador
 permite abrir
 `Capacidad por Proceso (V2)` con la planta y el subproceso del cuello ya
 precargados para completar la configuracion. Cuando existe OT de referencia, la

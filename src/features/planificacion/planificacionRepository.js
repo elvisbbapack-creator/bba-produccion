@@ -87,6 +87,42 @@ const horasTurnos = (plantaId, turnos = []) => {
   );
 };
 
+const construirEstadoCapacidadPlan = capacidad => {
+  if (!capacidad) {
+    return {
+      estado: "faltante",
+      titulo: "Capacidad faltante",
+      detalle:
+        "No hay capacidad registrada para este subproceso.",
+      bloquea_recomendacion: true
+    };
+  }
+
+  const validada =
+    capacidad.estado_datos === "validada";
+  const resumen = {
+    capacidad_id: capacidad.id || "",
+    estado: validada ? "validada" : "provisional",
+    titulo: validada
+      ? "Capacidad validada"
+      : "Capacidad provisional",
+    detalle: validada
+      ? "El Planificador puede usar estos datos para comparar turnos."
+      : "Existe capacidad, pero falta verificacion en planta antes de recomendar turnos.",
+    bloquea_recomendacion: !validada,
+    recursos_paralelos:
+      capacidad.recursos_paralelos || 0,
+    factor_capacidad:
+      capacidad.factor_capacidad || 0,
+    operarios_requeridos_turno:
+      capacidad.operarios_requeridos_turno || 0,
+    disponibilidad_pct:
+      capacidad.disponibilidad_pct || 0
+  };
+
+  return resumen;
+};
+
 const construirResumenDecision = ({
   plantaId,
   cobertura,
@@ -433,15 +469,23 @@ export const construirPlanPrioridades = (
       const capacidad = (
         opciones.capacidades || []
       ).find(item =>
-        item.subproceso_id === subprocesoId &&
-        item.estado_datos === "validada"
+        item.subproceso_id === subprocesoId
+      );
+      const capacidadValidada =
+        capacidad?.estado_datos === "validada"
+          ? capacidad
+          : null;
+      const estadoCapacidad =
+        construirEstadoCapacidadPlan(
+          capacidad
       );
 
       return {
         ...grupo,
+        capacidad_estado: estadoCapacidad,
         decision_turno: construirDecisionTurno({
           grupo,
-          capacidad,
+          capacidad: capacidadValidada,
           programacion: opciones.programacion,
           plantaId: opciones.plantaId
         })
