@@ -329,6 +329,13 @@ accionables y bloqueos por dotacion para priorizar la revision diaria. Cada
 tarjeta del resumen funciona como filtro rapido y permite volver a ver todo el
 plan sin recargar datos.
 
+El jefe puede registrar la decision tomada desde la misma tarjeta del
+Planificador. El registro se guarda en `decisiones_planificador` con la
+recomendacion original, la decision real, comentario opcional, OT priorizada,
+subproceso, capacidad usada, dotacion, ahorro estimado y usuario responsable.
+Este historial no modifica OTs ni turnos automaticamente; sirve como auditoria y
+base futura para comparar recomendaciones contra resultados reales con IA.
+
 ### `configuracion_capacidad/{empresaId_plantaId}`
 
 ```text

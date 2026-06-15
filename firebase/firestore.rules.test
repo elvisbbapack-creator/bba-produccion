@@ -231,6 +231,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /decisiones_planificador/{decisionId} {
+      allow read: if canManage() &&
+        belongsToPlant(resource.data);
+      allow create: if canManage() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.usuario_id ==
+          request.auth.uid;
+      allow update, delete: if false;
+    }
+
     match /productos/{productoId} {
       allow read: if belongsToCompany(
         resource.data

@@ -222,6 +222,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /decisiones_planificador/{decisionId} {
+      allow read: if isManagement() &&
+        belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.usuario_id ==
+          request.auth.uid;
+      allow update, delete: if false;
+    }
+
     match /sesiones_produccion/{sesionId} {
       allow read: if belongsToPlant(resource.data);
       allow create: if isPlantOperator() &&

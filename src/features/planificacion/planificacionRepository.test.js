@@ -2,6 +2,7 @@ import {
   construirDecisionTurno,
   construirPlanPrioridades,
   construirResumenPlanificador,
+  construirRegistroDecisionPlanificador,
   filtrarPlanPrioridades
 } from "./planificacionRepository";
 
@@ -533,4 +534,76 @@ test("filtra plan por capacidad y acciones operativas", () => {
   ).toEqual(["SP0004"]);
   expect(filtrarPlanPrioridades(plan, "todo"))
     .toBe(plan);
+});
+
+test("construye registro de decision tomada por el jefe", () => {
+  const registro =
+    construirRegistroDecisionPlanificador({
+      perfil: {
+        uid: "user-1",
+        nombre: "Jefe Planta",
+        rol: "jefe",
+        empresa_id: "bba"
+      },
+      plantaId: "chile",
+      decisionTomada: "activar_3_turno",
+      comentario: "  Se activa solo en laser. ",
+      grupo: {
+        subproceso_id: "SP0003",
+        subproceso_nombre: "Laser fibra tubo",
+        siguiente_ot: {
+          id: "ot-1",
+          codigo: "OT-CHI-000001",
+          producto_id: "prod-1",
+          producto_codigo: "PCL0001",
+          producto_nombre: "Mod 2N60 CL"
+        },
+        capacidad_estado: {
+          estado: "validada",
+          capacidad_id: "cap-1"
+        },
+        decision_turno: {
+          tipo: "activar_3_turno",
+          titulo:
+            "Activar 3er turno en este subproceso",
+          carga_horas: 120,
+          horas_base_semana: 96,
+          horas_3_turnos_semana: 144,
+          dias_estimados_2_turnos: 9,
+          dias_estimados_3_turnos: 6,
+          ahorro_dias_con_noche: 3,
+          ahorro_semanas_con_noche: 0.42,
+          dotacion: {
+            requerida_por_turno: 1,
+            manana: 1,
+            tarde: 1,
+            noche: 1,
+            faltantes_base: 0,
+            faltantes_noche: 0
+          }
+        }
+      }
+    });
+
+  expect(registro).toMatchObject({
+    empresa_id: "bba",
+    planta_id: "chile",
+    usuario_id: "user-1",
+    usuario_nombre: "Jefe Planta",
+    usuario_rol: "jefe",
+    subproceso_id: "SP0003",
+    ot_priorizada_codigo: "OT-CHI-000001",
+    recomendacion_tipo: "activar_3_turno",
+    decision_tomada: "activar_3_turno",
+    comentario: "Se activa solo en laser.",
+    carga_horas: 120,
+    horas_base_semana: 96,
+    horas_3_turnos_semana: 144,
+    dias_estimados_2_turnos: 9,
+    dias_estimados_3_turnos: 6,
+    ahorro_dias_con_noche: 3,
+    capacidad_estado: "validada",
+    capacidad_id: "cap-1"
+  });
+  expect(registro.creado_en).toBeDefined();
 });

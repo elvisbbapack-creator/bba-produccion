@@ -1,4 +1,6 @@
 import {
+  addDoc,
+  collection,
   doc,
   serverTimestamp,
   updateDoc
@@ -670,6 +672,128 @@ export const filtrarPlanPrioridades = (
     return true;
   });
 };
+
+export const construirRegistroDecisionPlanificador =
+  ({
+    perfil,
+    plantaId,
+    grupo,
+    decisionTomada,
+    comentario = ""
+  }) => {
+    const decision =
+      grupo?.decision_turno || {};
+    const capacidad =
+      grupo?.capacidad_estado || {};
+    const siguienteOT =
+      grupo?.siguiente_ot || {};
+
+    return {
+      empresa_id: perfil?.empresa_id || "",
+      planta_id: plantaId || "",
+      usuario_id:
+        perfil?.uid || perfil?.id || "",
+      usuario_nombre: perfil?.nombre || "",
+      usuario_rol: perfil?.rol || "",
+      subproceso_id:
+        grupo?.subproceso_id || "",
+      subproceso_nombre:
+        grupo?.subproceso_nombre || "",
+      ot_priorizada_id: siguienteOT.id || "",
+      ot_priorizada_codigo:
+        siguienteOT.codigo || "",
+      producto_id:
+        siguienteOT.producto_id || "",
+      producto_codigo:
+        siguienteOT.producto_codigo || "",
+      producto_nombre:
+        siguienteOT.producto_nombre || "",
+      recomendacion_tipo: decision.tipo || "",
+      recomendacion_titulo:
+        decision.titulo || "",
+      decision_tomada: decisionTomada || "",
+      comentario: comentario.trim(),
+      carga_horas:
+        Number(decision.carga_horas || 0),
+      horas_base_semana:
+        Number(decision.horas_base_semana || 0),
+      horas_3_turnos_semana:
+        Number(
+          decision.horas_3_turnos_semana || 0
+        ),
+      dias_estimados_2_turnos:
+        decision.dias_estimados_2_turnos ?? null,
+      dias_estimados_3_turnos:
+        decision.dias_estimados_3_turnos ?? null,
+      ahorro_dias_con_noche:
+        Number(
+          decision.ahorro_dias_con_noche || 0
+        ),
+      ahorro_semanas_con_noche:
+        Number(
+          decision.ahorro_semanas_con_noche || 0
+        ),
+      dotacion_requerida_turno:
+        Number(
+          decision.dotacion
+            ?.requerida_por_turno || 0
+        ),
+      dotacion_manana:
+        Number(decision.dotacion?.manana || 0),
+      dotacion_tarde:
+        Number(decision.dotacion?.tarde || 0),
+      dotacion_noche:
+        Number(decision.dotacion?.noche || 0),
+      faltantes_base:
+        Number(
+          decision.dotacion?.faltantes_base || 0
+        ),
+      faltantes_noche:
+        Number(
+          decision.dotacion?.faltantes_noche || 0
+        ),
+      capacidad_estado:
+        capacidad.estado || "faltante",
+      capacidad_id:
+        capacidad.capacidad_id || "",
+      creado_en: serverTimestamp()
+    };
+  };
+
+export const registrarDecisionPlanificador =
+  async ({
+    db,
+    perfil,
+    plantaId,
+    grupo,
+    decisionTomada,
+    comentario = ""
+  }) => {
+    if (!decisionTomada) {
+      throw new Error(
+        "Selecciona la decisión tomada."
+      );
+    }
+
+    const registro =
+      construirRegistroDecisionPlanificador({
+        perfil,
+        plantaId,
+        grupo,
+        decisionTomada,
+        comentario
+      });
+
+    const referencia = await addDoc(
+      collection(db, "decisiones_planificador"),
+      registro
+    );
+
+    return {
+      id: referencia.id,
+      ...registro
+    };
+  };
 
 export const recalcularResumenesPlanificacion =
   async ({

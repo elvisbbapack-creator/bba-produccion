@@ -17,6 +17,7 @@ import {
   filtrarPlanPrioridades,
   construirPlanPrioridades,
   construirResumenPlanificador,
+  registrarDecisionPlanificador,
   recalcularResumenesPlanificacion
 } from "./planificacionRepository";
 
@@ -33,6 +34,25 @@ const accionTexto = {
   desbloquear_dt: "Resolver dependencia o RF",
   definir_estandar: "Definir estándar antes de proyectar"
 };
+
+const decisionesJefe = [
+  {
+    id: "mantener_2_turnos",
+    texto: "Mantener 2 turnos"
+  },
+  {
+    id: "activar_3_turno",
+    texto: "Activar 3er turno"
+  },
+  {
+    id: "programar_dotacion",
+    texto: "Programar dotación"
+  },
+  {
+    id: "revisar_capacidad",
+    texto: "Revisar capacidad"
+  }
+];
 
 const colorDecision = {
   normal: "#166534",
@@ -152,6 +172,14 @@ function PlanificadorPrioridadesV2({
   const [mensaje, setMensaje] = useState("");
   const [filtroActivo, setFiltroActivo] =
     useState("todo");
+  const [
+    comentariosDecision,
+    setComentariosDecision
+  ] = useState({});
+  const [
+    guardandoDecision,
+    setGuardandoDecision
+  ] = useState("");
   const plan = useMemo(
     () => construirPlanPrioridades(
       ordenes,
@@ -178,6 +206,43 @@ function PlanificadorPrioridadesV2({
   const ordenesSinCuello = ordenes.filter(
     orden => !orden.cuello_carga
   ).length;
+
+  const registrarDecision = async (
+    grupo,
+    decisionTomada
+  ) => {
+    const clave = `${grupo.subproceso_id}:${decisionTomada}`;
+
+    try {
+      setGuardandoDecision(clave);
+      setError("");
+      await registrarDecisionPlanificador({
+        db,
+        perfil,
+        plantaId,
+        grupo,
+        decisionTomada,
+        comentario:
+          comentariosDecision[
+            grupo.subproceso_id
+          ] || ""
+      });
+      setMensaje(
+        `Decisión registrada para ${grupo.subproceso_id}.`
+      );
+      setComentariosDecision(actual => ({
+        ...actual,
+        [grupo.subproceso_id]: ""
+      }));
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo registrar la decisión."
+      );
+    } finally {
+      setGuardandoDecision("");
+    }
+  };
 
   useEffect(() => {
     if (!plantaId) {
@@ -1087,6 +1152,93 @@ function PlanificadorPrioridadesV2({
                         )}
                       </div>
                     )}
+                    <div style={{
+                      marginTop: 12,
+                      padding: 10,
+                      borderRadius: 9,
+                      background: "rgba(255,255,255,0.72)",
+                      color: "#334155"
+                    }}>
+                      <strong>
+                        Registrar decisión tomada:
+                      </strong>
+                      <textarea
+                        value={
+                          comentariosDecision[
+                            grupo.subproceso_id
+                          ] || ""
+                        }
+                        onChange={evento =>
+                          setComentariosDecision(
+                            actual => ({
+                              ...actual,
+                              [grupo.subproceso_id]:
+                                evento.target.value
+                            })
+                          )
+                        }
+                        placeholder="Comentario opcional: motivo, acuerdo de reunión o condición para revisar luego."
+                        rows={2}
+                        style={{
+                          width: "100%",
+                          marginTop: 8,
+                          borderRadius: 8,
+                          border: "1px solid #CBD5E1",
+                          padding: 9,
+                          resize: "vertical",
+                          fontFamily: "Arial"
+                        }}
+                      />
+                      <div style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        marginTop: 8
+                      }}>
+                        {decisionesJefe.map(opcion => {
+                          const clave =
+                            `${grupo.subproceso_id}:${opcion.id}`;
+
+                          return (
+                            <button
+                              key={opcion.id}
+                              type="button"
+                              disabled={
+                                Boolean(
+                                  guardandoDecision
+                                )
+                              }
+                              onClick={() =>
+                                registrarDecision(
+                                  grupo,
+                                  opcion.id
+                                )
+                              }
+                              style={{
+                                border: "none",
+                                borderRadius: 8,
+                                padding: "8px 10px",
+                                background:
+                                  guardandoDecision ===
+                                  clave
+                                    ? "#94A3B8"
+                                    : "#334155",
+                                color: "white",
+                                fontWeight: "bold",
+                                cursor:
+                                  guardandoDecision
+                                    ? "not-allowed"
+                                    : "pointer"
+                              }}
+                            >
+                              {guardandoDecision === clave
+                                ? "Guardando..."
+                                : opcion.texto}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                     {[
                       "configurar_capacidad",
                       "reforzar_capacidad"
