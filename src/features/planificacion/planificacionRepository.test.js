@@ -1,6 +1,7 @@
 import {
   construirDecisionTurno,
-  construirPlanPrioridades
+  construirPlanPrioridades,
+  construirResumenPlanificador
 } from "./planificacionRepository";
 
 test("agrupa OTs por subproceso y prioriza riesgo y entrega", () => {
@@ -372,4 +373,66 @@ test("excluye OTs sin resumen de cuello pendiente", () => {
       }
     ])
   ).toEqual([]);
+});
+
+test("resume estados ejecutivos del planificador", () => {
+  const resumen = construirResumenPlanificador([
+    {
+      ots_compitiendo: 2,
+      cantidad_total_pendiente: 300,
+      horas_carga_compartida: 4.5,
+      capacidad_estado: {
+        estado: "faltante"
+      },
+      decision_turno: {
+        tipo: "configurar_capacidad"
+      }
+    },
+    {
+      ots_compitiendo: 1,
+      cantidad_total_pendiente: 100,
+      horas_carga_compartida: 2,
+      capacidad_estado: {
+        estado: "provisional"
+      },
+      decision_turno: {
+        tipo: "configurar_capacidad"
+      }
+    },
+    {
+      ots_compitiendo: 1,
+      cantidad_total_pendiente: 80,
+      horas_carga_compartida: 1.25,
+      capacidad_estado: {
+        estado: "validada"
+      },
+      decision_turno: {
+        tipo: "cubrir_dotacion_base"
+      }
+    },
+    {
+      ots_compitiendo: 1,
+      cantidad_total_pendiente: 50,
+      horas_carga_compartida: 1,
+      capacidad_estado: {
+        estado: "validada"
+      },
+      decision_turno: {
+        tipo: "activar_3_turno"
+      }
+    }
+  ]);
+
+  expect(resumen).toEqual({
+    subprocesos_total: 4,
+    ots_compitiendo_total: 5,
+    unidades_pendientes_total: 530,
+    horas_carga_total: 8.75,
+    capacidad_faltante: 1,
+    capacidad_provisional: 1,
+    capacidad_validada: 2,
+    recomendaciones_accionables: 2,
+    bloqueados_dotacion: 1,
+    bloqueados_capacidad: 2
+  });
 });

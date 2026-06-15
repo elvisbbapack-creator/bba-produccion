@@ -15,6 +15,7 @@ import {
 } from "../turnos/turnosRepository";
 import {
   construirPlanPrioridades,
+  construirResumenPlanificador,
   recalcularResumenesPlanificacion
 } from "./planificacionRepository";
 
@@ -56,6 +57,13 @@ const fondoCapacidad = {
   validada: "#F0FDF4",
   provisional: "#FFFBEB",
   faltante: "#FEF2F2"
+};
+
+const tarjetaResumen = {
+  background: "white",
+  borderRadius: 12,
+  padding: 14,
+  boxShadow: "0 2px 8px rgba(15,23,42,0.07)"
 };
 
 const fechaVisible = valor => {
@@ -119,6 +127,10 @@ function PlanificadorPrioridadesV2({
       }
     ),
     [capacidades, ordenes, plantaId, programacion]
+  );
+  const resumenPlan = useMemo(
+    () => construirResumenPlanificador(plan),
+    [plan]
   );
   const ordenesSinCuello = ordenes.filter(
     orden => !orden.cuello_carga
@@ -382,6 +394,122 @@ function PlanificadorPrioridadesV2({
             display: "grid",
             gap: 18
           }}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(170px, 1fr))",
+              gap: 12
+            }}>
+              <div style={tarjetaResumen}>
+                <small style={{ color: "#64748B" }}>
+                  Subprocesos con carga
+                </small>
+                <strong style={{
+                  display: "block",
+                  fontSize: 24,
+                  marginTop: 4
+                }}>
+                  {resumenPlan.subprocesos_total}
+                </strong>
+                <div style={{
+                  color: "#475569",
+                  fontSize: 13,
+                  marginTop: 3
+                }}>
+                  {resumenPlan.ots_compitiendo_total}
+                  {" OTs · "}
+                  {resumenPlan.horas_carga_total}
+                  {" h"}
+                </div>
+              </div>
+              <div style={tarjetaResumen}>
+                <small style={{ color: "#64748B" }}>
+                  Capacidad faltante
+                </small>
+                <strong style={{
+                  display: "block",
+                  color: "#B91C1C",
+                  fontSize: 24,
+                  marginTop: 4
+                }}>
+                  {resumenPlan.capacidad_faltante}
+                </strong>
+              </div>
+              <div style={tarjetaResumen}>
+                <small style={{ color: "#64748B" }}>
+                  Capacidad provisional
+                </small>
+                <strong style={{
+                  display: "block",
+                  color: "#92400E",
+                  fontSize: 24,
+                  marginTop: 4
+                }}>
+                  {resumenPlan.capacidad_provisional}
+                </strong>
+              </div>
+              <div style={tarjetaResumen}>
+                <small style={{ color: "#64748B" }}>
+                  Capacidad validada
+                </small>
+                <strong style={{
+                  display: "block",
+                  color: "#166534",
+                  fontSize: 24,
+                  marginTop: 4
+                }}>
+                  {resumenPlan.capacidad_validada}
+                </strong>
+              </div>
+              <div style={tarjetaResumen}>
+                <small style={{ color: "#64748B" }}>
+                  Recomendaciones accionables
+                </small>
+                <strong style={{
+                  display: "block",
+                  color: "#1D4ED8",
+                  fontSize: 24,
+                  marginTop: 4
+                }}>
+                  {
+                    resumenPlan
+                      .recomendaciones_accionables
+                  }
+                </strong>
+              </div>
+              <div style={tarjetaResumen}>
+                <small style={{ color: "#64748B" }}>
+                  Bloqueados por dotación
+                </small>
+                <strong style={{
+                  display: "block",
+                  color: "#B91C1C",
+                  fontSize: 24,
+                  marginTop: 4
+                }}>
+                  {resumenPlan.bloqueados_dotacion}
+                </strong>
+              </div>
+            </div>
+
+            {resumenPlan.bloqueados_capacidad > 0 && (
+              <div style={{
+                background: "#FFFBEB",
+                color: "#92400E",
+                padding: 12,
+                borderRadius: 9
+              }}>
+                <strong>
+                  {
+                    resumenPlan
+                      .bloqueados_capacidad
+                  }
+                  {" subprocesos no pueden recomendar turnos por capacidad faltante o provisional."}
+                </strong>
+                {" Prioriza validar esos datos antes de activar horas extra o 3er turno."}
+              </div>
+            )}
+
             {plan.map(grupo => (
               <section
                 key={grupo.subproceso_id}

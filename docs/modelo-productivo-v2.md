@@ -321,6 +321,9 @@ para recalcular la decision y muestra una franja contextual con ese siguiente
 paso. Al guardar una capacidad desde una OT de referencia, la pantalla recalcula
 la preparacion de esa OT y avisa si ya estan todas sus capacidades validadas
 para volver al Planificador o si aun quedan capacidades provisionales/faltantes.
+El encabezado del Planificador resume subprocesos con carga, OTs involucradas,
+horas de carga, capacidad faltante/provisional/validada, recomendaciones
+accionables y bloqueos por dotacion para priorizar la revision diaria.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 

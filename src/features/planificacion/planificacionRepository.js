@@ -506,6 +506,74 @@ export const construirPlanPrioridades = (
     });
 };
 
+export const construirResumenPlanificador = (
+  plan = []
+) => {
+  const resumen = {
+    subprocesos_total: plan.length,
+    ots_compitiendo_total: 0,
+    unidades_pendientes_total: 0,
+    horas_carga_total: 0,
+    capacidad_faltante: 0,
+    capacidad_provisional: 0,
+    capacidad_validada: 0,
+    recomendaciones_accionables: 0,
+    bloqueados_dotacion: 0,
+    bloqueados_capacidad: 0
+  };
+  const tiposAccionables = new Set([
+    "activar_3_turno",
+    "cubrir_dotacion_base",
+    "preparar_3_turno",
+    "reforzar_capacidad"
+  ]);
+  const tiposBloqueadosDotacion = new Set([
+    "cubrir_dotacion_base",
+    "preparar_3_turno"
+  ]);
+
+  plan.forEach(grupo => {
+    resumen.ots_compitiendo_total += Number(
+      grupo.ots_compitiendo || 0
+    );
+    resumen.unidades_pendientes_total += Number(
+      grupo.cantidad_total_pendiente || 0
+    );
+    resumen.horas_carga_total += Number(
+      grupo.horas_carga_compartida || 0
+    );
+
+    const estadoCapacidad =
+      grupo.capacidad_estado?.estado || "faltante";
+
+    if (estadoCapacidad === "validada") {
+      resumen.capacidad_validada += 1;
+    } else if (estadoCapacidad === "provisional") {
+      resumen.capacidad_provisional += 1;
+      resumen.bloqueados_capacidad += 1;
+    } else {
+      resumen.capacidad_faltante += 1;
+      resumen.bloqueados_capacidad += 1;
+    }
+
+    const tipoDecision =
+      grupo.decision_turno?.tipo || "";
+
+    if (tiposAccionables.has(tipoDecision)) {
+      resumen.recomendaciones_accionables += 1;
+    }
+    if (tiposBloqueadosDotacion.has(tipoDecision)) {
+      resumen.bloqueados_dotacion += 1;
+    }
+  });
+
+  return {
+    ...resumen,
+    horas_carga_total:
+      redondear(resumen.horas_carga_total)
+  };
+};
+
 export const recalcularResumenesPlanificacion =
   async ({
     db,
