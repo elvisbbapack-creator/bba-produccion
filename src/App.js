@@ -116,6 +116,8 @@ function App() {
     setContextoCapacidadV2] = useState(null);
   const [contextoTurnosV2,
     setContextoTurnosV2] = useState(null);
+  const [contextoEjecucionV2,
+    setContextoEjecucionV2] = useState(null);
   const sesionCargaId =
     autenticacionFirebaseActiva
       ? usuarioSeleccionado?.id || ""
@@ -1867,6 +1869,10 @@ if (
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
+      onRevisarEstandar={contexto => {
+        setContextoEjecucionV2(contexto);
+        setPantalla("ejecucionV2");
+      }}
     />
   );
 }
@@ -1881,6 +1887,7 @@ if (
     <EjecucionProduccionV2
       db={db}
       perfil={usuarioSeleccionado}
+      contextoInicial={contextoEjecucionV2}
       onVolver={() => setPantalla("home")}
     />
   );

@@ -70,6 +70,7 @@ const etiqueta = {
 function EjecucionProduccionV2({
   db,
   perfil,
+  contextoInicial = null,
   onVolver
 }) {
   const plantas = perfil.planta_ids || [];
@@ -113,6 +114,8 @@ function EjecucionProduccionV2({
     });
   const [resumenEstandar, setResumenEstandar] =
     useState(null);
+  const [contextoAplicado, setContextoAplicado] =
+    useState(false);
 
   const ordenSeleccionada = ordenes.find(
     orden => orden.id === ordenId
@@ -327,6 +330,99 @@ function EjecucionProduccionV2({
   useEffect(() => {
     cargarInicial();
   }, [cargarInicial]);
+
+  useEffect(() => {
+    if (
+      contextoAplicado ||
+      !contextoInicial?.ot_id ||
+      ordenes.length === 0
+    ) {
+      return undefined;
+    }
+
+    let vigente = true;
+
+    const aplicarContexto = async () => {
+      const ordenContexto = ordenes.find(
+        orden => orden.id === contextoInicial.ot_id
+      );
+
+      if (!ordenContexto) {
+        setContextoAplicado(true);
+        return;
+      }
+
+      if (
+        contextoInicial.planta_id &&
+        contextoInicial.planta_id !== plantaId
+      ) {
+        setPlantaId(contextoInicial.planta_id);
+      }
+
+      setOrdenId(ordenContexto.id);
+      setError("");
+      setMensaje(
+        contextoInicial.origen ===
+          "historial_planificador"
+          ? "Revisa el estándar sugerido por el historial del Planificador."
+          : ""
+      );
+
+      try {
+        const operacionesData =
+          await listarOperacionesOT(
+            db,
+            perfil.empresa_id,
+            ordenContexto.planta_id,
+            ordenContexto.id
+          );
+
+        if (!vigente) {
+          return;
+        }
+
+        setOperaciones(operacionesData);
+
+        const operacionContexto =
+          operacionesData.find(operacion =>
+            operacion.id ===
+            contextoInicial.ot_operacion_id
+          ) ||
+          operacionesData.find(operacion =>
+            operacion.subproceso_id ===
+            contextoInicial.subproceso_id
+          );
+
+        if (operacionContexto) {
+          setOperacionId(operacionContexto.id);
+        }
+      } catch (fallo) {
+        if (vigente) {
+          setError(
+            fallo?.message ||
+            "No se pudo abrir la operación sugerida."
+          );
+        }
+      } finally {
+        if (vigente) {
+          setContextoAplicado(true);
+        }
+      }
+    };
+
+    aplicarContexto();
+
+    return () => {
+      vigente = false;
+    };
+  }, [
+    contextoAplicado,
+    contextoInicial,
+    db,
+    ordenes,
+    perfil.empresa_id,
+    plantaId
+  ]);
 
   const cambiarPlanta = async (valor) => {
     setPlantaId(valor);

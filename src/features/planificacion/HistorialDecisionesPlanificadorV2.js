@@ -77,7 +77,8 @@ const eficienciaVisible = impacto => {
 function HistorialDecisionesPlanificadorV2({
   db,
   perfil,
-  onVolver
+  onVolver,
+  onRevisarEstandar
 }) {
   const plantas = perfil.planta_ids || [];
   const [plantaId, setPlantaId] = useState(
@@ -667,6 +668,41 @@ function HistorialDecisionesPlanificadorV2({
                         " · "
                       )}
                     </div>
+                  )}
+                  {impactos[item.id]
+                    .eficiencia_fuera_rango &&
+                    onRevisarEstandar && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onRevisarEstandar({
+                          planta_id: item.planta_id,
+                          ot_id:
+                            item.ot_priorizada_id,
+                          ot_codigo:
+                            item.ot_priorizada_codigo,
+                          ot_operacion_id:
+                            item
+                              .ot_operacion_priorizada_id,
+                          subproceso_id:
+                            item.subproceso_id,
+                          origen:
+                            "historial_planificador"
+                        })
+                      }
+                      style={{
+                        marginTop: 10,
+                        border: "1px solid currentColor",
+                        borderRadius: 8,
+                        padding: "8px 10px",
+                        background: "white",
+                        color: "inherit",
+                        fontWeight: "bold",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Revisar estándar en Ejecución
+                    </button>
                   )}
                 </div>
               )}

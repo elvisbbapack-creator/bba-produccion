@@ -558,7 +558,12 @@ test("construye registro de decision tomada por el jefe", () => {
           codigo: "OT-CHI-000001",
           producto_id: "prod-1",
           producto_codigo: "PCL0001",
-          producto_nombre: "Mod 2N60 CL"
+          producto_nombre: "Mod 2N60 CL",
+          cuello_carga: {
+            operacion_id: "op-1",
+            operacion_codigo: "DT0005",
+            operacion_nombre: "Perforacion 4 hoyos"
+          }
         },
         capacidad_estado: {
           estado: "validada",
@@ -595,6 +600,8 @@ test("construye registro de decision tomada por el jefe", () => {
     usuario_rol: "jefe",
     subproceso_id: "SP0003",
     ot_priorizada_codigo: "OT-CHI-000001",
+    ot_operacion_priorizada_id: "op-1",
+    ot_operacion_priorizada_codigo: "DT0005",
     recomendacion_tipo: "activar_3_turno",
     decision_tomada: "activar_3_turno",
     comentario: "Se activa solo en laser.",

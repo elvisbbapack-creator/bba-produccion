@@ -754,6 +754,8 @@ export const construirRegistroDecisionPlanificador =
       grupo?.capacidad_estado || {};
     const siguienteOT =
       grupo?.siguiente_ot || {};
+    const cuello =
+      siguienteOT?.cuello_carga || {};
 
     return {
       empresa_id: perfil?.empresa_id || "",
@@ -775,6 +777,12 @@ export const construirRegistroDecisionPlanificador =
         siguienteOT.producto_codigo || "",
       producto_nombre:
         siguienteOT.producto_nombre || "",
+      ot_operacion_priorizada_id:
+        cuello.operacion_id || "",
+      ot_operacion_priorizada_codigo:
+        cuello.operacion_codigo || "",
+      ot_operacion_priorizada_nombre:
+        cuello.operacion_nombre || "",
       recomendacion_tipo: decision.tipo || "",
       recomendacion_titulo:
         decision.titulo || "",
