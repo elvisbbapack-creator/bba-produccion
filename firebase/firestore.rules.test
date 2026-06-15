@@ -89,6 +89,48 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /inventario_materiales/{stockId} {
+      allow get: if canManage() &&
+        (
+          !exists(
+            /databases/$(database)/documents/inventario_materiales/$(stockId)
+          ) ||
+          belongsToPlant(resource.data)
+        );
+      allow list: if belongsToPlant(resource.data);
+      allow create: if canManage() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if canManage() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /movimientos_almacen/{movimientoId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if canManage() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.usuario_id ==
+          request.auth.uid;
+      allow update, delete: if false;
+    }
+
     match /{catalogo}/{registroId} {
       allow read: if catalogo in [
           'catalogo_defectos',

@@ -64,6 +64,8 @@ import PlanificadorPrioridadesV2 from
   "./features/planificacion/PlanificadorPrioridadesV2";
 import HistorialDecisionesPlanificadorV2 from
   "./features/planificacion/HistorialDecisionesPlanificadorV2";
+import AlmacenV2 from
+  "./features/almacen/AlmacenV2";
 
 function App() {
   const esMobile =
@@ -1629,6 +1631,24 @@ const cargarTodosLosParos = async () => {
             ) && (
               <button
                 onClick={() =>
+                  setPantalla("almacenV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#0369A1"
+                }}
+              >
+                Almacén V2
+              </button>
+            )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
                   setPantalla("materialesV2")
                 }
                 style={{
@@ -1734,6 +1754,21 @@ const cargarTodosLosParos = async () => {
 </div>
       </div>
     </div>
+  );
+}
+
+if (
+  pantalla === "almacenV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <AlmacenV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
   );
 }
 

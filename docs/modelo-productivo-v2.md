@@ -48,6 +48,56 @@ empresa_id
 `RF` es un recurso en fabricacion generado por una operacion anterior. Cada RF
 debe tener codigo propio para enlazar una salida con la siguiente entrada.
 
+### `inventario_materiales/{empresaId}__{plantaId}__{materialId}`
+
+```text
+empresa_id
+planta_id
+material_id
+material_codigo
+material_nombre
+material_tipo: MP | RF
+unidad_medida
+stock_actual
+stock_reservado
+stock_disponible
+actualizado_por_id
+actualizado_en
+modelo_version: 2
+```
+
+El saldo se guarda por material y planta para evitar recalcular stock desde
+todo el historial. `stock_reservado` permite separar lo comprometido para una
+OT del stock libre. Este documento es el punto de lectura rapido para jefes y
+futuras alertas de faltantes.
+
+### `movimientos_almacen/{movimientoId}`
+
+```text
+empresa_id
+planta_id
+material_id
+material_codigo
+tipo: recepcion | ajuste_positivo | ajuste_negativo | reserva_ot |
+  liberacion_reserva | consumo_ot
+cantidad
+ot_codigo
+referencia
+observacion
+stock_anterior
+stock_nuevo
+stock_reservado_anterior
+stock_reservado_nuevo
+stock_disponible_nuevo
+usuario_id
+fecha
+modelo_version: 2
+```
+
+El historial es inmutable. Recepciones y ajustes positivos aumentan stock;
+ajustes negativos y consumos descuentan stock disponible; reservas aumentan
+stock reservado sin mover stock actual; liberar reserva reduce stock reservado.
+
 ### `procesos/{procesoId}`
 
 ```text
@@ -830,9 +880,11 @@ duracion real de la sesion.
 Orden sugerido despues de estabilizar Planificador, capacidad, turnos,
 ejecucion, calidad y bajo consumo de lecturas:
 
-1. Almacen V2: recepcion, stock MP/RF, consumo por OT, movimientos entre planta
-   y bodega, reservas para procesos y alertas de faltantes antes de iniciar
-   produccion.
+1. Almacen V2: recepcion, stock MP/RF, consumo por OT, reservas para procesos
+   y movimientos trazables. Primer corte implementado con saldos por
+   material/planta e historial inmutable. Pendiente: movimientos entre planta y
+   bodega, alertas de faltantes antes de iniciar produccion y consumo automatico
+   desde ejecucion.
 2. Compras/abastecimiento: solicitudes por faltantes de MP/RF y trazabilidad
    contra recepcion de almacen.
 3. Costeo productivo: consumo real, horas hombre, reprocesos, merma y costo
