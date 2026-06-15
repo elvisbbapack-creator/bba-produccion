@@ -145,7 +145,14 @@ service cloud.firestore {
     }
 
     match /capacidad_procesos/{capacidadId} {
-      allow read: if belongsToPlant(resource.data);
+      allow get: if (
+          canManage() &&
+          !exists(
+            /databases/$(database)/documents/capacidad_procesos/$(capacidadId)
+          )
+        ) ||
+        belongsToPlant(resource.data);
+      allow list: if belongsToPlant(resource.data);
       allow create: if canManage() &&
         belongsToPlant(
           request.resource.data

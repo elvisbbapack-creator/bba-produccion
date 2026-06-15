@@ -89,8 +89,39 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "decisiones_planificador",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresa_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "planta_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creado_en",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "decisiones_planificador",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresa_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "creado_en",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []
 }
-
