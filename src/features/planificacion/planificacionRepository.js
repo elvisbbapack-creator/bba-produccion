@@ -693,8 +693,104 @@ export const construirResumenPlanificador = (
   };
 };
 
+export const construirRecomendacionDT = (
+  operacion,
+  decisionTurno = null
+) => {
+  if (operacion?.pendiente_estandar) {
+    return {
+      tipo: "revisar_estandar",
+      titulo: "Definir estándar",
+      detalle:
+        "No proyectar este DT hasta medir o corregir unidades/hora.",
+      severidad: "advertencia"
+    };
+  }
+
+  if (
+    ["pendiente", "bloqueada"].includes(
+      operacion?.estado
+    )
+  ) {
+    return {
+      tipo: "resolver_dependencia",
+      titulo: "Desbloquear antes de producir",
+      detalle:
+        "Revisar RF, dependencia anterior o liberación del proceso.",
+      severidad: "advertencia"
+    };
+  }
+
+  if (!operacion?.es_cuello) {
+    return {
+      tipo: "mantener_foco",
+      titulo: "No mover recursos aquí",
+      detalle:
+        "Este DT tiene pendiente, pero no es el cuello principal de la OT.",
+      severidad: "normal"
+    };
+  }
+
+  const tipoDecision = decisionTurno?.tipo || "";
+
+  if (tipoDecision === "cubrir_dotacion_base") {
+    return {
+      tipo: "cubrir_dotacion_base",
+      titulo: "Cubrir dotación base",
+      detalle:
+        "Asignar operarios habilitados en mañana/tarde antes de ampliar turnos.",
+      severidad: "riesgo"
+    };
+  }
+
+  if (tipoDecision === "preparar_3_turno") {
+    return {
+      tipo: "preparar_3_turno",
+      titulo: "Preparar noche",
+      detalle:
+        "Habilitar dotación nocturna para evaluar el 3er turno sin improvisar.",
+      severidad: "advertencia"
+    };
+  }
+
+  if (tipoDecision === "activar_3_turno") {
+    return {
+      tipo: "activar_3_turno",
+      titulo: "Activar 3er turno aquí",
+      detalle:
+        "Ampliar horas solo en este subproceso porque es el cuello validado.",
+      severidad: "accion"
+    };
+  }
+
+  if (
+    ["configurar_capacidad", "reforzar_capacidad"]
+      .includes(tipoDecision)
+  ) {
+    return {
+      tipo: "revisar_capacidad",
+      titulo: "Revisar capacidad",
+      detalle:
+        "Validar máquina, recursos paralelos, dotación o estándar antes de decidir turnos.",
+      severidad: "riesgo"
+    };
+  }
+
+  return {
+    tipo: "producir_cuello",
+    titulo: "Producir ahora",
+    detalle:
+      "Mantener foco operativo en este DT hasta bajar el cuello de botella.",
+    severidad: "accion"
+  };
+};
+
 export const construirDetalleOperacionesPlanificador =
-  (operaciones = [], cuelloCarga = null) => {
+  (
+    operaciones = [],
+    cuelloCarga = null,
+    opciones = {}
+  ) => {
     const cuelloId =
       cuelloCarga?.operacion_id ||
       cuelloCarga?.ot_operacion_id ||
@@ -721,7 +817,7 @@ export const construirDetalleOperacionesPlanificador =
         const operacionCodigo =
           operacion.operacion_codigo || "";
 
-        return {
+        const detalleOperacion = {
           id: operacionId,
           operacion_codigo: operacionCodigo,
           operacion_nombre:
@@ -757,6 +853,15 @@ export const construirDetalleOperacionesPlanificador =
               !cuelloId &&
               cuelloCodigo &&
               operacionCodigo === cuelloCodigo
+            )
+        };
+
+        return {
+          ...detalleOperacion,
+          recomendacion:
+            construirRecomendacionDT(
+              detalleOperacion,
+              opciones.decisionTurno
             )
         };
       })

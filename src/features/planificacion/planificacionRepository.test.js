@@ -3,6 +3,7 @@ import {
   construirDecisionTurno,
   construirDetalleOperacionesPlanificador,
   construirPlanPrioridades,
+  construirRecomendacionDT,
   construirAprendizajeDecisionesPlanificador,
   construirResumenPlanificador,
   construirRegistroDecisionPlanificador,
@@ -65,6 +66,90 @@ test("resume DTs pendientes de una OT priorizando el cuello de botella", () => {
   expect(resumen.detalle[0]).toMatchObject({
     es_cuello: true,
     horas_restantes: 4
+  });
+});
+
+test("sugiere accion concreta por DT segun cuello y decision de turno", () => {
+  const resumen =
+    construirDetalleOperacionesPlanificador(
+      [
+        {
+          id: "op-1",
+          operacion_codigo: "DT0001",
+          operacion_nombre: "Corte lateral",
+          subproceso_id: "SP0001",
+          cantidad_requerida: 400,
+          cantidad_ok: 150,
+          cantidad_pendiente: 250,
+          unidades_por_hora: 50,
+          estado: "en_proceso"
+        },
+        {
+          id: "op-2",
+          operacion_codigo: "DT0005",
+          operacion_nombre: "Perforacion",
+          subproceso_id: "SP0003",
+          cantidad_requerida: 400,
+          cantidad_ok: 80,
+          cantidad_pendiente: 320,
+          unidades_por_hora: 80,
+          estado: "disponible"
+        }
+      ],
+      {
+        operacion_id: "op-2",
+        operacion_codigo: "DT0005"
+      },
+      {
+        decisionTurno: {
+          tipo: "cubrir_dotacion_base"
+        }
+      }
+    );
+
+  expect(resumen.detalle[0]).toMatchObject({
+    operacion_codigo: "DT0005",
+    es_cuello: true,
+    recomendacion: {
+      tipo: "cubrir_dotacion_base",
+      titulo: "Cubrir dotación base",
+      severidad: "riesgo"
+    }
+  });
+  expect(resumen.detalle[1]).toMatchObject({
+    operacion_codigo: "DT0001",
+    es_cuello: false,
+    recomendacion: {
+      tipo: "mantener_foco",
+      titulo: "No mover recursos aquí",
+      severidad: "normal"
+    }
+  });
+});
+
+test("recomienda revisar estandar y dependencias antes de mover turnos", () => {
+  expect(
+    construirRecomendacionDT({
+      cantidad_pendiente: 100,
+      pendiente_estandar: true,
+      estado: "disponible",
+      es_cuello: true
+    })
+  ).toMatchObject({
+    tipo: "revisar_estandar",
+    titulo: "Definir estándar"
+  });
+
+  expect(
+    construirRecomendacionDT({
+      cantidad_pendiente: 100,
+      pendiente_estandar: false,
+      estado: "bloqueada",
+      es_cuello: true
+    })
+  ).toMatchObject({
+    tipo: "resolver_dependencia",
+    titulo: "Desbloquear antes de producir"
   });
 });
 

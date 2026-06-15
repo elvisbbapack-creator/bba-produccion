@@ -217,7 +217,10 @@ function PlanificadorPrioridadesV2({
     orden => !orden.cuello_carga
   ).length;
 
-  const cargarDetalleOrden = async (orden) => {
+  const cargarDetalleOrden = async (
+    orden,
+    grupo = null
+  ) => {
     if (!orden?.id) {
       return;
     }
@@ -268,7 +271,11 @@ function PlanificadorPrioridadesV2({
       const resumen =
         construirDetalleOperacionesPlanificador(
           operaciones,
-          orden.cuello_carga
+          orden.cuello_carga,
+          {
+            decisionTurno:
+              grupo?.decision_turno || null
+          }
         );
 
       setDetallesOperaciones(actual => ({
@@ -963,7 +970,10 @@ function PlanificadorPrioridadesV2({
                           <button
                             type="button"
                             onClick={() =>
-                              cargarDetalleOrden(orden)
+                              cargarDetalleOrden(
+                                orden,
+                                grupo
+                              )
                             }
                             style={{
                               border: "none",
@@ -1074,7 +1084,7 @@ function PlanificadorPrioridadesV2({
                                           style={{
                                             display: "grid",
                                             gridTemplateColumns:
-                                              "120px minmax(180px, 1fr) 120px 115px 120px 90px",
+                                              "110px minmax(170px, 1fr) 115px 105px 105px minmax(180px, 1fr)",
                                             gap: 8,
                                             alignItems:
                                               "center",
@@ -1149,16 +1159,46 @@ function PlanificadorPrioridadesV2({
                                               ? "Sin estándar"
                                               : `${operacion.horas_restantes} h`}
                                           </span>
-                                          <strong style={{
-                                            color: operacion
-                                              .es_cuello
-                                              ? "#1D4ED8"
-                                              : "#64748B"
-                                          }}>
-                                            {operacion.es_cuello
-                                              ? "Cuello"
-                                              : operacion.estado}
-                                          </strong>
+                                          <div>
+                                            <strong style={{
+                                              color:
+                                                operacion
+                                                  .recomendacion
+                                                  ?.severidad ===
+                                                  "riesgo"
+                                                  ? "#B91C1C"
+                                                  : operacion
+                                                    .recomendacion
+                                                    ?.severidad ===
+                                                    "advertencia"
+                                                    ? "#92400E"
+                                                    : operacion
+                                                      .recomendacion
+                                                      ?.severidad ===
+                                                      "accion"
+                                                      ? "#1D4ED8"
+                                                      : "#166534"
+                                            }}>
+                                              {
+                                                operacion
+                                                  .recomendacion
+                                                  ?.titulo
+                                              }
+                                            </strong>
+                                            <div style={{
+                                              color: "#64748B",
+                                              marginTop: 2
+                                            }}>
+                                              {operacion.es_cuello
+                                                ? "Cuello · "
+                                                : ""}
+                                              {
+                                                operacion
+                                                  .recomendacion
+                                                  ?.detalle
+                                              }
+                                            </div>
+                                          </div>
                                         </div>
                                       )
                                     )}

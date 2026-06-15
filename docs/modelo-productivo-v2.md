@@ -298,8 +298,12 @@ Cuando el jefe necesita ver cuanto falta de cada DT, el planificador abre el
 detalle de una OT bajo demanda. Esa accion lee solo
 `ordenes_trabajo/{otId}/operaciones` de la OT seleccionada, ordena los DT
 pendientes con el cuello primero, muestra unidades pendientes, horas conocidas,
-DTs sin estandar y cachea el resultado en pantalla. Asi se entrega visibilidad
-operativa fina sin multiplicar lecturas de Firebase para todas las OTs activas.
+DTs sin estandar y cachea el resultado en pantalla. Cada DT muestra ademas una
+sugerencia concreta: cubrir dotacion base, preparar noche, activar 3er turno
+solo en el cuello, revisar capacidad, definir estandar, desbloquear
+dependencias o no mover recursos si el DT no es el cuello. Asi se entrega
+visibilidad operativa fina sin multiplicar lecturas de Firebase para todas las
+OTs activas.
 
 La recomendacion de turnos del planificador compara la carga conocida del
 subproceso contra la capacidad semanal estimada con 2 turnos y con 3 turnos.
