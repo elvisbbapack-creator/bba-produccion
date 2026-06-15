@@ -693,6 +693,117 @@ export const construirResumenPlanificador = (
   };
 };
 
+export const construirDetalleOperacionesPlanificador =
+  (operaciones = [], cuelloCarga = null) => {
+    const cuelloId =
+      cuelloCarga?.operacion_id ||
+      cuelloCarga?.ot_operacion_id ||
+      "";
+    const cuelloCodigo =
+      cuelloCarga?.operacion_codigo || "";
+    const detalle = operaciones
+      .map(operacion => {
+        const cantidadPendiente = Number(
+          operacion.cantidad_pendiente || 0
+        );
+        const unidadesPorHora = Number(
+          operacion.unidades_por_hora || 0
+        );
+        const horasRestantes =
+          cantidadPendiente > 0 && unidadesPorHora > 0
+            ? cantidadPendiente / unidadesPorHora
+            : null;
+        const operacionId =
+          operacion.id ||
+          operacion.ruta_operacion_id ||
+          operacion.ot_operacion_id ||
+          "";
+        const operacionCodigo =
+          operacion.operacion_codigo || "";
+
+        return {
+          id: operacionId,
+          operacion_codigo: operacionCodigo,
+          operacion_nombre:
+            operacion.operacion_nombre ||
+            operacion.nombre ||
+            "",
+          proceso_id: operacion.proceso_id || "",
+          proceso_nombre:
+            operacion.proceso_nombre || "",
+          subproceso_id:
+            operacion.subproceso_id || "",
+          subproceso_nombre:
+            operacion.subproceso_nombre || "",
+          estado: operacion.estado || "",
+          cantidad_requerida: Number(
+            operacion.cantidad_requerida || 0
+          ),
+          cantidad_ok: Number(
+            operacion.cantidad_ok || 0
+          ),
+          cantidad_pendiente: cantidadPendiente,
+          unidades_por_hora: unidadesPorHora,
+          horas_restantes:
+            horasRestantes === null
+              ? null
+              : redondear(horasRestantes),
+          pendiente_estandar:
+            cantidadPendiente > 0 &&
+            unidadesPorHora <= 0,
+          es_cuello:
+            Boolean(cuelloId && operacionId === cuelloId) ||
+            Boolean(
+              !cuelloId &&
+              cuelloCodigo &&
+              operacionCodigo === cuelloCodigo
+            )
+        };
+      })
+      .filter(operacion =>
+        operacion.cantidad_pendiente > 0
+      )
+      .sort((a, b) => {
+        if (a.es_cuello !== b.es_cuello) {
+          return a.es_cuello ? -1 : 1;
+        }
+
+        if (
+          a.pendiente_estandar !==
+          b.pendiente_estandar
+        ) {
+          return a.pendiente_estandar ? -1 : 1;
+        }
+
+        return (
+          Number(b.horas_restantes || 0) -
+          Number(a.horas_restantes || 0)
+        );
+      });
+
+    return {
+      total_dt_pendientes: detalle.length,
+      unidades_pendientes_total: detalle.reduce(
+        (total, operacion) =>
+          total +
+          Number(operacion.cantidad_pendiente || 0),
+        0
+      ),
+      horas_carga_total: redondear(
+        detalle.reduce(
+          (total, operacion) =>
+            total +
+            Number(operacion.horas_restantes || 0),
+          0
+        )
+      ),
+      pendientes_estandar: detalle.filter(
+        operacion => operacion.pendiente_estandar
+      ).length,
+      detalle
+    };
+  };
+
 export const filtrarPlanPrioridades = (
   plan = [],
   filtro = "todo"

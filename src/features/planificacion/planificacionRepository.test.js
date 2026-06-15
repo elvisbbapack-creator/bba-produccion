@@ -1,12 +1,119 @@
 import {
   calcularImpactoDecisionPlanificador,
   construirDecisionTurno,
+  construirDetalleOperacionesPlanificador,
   construirPlanPrioridades,
   construirAprendizajeDecisionesPlanificador,
   construirResumenPlanificador,
   construirRegistroDecisionPlanificador,
   filtrarPlanPrioridades
 } from "./planificacionRepository";
+
+test("resume DTs pendientes de una OT priorizando el cuello de botella", () => {
+  const resumen =
+    construirDetalleOperacionesPlanificador(
+      [
+        {
+          id: "op-1",
+          operacion_codigo: "DT0001",
+          operacion_nombre: "Corte lateral",
+          subproceso_id: "SP0001",
+          cantidad_requerida: 400,
+          cantidad_ok: 150,
+          cantidad_pendiente: 250,
+          unidades_por_hora: 50,
+          estado: "en_proceso"
+        },
+        {
+          id: "op-2",
+          operacion_codigo: "DT0005",
+          operacion_nombre: "Perforacion",
+          subproceso_id: "SP0003",
+          cantidad_requerida: 400,
+          cantidad_ok: 80,
+          cantidad_pendiente: 320,
+          unidades_por_hora: 80,
+          estado: "disponible"
+        },
+        {
+          id: "op-3",
+          operacion_codigo: "DT0010",
+          operacion_nombre: "Doblez lata",
+          subproceso_id: "SP0005",
+          cantidad_requerida: 100,
+          cantidad_ok: 100,
+          cantidad_pendiente: 0,
+          unidades_por_hora: 25,
+          estado: "completada"
+        }
+      ],
+      {
+        operacion_id: "op-2",
+        operacion_codigo: "DT0005"
+      }
+    );
+
+  expect(resumen).toMatchObject({
+    total_dt_pendientes: 2,
+    unidades_pendientes_total: 570,
+    horas_carga_total: 9,
+    pendientes_estandar: 0
+  });
+  expect(
+    resumen.detalle.map(item => item.operacion_codigo)
+  ).toEqual(["DT0005", "DT0001"]);
+  expect(resumen.detalle[0]).toMatchObject({
+    es_cuello: true,
+    horas_restantes: 4
+  });
+});
+
+test("marca DTs pendientes sin estandar para revision del jefe", () => {
+  const resumen =
+    construirDetalleOperacionesPlanificador(
+      [
+        {
+          id: "op-1",
+          operacion_codigo: "DT0001",
+          operacion_nombre: "Corte inicial",
+          subproceso_id: "SP0001",
+          cantidad_requerida: 100,
+          cantidad_ok: 0,
+          cantidad_pendiente: 100,
+          unidades_por_hora: 0,
+          estado: "pendiente"
+        },
+        {
+          id: "op-2",
+          operacion_codigo: "DT0002",
+          operacion_nombre: "Corte validado",
+          subproceso_id: "SP0001",
+          cantidad_requerida: 100,
+          cantidad_ok: 40,
+          cantidad_pendiente: 60,
+          unidades_por_hora: 30,
+          estado: "disponible"
+        }
+      ],
+      {
+        operacion_codigo: "DT0002"
+      }
+    );
+
+  expect(resumen.pendientes_estandar).toBe(1);
+  expect(resumen.detalle[0]).toMatchObject({
+    operacion_codigo: "DT0002",
+    es_cuello: true
+  });
+  expect(
+    resumen.detalle.find(
+      item => item.operacion_codigo === "DT0001"
+    )
+  ).toMatchObject({
+    pendiente_estandar: true,
+    horas_restantes: null
+  });
+});
 
 test("agrupa OTs por subproceso y prioriza riesgo y entrega", () => {
   const plan = construirPlanPrioridades(

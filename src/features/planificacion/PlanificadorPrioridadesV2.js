@@ -7,6 +7,9 @@ import {
   observarOrdenesActivas
 } from "../resumenes/resumenesRepository";
 import {
+  listarOperacionesOT
+} from "../ordenes/ordenesRepository";
+import {
   listarCapacidadesProceso
 } from "../capacidad/capacidadRepository";
 import {
@@ -16,6 +19,7 @@ import {
 import {
   filtrarPlanPrioridades,
   construirPlanPrioridades,
+  construirDetalleOperacionesPlanificador,
   construirResumenPlanificador,
   registrarDecisionPlanificador,
   recalcularResumenesPlanificacion
@@ -182,6 +186,10 @@ function PlanificadorPrioridadesV2({
     guardandoDecision,
     setGuardandoDecision
   ] = useState("");
+  const [
+    detallesOperaciones,
+    setDetallesOperaciones
+  ] = useState({});
   const plan = useMemo(
     () => construirPlanPrioridades(
       ordenes,
@@ -208,6 +216,84 @@ function PlanificadorPrioridadesV2({
   const ordenesSinCuello = ordenes.filter(
     orden => !orden.cuello_carga
   ).length;
+
+  const cargarDetalleOrden = async (orden) => {
+    if (!orden?.id) {
+      return;
+    }
+
+    const detalleActual =
+      detallesOperaciones[orden.id];
+
+    if (detalleActual?.abierto) {
+      setDetallesOperaciones(actual => ({
+        ...actual,
+        [orden.id]: {
+          ...detalleActual,
+          abierto: false
+        }
+      }));
+      return;
+    }
+
+    if (detalleActual?.resumen) {
+      setDetallesOperaciones(actual => ({
+        ...actual,
+        [orden.id]: {
+          ...detalleActual,
+          abierto: true
+        }
+      }));
+      return;
+    }
+
+    setDetallesOperaciones(actual => ({
+      ...actual,
+      [orden.id]: {
+        abierto: true,
+        cargando: true,
+        error: "",
+        resumen: null
+      }
+    }));
+
+    try {
+      const operaciones =
+        await listarOperacionesOT(
+          db,
+          perfil.empresa_id,
+          orden.planta_id || plantaId,
+          orden.id
+        );
+      const resumen =
+        construirDetalleOperacionesPlanificador(
+          operaciones,
+          orden.cuello_carga
+        );
+
+      setDetallesOperaciones(actual => ({
+        ...actual,
+        [orden.id]: {
+          abierto: true,
+          cargando: false,
+          error: "",
+          resumen
+        }
+      }));
+    } catch (fallo) {
+      setDetallesOperaciones(actual => ({
+        ...actual,
+        [orden.id]: {
+          abierto: true,
+          cargando: false,
+          error:
+            fallo?.message ||
+            "No se pudo cargar el detalle de DTs.",
+          resumen: null
+        }
+      }));
+    }
+  };
 
   const registrarDecision = async (
     grupo,
@@ -783,90 +869,314 @@ function PlanificadorPrioridadesV2({
                   gap: 9,
                   marginTop: 14
                 }}>
-                  {grupo.secuencia.map(orden => (
-                    <div
-                      key={orden.id}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "55px minmax(170px, 1fr) minmax(220px, 1.4fr) 130px 150px",
-                        gap: 10,
-                        alignItems: "center",
-                        border: orden.prioridad_plan === 1
-                          ? "2px solid #2563EB"
-                          : "1px solid #E2E8F0",
-                        borderRadius: 10,
-                        padding: 11
-                      }}
-                    >
-                      <strong style={{
-                        color: "#2563EB",
-                        fontSize: 20
-                      }}>
-                        {orden.prioridad_plan}
-                      </strong>
-                      <div>
-                        <strong>{orden.codigo}</strong>
+                  {grupo.secuencia.map(orden => {
+                    const detalleOrden =
+                      detallesOperaciones[
+                        orden.id
+                      ] || {};
+
+                    return (
+                      <div
+                        key={orden.id}
+                        style={{
+                          border:
+                            orden.prioridad_plan === 1
+                              ? "2px solid #2563EB"
+                              : "1px solid #E2E8F0",
+                          borderRadius: 10,
+                          padding: 11
+                        }}
+                      >
                         <div style={{
-                          color: "#64748B",
-                          marginTop: 3
+                          display: "grid",
+                          gridTemplateColumns:
+                            "55px minmax(170px, 1fr) minmax(220px, 1.4fr) 130px 150px 145px",
+                          gap: 10,
+                          alignItems: "center"
                         }}>
-                          {orden.producto_codigo}
+                          <strong style={{
+                            color: "#2563EB",
+                            fontSize: 20
+                          }}>
+                            {orden.prioridad_plan}
+                          </strong>
+                          <div>
+                            <strong>{orden.codigo}</strong>
+                            <div style={{
+                              color: "#64748B",
+                              marginTop: 3
+                            }}>
+                              {orden.producto_codigo}
+                            </div>
+                          </div>
+                          <div>
+                            <strong>
+                              {
+                                orden.cuello_carga
+                                  .operacion_codigo
+                              }
+                              {" - "}
+                              {
+                                orden.cuello_carga
+                                  .operacion_nombre
+                              }
+                            </strong>
+                            <div style={{
+                              color: "#64748B",
+                              marginTop: 3
+                            }}>
+                              {
+                                orden.cuello_carga
+                                  .cantidad_pendiente
+                              }
+                              {" pendientes · "}
+                              {accionTexto[
+                                orden.accion_recomendada
+                              ]}
+                            </div>
+                          </div>
+                          <div>
+                            <small>Entrega</small>
+                            <div>
+                              {fechaVisible(
+                                orden
+                                  .fecha_planificada_entrega
+                              )}
+                            </div>
+                          </div>
+                          <strong style={{
+                            color:
+                              orden.riesgo_entrega ===
+                                "atrasada"
+                                ? "#B91C1C"
+                                : orden.riesgo_entrega ===
+                                  "en_riesgo"
+                                  ? "#C2410C"
+                                  : "#475569"
+                          }}>
+                            {
+                              riesgoTexto[
+                                orden.riesgo_entrega
+                              ]
+                            }
+                          </strong>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              cargarDetalleOrden(orden)
+                            }
+                            style={{
+                              border: "none",
+                              borderRadius: 8,
+                              padding: "8px 10px",
+                              background:
+                                detalleOrden.abierto
+                                  ? "#334155"
+                                  : "#EFF6FF",
+                              color:
+                                detalleOrden.abierto
+                                  ? "white"
+                                  : "#1D4ED8",
+                              cursor: "pointer",
+                              fontWeight: "bold"
+                            }}
+                          >
+                            {detalleOrden.abierto
+                              ? "Ocultar DTs"
+                              : "Ver DTs pendientes"}
+                          </button>
                         </div>
+
+                        {detalleOrden.abierto && (
+                          <div style={{
+                            marginTop: 12,
+                            padding: 12,
+                            borderRadius: 10,
+                            background: "#F8FAFC",
+                            border:
+                              "1px solid #E2E8F0"
+                          }}>
+                            {detalleOrden.cargando ? (
+                              <div style={{
+                                color: "#475569"
+                              }}>
+                                Cargando DTs pendientes...
+                              </div>
+                            ) : detalleOrden.error ? (
+                              <div style={{
+                                color: "#B91C1C"
+                              }}>
+                                {detalleOrden.error}
+                              </div>
+                            ) : detalleOrden.resumen
+                              ?.detalle?.length > 0 ? (
+                              <>
+                                <div style={{
+                                  display: "flex",
+                                  gap: 12,
+                                  flexWrap: "wrap",
+                                  marginBottom: 10,
+                                  color: "#334155"
+                                }}>
+                                  <strong>
+                                    {
+                                      detalleOrden
+                                        .resumen
+                                        .total_dt_pendientes
+                                    }
+                                    {" DTs pendientes"}
+                                  </strong>
+                                  <span>
+                                    {
+                                      detalleOrden
+                                        .resumen
+                                        .unidades_pendientes_total
+                                    }
+                                    {" unidades"}
+                                  </span>
+                                  <span>
+                                    {
+                                      detalleOrden
+                                        .resumen
+                                        .horas_carga_total
+                                    }
+                                    {" h conocidas"}
+                                  </span>
+                                  {detalleOrden.resumen
+                                    .pendientes_estandar >
+                                    0 && (
+                                    <span style={{
+                                      color: "#92400E",
+                                      fontWeight: "bold"
+                                    }}>
+                                      {
+                                        detalleOrden
+                                          .resumen
+                                          .pendientes_estandar
+                                      }
+                                      {" sin estándar"}
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{
+                                  display: "grid",
+                                  gap: 7
+                                }}>
+                                  {detalleOrden.resumen
+                                    .detalle.map(
+                                      operacion => (
+                                        <div
+                                          key={
+                                            operacion.id ||
+                                            operacion
+                                              .operacion_codigo
+                                          }
+                                          style={{
+                                            display: "grid",
+                                            gridTemplateColumns:
+                                              "120px minmax(180px, 1fr) 120px 115px 120px 90px",
+                                            gap: 8,
+                                            alignItems:
+                                              "center",
+                                            padding:
+                                              "8px 9px",
+                                            borderRadius: 8,
+                                            background:
+                                              operacion
+                                                .es_cuello
+                                                ? "#EFF6FF"
+                                                : "white",
+                                            border:
+                                              operacion
+                                                .es_cuello
+                                                ? "1px solid #BFDBFE"
+                                                : "1px solid #E2E8F0",
+                                            color: "#334155",
+                                            fontSize: 13
+                                          }}
+                                        >
+                                          <strong>
+                                            {
+                                              operacion
+                                                .operacion_codigo
+                                            }
+                                          </strong>
+                                          <div>
+                                            {
+                                              operacion
+                                                .operacion_nombre
+                                            }
+                                            <div style={{
+                                              color: "#64748B",
+                                              marginTop: 2
+                                            }}>
+                                              {
+                                                operacion
+                                                  .subproceso_id
+                                              }
+                                              {
+                                                operacion
+                                                  .subproceso_nombre
+                                                  ? ` · ${operacion.subproceso_nombre}`
+                                                  : ""
+                                              }
+                                            </div>
+                                          </div>
+                                          <span>
+                                            Pendiente:{" "}
+                                            <strong>
+                                              {
+                                                operacion
+                                                  .cantidad_pendiente
+                                              }
+                                            </strong>
+                                          </span>
+                                          <span>
+                                            OK:{" "}
+                                            {
+                                              operacion
+                                                .cantidad_ok
+                                            }
+                                            /
+                                            {
+                                              operacion
+                                                .cantidad_requerida
+                                            }
+                                          </span>
+                                          <span>
+                                            {operacion
+                                              .pendiente_estandar
+                                              ? "Sin estándar"
+                                              : `${operacion.horas_restantes} h`}
+                                          </span>
+                                          <strong style={{
+                                            color: operacion
+                                              .es_cuello
+                                              ? "#1D4ED8"
+                                              : "#64748B"
+                                          }}>
+                                            {operacion.es_cuello
+                                              ? "Cuello"
+                                              : operacion.estado}
+                                          </strong>
+                                        </div>
+                                      )
+                                    )}
+                                </div>
+                              </>
+                            ) : (
+                              <div style={{
+                                color: "#166534"
+                              }}>
+                                Esta OT no tiene DTs
+                                pendientes.
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <strong>
-                          {
-                            orden.cuello_carga
-                              .operacion_codigo
-                          }
-                          {" - "}
-                          {
-                            orden.cuello_carga
-                              .operacion_nombre
-                          }
-                        </strong>
-                        <div style={{
-                          color: "#64748B",
-                          marginTop: 3
-                        }}>
-                          {
-                            orden.cuello_carga
-                              .cantidad_pendiente
-                          }
-                          {" pendientes · "}
-                          {accionTexto[
-                            orden.accion_recomendada
-                          ]}
-                        </div>
-                      </div>
-                      <div>
-                        <small>Entrega</small>
-                        <div>
-                          {fechaVisible(
-                            orden
-                              .fecha_planificada_entrega
-                          )}
-                        </div>
-                      </div>
-                      <strong style={{
-                        color:
-                          orden.riesgo_entrega ===
-                            "atrasada"
-                            ? "#B91C1C"
-                            : orden.riesgo_entrega ===
-                              "en_riesgo"
-                              ? "#C2410C"
-                              : "#475569"
-                      }}>
-                        {
-                          riesgoTexto[
-                            orden.riesgo_entrega
-                          ]
-                        }
-                      </strong>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {grupo.capacidad_estado && (
@@ -1314,7 +1624,9 @@ function PlanificadorPrioridadesV2({
                             subproceso_id:
                               grupo.subproceso_id,
                             subproceso_nombre:
-                              grupo.subproceso_nombre
+                              grupo.subproceso_nombre,
+                            semana_inicio:
+                              semanaInicio
                           })
                         }
                         style={{
