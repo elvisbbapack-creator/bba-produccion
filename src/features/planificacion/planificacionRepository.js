@@ -97,6 +97,47 @@ const fechaTexto = valor => {
   return fecha ? fecha.toISOString() : "";
 };
 
+const UMBRAL_EFICIENCIA_ALTA_PCT = 160;
+
+const construirDetalleImpacto = ({
+  enRiesgo,
+  fechaFaltante,
+  calidadBaja,
+  eficienciaBaja,
+  eficienciaAlta,
+  reprocesos
+}) => {
+  const alertas = [];
+
+  if (enRiesgo) {
+    alertas.push("la fecha estimada no acompaña");
+  }
+  if (fechaFaltante) {
+    alertas.push("falta fecha de entrega");
+  }
+  if (calidadBaja) {
+    alertas.push("la calidad está bajo 95%");
+  }
+  if (eficienciaBaja) {
+    alertas.push("la eficiencia está bajo 80%");
+  }
+  if (eficienciaAlta) {
+    alertas.push(
+      "la eficiencia supera 160% y sugiere revisar estándar"
+    );
+  }
+  if (reprocesos > 0) {
+    alertas.push("hay reprocesos pendientes");
+  }
+
+  return {
+    alertas,
+    detalle: alertas.length > 0
+      ? `Revisar: ${alertas.join(", ")}.`
+      : "Ya existe avance o eficiencia registrada, pero todavía falta cerrar el resultado."
+  };
+};
+
 const nombreTurno = (plantaId, turnoId) =>
   TURNOS_PLANTA[plantaId]?.turnos?.[turnoId]
     ?.nombre || turnoId;
@@ -1017,14 +1058,31 @@ export const calcularImpactoDecisionPlanificador =
       "atrasada",
       "en_riesgo"
     ].includes(ordenConRiesgo.riesgo_entrega);
+    const fechaFaltante =
+      ordenConRiesgo.riesgo_entrega ===
+      "sin_fecha";
     const calidadBaja =
       calidad !== null && Number(calidad) < 95;
     const eficienciaBaja =
       eficiencia !== null && Number(eficiencia) < 80;
+    const eficienciaAlta =
+      eficiencia !== null &&
+      Number(eficiencia) >
+        UMBRAL_EFICIENCIA_ALTA_PCT;
+    const impactoDetalle = construirDetalleImpacto({
+      enRiesgo,
+      fechaFaltante,
+      calidadBaja,
+      eficienciaBaja,
+      eficienciaAlta,
+      reprocesos
+    });
 
     if (
       orden.estado === "completada" &&
       !calidadBaja &&
+      !fechaFaltante &&
+      !eficienciaAlta &&
       reprocesos === 0
     ) {
       return {
@@ -1038,7 +1096,11 @@ export const calcularImpactoDecisionPlanificador =
         fecha_estimada_fin:
           fechaTexto(orden.fecha_estimada_fin),
         riesgo_entrega:
-          ordenConRiesgo.riesgo_entrega
+          ordenConRiesgo.riesgo_entrega,
+        eficiencia_fuera_rango:
+          eficienciaAlta,
+        fecha_faltante: fechaFaltante,
+        alertas: impactoDetalle.alertas
       };
     }
 
@@ -1046,20 +1108,24 @@ export const calcularImpactoDecisionPlanificador =
       enRiesgo ||
       calidadBaja ||
       eficienciaBaja ||
+      eficienciaAlta ||
       reprocesos > 0
     ) {
       return {
         estado: "riesgo",
         titulo: "Revisar impacto",
-        detalle:
-          "La decisión aún muestra riesgo en avance, fecha, calidad, eficiencia o reprocesos.",
+        detalle: impactoDetalle.detalle,
         avance_pct: avance,
         eficiencia_calidad_pct: eficiencia,
         calidad_pct: calidad,
         fecha_estimada_fin:
           fechaTexto(orden.fecha_estimada_fin),
         riesgo_entrega:
-          ordenConRiesgo.riesgo_entrega
+          ordenConRiesgo.riesgo_entrega,
+        eficiencia_fuera_rango:
+          eficienciaAlta,
+        fecha_faltante: fechaFaltante,
+        alertas: impactoDetalle.alertas
       };
     }
 
@@ -1075,7 +1141,11 @@ export const calcularImpactoDecisionPlanificador =
         fecha_estimada_fin:
           fechaTexto(orden.fecha_estimada_fin),
         riesgo_entrega:
-          ordenConRiesgo.riesgo_entrega
+          ordenConRiesgo.riesgo_entrega,
+        eficiencia_fuera_rango:
+          eficienciaAlta,
+        fecha_faltante: fechaFaltante,
+        alertas: impactoDetalle.alertas
       };
     }
 
@@ -1089,7 +1159,11 @@ export const calcularImpactoDecisionPlanificador =
       calidad_pct: calidad,
       fecha_estimada_fin:
         fechaTexto(orden.fecha_estimada_fin),
-      riesgo_entrega: ordenConRiesgo.riesgo_entrega
+      riesgo_entrega: ordenConRiesgo.riesgo_entrega,
+      eficiencia_fuera_rango:
+        eficienciaAlta,
+      fecha_faltante: fechaFaltante,
+      alertas: impactoDetalle.alertas
     };
   };
 

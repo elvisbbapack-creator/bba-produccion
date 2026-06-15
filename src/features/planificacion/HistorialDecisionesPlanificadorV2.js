@@ -62,6 +62,18 @@ const coincide = (valor, busqueda) =>
     .toLowerCase()
     .includes(busqueda.toLowerCase());
 
+const eficienciaVisible = impacto => {
+  const valor = impacto?.eficiencia_calidad_pct;
+
+  if (valor === null || valor === undefined) {
+    return "s/d";
+  }
+
+  return impacto.eficiencia_fuera_rango
+    ? `${valor}% (revisar estándar)`
+    : `${valor}%`;
+};
+
 function HistorialDecisionesPlanificadorV2({
   db,
   perfil,
@@ -626,10 +638,9 @@ function HistorialDecisionesPlanificadorV2({
                     </span>
                     <span>
                       Eficiencia calidad:{" "}
-                      {impactos[item.id]
-                        .eficiencia_calidad_pct ??
-                        "s/d"}
-                      {"%"}
+                      {eficienciaVisible(
+                        impactos[item.id]
+                      )}
                     </span>
                     <span>
                       Calidad:{" "}
@@ -645,6 +656,18 @@ function HistorialDecisionesPlanificadorV2({
                       }
                     </span>
                   </div>
+                  {impactos[item.id].alertas
+                    ?.length > 0 && (
+                    <div style={{
+                      marginTop: 8,
+                      fontSize: 12
+                    }}>
+                      <strong>Alertas:</strong>{" "}
+                      {impactos[item.id].alertas.join(
+                        " · "
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </article>

@@ -724,6 +724,64 @@ test("marca riesgo cuando fecha, calidad o eficiencia no acompañan", () => {
   });
 });
 
+test("advierte cuando la eficiencia sugiere revisar estandar", () => {
+  const impacto =
+    calcularImpactoDecisionPlanificador({
+      orden: {
+        estado: "en_produccion",
+        avance_pct: 35,
+        fecha_estimada_fin:
+          "2026-06-16T12:00:00Z",
+        fecha_planificada_entrega:
+          "2026-06-18T12:00:00Z",
+        reprocesos_pendientes: 0
+      },
+      resumenOt: {
+        eficiencia_calidad_pct: 250,
+        calidad_pct: 98
+      },
+      fechaReferencia:
+        new Date("2026-06-15T12:00:00Z")
+    });
+
+  expect(impacto).toMatchObject({
+    estado: "riesgo",
+    titulo: "Revisar impacto",
+    eficiencia_calidad_pct: 250,
+    eficiencia_fuera_rango: true,
+    riesgo_entrega: "en_fecha"
+  });
+  expect(impacto.detalle)
+    .toContain("revisar estándar");
+  expect(impacto.alertas)
+    .toContain(
+      "la eficiencia supera 160% y sugiere revisar estándar"
+    );
+});
+
+test("no marca positivo una OT completada sin fecha de entrega", () => {
+  const impacto =
+    calcularImpactoDecisionPlanificador({
+      orden: {
+        estado: "completada",
+        avance_pct: 100,
+        reprocesos_pendientes: 0
+      },
+      resumenOt: {
+        eficiencia_calidad_pct: 95,
+        calidad_pct: 99
+      },
+      fechaReferencia:
+        new Date("2026-06-15T12:00:00Z")
+    });
+
+  expect(impacto).toMatchObject({
+    estado: "en_observacion",
+    fecha_faltante: true,
+    riesgo_entrega: "sin_fecha"
+  });
+});
+
 test("detecta decision sin movimiento posterior", () => {
   const impacto =
     calcularImpactoDecisionPlanificador({
