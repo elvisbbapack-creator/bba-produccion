@@ -574,6 +574,53 @@ export const construirResumenPlanificador = (
   };
 };
 
+export const filtrarPlanPrioridades = (
+  plan = [],
+  filtro = "todo"
+) => {
+  if (!filtro || filtro === "todo") {
+    return plan;
+  }
+
+  const tiposAccionables = new Set([
+    "activar_3_turno",
+    "cubrir_dotacion_base",
+    "preparar_3_turno",
+    "reforzar_capacidad"
+  ]);
+  const tiposBloqueadosDotacion = new Set([
+    "cubrir_dotacion_base",
+    "preparar_3_turno"
+  ]);
+
+  return plan.filter(grupo => {
+    const estadoCapacidad =
+      grupo.capacidad_estado?.estado || "faltante";
+    const tipoDecision =
+      grupo.decision_turno?.tipo || "";
+
+    if (filtro === "capacidad_faltante") {
+      return estadoCapacidad === "faltante";
+    }
+    if (filtro === "capacidad_provisional") {
+      return estadoCapacidad === "provisional";
+    }
+    if (filtro === "capacidad_validada") {
+      return estadoCapacidad === "validada";
+    }
+    if (filtro === "accionables") {
+      return tiposAccionables.has(tipoDecision);
+    }
+    if (filtro === "bloqueados_dotacion") {
+      return tiposBloqueadosDotacion.has(
+        tipoDecision
+      );
+    }
+
+    return true;
+  });
+};
+
 export const recalcularResumenesPlanificacion =
   async ({
     db,

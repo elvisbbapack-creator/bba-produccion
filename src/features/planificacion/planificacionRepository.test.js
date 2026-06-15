@@ -1,7 +1,8 @@
 import {
   construirDecisionTurno,
   construirPlanPrioridades,
-  construirResumenPlanificador
+  construirResumenPlanificador,
+  filtrarPlanPrioridades
 } from "./planificacionRepository";
 
 test("agrupa OTs por subproceso y prioriza riesgo y entrega", () => {
@@ -435,4 +436,78 @@ test("resume estados ejecutivos del planificador", () => {
     bloqueados_dotacion: 1,
     bloqueados_capacidad: 2
   });
+});
+
+test("filtra plan por capacidad y acciones operativas", () => {
+  const plan = [
+    {
+      subproceso_id: "SP0001",
+      capacidad_estado: {
+        estado: "faltante"
+      },
+      decision_turno: {
+        tipo: "configurar_capacidad"
+      }
+    },
+    {
+      subproceso_id: "SP0002",
+      capacidad_estado: {
+        estado: "provisional"
+      },
+      decision_turno: {
+        tipo: "configurar_capacidad"
+      }
+    },
+    {
+      subproceso_id: "SP0003",
+      capacidad_estado: {
+        estado: "validada"
+      },
+      decision_turno: {
+        tipo: "activar_3_turno"
+      }
+    },
+    {
+      subproceso_id: "SP0004",
+      capacidad_estado: {
+        estado: "validada"
+      },
+      decision_turno: {
+        tipo: "cubrir_dotacion_base"
+      }
+    }
+  ];
+
+  expect(
+    filtrarPlanPrioridades(
+      plan,
+      "capacidad_faltante"
+    ).map(grupo => grupo.subproceso_id)
+  ).toEqual(["SP0001"]);
+  expect(
+    filtrarPlanPrioridades(
+      plan,
+      "capacidad_provisional"
+    ).map(grupo => grupo.subproceso_id)
+  ).toEqual(["SP0002"]);
+  expect(
+    filtrarPlanPrioridades(
+      plan,
+      "capacidad_validada"
+    ).map(grupo => grupo.subproceso_id)
+  ).toEqual(["SP0003", "SP0004"]);
+  expect(
+    filtrarPlanPrioridades(
+      plan,
+      "accionables"
+    ).map(grupo => grupo.subproceso_id)
+  ).toEqual(["SP0003", "SP0004"]);
+  expect(
+    filtrarPlanPrioridades(
+      plan,
+      "bloqueados_dotacion"
+    ).map(grupo => grupo.subproceso_id)
+  ).toEqual(["SP0004"]);
+  expect(filtrarPlanPrioridades(plan, "todo"))
+    .toBe(plan);
 });

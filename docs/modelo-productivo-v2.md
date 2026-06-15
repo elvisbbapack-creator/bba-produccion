@@ -323,7 +323,9 @@ la preparacion de esa OT y avisa si ya estan todas sus capacidades validadas
 para volver al Planificador o si aun quedan capacidades provisionales/faltantes.
 El encabezado del Planificador resume subprocesos con carga, OTs involucradas,
 horas de carga, capacidad faltante/provisional/validada, recomendaciones
-accionables y bloqueos por dotacion para priorizar la revision diaria.
+accionables y bloqueos por dotacion para priorizar la revision diaria. Cada
+tarjeta del resumen funciona como filtro rapido y permite volver a ver todo el
+plan sin recargar datos.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 

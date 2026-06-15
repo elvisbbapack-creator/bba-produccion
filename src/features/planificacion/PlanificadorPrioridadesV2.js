@@ -14,6 +14,7 @@ import {
   lunesDeSemana
 } from "../turnos/turnosRepository";
 import {
+  filtrarPlanPrioridades,
   construirPlanPrioridades,
   construirResumenPlanificador,
   recalcularResumenesPlanificacion
@@ -63,7 +64,9 @@ const tarjetaResumen = {
   background: "white",
   borderRadius: 12,
   padding: 14,
-  boxShadow: "0 2px 8px rgba(15,23,42,0.07)"
+  boxShadow: "0 2px 8px rgba(15,23,42,0.07)",
+  border: "1px solid transparent",
+  textAlign: "left"
 };
 
 const fechaVisible = valor => {
@@ -94,6 +97,15 @@ const etiquetaDotacion = decision => {
   ].join(" · ");
 };
 
+const estiloTarjetaFiltro = (activo, color) => ({
+  ...tarjetaResumen,
+  cursor: "pointer",
+  border: activo
+    ? `2px solid ${color}`
+    : tarjetaResumen.border,
+  transform: activo ? "translateY(-1px)" : "none"
+});
+
 function PlanificadorPrioridadesV2({
   db,
   perfil,
@@ -116,6 +128,8 @@ function PlanificadorPrioridadesV2({
     useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [filtroActivo, setFiltroActivo] =
+    useState("todo");
   const plan = useMemo(
     () => construirPlanPrioridades(
       ordenes,
@@ -131,6 +145,13 @@ function PlanificadorPrioridadesV2({
   const resumenPlan = useMemo(
     () => construirResumenPlanificador(plan),
     [plan]
+  );
+  const planFiltrado = useMemo(
+    () => filtrarPlanPrioridades(
+      plan,
+      filtroActivo
+    ),
+    [filtroActivo, plan]
   );
   const ordenesSinCuello = ordenes.filter(
     orden => !orden.cuello_carga
@@ -400,7 +421,14 @@ function PlanificadorPrioridadesV2({
                 "repeat(auto-fit, minmax(170px, 1fr))",
               gap: 12
             }}>
-              <div style={tarjetaResumen}>
+              <button
+                type="button"
+                onClick={() => setFiltroActivo("todo")}
+                style={estiloTarjetaFiltro(
+                  filtroActivo === "todo",
+                  "#334155"
+                )}
+              >
                 <small style={{ color: "#64748B" }}>
                   Subprocesos con carga
                 </small>
@@ -421,8 +449,20 @@ function PlanificadorPrioridadesV2({
                   {resumenPlan.horas_carga_total}
                   {" h"}
                 </div>
-              </div>
-              <div style={tarjetaResumen}>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFiltroActivo(
+                    "capacidad_faltante"
+                  )
+                }
+                style={estiloTarjetaFiltro(
+                  filtroActivo ===
+                    "capacidad_faltante",
+                  "#B91C1C"
+                )}
+              >
                 <small style={{ color: "#64748B" }}>
                   Capacidad faltante
                 </small>
@@ -434,8 +474,20 @@ function PlanificadorPrioridadesV2({
                 }}>
                   {resumenPlan.capacidad_faltante}
                 </strong>
-              </div>
-              <div style={tarjetaResumen}>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFiltroActivo(
+                    "capacidad_provisional"
+                  )
+                }
+                style={estiloTarjetaFiltro(
+                  filtroActivo ===
+                    "capacidad_provisional",
+                  "#92400E"
+                )}
+              >
                 <small style={{ color: "#64748B" }}>
                   Capacidad provisional
                 </small>
@@ -447,8 +499,18 @@ function PlanificadorPrioridadesV2({
                 }}>
                   {resumenPlan.capacidad_provisional}
                 </strong>
-              </div>
-              <div style={tarjetaResumen}>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFiltroActivo("capacidad_validada")
+                }
+                style={estiloTarjetaFiltro(
+                  filtroActivo ===
+                    "capacidad_validada",
+                  "#166534"
+                )}
+              >
                 <small style={{ color: "#64748B" }}>
                   Capacidad validada
                 </small>
@@ -460,8 +522,17 @@ function PlanificadorPrioridadesV2({
                 }}>
                   {resumenPlan.capacidad_validada}
                 </strong>
-              </div>
-              <div style={tarjetaResumen}>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFiltroActivo("accionables")
+                }
+                style={estiloTarjetaFiltro(
+                  filtroActivo === "accionables",
+                  "#1D4ED8"
+                )}
+              >
                 <small style={{ color: "#64748B" }}>
                   Recomendaciones accionables
                 </small>
@@ -476,8 +547,20 @@ function PlanificadorPrioridadesV2({
                       .recomendaciones_accionables
                   }
                 </strong>
-              </div>
-              <div style={tarjetaResumen}>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setFiltroActivo(
+                    "bloqueados_dotacion"
+                  )
+                }
+                style={estiloTarjetaFiltro(
+                  filtroActivo ===
+                    "bloqueados_dotacion",
+                  "#B91C1C"
+                )}
+              >
                 <small style={{ color: "#64748B" }}>
                   Bloqueados por dotación
                 </small>
@@ -489,8 +572,42 @@ function PlanificadorPrioridadesV2({
                 }}>
                   {resumenPlan.bloqueados_dotacion}
                 </strong>
-              </div>
+              </button>
             </div>
+
+            {filtroActivo !== "todo" && (
+              <div style={{
+                background: "#F8FAFC",
+                color: "#334155",
+                padding: 12,
+                borderRadius: 9,
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "center",
+                flexWrap: "wrap"
+              }}>
+                <strong>
+                  Mostrando {planFiltrado.length} de{" "}
+                  {plan.length} subprocesos.
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => setFiltroActivo("todo")}
+                  style={{
+                    border: "none",
+                    borderRadius: 8,
+                    padding: "8px 11px",
+                    background: "#334155",
+                    color: "white",
+                    fontWeight: "bold",
+                    cursor: "pointer"
+                  }}
+                >
+                  Ver todo
+                </button>
+              </div>
+            )}
 
             {resumenPlan.bloqueados_capacidad > 0 && (
               <div style={{
@@ -510,7 +627,16 @@ function PlanificadorPrioridadesV2({
               </div>
             )}
 
-            {plan.map(grupo => (
+            {planFiltrado.length === 0 ? (
+              <div style={{
+                background: "white",
+                padding: 18,
+                borderRadius: 14,
+                color: "#475569"
+              }}>
+                No hay subprocesos para este filtro.
+              </div>
+            ) : planFiltrado.map(grupo => (
               <section
                 key={grupo.subproceso_id}
                 style={{
