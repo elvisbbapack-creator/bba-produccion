@@ -301,11 +301,13 @@ Usa capacidades validadas de `capacidad_procesos`, `programacion_turnos` de la
 semana vigente y los calendarios de Chile/Peru. El resultado puede ser mantener
 2 turnos, activar 3er turno, preparar dotacion nocturna, cubrir dotacion base o
 reforzar capacidad. La recomendacion no reasigna operarios ni modifica OTs;
-solo orienta la decision del jefe. La tarjeta de decision muestra carga en
-horas, capacidad con 2 turnos, aporte del turno noche, horas que seguirian
-faltando, ahorro estimado en semanas y dotacion cubierta por turno para explicar
-por que sugiere mantener, ampliar o reforzar. Cada tarjeta muestra tambien el
-estado de capacidad del subproceso: `faltante`, `provisional` o `validada`.
+solo orienta la decision del jefe. La tarjeta de decision compara el escenario
+actual de 2 turnos contra el escenario ampliado de 3 turnos, mostrando capacidad
+semanal, dias estimados de termino, fecha proyectada, horas que seguirian
+faltando y ahorro estimado en dias/semanas. Tambien resume el aporte del turno
+noche y la dotacion cubierta por turno para explicar por que sugiere mantener,
+ampliar o reforzar. Cada tarjeta muestra tambien el estado de capacidad del
+subproceso: `faltante`, `provisional` o `validada`.
 Las capacidades provisionales se muestran con sus recursos, factor, dotacion y
 disponibilidad, pero bloquean recomendaciones de turnos hasta que el jefe las
 valide en planta. Si falta capacidad validada, el planificador

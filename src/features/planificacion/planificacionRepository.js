@@ -155,6 +155,24 @@ const construirResumenDecision = ({
         semanasBase - semanasTresTurnos
       )
       : 0;
+  const diasBase =
+    semanasBase === null
+      ? null
+      : Math.ceil(semanasBase * 7);
+  const diasTresTurnos =
+    semanasTresTurnos === null
+      ? null
+      : Math.ceil(semanasTresTurnos * 7);
+  const ahorroDias =
+    diasBase !== null && diasTresTurnos !== null
+      ? Math.max(0, diasBase - diasTresTurnos)
+      : 0;
+  const horasRecuperables = redondear(
+    Math.min(
+      horasFaltantesBase,
+      horasNocheSemana
+    )
+  );
 
   return {
     carga_horas: redondear(carga),
@@ -166,13 +184,7 @@ const construirResumenDecision = ({
       redondear(horasFaltantesBase),
     horas_faltantes_3_turnos:
       redondear(horasFaltantesTresTurnos),
-    ahorro_horas_con_noche:
-      redondear(
-        Math.min(
-          horasFaltantesBase,
-          horasNocheSemana
-        )
-      ),
+    ahorro_horas_con_noche: horasRecuperables,
     semanas_2_turnos:
       semanasBase === null
         ? null
@@ -183,6 +195,44 @@ const construirResumenDecision = ({
         : redondear(semanasTresTurnos),
     ahorro_semanas_con_noche:
       redondear(ahorroSemanas),
+    dias_estimados_2_turnos: diasBase,
+    dias_estimados_3_turnos: diasTresTurnos,
+    ahorro_dias_con_noche: ahorroDias,
+    escenarios: {
+      base: {
+        titulo: "2 turnos",
+        descripcion: "Mañana y tarde",
+        horas_semana: redondear(horasBaseSemana),
+        semanas_estimadas:
+          semanasBase === null
+            ? null
+            : redondear(semanasBase),
+        dias_estimados: diasBase,
+        horas_faltantes:
+          redondear(horasFaltantesBase)
+      },
+      ampliado: {
+        titulo: "3 turnos",
+        descripcion: "Mañana, tarde y noche",
+        horas_semana: redondear(horasTresTurnos),
+        semanas_estimadas:
+          semanasTresTurnos === null
+            ? null
+            : redondear(semanasTresTurnos),
+        dias_estimados: diasTresTurnos,
+        horas_faltantes:
+          redondear(horasFaltantesTresTurnos)
+      }
+    },
+    impacto_3_turno: {
+      horas_adicionales_semana:
+        redondear(horasNocheSemana),
+      horas_recuperables: horasRecuperables,
+      ahorro_semanas: redondear(ahorroSemanas),
+      ahorro_dias: ahorroDias,
+      dotacion_noche_cubierta:
+        brechas.cobertura_noche_suficiente
+    },
     cobertura,
     brechas,
     dotacion: {

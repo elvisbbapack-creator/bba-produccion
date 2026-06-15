@@ -206,6 +206,29 @@ test("sugiere activar 3er turno cuando la carga excede 2 turnos y noche esta cub
     semanas_2_turnos: 1.25,
     semanas_3_turnos: 0.83,
     ahorro_semanas_con_noche: 0.42,
+    dias_estimados_2_turnos: 9,
+    dias_estimados_3_turnos: 6,
+    ahorro_dias_con_noche: 3,
+    escenarios: {
+      base: {
+        titulo: "2 turnos",
+        horas_semana: 96,
+        dias_estimados: 9,
+        horas_faltantes: 24
+      },
+      ampliado: {
+        titulo: "3 turnos",
+        horas_semana: 144,
+        dias_estimados: 6,
+        horas_faltantes: 0
+      }
+    },
+    impacto_3_turno: {
+      horas_adicionales_semana: 48,
+      horas_recuperables: 24,
+      ahorro_dias: 3,
+      dotacion_noche_cubierta: true
+    },
     dotacion: {
       requerida_por_turno: 1,
       manana: 1,

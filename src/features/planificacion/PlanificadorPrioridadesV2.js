@@ -83,6 +83,17 @@ const fechaVisible = valor => {
     : fecha.toLocaleDateString("es-CL");
 };
 
+const fechaDesdeDias = dias => {
+  if (!Number.isFinite(Number(dias))) {
+    return "Sin estimación";
+  }
+
+  const fecha = new Date();
+  fecha.setDate(fecha.getDate() + Number(dias));
+
+  return fecha.toLocaleDateString("es-CL");
+};
+
 const etiquetaDotacion = decision => {
   if (!decision?.dotacion) {
     return "";
@@ -104,6 +115,17 @@ const estiloTarjetaFiltro = (activo, color) => ({
     ? `2px solid ${color}`
     : tarjetaResumen.border,
   transform: activo ? "translateY(-1px)" : "none"
+});
+
+const estiloEscenarioTurno = destacado => ({
+  flex: "1 1 230px",
+  borderRadius: 10,
+  padding: 12,
+  background: destacado ? "#EFF6FF" : "white",
+  border: destacado
+    ? "2px solid #1D4ED8"
+    : "1px solid rgba(100,116,139,0.28)",
+  color: "#334155"
 });
 
 function PlanificadorPrioridadesV2({
@@ -902,87 +924,132 @@ function PlanificadorPrioridadesV2({
                       grupo.decision_turno
                         .horas_base_semana !== undefined &&
                       (
-                        <div style={{
-                          display: "flex",
-                          gap: 12,
-                          flexWrap: "wrap",
-                          marginTop: 8,
-                          fontSize: 13
-                        }}>
-                          <span>
-                            Carga:{" "}
-                            {
-                              grupo.decision_turno
-                                .carga_horas
-                            }
-                            {" h"}
-                          </span>
-                          <span>
-                            2 turnos:{" "}
-                            {
-                              grupo.decision_turno
-                                .horas_base_semana
-                            }
-                            {" h/sem"}
-                          </span>
-                          <span>
-                            Noche aporta:{" "}
+                        <div style={{ marginTop: 10 }}>
+                          <div style={{
+                            display: "flex",
+                            gap: 10,
+                            flexWrap: "wrap"
+                          }}>
+                            <div style={estiloEscenarioTurno(false)}>
+                              <strong>
+                                Escenario actual:{" "}
+                                {
+                                  grupo.decision_turno
+                                    .escenarios?.base
+                                    ?.titulo || "2 turnos"
+                                }
+                              </strong>
+                              <div style={{
+                                marginTop: 6,
+                                fontSize: 13
+                              }}>
+                                Capacidad:{" "}
+                                {
+                                  grupo.decision_turno
+                                    .horas_base_semana
+                                }
+                                {" h/sem"}
+                              </div>
+                              <div style={{ fontSize: 13 }}>
+                                Termina en:{" "}
+                                {
+                                  grupo.decision_turno
+                                    .dias_estimados_2_turnos ??
+                                  "s/d"
+                                }
+                                {" dias · "}
+                                {fechaDesdeDias(
+                                  grupo.decision_turno
+                                    .dias_estimados_2_turnos
+                                )}
+                              </div>
+                              <div style={{ fontSize: 13 }}>
+                                Falta semanal:{" "}
+                                {
+                                  grupo.decision_turno
+                                    .horas_faltantes_2_turnos
+                                }
+                                {" h"}
+                              </div>
+                            </div>
+
+                            <div style={estiloEscenarioTurno(true)}>
+                              <strong>
+                                Escenario ampliado:{" "}
+                                {
+                                  grupo.decision_turno
+                                    .escenarios?.ampliado
+                                    ?.titulo || "3 turnos"
+                                }
+                              </strong>
+                              <div style={{
+                                marginTop: 6,
+                                fontSize: 13
+                              }}>
+                                Capacidad:{" "}
+                                {
+                                  grupo.decision_turno
+                                    .horas_3_turnos_semana
+                                }
+                                {" h/sem"}
+                              </div>
+                              <div style={{ fontSize: 13 }}>
+                                Termina en:{" "}
+                                {
+                                  grupo.decision_turno
+                                    .dias_estimados_3_turnos ??
+                                  "s/d"
+                                }
+                                {" dias · "}
+                                {fechaDesdeDias(
+                                  grupo.decision_turno
+                                    .dias_estimados_3_turnos
+                                )}
+                              </div>
+                              <div style={{ fontSize: 13 }}>
+                                Falta semanal:{" "}
+                                {
+                                  grupo.decision_turno
+                                    .horas_faltantes_3_turnos
+                                }
+                                {" h"}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{
+                            marginTop: 10,
+                            padding: 10,
+                            borderRadius: 8,
+                            background: "rgba(255,255,255,0.72)",
+                            color: "#334155",
+                            fontSize: 13
+                          }}>
+                            <strong>
+                              Impacto de activar noche:
+                            </strong>
+                            {" aporta "}
                             {
                               grupo.decision_turno
                                 .horas_noche_semana
                             }
-                            {" h/sem"}
-                          </span>
-                          <span>
-                            3 turnos:{" "}
+                            {" h/sem, recupera "}
                             {
                               grupo.decision_turno
-                                .horas_3_turnos_semana
+                                .ahorro_horas_con_noche
                             }
-                            {" h/sem"}
-                          </span>
-                          <span>
-                            Estimado 2 turnos:{" "}
+                            {" h de brecha y ahorra aprox. "}
                             {
                               grupo.decision_turno
-                                .semanas_2_turnos ??
-                              "s/d"
+                                .ahorro_dias_con_noche
                             }
-                            {" semanas"}
-                          </span>
-                          <span>
-                            Estimado 3 turnos:{" "}
-                            {
-                              grupo.decision_turno
-                                .semanas_3_turnos ??
-                              "s/d"
-                            }
-                            {" semanas"}
-                          </span>
-                          <span>
-                            Falta con 2 turnos:{" "}
-                            {
-                              grupo.decision_turno
-                                .horas_faltantes_2_turnos
-                            }
-                            {" h"}
-                          </span>
-                          <span>
-                            Falta con 3 turnos:{" "}
-                            {
-                              grupo.decision_turno
-                                .horas_faltantes_3_turnos
-                            }
-                            {" h"}
-                          </span>
-                          <span>
-                            Ahorro estimado:{" "}
+                            {" dias ("}
                             {
                               grupo.decision_turno
                                 .ahorro_semanas_con_noche
                             }
-                            {" semanas"}
-                          </span>
+                            {" semanas)."}
+                          </div>
                         </div>
                       )
                     }
