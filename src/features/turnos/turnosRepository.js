@@ -255,6 +255,15 @@ export const construirMatrizCobertura = (
       subproceso.subproceso_nombre || "",
     estado_datos:
       subproceso.estado_datos || "provisional",
+    recursos_paralelos:
+      Number(subproceso.recursos_paralelos || 0),
+    operarios_por_recurso:
+      Math.max(
+        1,
+        Math.ceil(
+          Number(subproceso.operarios_por_recurso || 1)
+        )
+      ),
     ...cobertura,
     ...calcularBrechasDotacion(
       cobertura,

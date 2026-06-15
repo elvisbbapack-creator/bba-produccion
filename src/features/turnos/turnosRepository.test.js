@@ -39,6 +39,8 @@ test("construye la matriz de cobertura por subproceso", () => {
       {
         subproceso_id: "SP0003",
         subproceso_nombre: "Láser",
+        recursos_paralelos: 1,
+        operarios_por_recurso: 2,
         operarios_requeridos_turno: 2,
         estado_datos: "validada"
       }
@@ -70,6 +72,8 @@ test("construye la matriz de cobertura por subproceso", () => {
   });
   expect(matriz[1]).toMatchObject({
     subproceso_id: "SP0003",
+    recursos_paralelos: 1,
+    operarios_por_recurso: 2,
     manana: 1,
     tarde: 0,
     noche: 0,

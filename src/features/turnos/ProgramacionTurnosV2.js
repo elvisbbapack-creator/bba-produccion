@@ -710,6 +710,7 @@ function ProgramacionTurnosV2({
                 <tr>
                   {[
                     "Subproceso",
+                    "Dotación estación",
                     "Mañana",
                     "Tarde",
                     "Noche",
@@ -741,6 +742,16 @@ function ProgramacionTurnosV2({
                       ? `${item.faltantes_tarde} tarde`
                       : ""
                   ].filter(Boolean).join(" · ");
+                  const ayudantes = Math.max(
+                    0,
+                    Number(
+                      item.operarios_por_recurso || 1
+                    ) - 1
+                  );
+                  const textoDotacionEstacion =
+                    ayudantes > 0
+                      ? `1 principal + ${ayudantes} ayudante${ayudantes === 1 ? "" : "s"}`
+                      : "1 principal";
 
                   return (
                     <tr key={item.subproceso_id}>
@@ -754,6 +765,17 @@ function ProgramacionTurnosV2({
                         </strong>
                         {" - "}
                         {item.subproceso_nombre}
+                      </td>
+                      <td style={{
+                        padding: 9,
+                        borderBottom:
+                          "1px solid #E2E8F0",
+                        color: ayudantes > 0
+                          ? "#92400E"
+                          : "#475569",
+                        fontWeight: "bold"
+                      }}>
+                        {textoDotacionEstacion}
                       </td>
                       {[
                         item.manana,
@@ -795,7 +817,7 @@ function ProgramacionTurnosV2({
                           ? "Capacidad provisional"
                           : completa
                             ? "Base cubierta"
-                            : `Faltan ${brechasBase}`}
+                            : `Faltan ${brechasBase}. Requiere ${item.operarios_requeridos_turno} por turno`}
                       </td>
                     </tr>
                   );

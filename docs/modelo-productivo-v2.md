@@ -518,9 +518,11 @@ para operar todos los recursos calculados.
 La programación semanal toma su selector de `capacidad_procesos`, evitando leer
 todas las rutas de productos para construir el catálogo. La matriz de cobertura
 muestra por subproceso la relación `habilitados / requeridos` en mañana, tarde
-y noche. También indica cuántos operarios faltan en cada turno base; el
-simulador muestra la brecha exacta para que el jefe pueda reasignar o incorporar
-personal antes de ampliar el cuello de botella.
+y noche. Tambien muestra la dotacion por estacion, por ejemplo `1 principal + 1
+ayudante`, para explicar por que un subproceso requiere mas personas por turno.
+Tambien indica cuántos operarios faltan en cada turno base; el simulador muestra
+la brecha exacta para que el jefe pueda reasignar o incorporar personal antes de
+ampliar el cuello de botella.
 
 La recomendación sigue un orden operativo. Si la capacidad está validada pero
 mañana o tarde no alcanzan la dotación objetivo, primero simula completar los
