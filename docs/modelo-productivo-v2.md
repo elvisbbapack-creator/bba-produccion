@@ -337,7 +337,10 @@ Este historial no modifica OTs ni turnos automaticamente; sirve como auditoria y
 base futura para comparar recomendaciones contra resultados reales con IA.
 La vista `Historial Decisiones Planificador (V2)` consulta decisiones recientes
 con limite por planta y permite filtrar en pantalla por subproceso, OT/producto
-y tipo de decision para controlar lecturas en Firebase.
+y tipo de decision para controlar lecturas en Firebase. Tambien muestra un
+aprendizaje operativo con porcentaje de coincidencia entre recomendacion y
+decision real, decisiones distintas, ahorro estimado y subprocesos con mas
+casos para revisar.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 

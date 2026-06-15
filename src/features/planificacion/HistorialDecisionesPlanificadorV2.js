@@ -4,6 +4,7 @@ import {
   useState
 } from "react";
 import {
+  construirAprendizajeDecisionesPlanificador,
   listarDecisionesPlanificador
 } from "./planificacionRepository";
 
@@ -128,6 +129,13 @@ function HistorialDecisionesPlanificadorV2({
 
     return base;
   }, [decisionesFiltradas]);
+  const aprendizaje = useMemo(
+    () =>
+      construirAprendizajeDecisionesPlanificador(
+        decisionesFiltradas
+      ),
+    [decisionesFiltradas]
+  );
 
   return (
     <div style={{
@@ -342,6 +350,113 @@ function HistorialDecisionesPlanificadorV2({
               </strong>
             </div>
           ))}
+        </section>
+
+        <section style={{
+          background: "white",
+          borderRadius: 14,
+          padding: 18,
+          boxShadow:
+            "0 2px 10px rgba(15,23,42,0.08)",
+          marginTop: 16
+        }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap"
+          }}>
+            <div>
+              <h2 style={{ margin: "0 0 4px" }}>
+                Aprendizaje operativo
+              </h2>
+              <p style={{
+                margin: 0,
+                color: "#475569"
+              }}>
+                Mide cuánto coincide la decisión real
+                con la recomendación del sistema.
+              </p>
+            </div>
+            <div style={{
+              textAlign: "right",
+              color: "#0F172A"
+            }}>
+              <strong style={{ fontSize: 30 }}>
+                {aprendizaje.coincidencia_pct}
+                {"%"}
+              </strong>
+              <div style={{ color: "#64748B" }}>
+                coincidencia
+              </div>
+            </div>
+          </div>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(170px, 1fr))",
+            gap: 10,
+            marginTop: 14
+          }}>
+            <InfoBox
+              titulo="Siguió recomendación"
+              valor={aprendizaje.alineadas}
+            />
+            <InfoBox
+              titulo="Decidió distinto"
+              valor={aprendizaje.distintas}
+            />
+            <InfoBox
+              titulo="Ahorro estimado"
+              valor={`${aprendizaje.ahorro_dias_estimado} días`}
+            />
+          </div>
+
+          {aprendizaje.por_subproceso.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <strong>
+                Subprocesos con más aprendizaje
+              </strong>
+              <div style={{
+                display: "grid",
+                gap: 8,
+                marginTop: 8
+              }}>
+                {aprendizaje.por_subproceso.map(item => (
+                  <div
+                    key={item.subproceso_id}
+                    style={{
+                      border: "1px solid #E2E8F0",
+                      borderRadius: 9,
+                      padding: 10,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap",
+                      color: "#334155"
+                    }}
+                  >
+                    <span>
+                      <strong>
+                        {item.subproceso_id}
+                      </strong>
+                      {" · "}
+                      {item.subproceso_nombre}
+                    </span>
+                    <span>
+                      {item.total}
+                      {" decisiones · "}
+                      {item.coincidencia_pct}
+                      {"% coincide · "}
+                      {item.distintas}
+                      {" distintas"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section style={{

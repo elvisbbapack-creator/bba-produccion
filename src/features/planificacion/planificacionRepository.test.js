@@ -1,6 +1,7 @@
 import {
   construirDecisionTurno,
   construirPlanPrioridades,
+  construirAprendizajeDecisionesPlanificador,
   construirResumenPlanificador,
   construirRegistroDecisionPlanificador,
   filtrarPlanPrioridades
@@ -606,4 +607,60 @@ test("construye registro de decision tomada por el jefe", () => {
     capacidad_id: "cap-1"
   });
   expect(registro.creado_en).toBeDefined();
+});
+
+test("resume aprendizaje operativo de decisiones", () => {
+  const aprendizaje =
+    construirAprendizajeDecisionesPlanificador([
+      {
+        subproceso_id: "SP0003",
+        subproceso_nombre: "Laser",
+        recomendacion_tipo: "activar_3_turno",
+        decision_tomada: "activar_3_turno",
+        ahorro_dias_con_noche: 3
+      },
+      {
+        subproceso_id: "SP0003",
+        subproceso_nombre: "Laser",
+        recomendacion_tipo: "activar_3_turno",
+        decision_tomada: "revisar_capacidad",
+        ahorro_dias_con_noche: 2
+      },
+      {
+        subproceso_id: "SP0007",
+        subproceso_nombre: "Soldadura",
+        recomendacion_tipo: "cubrir_dotacion_base",
+        decision_tomada: "programar_dotacion",
+        ahorro_dias_con_noche: 0
+      }
+    ]);
+
+  expect(aprendizaje).toMatchObject({
+    total: 3,
+    alineadas: 1,
+    distintas: 2,
+    coincidencia_pct: 33.33,
+    ahorro_dias_estimado: 5,
+    por_decision: {
+      activar_3_turno: 1,
+      revisar_capacidad: 1,
+      programar_dotacion: 1
+    },
+    por_subproceso: [
+      {
+        subproceso_id: "SP0003",
+        total: 2,
+        alineadas: 1,
+        distintas: 1,
+        coincidencia_pct: 50
+      },
+      {
+        subproceso_id: "SP0007",
+        total: 1,
+        alineadas: 0,
+        distintas: 1,
+        coincidencia_pct: 0
+      }
+    ]
+  });
 });

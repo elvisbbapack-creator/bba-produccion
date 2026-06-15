@@ -884,6 +884,96 @@ export const listarDecisionesPlanificador =
       .slice(0, limite);
   };
 
+export const construirAprendizajeDecisionesPlanificador =
+  (decisiones = []) => {
+    const resumen = {
+      total: decisiones.length,
+      alineadas: 0,
+      distintas: 0,
+      sin_recomendacion: 0,
+      coincidencia_pct: 0,
+      ahorro_dias_estimado: 0,
+      por_subproceso: [],
+      por_decision: {}
+    };
+    const porSubproceso = new Map();
+
+    decisiones.forEach(item => {
+      const recomendacion =
+        item.recomendacion_tipo || "";
+      const decision =
+        item.decision_tomada || "";
+
+      if (!recomendacion) {
+        resumen.sin_recomendacion += 1;
+      } else if (recomendacion === decision) {
+        resumen.alineadas += 1;
+      } else {
+        resumen.distintas += 1;
+      }
+
+      resumen.ahorro_dias_estimado += Number(
+        item.ahorro_dias_con_noche || 0
+      );
+      resumen.por_decision[decision] =
+        (resumen.por_decision[decision] || 0) + 1;
+
+      const subprocesoId =
+        item.subproceso_id || "sin_subproceso";
+      const actual =
+        porSubproceso.get(subprocesoId) || {
+          subproceso_id: subprocesoId,
+          subproceso_nombre:
+            item.subproceso_nombre || "",
+          total: 0,
+          alineadas: 0,
+          distintas: 0,
+          ahorro_dias_estimado: 0
+        };
+
+      actual.total += 1;
+      actual.ahorro_dias_estimado += Number(
+        item.ahorro_dias_con_noche || 0
+      );
+      if (recomendacion === decision) {
+        actual.alineadas += 1;
+      } else {
+        actual.distintas += 1;
+      }
+
+      porSubproceso.set(subprocesoId, actual);
+    });
+
+    resumen.coincidencia_pct =
+      resumen.total > 0
+        ? redondear(
+          (resumen.alineadas / resumen.total) * 100
+        )
+        : 0;
+    resumen.ahorro_dias_estimado =
+      redondear(resumen.ahorro_dias_estimado);
+    resumen.por_subproceso =
+      [...porSubproceso.values()]
+        .map(item => ({
+          ...item,
+          ahorro_dias_estimado:
+            redondear(item.ahorro_dias_estimado),
+          coincidencia_pct:
+            item.total > 0
+              ? redondear(
+                (item.alineadas / item.total) * 100
+              )
+              : 0
+        }))
+        .sort((a, b) =>
+          b.total - a.total ||
+          b.distintas - a.distintas
+        )
+        .slice(0, 5);
+
+    return resumen;
+  };
+
 export const recalcularResumenesPlanificacion =
   async ({
     db,
