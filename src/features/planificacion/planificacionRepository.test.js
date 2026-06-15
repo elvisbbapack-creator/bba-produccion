@@ -1,4 +1,5 @@
 import {
+  calcularImpactoDecisionPlanificador,
   construirDecisionTurno,
   construirPlanPrioridades,
   construirAprendizajeDecisionesPlanificador,
@@ -662,5 +663,82 @@ test("resume aprendizaje operativo de decisiones", () => {
         coincidencia_pct: 0
       }
     ]
+  });
+});
+
+test("calcula impacto positivo de una decision", () => {
+  const impacto =
+    calcularImpactoDecisionPlanificador({
+      orden: {
+        estado: "completada",
+        avance_pct: 100,
+        fecha_estimada_fin:
+          "2026-06-16T12:00:00Z",
+        fecha_planificada_entrega:
+          "2026-06-18T12:00:00Z",
+        reprocesos_pendientes: 0
+      },
+      resumenOt: {
+        eficiencia_calidad_pct: 92,
+        calidad_pct: 98
+      },
+      fechaReferencia:
+        new Date("2026-06-15T12:00:00Z")
+    });
+
+  expect(impacto).toMatchObject({
+    estado: "positivo",
+    avance_pct: 100,
+    eficiencia_calidad_pct: 92,
+    calidad_pct: 98,
+    riesgo_entrega: "en_fecha"
+  });
+});
+
+test("marca riesgo cuando fecha, calidad o eficiencia no acompañan", () => {
+  const impacto =
+    calcularImpactoDecisionPlanificador({
+      orden: {
+        estado: "en_produccion",
+        avance_pct: 40,
+        fecha_estimada_fin:
+          "2026-06-20T12:00:00Z",
+        fecha_planificada_entrega:
+          "2026-06-18T12:00:00Z",
+        reprocesos_pendientes: 2
+      },
+      resumenOt: {
+        eficiencia_calidad_pct: 70,
+        calidad_pct: 90
+      },
+      fechaReferencia:
+        new Date("2026-06-15T12:00:00Z")
+    });
+
+  expect(impacto).toMatchObject({
+    estado: "riesgo",
+    avance_pct: 40,
+    eficiencia_calidad_pct: 70,
+    calidad_pct: 90,
+    riesgo_entrega: "en_riesgo"
+  });
+});
+
+test("detecta decision sin movimiento posterior", () => {
+  const impacto =
+    calcularImpactoDecisionPlanificador({
+      orden: {
+        estado: "liberada",
+        avance_pct: 0
+      },
+      fechaReferencia:
+        new Date("2026-06-15T12:00:00Z")
+    });
+
+  expect(impacto).toMatchObject({
+    estado: "sin_movimiento",
+    avance_pct: 0,
+    eficiencia_calidad_pct: null,
+    calidad_pct: null
   });
 });

@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -88,6 +89,12 @@ const valorFecha = valor => {
   return Number.isNaN(fecha.getTime())
     ? 0
     : fecha.getTime();
+};
+
+const fechaTexto = valor => {
+  const fecha = fechaAValor(valor);
+
+  return fecha ? fecha.toISOString() : "";
 };
 
 const nombreTurno = (plantaId, turnoId) =>
@@ -972,6 +979,179 @@ export const construirAprendizajeDecisionesPlanificador =
         .slice(0, 5);
 
     return resumen;
+  };
+
+export const calcularImpactoDecisionPlanificador =
+  ({
+    decision = {},
+    orden = null,
+    resumenOt = null,
+    fechaReferencia = new Date()
+  }) => {
+    if (!orden) {
+      return {
+        estado: "sin_datos",
+        titulo: "Sin OT disponible",
+        detalle:
+          "No se encontró la OT para medir el resultado.",
+        avance_pct: 0,
+        eficiencia_calidad_pct: null,
+        calidad_pct: null,
+        fecha_estimada_fin: "",
+        riesgo_entrega: "sin_fecha"
+      };
+    }
+
+    const ordenConRiesgo = clasificarRiesgoOT(
+      orden,
+      fechaReferencia
+    );
+    const avance = redondear(orden.avance_pct || 0);
+    const eficiencia =
+      resumenOt?.eficiencia_calidad_pct ?? null;
+    const calidad = resumenOt?.calidad_pct ?? null;
+    const reprocesos = Number(
+      orden.reprocesos_pendientes || 0
+    );
+    const enRiesgo = [
+      "atrasada",
+      "en_riesgo"
+    ].includes(ordenConRiesgo.riesgo_entrega);
+    const calidadBaja =
+      calidad !== null && Number(calidad) < 95;
+    const eficienciaBaja =
+      eficiencia !== null && Number(eficiencia) < 80;
+
+    if (
+      orden.estado === "completada" &&
+      !calidadBaja &&
+      reprocesos === 0
+    ) {
+      return {
+        estado: "positivo",
+        titulo: "Resultado positivo",
+        detalle:
+          "La OT está completada sin reprocesos pendientes y con calidad controlada.",
+        avance_pct: 100,
+        eficiencia_calidad_pct: eficiencia,
+        calidad_pct: calidad,
+        fecha_estimada_fin:
+          fechaTexto(orden.fecha_estimada_fin),
+        riesgo_entrega:
+          ordenConRiesgo.riesgo_entrega
+      };
+    }
+
+    if (
+      enRiesgo ||
+      calidadBaja ||
+      eficienciaBaja ||
+      reprocesos > 0
+    ) {
+      return {
+        estado: "riesgo",
+        titulo: "Revisar impacto",
+        detalle:
+          "La decisión aún muestra riesgo en avance, fecha, calidad, eficiencia o reprocesos.",
+        avance_pct: avance,
+        eficiencia_calidad_pct: eficiencia,
+        calidad_pct: calidad,
+        fecha_estimada_fin:
+          fechaTexto(orden.fecha_estimada_fin),
+        riesgo_entrega:
+          ordenConRiesgo.riesgo_entrega
+      };
+    }
+
+    if (avance > 0 || resumenOt) {
+      return {
+        estado: "en_observacion",
+        titulo: "En observación",
+        detalle:
+          "Ya existe avance o eficiencia registrada, pero todavía falta cerrar el resultado.",
+        avance_pct: avance,
+        eficiencia_calidad_pct: eficiencia,
+        calidad_pct: calidad,
+        fecha_estimada_fin:
+          fechaTexto(orden.fecha_estimada_fin),
+        riesgo_entrega:
+          ordenConRiesgo.riesgo_entrega
+      };
+    }
+
+    return {
+      estado: "sin_movimiento",
+      titulo: "Sin movimiento posterior",
+      detalle:
+        "Aún no hay avance productivo registrado después de la decisión.",
+      avance_pct: avance,
+      eficiencia_calidad_pct: eficiencia,
+      calidad_pct: calidad,
+      fecha_estimada_fin:
+        fechaTexto(orden.fecha_estimada_fin),
+      riesgo_entrega: ordenConRiesgo.riesgo_entrega
+    };
+  };
+
+export const listarImpactosDecisionesPlanificador =
+  async ({
+    db,
+    decisiones = [],
+    fechaReferencia = new Date()
+  }) => {
+    const otIds = [
+      ...new Set(
+        decisiones
+          .map(item => item.ot_priorizada_id)
+          .filter(Boolean)
+      )
+    ].slice(0, 80);
+
+    const pares = await Promise.all(
+      otIds.map(async otId => {
+        const [ordenSnap, resumenSnap] =
+          await Promise.all([
+            getDoc(doc(db, "ordenes_trabajo", otId)),
+            getDoc(doc(db, "resumenes_ot", otId))
+          ]);
+
+        return [
+          otId,
+          {
+            orden: ordenSnap.exists()
+              ? {
+                id: ordenSnap.id,
+                ...ordenSnap.data()
+              }
+              : null,
+            resumenOt: resumenSnap.exists()
+              ? {
+                id: resumenSnap.id,
+                ...resumenSnap.data()
+              }
+              : null
+          }
+        ];
+      })
+    );
+    const porOt = new Map(pares);
+
+    return Object.fromEntries(
+      decisiones.map(decision => {
+        const datos =
+          porOt.get(decision.ot_priorizada_id) || {};
+
+        return [
+          decision.id,
+          calcularImpactoDecisionPlanificador({
+            decision,
+            orden: datos.orden,
+            resumenOt: datos.resumenOt,
+            fechaReferencia
+          })
+        ];
+      })
+    );
   };
 
 export const recalcularResumenesPlanificacion =

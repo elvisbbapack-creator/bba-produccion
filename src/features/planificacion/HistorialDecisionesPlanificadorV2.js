@@ -5,6 +5,7 @@ import {
 } from "react";
 import {
   construirAprendizajeDecisionesPlanificador,
+  listarImpactosDecisionesPlanificador,
   listarDecisionesPlanificador
 } from "./planificacionRepository";
 
@@ -22,6 +23,22 @@ const recomendacionTexto = {
   cubrir_dotacion_base: "Cubrir dotación base",
   configurar_capacidad: "Configurar capacidad",
   reforzar_capacidad: "Reforzar capacidad"
+};
+
+const impactoColor = {
+  positivo: "#166534",
+  en_observacion: "#1D4ED8",
+  riesgo: "#B91C1C",
+  sin_movimiento: "#92400E",
+  sin_datos: "#475569"
+};
+
+const impactoFondo = {
+  positivo: "#F0FDF4",
+  en_observacion: "#EFF6FF",
+  riesgo: "#FEF2F2",
+  sin_movimiento: "#FFFBEB",
+  sin_datos: "#F8FAFC"
 };
 
 const fechaVisible = valor => {
@@ -57,6 +74,7 @@ function HistorialDecisionesPlanificadorV2({
       : plantas[0] || ""
   );
   const [decisiones, setDecisiones] = useState([]);
+  const [impactos, setImpactos] = useState({});
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
   const [filtroSubproceso, setFiltroSubproceso] =
@@ -68,14 +86,21 @@ function HistorialDecisionesPlanificadorV2({
     try {
       setCargando(true);
       setError("");
-      setDecisiones(
+      const decisionesData =
         await listarDecisionesPlanificador({
           db,
           perfil,
           plantaId,
           limite: 120
-        })
-      );
+        });
+      const impactosData =
+        await listarImpactosDecisionesPlanificador({
+          db,
+          decisiones: decisionesData
+        });
+
+      setDecisiones(decisionesData);
+      setImpactos(impactosData);
     } catch (fallo) {
       setError(
         fallo?.message ||
@@ -563,6 +588,63 @@ function HistorialDecisionesPlanificadorV2({
                   <strong>Comentario:</strong>
                   {" "}
                   {item.comentario}
+                </div>
+              )}
+
+              {impactos[item.id] && (
+                <div style={{
+                  marginTop: 10,
+                  padding: 10,
+                  borderRadius: 9,
+                  background:
+                    impactoFondo[
+                      impactos[item.id].estado
+                    ] || "#F8FAFC",
+                  color:
+                    impactoColor[
+                      impactos[item.id].estado
+                    ] || "#334155"
+                }}>
+                  <strong>
+                    Resultado posterior:{" "}
+                    {impactos[item.id].titulo}
+                  </strong>
+                  <div style={{ marginTop: 4 }}>
+                    {impactos[item.id].detalle}
+                  </div>
+                  <div style={{
+                    display: "flex",
+                    gap: 10,
+                    flexWrap: "wrap",
+                    marginTop: 8,
+                    fontSize: 13
+                  }}>
+                    <span>
+                      Avance:{" "}
+                      {impactos[item.id].avance_pct}
+                      {"%"}
+                    </span>
+                    <span>
+                      Eficiencia calidad:{" "}
+                      {impactos[item.id]
+                        .eficiencia_calidad_pct ??
+                        "s/d"}
+                      {"%"}
+                    </span>
+                    <span>
+                      Calidad:{" "}
+                      {impactos[item.id]
+                        .calidad_pct ?? "s/d"}
+                      {"%"}
+                    </span>
+                    <span>
+                      Riesgo entrega:{" "}
+                      {
+                        impactos[item.id]
+                          .riesgo_entrega
+                      }
+                    </span>
+                  </div>
                 </div>
               )}
             </article>

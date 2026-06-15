@@ -341,6 +341,10 @@ y tipo de decision para controlar lecturas en Firebase. Tambien muestra un
 aprendizaje operativo con porcentaje de coincidencia entre recomendacion y
 decision real, decisiones distintas, ahorro estimado y subprocesos con mas
 casos para revisar.
+Para medir impacto posterior, la misma vista lee solo `ordenes_trabajo/{otId}`
+y `resumenes_ot/{otId}` de las decisiones recientes. Con eso muestra avance,
+riesgo de entrega, eficiencia con calidad y calidad posterior sin recorrer
+eventos de produccion ni subcolecciones.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 
