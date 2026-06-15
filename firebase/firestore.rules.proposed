@@ -217,7 +217,8 @@ service cloud.firestore {
     }
 
     match /ocupacion_operarios/{ocupacionId} {
-      allow read: if belongsToPlant(resource.data);
+      allow get: if isPlantOperator();
+      allow list: if belongsToPlant(resource.data);
       allow create: if isPlantOperator() &&
         belongsToPlant(request.resource.data);
       allow update: if isPlantOperator() &&

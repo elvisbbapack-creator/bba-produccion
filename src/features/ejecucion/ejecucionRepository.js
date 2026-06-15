@@ -730,6 +730,23 @@ export const iniciarSesionProduccion = async ({
     operario_id: codigo || slug(nombre),
     operario_codigo: codigo,
     operario_nombre: nombre,
+    operarios_por_recurso:
+      Math.max(
+        1,
+        Math.ceil(
+          Number(operariosPorRecurso) || 1
+        )
+      ),
+    equipo_apoyo: equipoApoyo,
+    equipo_trabajo: [
+      {
+        operario_id: codigo || slug(nombre),
+        operario_codigo: codigo,
+        operario_nombre: nombre,
+        rol: "principal"
+      },
+      ...equipoApoyo
+    ],
     planta_id: orden.planta_id,
     ...datosTurno,
     estado: "activa",
