@@ -2,8 +2,13 @@ import {
   addDoc,
   collection,
   doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  where
 } from "firebase/firestore";
 import {
   calcularProyeccionOT,
@@ -70,6 +75,20 @@ const numeroPositivo = valor =>
 
 const redondear = valor =>
   Number((Number(valor) || 0).toFixed(2));
+
+const valorFecha = valor => {
+  if (!valor) {
+    return 0;
+  }
+
+  const fecha = typeof valor.toDate === "function"
+    ? valor.toDate()
+    : new Date(valor);
+
+  return Number.isNaN(fecha.getTime())
+    ? 0
+    : fecha.getTime();
+};
 
 const nombreTurno = (plantaId, turnoId) =>
   TURNOS_PLANTA[plantaId]?.turnos?.[turnoId]
@@ -793,6 +812,76 @@ export const registrarDecisionPlanificador =
       id: referencia.id,
       ...registro
     };
+  };
+
+export const listarDecisionesPlanificador =
+  async ({
+    db,
+    perfil,
+    plantaId = "",
+    limite = 100
+  }) => {
+    const plantasPermitidas =
+      perfil?.rol === "gerencia"
+        ? []
+        : (perfil?.planta_ids || []);
+    const plantasConsulta = plantaId
+      ? [plantaId]
+      : plantasPermitidas;
+    const base = [
+      where(
+        "empresa_id",
+        "==",
+        perfil?.empresa_id || ""
+      )
+    ];
+
+    const consultas = plantasConsulta.length > 0
+      ? plantasConsulta.map(planta =>
+        query(
+          collection(
+            db,
+            "decisiones_planificador"
+          ),
+          ...base,
+          where("planta_id", "==", planta),
+          orderBy("creado_en", "desc"),
+          limit(limite)
+        )
+      )
+      : [
+        query(
+          collection(
+            db,
+            "decisiones_planificador"
+          ),
+          ...base,
+          orderBy("creado_en", "desc"),
+          limit(limite)
+        )
+      ];
+
+    const snapshots = await Promise.all(
+      consultas.map(consulta => getDocs(consulta))
+    );
+    const porId = new Map();
+
+    snapshots.forEach(snapshot => {
+      snapshot.docs.forEach(documento => {
+        porId.set(documento.id, {
+          id: documento.id,
+          ...documento.data()
+        });
+      });
+    });
+
+    return [...porId.values()]
+      .sort(
+        (a, b) =>
+          valorFecha(b.creado_en) -
+          valorFecha(a.creado_en)
+      )
+      .slice(0, limite);
   };
 
 export const recalcularResumenesPlanificacion =

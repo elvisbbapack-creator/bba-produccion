@@ -62,6 +62,8 @@ import ParosV2 from
   "./features/paros/ParosV2";
 import PlanificadorPrioridadesV2 from
   "./features/planificacion/PlanificadorPrioridadesV2";
+import HistorialDecisionesPlanificadorV2 from
+  "./features/planificacion/HistorialDecisionesPlanificadorV2";
 
 function App() {
   const esMobile =
@@ -1466,6 +1468,26 @@ const cargarTodosLosParos = async () => {
             </button>
           )}
 
+        {interfazV2Activa &&
+          autenticacionFirebaseActiva &&
+          puedeAdministrarV2(
+            usuarioSeleccionado
+          ) && (
+            <button
+              onClick={() =>
+                setPantalla(
+                  "historialDecisionesPlanificadorV2"
+                )
+              }
+              style={{
+                ...cardHome,
+                background: "#334155"
+              }}
+            >
+              Historial Decisiones Planificador (V2)
+            </button>
+          )}
+
         <button
           onClick={() => setPantalla("registro")}
           style={{
@@ -1829,6 +1851,22 @@ if (
         setContextoTurnosV2(contexto);
         setPantalla("turnosV2");
       }}
+    />
+  );
+}
+
+if (
+  pantalla ===
+    "historialDecisionesPlanificadorV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <HistorialDecisionesPlanificadorV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
     />
   );
 }

@@ -335,6 +335,9 @@ recomendacion original, la decision real, comentario opcional, OT priorizada,
 subproceso, capacidad usada, dotacion, ahorro estimado y usuario responsable.
 Este historial no modifica OTs ni turnos automaticamente; sirve como auditoria y
 base futura para comparar recomendaciones contra resultados reales con IA.
+La vista `Historial Decisiones Planificador (V2)` consulta decisiones recientes
+con limite por planta y permite filtrar en pantalla por subproceso, OT/producto
+y tipo de decision para controlar lecturas en Firebase.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 
