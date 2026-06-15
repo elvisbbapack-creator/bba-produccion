@@ -6,11 +6,13 @@ import {
 } from "react";
 import {
   calcularCapacidadRecursos,
+  construirMensajeGuardadoCapacidad,
   evaluarCompletitudCapacidad,
   extraerSubprocesosOperaciones,
   guardarCapacidadProceso,
   listarHistorialCapacidad,
   listarCapacidadesProceso,
+  reemplazarCapacidad,
   validarCapacidadProceso
 } from "./capacidadRepository";
 import {
@@ -350,16 +352,31 @@ function CapacidadProcesosV2({
     try {
       setGuardando(true);
       setError("");
-      await guardarCapacidadProceso({
-        db,
-        perfil,
-        plantaId,
-        datos
-      });
+      const capacidadGuardada =
+        await guardarCapacidadProceso({
+          db,
+          perfil,
+          plantaId,
+          datos
+        });
+      const capacidadesActualizadas =
+        reemplazarCapacidad(
+          capacidades,
+          capacidadGuardada
+        );
+      const completitudActualizada =
+        evaluarCompletitudCapacidad(
+          subprocesosReferencia,
+          capacidadesActualizadas
+        );
+
       setFormulario(estadoInicial);
       setHistorial([]);
       setMensaje(
-        "Capacidad del subproceso guardada."
+        construirMensajeGuardadoCapacidad({
+          capacidad: capacidadGuardada,
+          completitud: completitudActualizada
+        })
       );
       await cargar();
     } catch (fallo) {

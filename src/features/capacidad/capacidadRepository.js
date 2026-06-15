@@ -151,6 +151,56 @@ export const evaluarCompletitudCapacidad = (
   };
 };
 
+export const reemplazarCapacidad = (
+  capacidades = [],
+  capacidadGuardada
+) => {
+  if (!capacidadGuardada) {
+    return capacidades;
+  }
+
+  return [
+    ...capacidades.filter(
+      capacidad =>
+        capacidad.id !== capacidadGuardada.id &&
+        capacidad.subproceso_id !==
+          capacidadGuardada.subproceso_id
+    ),
+    capacidadGuardada
+  ].sort((a, b) =>
+    (a.subproceso_id || "").localeCompare(
+      b.subproceso_id || ""
+    )
+  );
+};
+
+export const construirMensajeGuardadoCapacidad = ({
+  capacidad,
+  completitud
+}) => {
+  const estadoValidado =
+    capacidad?.estado_datos === "validada";
+  const base = estadoValidado
+    ? "Capacidad validada."
+    : "Capacidad guardada como provisional.";
+
+  if (!completitud?.total) {
+    return estadoValidado
+      ? `${base} El planificador ya puede usar este subproceso.`
+      : `${base} Valida los datos para habilitar recomendaciones.`;
+  }
+
+  if (completitud.completa) {
+    return `${base} La OT de referencia ya tiene todas sus capacidades validadas; vuelve al Planificador para recalcular.`;
+  }
+
+  return [
+    base,
+    `Preparación de la OT: ${completitud.validadas}/${completitud.total} validadas.`,
+    `${completitud.provisionales} provisionales y ${completitud.faltantes} faltantes antes de completar la referencia.`
+  ].join(" ");
+};
+
 export const prepararCapacidadProceso = ({
   empresaId,
   plantaId,

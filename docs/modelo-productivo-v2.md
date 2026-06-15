@@ -314,7 +314,9 @@ dotacion base o nocturna, permite abrir `Programacion de Turnos (V2)` con la
 planta, el subproceso y el turno sugerido precargados. En ambos casos, al venir
 desde el planificador la pantalla permite volver directamente al planificador
 para recalcular la decision y muestra una franja contextual con ese siguiente
-paso.
+paso. Al guardar una capacidad desde una OT de referencia, la pantalla recalcula
+la preparacion de esa OT y avisa si ya estan todas sus capacidades validadas
+para volver al Planificador o si aun quedan capacidades provisionales/faltantes.
 
 ### `configuracion_capacidad/{empresaId_plantaId}`
 

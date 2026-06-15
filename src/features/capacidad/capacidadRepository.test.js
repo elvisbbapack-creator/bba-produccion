@@ -1,8 +1,10 @@
 import {
   calcularCapacidadRecursos,
+  construirMensajeGuardadoCapacidad,
   evaluarCompletitudCapacidad,
   extraerSubprocesosOperaciones,
   prepararCapacidadProceso,
+  reemplazarCapacidad,
   validarCapacidadProceso
 } from "./capacidadRepository";
 
@@ -178,4 +180,79 @@ test("permite guardar una capacidad como provisional", () => {
 
   expect(capacidad.estado_datos)
     .toBe("provisional");
+});
+
+test("reemplaza una capacidad guardada sin duplicar subproceso", () => {
+  expect(
+    reemplazarCapacidad(
+      [
+        {
+          id: "cap-anterior",
+          subproceso_id: "SP0001",
+          estado_datos: "provisional"
+        },
+        {
+          id: "cap-2",
+          subproceso_id: "SP0002",
+          estado_datos: "validada"
+        }
+      ],
+      {
+        id: "cap-nueva",
+        subproceso_id: "SP0001",
+        estado_datos: "validada"
+      }
+    )
+  ).toEqual([
+    {
+      id: "cap-nueva",
+      subproceso_id: "SP0001",
+      estado_datos: "validada"
+    },
+    {
+      id: "cap-2",
+      subproceso_id: "SP0002",
+      estado_datos: "validada"
+    }
+  ]);
+});
+
+test("indica volver al planificador cuando la OT queda completa", () => {
+  const mensaje =
+    construirMensajeGuardadoCapacidad({
+      capacidad: {
+        estado_datos: "validada"
+      },
+      completitud: {
+        total: 2,
+        validadas: 2,
+        provisionales: 0,
+        faltantes: 0,
+        completa: true
+      }
+    });
+
+  expect(mensaje).toContain(
+    "todas sus capacidades validadas"
+  );
+  expect(mensaje).toContain("Planificador");
+});
+
+test("advierte pendientes cuando la capacidad queda provisional", () => {
+  expect(
+    construirMensajeGuardadoCapacidad({
+      capacidad: {
+        estado_datos: "provisional"
+      },
+      completitud: {
+        total: 3,
+        validadas: 1,
+        provisionales: 1,
+        faltantes: 1,
+        completa: false
+      }
+    })
+  ).toContain(
+    "1 provisionales y 1 faltantes"
+  );
 });
