@@ -376,6 +376,23 @@ service cloud.firestore {
           'reprocesos_pendientes',
           'fecha_actualizacion'
         ]);
+      allow update: if
+        resource.data.modelo_version == 2 &&
+        canManage() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'fecha_planificada_entrega',
+          'fecha_actualizacion'
+        ]);
       allow delete: if
         resource.data.modelo_version != 2 &&
         canManage();

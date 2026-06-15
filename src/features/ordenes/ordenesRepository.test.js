@@ -562,3 +562,20 @@ test("valida producto publicado, cantidad y fechas", () => {
     "La fecha de entrega no puede ser anterior al inicio."
   ]);
 });
+
+test("exige fecha de entrega planificada para nuevas OT", () => {
+  expect(
+    validarDatosOrden({
+      plantaId: "chile",
+      clienteNombre: "Cliente Demo",
+      producto: {
+        version_ruta_activa: 1
+      },
+      cantidadProducto: 100,
+      fechaInicio: "2026-06-15",
+      fechaEntrega: ""
+    })
+  ).toEqual([
+    "La OT requiere fecha de entrega planificada."
+  ]);
+});

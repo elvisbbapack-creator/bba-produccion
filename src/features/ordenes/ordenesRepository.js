@@ -7,6 +7,7 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where
 } from "firebase/firestore";
 import {
@@ -854,6 +855,12 @@ export const validarDatosOrden = ({
     );
   }
 
+  if (!fechaEntrega) {
+    errores.push(
+      "La OT requiere fecha de entrega planificada."
+    );
+  }
+
   if (
     fechaInicio &&
     fechaEntrega &&
@@ -1064,3 +1071,55 @@ export const crearOrdenV2 = async ({
     operaciones
   };
 };
+
+export const actualizarFechaEntregaOrdenV2 =
+  async ({
+    db,
+    orden,
+    fechaEntrega
+  }) => {
+    if (!orden?.id) {
+      throw new Error("Selecciona una OT.");
+    }
+    if (!fechaEntrega) {
+      throw new Error(
+        "La OT requiere fecha de entrega planificada."
+      );
+    }
+
+    const inicio = orden.fecha_planificada_inicio
+      ? (
+        typeof orden.fecha_planificada_inicio
+          .toDate === "function"
+          ? orden.fecha_planificada_inicio.toDate()
+          : new Date(
+            orden.fecha_planificada_inicio
+          )
+      )
+      : null;
+    const entrega = new Date(
+      `${fechaEntrega}T12:00:00`
+    );
+
+    if (
+      Number.isNaN(entrega.getTime()) ||
+      (inicio && entrega < inicio)
+    ) {
+      throw new Error(
+        "La fecha de entrega no puede ser anterior al inicio."
+      );
+    }
+
+    await updateDoc(
+      doc(db, "ordenes_trabajo", orden.id),
+      {
+        fecha_planificada_entrega: entrega,
+        fecha_actualizacion: serverTimestamp()
+      }
+    );
+
+    return {
+      ...orden,
+      fecha_planificada_entrega: entrega
+    };
+  };

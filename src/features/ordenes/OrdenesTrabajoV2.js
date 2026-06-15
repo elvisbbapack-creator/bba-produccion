@@ -17,6 +17,7 @@ import {
 } from "../turnos/turnosRepository";
 import {
   CALENDARIOS_PLANTA,
+  actualizarFechaEntregaOrdenV2,
   calcularProyeccionOT,
   crearOrdenV2,
   guardarConfiguracionCapacidad,
@@ -94,6 +95,20 @@ const fechaHoraVisible = (valor) => {
     });
 };
 
+const fechaParaInput = (valor) => {
+  if (!valor) {
+    return "";
+  }
+
+  const fecha = typeof valor.toDate === "function"
+    ? valor.toDate()
+    : new Date(valor);
+
+  return Number.isNaN(fecha.getTime())
+    ? ""
+    : fecha.toISOString().slice(0, 10);
+};
+
 const horasVisible = (valor) => {
   const horas = Number(valor || 0);
 
@@ -129,6 +144,10 @@ function OrdenesTrabajoV2({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [fechaEntregaEdicion,
+    setFechaEntregaEdicion] = useState("");
+  const [guardandoFechaEntrega,
+    setGuardandoFechaEntrega] = useState(false);
   const [configuracionCapacidad,
     setConfiguracionCapacidad] = useState({
       turnos_base: 2,
@@ -328,6 +347,7 @@ function OrdenesTrabajoV2({
     if (nombre === "planta_id") {
       setOrdenSeleccionada(null);
       setOperaciones([]);
+      setFechaEntregaEdicion("");
 
       try {
         await cargarOrdenes(valor);
@@ -375,6 +395,12 @@ function OrdenesTrabajoV2({
       });
 
       setOrdenSeleccionada(resultado.orden);
+      setFechaEntregaEdicion(
+        fechaParaInput(
+          resultado.orden
+            .fecha_planificada_entrega
+        )
+      );
       setOperaciones(resultado.operaciones);
       setMensaje(
         `${resultado.orden.codigo} creada con ${resultado.operaciones.length} operaciones.`
@@ -400,6 +426,11 @@ function OrdenesTrabajoV2({
     try {
       setError("");
       setOrdenSeleccionada(orden);
+      setFechaEntregaEdicion(
+        fechaParaInput(
+          orden.fecha_planificada_entrega
+        )
+      );
       setOperaciones(
         await listarOperacionesOT(
           db,
@@ -413,6 +444,38 @@ function OrdenesTrabajoV2({
         fallo?.message ||
         "No se pudieron cargar las operaciones."
       );
+    }
+  };
+
+  const guardarFechaEntrega = async () => {
+    try {
+      setGuardandoFechaEntrega(true);
+      setError("");
+      const actualizada =
+        await actualizarFechaEntregaOrdenV2({
+          db,
+          orden: ordenSeleccionada,
+          fechaEntrega: fechaEntregaEdicion
+        });
+
+      setOrdenSeleccionada(actualizada);
+      setOrdenes(actual =>
+        actual.map(orden =>
+          orden.id === actualizada.id
+            ? actualizada
+            : orden
+        )
+      );
+      setMensaje(
+        "Fecha de entrega planificada actualizada."
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo actualizar la fecha de entrega."
+      );
+    } finally {
+      setGuardandoFechaEntrega(false);
     }
   };
 
@@ -650,6 +713,7 @@ function OrdenesTrabajoV2({
                   Entrega planificada
                   <input
                     type="date"
+                    required
                     value={formulario.fecha_entrega}
                     onChange={evento =>
                       actualizar(
@@ -882,6 +946,56 @@ function OrdenesTrabajoV2({
                     : entregaFecha
                       ? "Proyección dentro de la fecha planificada."
                       : "La OT no tiene fecha de entrega planificada para comparar."}
+                </div>
+
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "minmax(180px, 260px) auto",
+                  gap: 10,
+                  alignItems: "end",
+                  marginBottom: 16
+                }}>
+                  <label style={{
+                    fontWeight: "bold"
+                  }}>
+                    Ajustar entrega planificada
+                    <input
+                      type="date"
+                      required
+                      value={fechaEntregaEdicion}
+                      onChange={evento =>
+                        setFechaEntregaEdicion(
+                          evento.target.value
+                        )
+                      }
+                      style={{
+                        ...campo,
+                        marginTop: 6
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={guardarFechaEntrega}
+                    disabled={
+                      guardandoFechaEntrega ||
+                      !ordenSeleccionada
+                    }
+                    style={{
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "11px 14px",
+                      background: "#2563EB",
+                      color: "white",
+                      fontWeight: "bold",
+                      cursor: "pointer"
+                    }}
+                  >
+                    {guardandoFechaEntrega
+                      ? "Guardando..."
+                      : "Guardar fecha"}
+                  </button>
                 </div>
 
                 <section style={{
