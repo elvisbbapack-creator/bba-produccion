@@ -324,6 +324,19 @@ function ConstructorRutasV2({
     campoProceso,
     valor
   ) => {
+    if (!valor) {
+      setOperacionForm(actual => ({
+        ...actual,
+        proceso_codigo: "",
+        proceso_nombre: "",
+        subproceso_codigo: "",
+        subproceso_nombre: ""
+      }));
+      setError("");
+      setMensaje("");
+      return;
+    }
+
     const proceso =
       opcionesProceso.find(opcion =>
         campoProceso === "codigo"
@@ -351,6 +364,17 @@ function ConstructorRutasV2({
     campoSubproceso,
     valor
   ) => {
+    if (!valor) {
+      setOperacionForm(actual => ({
+        ...actual,
+        subproceso_codigo: "",
+        subproceso_nombre: ""
+      }));
+      setError("");
+      setMensaje("");
+      return;
+    }
+
     const subproceso =
       catalogoProcesosRuta.subprocesos.find(
         opcion =>
@@ -1829,6 +1853,103 @@ function ConstructorRutasV2({
                           placeholder="Lateral 290"
                           style={campo}
                         />
+                      </label>
+                      <label style={etiqueta}>
+                        Proceso registrado
+                        <select
+                          value={
+                            opcionesProceso.some(
+                              proceso =>
+                                proceso.codigo ===
+                                operacionForm
+                                  .proceso_codigo
+                            )
+                              ? operacionForm
+                                  .proceso_codigo
+                              : ""
+                          }
+                          onChange={evento =>
+                            seleccionarProcesoRuta(
+                              "codigo",
+                              evento.target.value
+                            )
+                          }
+                          style={campo}
+                        >
+                          <option value="">
+                            Seleccionar proceso
+                          </option>
+                          {opcionesProceso.map(proceso => (
+                            <option
+                              key={proceso.codigo}
+                              value={proceso.codigo}
+                            >
+                              {proceso.nombre}
+                              {" · "}
+                              {proceso.codigo}
+                            </option>
+                          ))}
+                        </select>
+                        {opcionesProceso.length === 0 && (
+                          <span style={{
+                            color: "#92400E",
+                            fontWeight: "normal",
+                            fontSize: 12
+                          }}>
+                            Aún no hay procesos guardados
+                            para sugerir.
+                          </span>
+                        )}
+                      </label>
+                      <label style={etiqueta}>
+                        Subproceso registrado
+                        <select
+                          value={
+                            opcionesSubproceso.some(
+                              subproceso =>
+                                subproceso.codigo ===
+                                operacionForm
+                                  .subproceso_codigo
+                            )
+                              ? operacionForm
+                                  .subproceso_codigo
+                              : ""
+                          }
+                          onChange={evento =>
+                            seleccionarSubprocesoRuta(
+                              "codigo",
+                              evento.target.value
+                            )
+                          }
+                          style={campo}
+                        >
+                          <option value="">
+                            Seleccionar subproceso
+                          </option>
+                          {opcionesSubproceso.map(
+                            subproceso => (
+                              <option
+                                key={subproceso.codigo}
+                                value={subproceso.codigo}
+                              >
+                                {subproceso.nombre}
+                                {" · "}
+                                {subproceso.codigo}
+                              </option>
+                            )
+                          )}
+                        </select>
+                        {opcionesSubproceso.length ===
+                          0 && (
+                          <span style={{
+                            color: "#92400E",
+                            fontWeight: "normal",
+                            fontSize: 12
+                          }}>
+                            Aún no hay subprocesos
+                            guardados para sugerir.
+                          </span>
+                        )}
                       </label>
                       <label style={etiqueta}>
                         Código proceso
