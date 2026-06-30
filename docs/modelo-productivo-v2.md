@@ -121,7 +121,8 @@ hay errores criticos. Los registros que ya existen se omiten para evitar
 duplicados. Los materiales `MP` y `RF` deben existir previamente en el catalogo
 MP/RF para que la operacion pueda enlazarse con seguridad. En la hoja `Piezas`,
 la columna `material_base_codigo` acepta uno o varios codigos separados por coma
-(por ejemplo `RF0001, RF0002`).
+(por ejemplo `RF0001, RF0002`). En la hoja `Operaciones`,
+`material_entrada_codigo` tambien acepta varios codigos separados por coma.
 
 ### `catalogo_operaciones/{empresaId}__{codigoOP}`
 
@@ -134,6 +135,12 @@ pieza_codigo
 pieza_nombre
 medida
 material_entrada_id
+materiales_entrada: [{
+  material_id,
+  material_codigo,
+  material_nombre,
+  cantidad
+}]
 material_salida_id
 activo
 creado_en
@@ -142,8 +149,10 @@ actualizado_en
 
 La operacion representa una etapa productiva sobre una pieza: corte, perforado,
 doblez, soldadura, pintura, embalaje, etc. Al seleccionar un codigo `OP` en una
-ruta, el sistema completa nombre, pieza, medida, material de entrada y RF de
-salida sugerido. Las rutas ya guardadas conservan su copia congelada.
+ruta, el sistema completa nombre, pieza, medida, materiales de entrada y RF de
+salida sugerido. `material_entrada_id` se conserva por compatibilidad y
+corresponde al primer material de `materiales_entrada`. Las rutas ya guardadas
+conservan su copia congelada.
 
 ### `inventario_materiales/{empresaId}__{plantaId}__{materialId}`
 

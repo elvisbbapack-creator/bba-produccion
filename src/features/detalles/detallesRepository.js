@@ -25,33 +25,86 @@ const codigoValido = codigo =>
 const idOperacionCatalogo = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
 
+export const prepararMaterialesEntrada = (
+  materiales = [],
+  materialEntradaId = ""
+) => {
+  const materialesNormalizados = materiales
+    .map(material => {
+      const cantidad = Number(material.cantidad);
+
+      return {
+        material_id: limpiarTexto(
+          material.material_id
+        ),
+        material_codigo:
+          normalizarCodigoOperacionCatalogo(
+            material.material_codigo
+          ),
+        material_nombre: limpiarTexto(
+          material.material_nombre
+        ),
+        cantidad: Number.isFinite(cantidad)
+          ? cantidad
+          : 1
+      };
+    })
+    .filter(material => material.material_id);
+
+  const materialSimple =
+    limpiarTexto(materialEntradaId);
+
+  if (
+    materialesNormalizados.length === 0 &&
+    materialSimple
+  ) {
+    return [{
+      material_id: materialSimple,
+      material_codigo: "",
+      material_nombre: "",
+      cantidad: 1
+    }];
+  }
+
+  return materialesNormalizados;
+};
+
 export const prepararOperacionCatalogo = (
   datos,
   empresaId,
   id
-) => ({
-  id,
-  empresa_id: empresaId,
-  codigo: normalizarCodigoOperacionCatalogo(
-    datos.codigo
-  ),
-  nombre: limpiarTexto(datos.nombre),
-  pieza_id: limpiarTexto(datos.pieza_id),
-  pieza_codigo: limpiarTexto(
-    datos.pieza_codigo
-  ),
-  pieza_nombre: limpiarTexto(
-    datos.pieza_nombre
-  ),
-  medida: limpiarTexto(datos.medida),
-  material_entrada_id: limpiarTexto(
-    datos.material_entrada_id
-  ),
-  material_salida_id: limpiarTexto(
-    datos.material_salida_id
-  ),
-  activo: datos.activo !== false
-});
+) => {
+  const materialesEntrada =
+    prepararMaterialesEntrada(
+      datos.materiales_entrada,
+      datos.material_entrada_id
+    );
+
+  return {
+    id,
+    empresa_id: empresaId,
+    codigo: normalizarCodigoOperacionCatalogo(
+      datos.codigo
+    ),
+    nombre: limpiarTexto(datos.nombre),
+    pieza_id: limpiarTexto(datos.pieza_id),
+    pieza_codigo: limpiarTexto(
+      datos.pieza_codigo
+    ),
+    pieza_nombre: limpiarTexto(
+      datos.pieza_nombre
+    ),
+    medida: limpiarTexto(datos.medida),
+    material_entrada_id:
+      materialesEntrada[0]?.material_id ||
+      limpiarTexto(datos.material_entrada_id),
+    materiales_entrada: materialesEntrada,
+    material_salida_id: limpiarTexto(
+      datos.material_salida_id
+    ),
+    activo: datos.activo !== false
+  };
+};
 
 export const validarOperacionCatalogo = (
   operacion,
@@ -81,11 +134,59 @@ export const validarOperacionCatalogo = (
     );
   }
 
-  if (!operacion.material_entrada_id) {
+  if (
+    !operacion.material_entrada_id ||
+    (operacion.materiales_entrada || [])
+      .length === 0
+  ) {
     errores.push(
       "Selecciona el material de entrada."
     );
   }
+
+  const materialesUsados = new Set();
+  (operacion.materiales_entrada || [])
+    .forEach((material, indice) => {
+      const posicion = indice + 1;
+
+      if (!material.material_id) {
+        errores.push(
+          `El material de entrada ${posicion} requiere material.`
+        );
+      }
+
+      if (
+        !Number.isFinite(material.cantidad) ||
+        material.cantidad <= 0
+      ) {
+        errores.push(
+          `El material de entrada ${posicion} requiere cantidad mayor que cero.`
+        );
+      }
+
+      if (
+        material.material_id &&
+        material.material_id ===
+          operacion.material_salida_id
+      ) {
+        errores.push(
+          "Un material de entrada no puede ser igual al RF de salida."
+        );
+      }
+
+      if (
+        material.material_id &&
+        materialesUsados.has(material.material_id)
+      ) {
+        errores.push(
+          `El material de entrada ${material.material_codigo || material.material_id} está repetido.`
+        );
+      }
+
+      if (material.material_id) {
+        materialesUsados.add(material.material_id);
+      }
+    });
 
   if (
     existentes.some(
@@ -199,6 +300,8 @@ export const actualizarOperacionCatalogo = async (
       medida: operacionActualizada.medida,
       material_entrada_id:
         operacionActualizada.material_entrada_id,
+      materiales_entrada:
+        operacionActualizada.materiales_entrada,
       material_salida_id:
         operacionActualizada.material_salida_id,
       activo: operacionActualizada.activo,

@@ -26,9 +26,15 @@ const estadoInicial = {
   pieza_nombre: "",
   medida: "",
   material_entrada_id: "",
+  materiales_entrada: [],
   material_salida_id: "",
   activo: true
 };
+
+const crearMaterialEntradaInicial = () => ({
+  material_id: "",
+  cantidad: 1
+});
 
 const campo = {
   width: "100%",
@@ -134,14 +140,109 @@ function CatalogoDetallesV2({
     setMensaje("");
   };
 
+  const materialesEntradaFormulario =
+    formulario.materiales_entrada.length > 0
+      ? formulario.materiales_entrada
+      : [crearMaterialEntradaInicial()];
+
+  const materialesEntradaDesdePieza = pieza => {
+    if (pieza?.materiales_base?.length > 0) {
+      return pieza.materiales_base.map(material => ({
+        material_id: material.material_id,
+        material_codigo: material.material_codigo,
+        material_nombre: material.material_nombre,
+        cantidad: material.cantidad || 1
+      }));
+    }
+
+    return pieza?.material_base_id
+      ? [{
+          material_id: pieza.material_base_id,
+          cantidad: 1
+        }]
+      : [];
+  };
+
+  const actualizarMaterialEntrada = (
+    indice,
+    campoMaterial,
+    valor
+  ) => {
+    setFormulario(actual => {
+      const lista =
+        actual.materiales_entrada.length > 0
+          ? [...actual.materiales_entrada]
+          : [crearMaterialEntradaInicial()];
+      const materialSeleccionado =
+        campoMaterial === "material_id"
+          ? materiales.find(
+              material => material.id === valor
+            )
+          : null;
+
+      lista[indice] = {
+        ...lista[indice],
+        [campoMaterial]: valor,
+        ...(materialSeleccionado
+          ? {
+              material_codigo:
+                materialSeleccionado.codigo,
+              material_nombre:
+                materialSeleccionado.nombre
+            }
+          : {})
+      };
+
+      return {
+        ...actual,
+        material_entrada_id:
+          lista[0]?.material_id || "",
+        materiales_entrada: lista
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const agregarMaterialEntrada = () => {
+    setFormulario(actual => ({
+      ...actual,
+      materiales_entrada: [
+        ...(actual.materiales_entrada.length > 0
+          ? actual.materiales_entrada
+          : [crearMaterialEntradaInicial()]),
+        crearMaterialEntradaInicial()
+      ]
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const quitarMaterialEntrada = indice => {
+    setFormulario(actual => {
+      const lista = (
+        actual.materiales_entrada.length > 0
+          ? actual.materiales_entrada
+          : [crearMaterialEntradaInicial()]
+      ).filter((_, posicion) => posicion !== indice);
+
+      return {
+        ...actual,
+        material_entrada_id:
+          lista[0]?.material_id || "",
+        materiales_entrada: lista
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
   const seleccionarPieza = piezaId => {
     const pieza = piezas.find(
       item => item.id === piezaId
     );
-    const materialBase =
-      pieza?.materiales_base?.[0]?.material_id ||
-      pieza?.material_base_id ||
-      "";
+    const materialesEntrada =
+      materialesEntradaDesdePieza(pieza);
     setFormulario(actual => ({
       ...actual,
       pieza_id: pieza?.id || "",
@@ -149,8 +250,12 @@ function CatalogoDetallesV2({
       pieza_nombre: pieza?.nombre || "",
       medida: pieza?.medida || actual.medida,
       material_entrada_id:
-        materialBase ||
-        actual.material_entrada_id
+        materialesEntrada[0]?.material_id ||
+        actual.material_entrada_id,
+      materiales_entrada:
+        materialesEntrada.length > 0
+          ? materialesEntrada
+          : actual.materiales_entrada
     }));
     setError("");
     setMensaje("");
@@ -174,6 +279,15 @@ function CatalogoDetallesV2({
       medida: operacion.medida,
       material_entrada_id:
         operacion.material_entrada_id || "",
+      materiales_entrada:
+        operacion.materiales_entrada ||
+        (operacion.material_entrada_id
+          ? [{
+              material_id:
+                operacion.material_entrada_id,
+              cantidad: 1
+            }]
+          : []),
       material_salida_id:
         operacion.material_salida_id || "",
       activo: operacion.activo !== false
@@ -386,39 +500,121 @@ function CatalogoDetallesV2({
               />
             </label>
 
-            <label>
-              Material entrada
-              <select
-                value={
-                  formulario.material_entrada_id
-                }
-                onChange={evento =>
-                  actualizar(
-                    "material_entrada_id",
-                    evento.target.value
-                  )
-                }
+            <div style={{
+              border: "1px solid #E2E8F0",
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 14
+            }}>
+              <strong>Materiales de entrada</strong>
+              <p style={{
+                color: "#64748B",
+                fontSize: 13,
+                marginTop: 6
+              }}>
+                Agrega uno o varios MP/RF que consume
+                esta operación.
+              </p>
+
+              {materialesEntradaFormulario.map(
+                (materialEntrada, indice) => (
+                  <div
+                    key={`${indice}-${materialEntrada.material_id}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "1fr 90px 42px",
+                      gap: 8,
+                      marginBottom: 8
+                    }}
+                  >
+                    <select
+                      value={
+                        materialEntrada.material_id ||
+                        ""
+                      }
+                      onChange={evento =>
+                        actualizarMaterialEntrada(
+                          indice,
+                          "material_id",
+                          evento.target.value
+                        )
+                      }
+                      style={campo}
+                    >
+                      <option value="">
+                        Seleccionar material
+                      </option>
+                      {materialesActivos.map(
+                        material => (
+                          <option
+                            key={material.id}
+                            value={material.id}
+                          >
+                            {material.codigo}
+                            {" - "}
+                            {material.nombre}
+                          </option>
+                        )
+                      )}
+                    </select>
+                    <input
+                      type="number"
+                      min="0.0001"
+                      step="0.0001"
+                      value={
+                        materialEntrada.cantidad || 1
+                      }
+                      onChange={evento =>
+                        actualizarMaterialEntrada(
+                          indice,
+                          "cantidad",
+                          evento.target.value
+                        )
+                      }
+                      style={campo}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        quitarMaterialEntrada(indice)
+                      }
+                      disabled={
+                        materialesEntradaFormulario
+                          .length === 1 &&
+                        !materialEntrada.material_id
+                      }
+                      style={{
+                        border:
+                          "1px solid #FCA5A5",
+                        borderRadius: 8,
+                        background: "#FEF2F2",
+                        color: "#B91C1C",
+                        cursor: "pointer"
+                      }}
+                      title="Quitar material de entrada"
+                    >
+                      -
+                    </button>
+                  </div>
+                )
+              )}
+
+              <button
+                type="button"
+                onClick={agregarMaterialEntrada}
                 style={{
                   ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
+                  background: "#EFF6FF",
+                  borderColor: "#BFDBFE",
+                  color: "#1D4ED8",
+                  cursor: "pointer",
+                  fontWeight: "bold"
                 }}
               >
-                <option value="">
-                  Seleccionar material
-                </option>
-                {materialesActivos.map(material => (
-                  <option
-                    key={material.id}
-                    value={material.id}
-                  >
-                    {material.codigo}
-                    {" - "}
-                    {material.nombre}
-                  </option>
-                ))}
-              </select>
-            </label>
+                + Agregar material de entrada
+              </button>
+            </div>
 
             <label>
               RF salida sugerido
@@ -560,9 +756,31 @@ function CatalogoDetallesV2({
                 gap: 10
               }}>
                 {operaciones.map(operacion => {
-                  const entrada = materialPorId(
-                    operacion.material_entrada_id
-                  );
+                  const materialesEntrada =
+                    operacion.materiales_entrada
+                      ?.length > 0
+                      ? operacion.materiales_entrada
+                      : operacion.material_entrada_id
+                        ? [{
+                            material_id:
+                              operacion
+                                .material_entrada_id,
+                            cantidad: 1
+                          }]
+                        : [];
+                  const entradasTexto =
+                    materialesEntrada
+                      .map(materialEntrada => {
+                        const material = materialPorId(
+                          materialEntrada
+                            .material_id
+                        );
+                        return material
+                          ? `${material.codigo} x ${materialEntrada.cantidad || 1}`
+                          : "";
+                      })
+                      .filter(Boolean)
+                      .join(", ");
                   const salida = materialPorId(
                     operacion.material_salida_id
                   );
@@ -603,7 +821,7 @@ function CatalogoDetallesV2({
                             {operacion.pieza_codigo ||
                               "-"}
                             {" · Entrada: "}
-                            {entrada?.codigo || "?"}
+                            {entradasTexto || "?"}
                             {salida
                               ? ` · Salida: ${salida.codigo}`
                               : ""}

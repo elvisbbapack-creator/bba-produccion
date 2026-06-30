@@ -36,8 +36,62 @@ test("normaliza código y textos de operación", () => {
     pieza_nombre: "Lateral 290",
     medida: "290 mm",
     material_entrada_id: "mp-tubo",
+    materiales_entrada: [{
+      material_id: "mp-tubo",
+      material_codigo: "",
+      material_nombre: "",
+      cantidad: 1
+    }],
     material_salida_id: "rf-tubo",
     activo: true
+  });
+});
+
+test("permite varios materiales de entrada", () => {
+  expect(
+    prepararOperacionCatalogo(
+      {
+        codigo: "op0002",
+        nombre: "Soldadura lateral armado",
+        pieza_id: "pieza-armado",
+        pieza_codigo: "PZ0100",
+        pieza_nombre: "Lateral Armado",
+        medida: "Armado",
+        materiales_entrada: [
+          {
+            material_id: "rf-1",
+            material_codigo: "RF0001",
+            material_nombre: "Lateral cortado",
+            cantidad: "2"
+          },
+          {
+            material_id: "rf-2",
+            material_codigo: "RF0002",
+            material_nombre: "Alambre doblado",
+            cantidad: "4"
+          }
+        ],
+        material_salida_id: "rf-armado"
+      },
+      "bba",
+      "operacion-2"
+    )
+  ).toMatchObject({
+    material_entrada_id: "rf-1",
+    materiales_entrada: [
+      {
+        material_id: "rf-1",
+        material_codigo: "RF0001",
+        material_nombre: "Lateral cortado",
+        cantidad: 2
+      },
+      {
+        material_id: "rf-2",
+        material_codigo: "RF0002",
+        material_nombre: "Alambre doblado",
+        cantidad: 4
+      }
+    ]
   });
 });
 
@@ -58,6 +112,34 @@ test("exige código OP, pieza, nombre, medida y material", () => {
     "La operación requiere medida.",
     "Selecciona el material de entrada."
   ]);
+});
+
+test("rechaza materiales de entrada repetidos", () => {
+  expect(
+    validarOperacionCatalogo({
+      id: "operacion-1",
+      codigo: "OP0001",
+      nombre: "Soldadura",
+      pieza_id: "pieza-1",
+      medida: "Armado",
+      material_entrada_id: "rf-1",
+      material_salida_id: "rf-3",
+      materiales_entrada: [
+        {
+          material_id: "rf-1",
+          material_codigo: "RF0001",
+          cantidad: 1
+        },
+        {
+          material_id: "rf-1",
+          material_codigo: "RF0001",
+          cantidad: 1
+        }
+      ]
+    })
+  ).toContain(
+    "El material de entrada RF0001 está repetido."
+  );
 });
 
 test("rechaza códigos OP duplicados", () => {

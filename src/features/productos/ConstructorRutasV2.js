@@ -43,6 +43,7 @@ const operacionInicial = {
   subproceso_codigo: "",
   subproceso_nombre: "",
   material_entrada_id: "",
+  materiales_entrada: [],
   material_salida_id: "",
   medida: "",
   unidades_por_producto: "",
@@ -50,6 +51,11 @@ const operacionInicial = {
   dependencia_id: "",
   porcentaje_minimo_avance: "0"
 };
+
+const crearMaterialEntradaInicial = () => ({
+  material_id: "",
+  cantidad: 1
+});
 
 const campo = {
   width: "100%",
@@ -219,6 +225,85 @@ function ConstructorRutasV2({
     setMensaje("");
   };
 
+  const materialesEntradaFormulario =
+    operacionForm.materiales_entrada.length > 0
+      ? operacionForm.materiales_entrada
+      : [crearMaterialEntradaInicial()];
+
+  const actualizarMaterialEntrada = (
+    indice,
+    campoMaterial,
+    valor
+  ) => {
+    setOperacionForm(actual => {
+      const lista =
+        actual.materiales_entrada.length > 0
+          ? [...actual.materiales_entrada]
+          : [crearMaterialEntradaInicial()];
+      const materialSeleccionado =
+        campoMaterial === "material_id"
+          ? materiales.find(
+              material => material.id === valor
+            )
+          : null;
+
+      lista[indice] = {
+        ...lista[indice],
+        [campoMaterial]: valor,
+        ...(materialSeleccionado
+          ? {
+              material_codigo:
+                materialSeleccionado.codigo,
+              material_nombre:
+                materialSeleccionado.nombre
+            }
+          : {})
+      };
+
+      return {
+        ...actual,
+        material_entrada_id:
+          lista[0]?.material_id || "",
+        materiales_entrada: lista
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const agregarMaterialEntrada = () => {
+    setOperacionForm(actual => ({
+      ...actual,
+      materiales_entrada: [
+        ...(actual.materiales_entrada.length > 0
+          ? actual.materiales_entrada
+          : [crearMaterialEntradaInicial()]),
+        crearMaterialEntradaInicial()
+      ]
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const quitarMaterialEntrada = indice => {
+    setOperacionForm(actual => {
+      const lista = (
+        actual.materiales_entrada.length > 0
+          ? actual.materiales_entrada
+          : [crearMaterialEntradaInicial()]
+      ).filter((_, posicion) => posicion !== indice);
+
+      return {
+        ...actual,
+        material_entrada_id:
+          lista[0]?.material_id || "",
+        materiales_entrada: lista
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
   const seleccionarOperacionCatalogo =
   operacionId => {
     const operacion =
@@ -241,6 +326,15 @@ function ConstructorRutasV2({
       medida: operacion.medida,
       material_entrada_id:
         operacion.material_entrada_id || "",
+      materiales_entrada:
+        operacion.materiales_entrada ||
+        (operacion.material_entrada_id
+          ? [{
+              material_id:
+                operacion.material_entrada_id,
+              cantidad: 1
+            }]
+          : []),
       material_salida_id:
         operacion.material_salida_id || ""
     }));
@@ -322,14 +416,6 @@ function ConstructorRutasV2({
       vistaOperacion,
       ruta?.operaciones || []
     );
-
-    if (
-      !vistaOperacion.material_entrada_id
-    ) {
-      errores.push(
-        "Selecciona el material de entrada."
-      );
-    }
 
     if (
       !vistaOperacion.material_salida_id
@@ -911,38 +997,135 @@ function ConstructorRutasV2({
                           style={campo}
                         />
                       </label>
-                      <label style={etiqueta}>
-                        Material entrada
-                        <select
-                          value={
-                            operacionForm
-                              .material_entrada_id
-                          }
-                          onChange={evento =>
-                            actualizarOperacion(
-                              "material_entrada_id",
-                              evento.target.value
-                            )
-                          }
-                          style={campo}
-                        >
-                          <option value="">
-                            Seleccionar
-                          </option>
-                          {materialesActivos.map(
-                            material => (
-                              <option
-                                key={material.id}
-                                value={material.id}
+                      <div style={{
+                        gridColumn: "1 / -1",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: 10,
+                        padding: 12
+                      }}>
+                        <strong>Materiales entrada</strong>
+                        <div style={{
+                          display: "grid",
+                          gap: 8,
+                          marginTop: 10
+                        }}>
+                          {materialesEntradaFormulario.map(
+                            (
+                              materialEntrada,
+                              indice
+                            ) => (
+                              <div
+                                key={`${indice}-${materialEntrada.material_id}`}
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns:
+                                    "1fr 100px 42px",
+                                  gap: 8
+                                }}
                               >
-                                {material.codigo}
-                                {" - "}
-                                {material.nombre}
-                              </option>
+                                <select
+                                  value={
+                                    materialEntrada
+                                      .material_id ||
+                                    ""
+                                  }
+                                  onChange={evento =>
+                                    actualizarMaterialEntrada(
+                                      indice,
+                                      "material_id",
+                                      evento.target
+                                        .value
+                                    )
+                                  }
+                                  style={campo}
+                                >
+                                  <option value="">
+                                    Seleccionar
+                                  </option>
+                                  {materialesActivos.map(
+                                    material => (
+                                      <option
+                                        key={
+                                          material.id
+                                        }
+                                        value={
+                                          material.id
+                                        }
+                                      >
+                                        {
+                                          material.codigo
+                                        }
+                                        {" - "}
+                                        {
+                                          material.nombre
+                                        }
+                                      </option>
+                                    )
+                                  )}
+                                </select>
+                                <input
+                                  type="number"
+                                  min="0.0001"
+                                  step="0.0001"
+                                  value={
+                                    materialEntrada
+                                      .cantidad || 1
+                                  }
+                                  onChange={evento =>
+                                    actualizarMaterialEntrada(
+                                      indice,
+                                      "cantidad",
+                                      evento.target
+                                        .value
+                                    )
+                                  }
+                                  style={campo}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    quitarMaterialEntrada(
+                                      indice
+                                    )
+                                  }
+                                  disabled={
+                                    materialesEntradaFormulario
+                                      .length === 1 &&
+                                    !materialEntrada
+                                      .material_id
+                                  }
+                                  style={{
+                                    border:
+                                      "1px solid #FCA5A5",
+                                    borderRadius: 8,
+                                    background:
+                                      "#FEF2F2",
+                                    color: "#B91C1C",
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  -
+                                </button>
+                              </div>
                             )
                           )}
-                        </select>
-                      </label>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={agregarMaterialEntrada}
+                          style={{
+                            ...campo,
+                            marginTop: 8,
+                            background: "#EFF6FF",
+                            borderColor: "#BFDBFE",
+                            color: "#1D4ED8",
+                            cursor: "pointer",
+                            fontWeight: "bold"
+                          }}
+                        >
+                          + Agregar material de entrada
+                        </button>
+                      </div>
                       <label style={etiqueta}>
                         RF de salida
                         <select
@@ -1132,13 +1315,36 @@ function ConstructorRutasV2({
                     }}>
                       {ruta.operaciones.map(
                         operacion => {
-                          const entrada =
-                            materiales.find(
-                              material =>
-                                material.id ===
-                                operacion
+                          const materialesEntrada =
+                            operacion.materiales_entrada
+                              ?.length > 0
+                              ? operacion
+                                  .materiales_entrada
+                              : operacion
                                   .material_entrada_id
-                            );
+                                ? [{
+                                    material_id:
+                                      operacion
+                                        .material_entrada_id,
+                                    cantidad: 1
+                                  }]
+                                : [];
+                          const entradasTexto =
+                            materialesEntrada
+                              .map(materialEntrada => {
+                                const material =
+                                  materiales.find(
+                                    item =>
+                                      item.id ===
+                                      materialEntrada
+                                        .material_id
+                                  );
+                                return material
+                                  ? `${material.codigo} x ${materialEntrada.cantidad || 1}`
+                                  : "";
+                              })
+                              .filter(Boolean)
+                              .join(", ");
                           const salida =
                             materiales.find(
                               material =>
@@ -1203,7 +1409,7 @@ function ConstructorRutasV2({
                                 color: "#475569",
                                 marginTop: 4
                               }}>
-                                {entrada?.codigo || "?"}
+                                {entradasTexto || "?"}
                                 {" → "}
                                 {salida?.codigo || "?"}
                                 {" · "}

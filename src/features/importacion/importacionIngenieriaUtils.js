@@ -267,6 +267,10 @@ export const leerIngenieriaDesdeWorkbook = (
       material_entrada_codigo: normalizarCodigo(
         fila.material_entrada_codigo
       ),
+      materiales_entrada_codigos:
+        normalizarListaCodigos(
+          fila.material_entrada_codigo
+        ),
       material_salida_codigo: normalizarCodigo(
         fila.material_salida_codigo
       ),
@@ -463,6 +467,14 @@ export const validarIngenieriaImportada = data => {
   });
 
   data.operaciones.forEach(operacion => {
+    const materialesEntradaCodigos =
+      (operacion.materiales_entrada_codigos || [])
+        .length > 0
+        ? operacion.materiales_entrada_codigos
+        : operacion.material_entrada_codigo
+          ? [operacion.material_entrada_codigo]
+          : [];
+
     if (!/^OP\d{4,}$/.test(operacion.codigo)) {
       errores.push(
         `Operación ${operacion.codigo || "(sin código)"} debe usar formato OP0001.`
@@ -495,11 +507,24 @@ export const validarIngenieriaImportada = data => {
         `Operación ${operacion.codigo} requiere nombre, proceso y subproceso.`
       );
     }
-    if (!operacion.material_entrada_codigo) {
+    if (
+      !operacion.material_entrada_codigo ||
+      materialesEntradaCodigos.length === 0
+    ) {
       errores.push(
         `Operación ${operacion.codigo} requiere material de entrada.`
       );
     }
+    const entradasUsadas = new Set();
+    materialesEntradaCodigos.forEach(
+      materialCodigo => {
+        if (entradasUsadas.has(materialCodigo)) {
+          errores.push(
+            `Operación ${operacion.codigo} repite material entrada ${materialCodigo}.`
+          );
+        }
+        entradasUsadas.add(materialCodigo);
+      });
     if (operacion.unidades_por_producto <= 0) {
       errores.push(
         `Operación ${operacion.codigo} requiere unidades_por_producto mayor que cero.`

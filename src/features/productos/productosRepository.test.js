@@ -59,6 +59,12 @@ test("prepara una operacion con dependencia parcial", () => {
       subproceso_codigo: "SP0003",
       subproceso_nombre: "Laser tubo",
       material_entrada_id: "rf-1",
+      materiales_entrada: [{
+        material_id: "rf-1",
+        material_codigo: "RF0001",
+        material_nombre: "Tubo cortado",
+        cantidad: "1"
+      }],
       material_salida_id: "rf-2",
       unidades_por_producto: "4",
       unidades_por_hora: "80",
@@ -73,6 +79,13 @@ test("prepara una operacion con dependencia parcial", () => {
     operacion_codigo: "OP0005",
     pieza_codigo: "PZ0001",
     pieza_nombre: "Lateral 290",
+    material_entrada_id: "rf-1",
+    materiales_entrada: [{
+      material_id: "rf-1",
+      material_codigo: "RF0001",
+      material_nombre: "Tubo cortado",
+      cantidad: 1
+    }],
     secuencia: 20,
     unidades_por_producto: 4,
     dependencias: [{

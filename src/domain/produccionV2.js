@@ -11,6 +11,28 @@ const codigoValido = (codigo, prefijo) =>
   typeof codigo === "string" &&
   new RegExp(`^${prefijo}\\d{4,}$`).test(codigo);
 
+const materialesEntradaOperacion = (
+  operacion = {}
+) => {
+  const entradas = Array.isArray(
+    operacion.materiales_entrada
+  )
+    ? operacion.materiales_entrada
+    : [];
+
+  if (entradas.length > 0) {
+    return entradas;
+  }
+
+  return operacion.material_entrada_id
+    ? [{
+        material_id:
+          operacion.material_entrada_id,
+        cantidad: 1
+      }]
+    : [];
+};
+
 export const validarMaterial = (material = {}) => {
   const errores = [];
 
@@ -192,23 +214,80 @@ export const validarRuta = (
       );
     }
 
-    const entrada = materialesPorId.get(
-      operacion.material_entrada_id
+    const entradas =
+      materialesEntradaOperacion(operacion);
+    const entradasMateriales = entradas.map(
+      entrada => ({
+        ...entrada,
+        material: materialesPorId.get(
+          entrada.material_id
+        )
+      })
     );
     const salida = materialesPorId.get(
       operacion.material_salida_id
     );
 
-    if (!entrada) {
+    if (entradas.length === 0) {
       errores.push(
         `La operacion ${referencia} usa un material de entrada inexistente.`
       );
     }
 
+    const entradasUsadas = new Set();
+    entradasMateriales.forEach(
+      (entrada, entradaIndice) => {
+        if (!entrada.material) {
+          errores.push(
+            `La operacion ${referencia} usa un material de entrada inexistente.`
+          );
+        }
+
+        if (
+          !numeroPositivo(entrada.cantidad)
+        ) {
+          errores.push(
+            `La operacion ${referencia} requiere cantidades de entrada positivas.`
+          );
+        }
+
+        if (
+          entrada.material_id &&
+          entradasUsadas.has(
+            entrada.material_id
+          )
+        ) {
+          errores.push(
+            `La operacion ${referencia} repite un material de entrada.`
+          );
+        }
+
+        if (entrada.material_id) {
+          entradasUsadas.add(
+            entrada.material_id
+          );
+        }
+
+        if (
+          entradaIndice === 0 &&
+          operacion.material_entrada_id &&
+          entrada.material_id !==
+            operacion.material_entrada_id
+        ) {
+          errores.push(
+            `La operacion ${referencia} no coincide con su primer material de entrada.`
+          );
+        }
+      }
+    );
+
     if (
-      entrada &&
       salida &&
-      entrada.id === salida.id
+      entradasMateriales.some(
+        entrada =>
+          entrada.material &&
+          entrada.material.id === salida.id
+      )
     ) {
       errores.push(
         `La operacion ${referencia} no puede tener el mismo material de entrada y salida.`
@@ -280,15 +359,20 @@ export const validarRuta = (
         }
       });
 
-    const entrada = materialesPorId.get(
-      operacion.material_entrada_id
-    );
+    materialesEntradaOperacion(operacion)
+      .forEach(entradaOperacion => {
+        const entrada = materialesPorId.get(
+          entradaOperacion.material_id
+        );
 
-    if (
-      entrada?.tipo ===
-        TIPOS_MATERIAL.RECURSO_FABRICACION &&
-      !entrada.es_comprado
-    ) {
+        if (
+          entrada?.tipo !==
+            TIPOS_MATERIAL.RECURSO_FABRICACION ||
+          entrada.es_comprado
+        ) {
+          return;
+        }
+
       const productorId =
         productoresRf.get(entrada.id);
 
@@ -310,7 +394,7 @@ export const validarRuta = (
           );
         }
       }
-    }
+      });
   });
 
   if (
@@ -356,9 +440,23 @@ export const congelarRutaParaOT = ({
         Number(b.secuencia)
     )
     .map(operacion => {
-      const entrada = materialesPorId.get(
-        operacion.material_entrada_id
-      );
+      const entradas =
+        materialesEntradaOperacion(operacion)
+          .map(entrada => {
+            const material =
+              materialesPorId.get(
+                entrada.material_id
+              );
+            return {
+              material_id: material.id,
+              material_codigo: material.codigo,
+              material_nombre: material.nombre,
+              cantidad: Number(
+                entrada.cantidad || 1
+              )
+            };
+          });
+      const entrada = entradas[0];
       const salida = materialesPorId.get(
         operacion.material_salida_id
       );
@@ -400,9 +498,11 @@ export const congelarRutaParaOT = ({
         subproceso_nombre:
           operacion.subproceso_nombre,
         secuencia: Number(operacion.secuencia),
-        material_entrada_id: entrada.id,
+        material_entrada_id:
+          entrada.material_id,
         material_entrada_codigo:
-          entrada.codigo,
+          entrada.material_codigo,
+        materiales_entrada: entradas,
         material_salida_id: salida.id,
         material_salida_codigo:
           salida.codigo,
@@ -541,11 +641,14 @@ export const dependenciasCumplidas = (
       const cumpleMaterial =
         !dependencia
           .requiere_material_disponible ||
-        Number(
-          disponibilidadPorMaterial[
-            operacion.material_entrada_id
-          ] || 0
-        ) > 0;
+        materialesEntradaOperacion(operacion)
+          .every(entrada =>
+            Number(
+              disponibilidadPorMaterial[
+                entrada.material_id
+              ] || 0
+            ) > 0
+          );
 
       return cumpleAvance && cumpleMaterial;
     });

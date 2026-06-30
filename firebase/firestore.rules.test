@@ -186,6 +186,7 @@ service cloud.firestore {
           'pieza_nombre',
           'medida',
           'material_entrada_id',
+          'materiales_entrada',
           'material_salida_id',
           'activo',
           'actualizado_en'

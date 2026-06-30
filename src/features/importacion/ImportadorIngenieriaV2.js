@@ -206,16 +206,22 @@ function ImportadorIngenieriaV2({
       );
 
       data.operaciones.forEach(operacion => {
-        if (
-          operacion.material_entrada_codigo &&
-          !materiales.has(
-            operacion.material_entrada_codigo
-          )
-        ) {
-          errores.push(
-            `Operación ${operacion.codigo} usa material entrada inexistente ${operacion.material_entrada_codigo}.`
-          );
-        }
+        const materialesEntradaCodigos =
+          (operacion.materiales_entrada_codigos || [])
+            .length > 0
+            ? operacion.materiales_entrada_codigos
+            : operacion.material_entrada_codigo
+              ? [operacion.material_entrada_codigo]
+              : [];
+
+        materialesEntradaCodigos
+          .forEach(materialCodigo => {
+            if (!materiales.has(materialCodigo)) {
+              errores.push(
+                `Operación ${operacion.codigo} usa material entrada inexistente ${materialCodigo}.`
+              );
+            }
+          });
         if (
           operacion.material_salida_codigo &&
           !materiales.has(
@@ -422,10 +428,25 @@ function ImportadorIngenieriaV2({
         const pieza = piezas.get(
           operacion.pieza_codigo
         );
-        const materialEntrada =
-          materiales.get(
-            operacion.material_entrada_codigo
-          );
+        const materialesEntradaCodigos =
+          (operacion.materiales_entrada_codigos || [])
+            .length > 0
+            ? operacion.materiales_entrada_codigos
+            : operacion.material_entrada_codigo
+              ? [operacion.material_entrada_codigo]
+              : [];
+        const materialesEntrada =
+          materialesEntradaCodigos
+            .map(materialCodigo =>
+              materiales.get(materialCodigo)
+            )
+            .filter(Boolean)
+            .map(material => ({
+              material_id: material.id,
+              material_codigo: material.codigo,
+              material_nombre: material.nombre,
+              cantidad: 1
+            }));
         const materialSalida =
           materiales.get(
             operacion.material_salida_codigo
@@ -447,7 +468,10 @@ function ImportadorIngenieriaV2({
               pieza_nombre: pieza.nombre,
               medida: pieza.medida,
               material_entrada_id:
-                materialEntrada?.id || "",
+                materialesEntrada[0]?.material_id ||
+                "",
+              materiales_entrada:
+                materialesEntrada,
               material_salida_id:
                 materialSalida?.id || "",
               activo: true
@@ -509,10 +533,25 @@ function ImportadorIngenieriaV2({
           const pieza = piezas.get(
             operacion.pieza_codigo
           );
-          const materialEntrada =
-            materiales.get(
-              operacion.material_entrada_codigo
-            );
+          const materialesEntradaCodigos =
+            (operacion.materiales_entrada_codigos || [])
+              .length > 0
+              ? operacion.materiales_entrada_codigos
+              : operacion.material_entrada_codigo
+                ? [operacion.material_entrada_codigo]
+                : [];
+          const materialesEntrada =
+            materialesEntradaCodigos
+              .map(materialCodigo =>
+                materiales.get(materialCodigo)
+              )
+              .filter(Boolean)
+              .map(material => ({
+                material_id: material.id,
+                material_codigo: material.codigo,
+                material_nombre: material.nombre,
+                cantidad: 1
+              }));
           const materialSalida =
             materiales.get(
               operacion.material_salida_codigo
@@ -538,7 +577,10 @@ function ImportadorIngenieriaV2({
               subproceso_nombre:
                 operacion.subproceso_nombre,
               material_entrada_id:
-                materialEntrada?.id || "",
+                materialesEntrada[0]?.material_id ||
+                "",
+              materiales_entrada:
+                materialesEntrada,
               material_salida_id:
                 materialSalida?.id || "",
               medida: pieza.medida,
