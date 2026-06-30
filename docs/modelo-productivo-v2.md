@@ -48,6 +48,26 @@ empresa_id
 `RF` es un recurso en fabricacion generado por una operacion anterior. Cada RF
 debe tener codigo propio para enlazar una salida con la siguiente entrada.
 
+### `catalogo_detalles/{empresaId}__{codigoDT}`
+
+```text
+empresa_id
+codigo: DT0001
+nombre
+medida
+material_entrada_id
+material_salida_id
+activo
+creado_en
+actualizado_en
+```
+
+El DT se mantiene en un catalogo reutilizable para que el constructor de rutas
+no dependa de texto libre. Al seleccionar un codigo DT en una operacion del
+producto, el sistema completa nombre, medida, material de entrada y RF de
+salida sugerido. Si se corrige el catalogo, las nuevas operaciones toman la
+version corregida; las rutas ya guardadas conservan su copia congelada.
+
 ### `inventario_materiales/{empresaId}__{plantaId}__{materialId}`
 
 ```text

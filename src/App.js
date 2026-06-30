@@ -66,6 +66,8 @@ import HistorialDecisionesPlanificadorV2 from
   "./features/planificacion/HistorialDecisionesPlanificadorV2";
 import AlmacenV2 from
   "./features/almacen/AlmacenV2";
+import CatalogoDetallesV2 from
+  "./features/detalles/CatalogoDetallesV2";
 
 function App() {
   const esMobile =
@@ -1649,6 +1651,24 @@ const cargarTodosLosParos = async () => {
             ) && (
               <button
                 onClick={() =>
+                  setPantalla("detallesV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#7C3AED"
+                }}
+              >
+                Catálogo DT (V2)
+              </button>
+            )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
                   setPantalla("materialesV2")
                 }
                 style={{
@@ -1765,6 +1785,21 @@ if (
 ) {
   return (
     <AlmacenV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "detallesV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoDetallesV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

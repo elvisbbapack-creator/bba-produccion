@@ -175,6 +175,7 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
+          'catalogo_detalles',
           'catalogo_defectos',
           'catalogo_causas',
           'catalogo_motivos_paro'
@@ -187,6 +188,7 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
+          'catalogo_detalles',
           'catalogo_defectos',
           'catalogo_causas',
           'catalogo_motivos_paro'
@@ -200,6 +202,7 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
+          'catalogo_detalles',
           'catalogo_defectos',
           'catalogo_causas',
           'catalogo_motivos_paro'
