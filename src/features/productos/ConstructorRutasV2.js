@@ -14,6 +14,10 @@ import {
   listarOperacionesCatalogo
 } from "../detalles/detallesRepository";
 import {
+  listarSubproductos
+} from "../subproductos/subproductosRepository";
+import {
+  crearVersionBorradorRuta,
   crearProductoConRuta,
   guardarOperacionRuta,
   listarProductos,
@@ -38,6 +42,9 @@ const operacionInicial = {
   pieza_id: "",
   pieza_codigo: "",
   pieza_nombre: "",
+  subproducto_id: "",
+  subproducto_codigo: "",
+  subproducto_nombre: "",
   proceso_codigo: "",
   proceso_nombre: "",
   subproceso_codigo: "",
@@ -91,6 +98,8 @@ function ConstructorRutasV2({
   const [materiales, setMateriales] = useState([]);
   const [operacionesCatalogo,
     setOperacionesCatalogo] = useState([]);
+  const [subproductos, setSubproductos] =
+    useState([]);
   const [productoId, setProductoId] =
     useState("");
   const [ruta, setRuta] = useState(null);
@@ -125,6 +134,12 @@ function ConstructorRutasV2({
     operacionesCatalogo.filter(
       operacion => operacion.activo
     );
+  const subproductosProducto =
+    subproductos.filter(
+      subproducto =>
+        subproducto.activo !== false &&
+        subproducto.producto_id === productoId
+    );
   const operacionCatalogoSeleccionadaId =
     operacionesCatalogoActivas.find(
       operacion =>
@@ -140,7 +155,8 @@ function ConstructorRutasV2({
         const [
           productosData,
           materialesData,
-          operacionesCatalogoData
+          operacionesCatalogoData,
+          subproductosData
         ] =
           await Promise.all([
             listarProductos(
@@ -154,6 +170,10 @@ function ConstructorRutasV2({
             listarOperacionesCatalogo(
               db,
               perfil.empresa_id
+            ),
+            listarSubproductos(
+              db,
+              perfil.empresa_id
             )
           ]);
         setProductos(productosData);
@@ -161,6 +181,7 @@ function ConstructorRutasV2({
         setOperacionesCatalogo(
           operacionesCatalogoData
         );
+        setSubproductos(subproductosData);
       } catch (fallo) {
         setError(
           fallo?.message ||
@@ -337,6 +358,38 @@ function ConstructorRutasV2({
           : []),
       material_salida_id:
         operacion.material_salida_id || ""
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const seleccionarSubproducto = subproductoId => {
+    const subproducto = subproductosProducto.find(
+      item => item.id === subproductoId
+    );
+
+    setOperacionForm(actual => ({
+      ...actual,
+      subproducto_id: subproducto?.id || "",
+      subproducto_codigo:
+        subproducto?.codigo || "",
+      subproducto_nombre:
+        subproducto?.nombre || "",
+      pieza_id:
+        actual.pieza_id ||
+        subproducto?.pieza_salida_id ||
+        "",
+      pieza_codigo:
+        actual.pieza_codigo ||
+        subproducto?.pieza_salida_codigo ||
+        "",
+      pieza_nombre:
+        actual.pieza_nombre ||
+        subproducto?.pieza_salida_nombre ||
+        "",
+      medida:
+        actual.medida ||
+        (subproducto ? "Armado" : "")
     }));
     setError("");
     setMensaje("");
@@ -522,7 +575,7 @@ function ConstructorRutasV2({
     ? validarRuta(
         {
           producto_id: productoId,
-          version: 1,
+          version: ruta.version,
           operaciones: ruta.operaciones
         },
         materiales
@@ -557,6 +610,42 @@ function ConstructorRutasV2({
       setError(
         fallo?.message ||
         "No se pudo publicar la ruta."
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const crearBorradorEditable = async () => {
+    if (!productoId || !ruta) {
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      setError("");
+      const resultado =
+        await crearVersionBorradorRuta({
+          db,
+          empresaId: perfil.empresa_id,
+          productoId,
+          versionActual: ruta.version,
+          operaciones: ruta.operaciones || [],
+          perfil
+        });
+
+      await cargarCatalogos();
+      await cargarRuta(
+        productoId,
+        resultado.version
+      );
+      setMensaje(
+        `Ruta V${resultado.version} creada en borrador para editar. La ruta publicada sigue vigente hasta publicar esta versión.`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo crear una versión editable."
       );
     } finally {
       setGuardando(false);
@@ -730,7 +819,10 @@ function ConstructorRutasV2({
                         cargarRuta(
                           producto.id,
                           producto
-                            .version_ruta_activa || 1
+                            .version_ruta_borrador ||
+                            producto
+                              .version_ruta_activa ||
+                            1
                         );
                       }}
                       style={{
@@ -759,6 +851,9 @@ function ConstructorRutasV2({
                         {producto.version_ruta_activa
                           ? `Ruta V${producto.version_ruta_activa} activa`
                           : "Ruta en borrador"}
+                        {producto.version_ruta_borrador
+                          ? ` · Borrador V${producto.version_ruta_borrador}`
+                          : ""}
                       </div>
                     </button>
                   ))}
@@ -804,7 +899,26 @@ function ConstructorRutasV2({
                         {ruta?.estado || "borrador"}
                       </p>
                     </div>
-                    {!rutaPublicada && (
+                    {rutaPublicada ? (
+                      <button
+                        type="button"
+                        onClick={crearBorradorEditable}
+                        disabled={guardando}
+                        style={{
+                          padding: "10px 14px",
+                          border: "none",
+                          borderRadius: 8,
+                          background: "#2563EB",
+                          color: "white",
+                          fontWeight: "bold",
+                          cursor: guardando
+                            ? "wait"
+                            : "pointer"
+                        }}
+                      >
+                        Crear versión editable
+                      </button>
+                    ) : (
                       <button
                         type="button"
                         onClick={publicar}
@@ -833,6 +947,21 @@ function ConstructorRutasV2({
                     )}
                   </div>
 
+                  {rutaPublicada && (
+                    <div style={{
+                      marginTop: 12,
+                      color: "#1E40AF",
+                      background: "#EFF6FF",
+                      padding: 10,
+                      borderRadius: 8,
+                      fontSize: 14
+                    }}>
+                      Esta ruta está publicada y protegida.
+                      Para agregar subproductos u operaciones,
+                      crea una nueva versión editable.
+                    </div>
+                  )}
+
                   {!rutaPublicada &&
                     erroresRuta.length > 0 && (
                       <div style={{
@@ -847,6 +976,43 @@ function ConstructorRutasV2({
                         {erroresRuta.join(" ")}
                       </div>
                     )}
+
+                  {subproductosProducto.length > 0 && (
+                    <div style={{
+                      marginTop: 12,
+                      display: "grid",
+                      gap: 6
+                    }}>
+                      <strong>
+                        Subproductos del producto
+                      </strong>
+                      {subproductosProducto.map(
+                        subproducto => (
+                          <span
+                            key={subproducto.id}
+                            style={{
+                              color: "#475569",
+                              fontSize: 14
+                            }}
+                          >
+                            {subproducto.codigo}
+                            {" - "}
+                            {subproducto.nombre}
+                            {" · Pieza salida: "}
+                            {
+                              subproducto
+                                .pieza_salida_codigo
+                            }
+                            {" - "}
+                            {
+                              subproducto
+                                .pieza_salida_nombre
+                            }
+                          </span>
+                        )
+                      )}
+                    </div>
+                  )}
                 </section>
 
                 {!rutaPublicada && (
@@ -914,6 +1080,48 @@ function ConstructorRutasV2({
                             Crea operaciones en Catálogo
                             de Operaciones antes de armar
                             la ruta.
+                          </span>
+                        )}
+                      </label>
+                      <label style={etiqueta}>
+                        Subproducto asociado
+                        <select
+                          value={
+                            operacionForm
+                              .subproducto_id
+                          }
+                          onChange={evento =>
+                            seleccionarSubproducto(
+                              evento.target.value
+                            )
+                          }
+                          style={campo}
+                        >
+                          <option value="">
+                            Sin subproducto
+                          </option>
+                          {subproductosProducto.map(
+                            subproducto => (
+                              <option
+                                key={subproducto.id}
+                                value={subproducto.id}
+                              >
+                                {subproducto.codigo}
+                                {" - "}
+                                {subproducto.nombre}
+                              </option>
+                            )
+                          )}
+                        </select>
+                        {subproductosProducto.length ===
+                          0 && (
+                          <span style={{
+                            color: "#92400E",
+                            fontWeight: "normal",
+                            fontSize: 12
+                          }}>
+                            Este producto aún no tiene
+                            subproductos registrados.
                           </span>
                         )}
                       </label>
@@ -1391,6 +1599,21 @@ function ConstructorRutasV2({
                                     {
                                       operacion
                                         .pieza_nombre
+                                    }
+                                    {" · "}
+                                  </>
+                                )}
+                                {operacion.subproducto_codigo && (
+                                  <>
+                                    Subproducto{" "}
+                                    {
+                                      operacion
+                                        .subproducto_codigo
+                                    }
+                                    {" - "}
+                                    {
+                                      operacion
+                                        .subproducto_nombre
                                     }
                                     {" · "}
                                   </>

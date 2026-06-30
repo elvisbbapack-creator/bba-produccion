@@ -154,6 +154,12 @@ export const prepararOperacionRuta = (
       normalizarCodigo(datos.pieza_codigo),
     pieza_nombre:
       limpiarTexto(datos.pieza_nombre),
+    subproducto_id:
+      limpiarTexto(datos.subproducto_id),
+    subproducto_codigo:
+      normalizarCodigo(datos.subproducto_codigo),
+    subproducto_nombre:
+      limpiarTexto(datos.subproducto_nombre),
     proceso_id:
       normalizarCodigo(datos.proceso_codigo),
     proceso_nombre:
@@ -547,6 +553,7 @@ export const publicarRuta = async ({
 
   lote.update(productoRef, {
     version_ruta_activa: version,
+    version_ruta_borrador: null,
     fecha_actualizacion: serverTimestamp()
   });
   lote.update(rutaRef, {
@@ -556,6 +563,74 @@ export const publicarRuta = async ({
     empresa_id: empresaId
   });
   await lote.commit();
+};
+
+export const crearVersionBorradorRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  versionActual,
+  operaciones,
+  perfil
+}) => {
+  const versionNueva =
+    Number(versionActual || 1) + 1;
+  const productoRef = doc(
+    db,
+    "productos",
+    productoId
+  );
+  const rutaNuevaRef = doc(
+    db,
+    "productos",
+    productoId,
+    "rutas",
+    idRuta(versionNueva)
+  );
+  const lote = writeBatch(db);
+
+  lote.set(rutaNuevaRef, {
+    id: rutaNuevaRef.id,
+    empresa_id: empresaId,
+    producto_id: productoId,
+    version: versionNueva,
+    estado: "borrador",
+    version_origen: Number(versionActual || 1),
+    creada_por: perfil.uid,
+    fecha_creacion: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  });
+
+  operaciones.forEach(operacion => {
+    const operacionRef = doc(
+      db,
+      "productos",
+      productoId,
+      "rutas",
+      idRuta(versionNueva),
+      "operaciones",
+      operacion.id
+    );
+    const copia = {
+      ...operacion,
+      ruta_version: versionNueva,
+      fecha_creacion: serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    };
+
+    delete copia.id;
+
+    lote.set(operacionRef, copia);
+  });
+
+  lote.update(productoRef, {
+    version_ruta_borrador: versionNueva,
+    fecha_actualizacion: serverTimestamp()
+  });
+
+  await lote.commit();
+
+  return { version: versionNueva };
 };
 
 export const recalibrarEstandarRuta = async ({

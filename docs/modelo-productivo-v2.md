@@ -102,6 +102,12 @@ del subproducto es una pieza fisica nueva, nombrada como el subproducto mas la
 palabra `Armado` (por ejemplo `Lateral Armado`). Esa pieza armada puede entrar
 despues a lavado, pintura, embalaje u otra operacion de ruta.
 
+En `Productos y Rutas`, las operaciones pueden asociarse a un subproducto del
+producto seleccionado. Esto permite ver que una operacion pertenece, por ejemplo,
+al armado de un lateral, bandeja o cabecero. Si una ruta ya esta publicada, se
+debe crear una nueva version en borrador para agregar subproductos u operaciones;
+la version publicada sigue vigente para las OT hasta que se publique la nueva.
+
 ## Importador de ingenieria Excel
 
 El modulo `Importar Ingenieria Excel (V2)` permite cargar una plantilla `.xlsx`

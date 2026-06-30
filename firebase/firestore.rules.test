@@ -406,6 +406,7 @@ service cloud.firestore {
         ).affectedKeys().hasOnly([
           'activo',
           'version_ruta_activa',
+          'version_ruta_borrador',
           'fecha_actualizacion'
         ]);
       allow delete: if false;
