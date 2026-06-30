@@ -72,6 +72,8 @@ import CatalogoPiezasV2 from
   "./features/piezas/CatalogoPiezasV2";
 import CatalogoSubproductosV2 from
   "./features/subproductos/CatalogoSubproductosV2";
+import ImportadorIngenieriaV2 from
+  "./features/importacion/ImportadorIngenieriaV2";
 
 function App() {
   const esMobile =
@@ -1655,6 +1657,24 @@ const cargarTodosLosParos = async () => {
             ) && (
               <button
                 onClick={() =>
+                  setPantalla("importadorIngenieriaV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#155E75"
+                }}
+              >
+                Importar Ingeniería Excel (V2)
+              </button>
+            )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
                   setPantalla("piezasV2")
                 }
                 style={{
@@ -1840,6 +1860,21 @@ if (
 ) {
   return (
     <CatalogoPiezasV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "importadorIngenieriaV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <ImportadorIngenieriaV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

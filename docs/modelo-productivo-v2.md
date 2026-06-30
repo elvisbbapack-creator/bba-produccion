@@ -92,6 +92,25 @@ del subproducto es una pieza fisica nueva, nombrada como el subproducto mas la
 palabra `Armado` (por ejemplo `Lateral Armado`). Esa pieza armada puede entrar
 despues a lavado, pintura, embalaje u otra operacion de ruta.
 
+## Importador de ingenieria Excel
+
+El modulo `Importar Ingenieria Excel (V2)` permite cargar una plantilla `.xlsx`
+con estas hojas:
+
+```text
+Producto
+Piezas
+Subproductos
+Componentes_Subproducto
+Operaciones
+```
+
+El importador primero lee el archivo, normaliza codigos, valida referencias
+cruzadas y muestra una vista previa. Solo permite confirmar la importacion si no
+hay errores criticos. Los registros que ya existen se omiten para evitar
+duplicados. Los materiales `MP` y `RF` deben existir previamente en el catalogo
+MP/RF para que la operacion pueda enlazarse con seguridad.
+
 ### `catalogo_operaciones/{empresaId}__{codigoOP}`
 
 ```text
