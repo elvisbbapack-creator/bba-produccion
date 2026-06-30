@@ -1,4 +1,5 @@
 import {
+  extraerCatalogoProcesosRuta,
   prepararComposicionProducto,
   prepararOperacionRuta,
   prepararProducto,
@@ -108,6 +109,64 @@ test("rechaza composición duplicada o sin cantidad", () => {
   ).toEqual([
     "El item 2 requiere cantidad mayor que cero.",
     "El item SUB0001 está repetido."
+  ]);
+});
+
+test("extrae catálogo único de procesos y subprocesos de rutas", () => {
+  const catalogo = extraerCatalogoProcesosRuta(
+    [
+      {
+        proceso_id: "PR0001",
+        proceso_nombre: "Corte",
+        subproceso_id: "SP0001",
+        subproceso_nombre: "Tubo en prensa"
+      },
+      {
+        proceso_id: "PR0001",
+        proceso_nombre: "Corte",
+        subproceso_id: "SP0002",
+        subproceso_nombre: "Corte alambre"
+      }
+    ],
+    [
+      {
+        proceso_id: "pr0002",
+        proceso_nombre: "Doblez",
+        subproceso_id: "sp0005",
+        subproceso_nombre: "Doblez lata"
+      }
+    ]
+  );
+
+  expect(catalogo.procesos).toEqual([
+    {
+      codigo: "PR0001",
+      nombre: "Corte"
+    },
+    {
+      codigo: "PR0002",
+      nombre: "Doblez"
+    }
+  ]);
+  expect(catalogo.subprocesos).toEqual([
+    {
+      codigo: "SP0001",
+      nombre: "Tubo en prensa",
+      proceso_codigo: "PR0001",
+      proceso_nombre: "Corte"
+    },
+    {
+      codigo: "SP0002",
+      nombre: "Corte alambre",
+      proceso_codigo: "PR0001",
+      proceso_nombre: "Corte"
+    },
+    {
+      codigo: "SP0005",
+      nombre: "Doblez lata",
+      proceso_codigo: "PR0002",
+      proceso_nombre: "Doblez"
+    }
   ]);
 });
 

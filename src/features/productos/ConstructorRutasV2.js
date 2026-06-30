@@ -11,6 +11,9 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
+  listarCapacidadesProceso
+} from "../capacidad/capacidadRepository";
+import {
   listarPiezas
 } from "../piezas/piezasRepository";
 import {
@@ -23,6 +26,7 @@ import {
   actualizarComposicionProducto,
   crearVersionBorradorRuta,
   crearProductoConRuta,
+  extraerCatalogoProcesosRuta,
   guardarOperacionRuta,
   listarProductos,
   obtenerRuta,
@@ -108,6 +112,8 @@ function ConstructorRutasV2({
   const [productos, setProductos] = useState([]);
   const [materiales, setMateriales] = useState([]);
   const [piezas, setPiezas] = useState([]);
+  const [capacidadesProceso,
+    setCapacidadesProceso] = useState([]);
   const [operacionesCatalogo,
     setOperacionesCatalogo] = useState([]);
   const [subproductos, setSubproductos] =
@@ -170,6 +176,22 @@ function ConstructorRutasV2({
         operacion.codigo ===
         operacionForm.codigo
     )?.id || "";
+  const catalogoProcesosRuta = useMemo(
+    () => extraerCatalogoProcesosRuta(
+      ruta?.operaciones || [],
+      capacidadesProceso
+    ),
+    [capacidadesProceso, ruta]
+  );
+  const opcionesProceso =
+    catalogoProcesosRuta.procesos;
+  const opcionesSubproceso =
+    catalogoProcesosRuta.subprocesos.filter(
+      subproceso =>
+        !operacionForm.proceso_codigo ||
+        subproceso.proceso_codigo ===
+          operacionForm.proceso_codigo
+    );
 
   const cargarCatalogos = useCallback(
     async () => {
@@ -180,6 +202,7 @@ function ConstructorRutasV2({
           productosData,
           materialesData,
           piezasData,
+          capacidadesProcesoData,
           operacionesCatalogoData,
           subproductosData
         ] =
@@ -196,6 +219,10 @@ function ConstructorRutasV2({
               db,
               perfil.empresa_id
             ),
+            listarCapacidadesProceso(
+              db,
+              perfil.empresa_id
+            ),
             listarOperacionesCatalogo(
               db,
               perfil.empresa_id
@@ -208,6 +235,9 @@ function ConstructorRutasV2({
         setProductos(productosData);
         setMateriales(materialesData);
         setPiezas(piezasData);
+        setCapacidadesProceso(
+          capacidadesProcesoData
+        );
         setOperacionesCatalogo(
           operacionesCatalogoData
         );
@@ -278,6 +308,69 @@ function ConstructorRutasV2({
     setOperacionForm(actual => ({
       ...actual,
       [nombre]: valor
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const seleccionarProcesoRuta = (
+    campoProceso,
+    valor
+  ) => {
+    const proceso =
+      opcionesProceso.find(opcion =>
+        campoProceso === "codigo"
+          ? opcion.codigo === valor
+          : opcion.nombre === valor
+      );
+
+    setOperacionForm(actual => ({
+      ...actual,
+      [campoProceso === "codigo"
+        ? "proceso_codigo"
+        : "proceso_nombre"]: valor,
+      ...(proceso
+        ? {
+            proceso_codigo: proceso.codigo,
+            proceso_nombre: proceso.nombre
+          }
+        : {})
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const seleccionarSubprocesoRuta = (
+    campoSubproceso,
+    valor
+  ) => {
+    const subproceso =
+      catalogoProcesosRuta.subprocesos.find(
+        opcion =>
+          campoSubproceso === "codigo"
+            ? opcion.codigo === valor
+            : opcion.nombre === valor
+      );
+
+    setOperacionForm(actual => ({
+      ...actual,
+      [campoSubproceso === "codigo"
+        ? "subproceso_codigo"
+        : "subproceso_nombre"]: valor,
+      ...(subproceso
+        ? {
+            subproceso_codigo:
+              subproceso.codigo,
+            subproceso_nombre:
+              subproceso.nombre,
+            proceso_codigo:
+              subproceso.proceso_codigo ||
+              actual.proceso_codigo,
+            proceso_nombre:
+              subproceso.proceso_nombre ||
+              actual.proceso_nombre
+          }
+        : {})
     }));
     setError("");
     setMensaje("");
@@ -1505,68 +1598,116 @@ function ConstructorRutasV2({
                       <label style={etiqueta}>
                         Código proceso
                         <input
+                          list="catalogo-codigos-proceso"
                           value={
                             operacionForm.proceso_codigo
                           }
                           onChange={evento =>
-                            actualizarOperacion(
-                              "proceso_codigo",
+                            seleccionarProcesoRuta(
+                              "codigo",
                               evento.target.value
                             )
                           }
                           placeholder="PR0001"
                           style={campo}
                         />
+                        <datalist id="catalogo-codigos-proceso">
+                          {opcionesProceso.map(proceso => (
+                            <option
+                              key={proceso.codigo}
+                              value={proceso.codigo}
+                            >
+                              {proceso.nombre}
+                            </option>
+                          ))}
+                        </datalist>
                       </label>
                       <label style={etiqueta}>
                         Proceso
                         <input
+                          list="catalogo-nombres-proceso"
                           value={
                             operacionForm.proceso_nombre
                           }
                           onChange={evento =>
-                            actualizarOperacion(
-                              "proceso_nombre",
+                            seleccionarProcesoRuta(
+                              "nombre",
                               evento.target.value
                             )
                           }
                           placeholder="Corte"
                           style={campo}
                         />
+                        <datalist id="catalogo-nombres-proceso">
+                          {opcionesProceso.map(proceso => (
+                            <option
+                              key={proceso.codigo}
+                              value={proceso.nombre}
+                            >
+                              {proceso.codigo}
+                            </option>
+                          ))}
+                        </datalist>
                       </label>
                       <label style={etiqueta}>
                         Código subproceso
                         <input
+                          list="catalogo-codigos-subproceso"
                           value={
                             operacionForm
                               .subproceso_codigo
                           }
                           onChange={evento =>
-                            actualizarOperacion(
-                              "subproceso_codigo",
+                            seleccionarSubprocesoRuta(
+                              "codigo",
                               evento.target.value
                             )
                           }
                           placeholder="SP0001"
                           style={campo}
                         />
+                        <datalist id="catalogo-codigos-subproceso">
+                          {opcionesSubproceso.map(
+                            subproceso => (
+                              <option
+                                key={subproceso.codigo}
+                                value={subproceso.codigo}
+                              >
+                                {subproceso.nombre}
+                              </option>
+                            )
+                          )}
+                        </datalist>
                       </label>
                       <label style={etiqueta}>
                         Subproceso
                         <input
+                          list="catalogo-nombres-subproceso"
                           value={
                             operacionForm
                               .subproceso_nombre
                           }
                           onChange={evento =>
-                            actualizarOperacion(
-                              "subproceso_nombre",
+                            seleccionarSubprocesoRuta(
+                              "nombre",
                               evento.target.value
                             )
                           }
                           placeholder="Tubo en prensa"
                           style={campo}
                         />
+                        <datalist id="catalogo-nombres-subproceso">
+                          {opcionesSubproceso.map(
+                            subproceso => (
+                              <option
+                                key={subproceso.codigo}
+                                value={subproceso.nombre}
+                              >
+                                {subproceso.codigo}
+                              </option>
+                            )
+                          )}
+                        </datalist>
                       </label>
                       <div style={{
                         gridColumn: "1 / -1",

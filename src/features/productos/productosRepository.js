@@ -123,6 +123,55 @@ export const validarComposicionProducto = (
   return errores;
 };
 
+export const extraerCatalogoProcesosRuta = (
+  operaciones = [],
+  referencias = []
+) => {
+  const procesos = new Map();
+  const subprocesos = new Map();
+
+  [...operaciones, ...referencias].forEach(item => {
+    const procesoId = normalizarCodigo(
+      item.proceso_id || item.proceso_codigo
+    );
+    const procesoNombre = limpiarTexto(
+      item.proceso_nombre
+    );
+    const subprocesoId = normalizarCodigo(
+      item.subproceso_id ||
+        item.subproceso_codigo
+    );
+    const subprocesoNombre = limpiarTexto(
+      item.subproceso_nombre
+    );
+
+    if (procesoId && procesoNombre) {
+      procesos.set(procesoId, {
+        codigo: procesoId,
+        nombre: procesoNombre
+      });
+    }
+
+    if (subprocesoId && subprocesoNombre) {
+      subprocesos.set(subprocesoId, {
+        codigo: subprocesoId,
+        nombre: subprocesoNombre,
+        proceso_codigo: procesoId,
+        proceso_nombre: procesoNombre
+      });
+    }
+  });
+
+  return {
+    procesos: [...procesos.values()].sort(
+      (a, b) => a.codigo.localeCompare(b.codigo)
+    ),
+    subprocesos: [...subprocesos.values()].sort(
+      (a, b) => a.codigo.localeCompare(b.codigo)
+    )
+  };
+};
+
 export const validarProducto = (
   producto,
   existentes = []
