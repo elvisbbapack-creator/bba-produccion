@@ -1160,6 +1160,248 @@ const cargarTodosLosParos = async () => {
 }
 
   if (pantalla === "home") {
+  const accesoV2 =
+    interfazV2Activa &&
+    autenticacionFirebaseActiva;
+  const puedeAdministrar =
+    accesoV2 &&
+    puedeAdministrarV2(usuarioSeleccionado);
+  const puedeOperar =
+    accesoV2 &&
+    puedeOperarV2(usuarioSeleccionado);
+  const puedeVerDashboard =
+    accesoV2 &&
+    puedeVerDashboardV2(usuarioSeleccionado);
+  const abrirDashboardLegacy = () => {
+    setPantalla("dashboard");
+    cargarDashboard();
+  };
+  const limpiarContextoTurnos = () => {
+    setContextoTurnosV2(null);
+    setPantalla("turnosV2");
+  };
+  const limpiarContextoCapacidad = () => {
+    setContextoCapacidadV2(null);
+    setPantalla("capacidadV2");
+  };
+  const tarjetaMenu = {
+    border: "1px solid #E2E8F0",
+    borderRadius: 14,
+    background: "white",
+    color: "#0F172A",
+    padding: "14px 16px",
+    textAlign: "left",
+    cursor: "pointer",
+    fontWeight: "bold",
+    boxShadow:
+      "0 2px 8px rgba(15,23,42,0.06)"
+  };
+  const tarjetaRapida = {
+    ...tarjetaMenu,
+    background: "#0F172A",
+    color: "white",
+    border: "none"
+  };
+  const accionesRapidas = [
+    {
+      titulo: "Dashboard",
+      accion: puedeVerDashboard
+        ? () => setPantalla("dashboardV2")
+        : abrirDashboardLegacy
+    },
+    {
+      titulo: "Crear OT",
+      accion: puedeAdministrar
+        ? () => setPantalla("ordenesV2")
+        : () => setPantalla("crearOT")
+    },
+    {
+      titulo: "Ejecutar producción",
+      accion: puedeOperar
+        ? () => setPantalla("ejecucionV2")
+        : () => setPantalla("registro")
+    },
+    {
+      titulo: "Ingeniería de producto",
+      accion: puedeAdministrar
+        ? () => setPantalla("rutasV2")
+        : () => setPantalla("configProductos")
+    }
+  ];
+  const seccionesHome = [
+    {
+      titulo: "Producción",
+      descripcion:
+        "Operación diaria, OTs y ejecución en planta.",
+      items: [
+        {
+          titulo: "Dashboard y Ranking (V2)",
+          visible: puedeVerDashboard,
+          accion: () => setPantalla("dashboardV2")
+        },
+        {
+          titulo: "Dashboard clásico",
+          visible: true,
+          accion: abrirDashboardLegacy
+        },
+        {
+          titulo: "Órdenes de Trabajo (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("ordenesV2")
+        },
+        {
+          titulo: "Crear OT clásico",
+          visible: true,
+          accion: () => setPantalla("crearOT")
+        },
+        {
+          titulo: "Ejecutar Producción (V2)",
+          visible: puedeOperar,
+          accion: () => setPantalla("ejecucionV2")
+        },
+        {
+          titulo: "Registrar Producción clásico",
+          visible: true,
+          accion: () => setPantalla("registro")
+        },
+        {
+          titulo: "Ver OTs clásico",
+          visible: true,
+          accion: () => setPantalla("ot")
+        }
+      ]
+    },
+    {
+      titulo: "Ingeniería",
+      descripcion:
+        "Producto, rutas, piezas, procesos y carga masiva.",
+      items: [
+        {
+          titulo: "Ingeniería de Producto (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("rutasV2")
+        },
+        {
+          titulo: "Procesos y Estaciones (V2)",
+          visible: puedeAdministrar,
+          accion: () =>
+            setPantalla("procesosEstacionesV2")
+        },
+        {
+          titulo: "Catálogo de Piezas (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("piezasV2")
+        },
+        {
+          titulo: "Catálogo de Subproductos (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("subproductosV2")
+        },
+        {
+          titulo: "Operaciones Estándar (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("detallesV2")
+        },
+        {
+          titulo: "Importar Ingeniería Excel (V2)",
+          visible: puedeAdministrar,
+          accion: () =>
+            setPantalla("importadorIngenieriaV2")
+        },
+        {
+          titulo: "Configuración Producción clásica",
+          visible: true,
+          accion: () => setPantalla("configProduccion")
+        },
+        {
+          titulo: "Configuración Productos clásica",
+          visible: true,
+          accion: () => setPantalla("configProductos")
+        },
+        {
+          titulo: "Operaciones Maestras clásicas",
+          visible: true,
+          accion: () =>
+            setPantalla("operacionesMaestras")
+        }
+      ]
+    },
+    {
+      titulo: "Planificación",
+      descripcion:
+        "Cuellos de botella, capacidad, turnos y decisiones.",
+      items: [
+        {
+          titulo: "Planificador de Prioridades (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("planificadorV2")
+        },
+        {
+          titulo: "Capacidad por Estación (V2)",
+          visible: puedeAdministrar,
+          accion: limpiarContextoCapacidad
+        },
+        {
+          titulo: "Turnos y Dotación (V2)",
+          visible: puedeAdministrar,
+          accion: limpiarContextoTurnos
+        },
+        {
+          titulo: "Historial de decisiones (V2)",
+          visible: puedeAdministrar,
+          accion: () =>
+            setPantalla(
+              "historialDecisionesPlanificadorV2"
+            )
+        }
+      ]
+    },
+    {
+      titulo: "Materiales",
+      descripcion:
+        "MP, RF, inventario y almacén.",
+      items: [
+        {
+          titulo: "Catálogo MP / RF (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("materialesV2")
+        },
+        {
+          titulo: "Almacén (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("almacenV2")
+        }
+      ]
+    },
+    {
+      titulo: "Control",
+      descripcion:
+        "Calidad, paros y ajustes.",
+      items: [
+        {
+          titulo: "Calidad y Reprocesos (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("calidadV2")
+        },
+        {
+          titulo: "Motivos de Paro (V2)",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("parosV2")
+        },
+        {
+          titulo: "Historial de Paros",
+          visible: true,
+          accion: () => setPantalla("historialParos")
+        },
+        {
+          titulo: "Ajuste Gerencial",
+          visible: true,
+          accion: () => setPantalla("ajusteGerencial")
+        }
+      ]
+    }
+  ];
+
   return (
     <div style={{
       padding: 30,
@@ -1363,495 +1605,121 @@ const cargarTodosLosParos = async () => {
 
 </div>     
 
-      <div style={{
-
-        display: "grid",
-
-        gridTemplateColumns:
-          esMobile
-            ? "1fr"
-            : "1.4fr 1fr 1fr",
-
-        gap: 40,
-
-        marginTop: 40,
-
-        alignItems: "start"
-
+      <section style={{
+        background: "white",
+        borderRadius: 22,
+        padding: 22,
+        boxShadow:
+          "0 4px 14px rgba(15,23,42,0.08)",
+        marginBottom: 26
       }}>
-
-      <div>
-
-        <h3 style={{
-          marginTop: 30,
-          marginBottom: 15,
-          color: "#555"
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 14,
+          alignItems: "center",
+          flexWrap: "wrap"
         }}>
-          📊 Operación
-        </h3>
+          <div>
+            <h2 style={{
+              margin: 0,
+              color: "#0F172A"
+            }}>
+              Accesos diarios
+            </h2>
+            <p style={{
+              margin: "6px 0 0",
+              color: "#64748B"
+            }}>
+              Lo que se usa con más frecuencia en planta.
+            </p>
+          </div>
+        </div>
 
         <div style={{
-
           display: "grid",
-
-          gridTemplateColumns:
-            esMobile
-              ? "1fr"
-              : "repeat(2, 1fr)",
-
-          gap: 22,
-
-          marginTop: 38,
-
-          marginBottom: 30
-
+          gridTemplateColumns: esMobile
+            ? "1fr"
+            : "repeat(4, 1fr)",
+          gap: 14,
+          marginTop: 18
         }}>
-
-        <button
-          onClick={() => {
-            setPantalla("dashboard");
-            cargarDashboard();
-          }}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          📊 Ver Dashboard
-        </button>
-
-        {interfazV2Activa &&
-          autenticacionFirebaseActiva &&
-          puedeVerDashboardV2(
-            usuarioSeleccionado
-          ) && (
+          {accionesRapidas.map(accion => (
             <button
-              onClick={() =>
-                setPantalla("dashboardV2")
-              }
-              style={{
-                ...cardHome,
-                background: "#0F172A"
-              }}
+              key={accion.titulo}
+              type="button"
+              onClick={accion.accion}
+              style={tarjetaRapida}
             >
-              Dashboard y Ranking (V2)
+              {accion.titulo}
             </button>
-          )}
-
-        <button
-          onClick={() => setPantalla("crearOT")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          📋 Crear OT
-        </button>
-
-        {interfazV2Activa &&
-          autenticacionFirebaseActiva &&
-          puedeAdministrarV2(
-            usuarioSeleccionado
-          ) && (
-            <button
-              onClick={() =>
-                setPantalla("ordenesV2")
-              }
-              style={{
-                ...cardHome,
-                background: "#7C3AED"
-              }}
-            >
-              Órdenes de Trabajo (V2)
-            </button>
-          )}
-
-        {interfazV2Activa &&
-          autenticacionFirebaseActiva &&
-          puedeAdministrarV2(
-            usuarioSeleccionado
-          ) && (
-            <button
-              onClick={() =>
-                setPantalla("planificadorV2")
-              }
-              style={{
-                ...cardHome,
-                background: "#0F766E"
-              }}
-            >
-              Planificador de Prioridades (V2)
-            </button>
-          )}
-
-        {interfazV2Activa &&
-          autenticacionFirebaseActiva &&
-          puedeAdministrarV2(
-            usuarioSeleccionado
-          ) && (
-            <button
-              onClick={() =>
-                setPantalla(
-                  "historialDecisionesPlanificadorV2"
-                )
-              }
-              style={{
-                ...cardHome,
-                background: "#334155"
-              }}
-            >
-              Historial Decisiones Planificador (V2)
-            </button>
-          )}
-
-        <button
-          onClick={() => setPantalla("registro")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          🏭 Registrar Producción
-        </button>
-
-        {interfazV2Activa &&
-          autenticacionFirebaseActiva &&
-          puedeOperarV2(
-            usuarioSeleccionado
-          ) && (
-            <button
-              onClick={() =>
-                setPantalla("ejecucionV2")
-              }
-              style={{
-                ...cardHome,
-                background: "#EA580C"
-              }}
-            >
-              Ejecutar Producción (V2)
-            </button>
-          )}
-
-         <button
-          onClick={() => setPantalla("ot")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          📋 Ver Órdenes de Trabajo 
-        </button>
-
+          ))}
         </div>
-</div>
+      </section>
 
-<div style={{
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: esMobile
+          ? "1fr"
+          : "repeat(2, minmax(0, 1fr))",
+        gap: 18,
+        alignItems: "start"
+      }}>
+        {seccionesHome.map(seccion => {
+          const items = seccion.items.filter(
+            item => item.visible
+          );
 
-  display: "flex",
+          if (items.length === 0) {
+            return null;
+          }
 
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
-        <h3 style={{
-          marginTop: 30,
-          marginBottom: 15,
-          color: "#555"
-        }}>
-
-          ⚠️ Control
-
-        </h3>
-
-        <button
-          onClick={() => setPantalla("historialParos")}
-          style={{
-            ...cardHome,
-            background: "#F57C00"
-          }}
-        >
-          📋 Historial de Paros
-        </button>
-
-          <button
-            onClick={() => setPantalla("ajusteGerencial")}
-            style={{
-              ...cardHome,
-              background: "#EF6C00"
-            }}
-          >
-            🛠 Ajuste Gerencial
-          </button>
-</div>
-
-<div style={{
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
-          <h3 style={{
-            marginTop: 30,
-            marginBottom: 15,
-            color: "#555"
-          }}>
-
-            ⚙️ Ingeniería
-
-          </h3>
-
-          <button
-            onClick={() => setPantalla("configProduccion")}
-            style={{
-              ...cardHome,
-              background: "#455A64"
-            }}
-          >
-            ⚙️ Configuración Producción
-          </button>
-
-          <button
-            onClick={() => setPantalla("configProductos")}
-            style={{
-              ...cardHome,
-              background: "#546E7A"
-            }}
-          >
-            📦 Configuración Productos
-          </button>
-
-          <button
-            onClick={() => setPantalla("operacionesMaestras")}
-            style={{
-              ...cardHome,
-              background: "#607D8B"
-            }}
-          >
-            ⚙️ Operaciones Maestras
-          </button>
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("almacenV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#0369A1"
-                }}
-              >
-                Almacén V2
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("importadorIngenieriaV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#155E75"
-                }}
-              >
-                Importar Ingeniería Excel (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("procesosEstacionesV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#1E40AF"
-                }}
-              >
-                Catálogo de Procesos y Estaciones (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("piezasV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#2563EB"
-                }}
-              >
-                Catálogo de Piezas (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("subproductosV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#0F766E"
-                }}
-              >
-                Catálogo de Subproductos (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("detallesV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#7C3AED"
-                }}
-              >
-                Catálogo de Operaciones (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("materialesV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#0F766E"
-                }}
-              >
-                Catálogo MP / RF (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("parosV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#B45309"
-                }}
-              >
-                Motivos de Paro (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("calidadV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#BE123C"
-                }}
-              >
-                Calidad y Reprocesos (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() => {
-                  setContextoTurnosV2(null);
-                  setPantalla("turnosV2");
-                }}
-                style={{
-                  ...cardHome,
-                  background: "#4338CA"
-                }}
-              >
-                Programación de Turnos (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() => {
-                  setContextoCapacidadV2(null);
-                  setPantalla("capacidadV2");
-                }}
-                style={{
-                  ...cardHome,
-                  background: "#0E7490"
-                }}
-              >
-                Capacidad por Proceso (V2)
-              </button>
-            )}
-
-          {interfazV2Activa &&
-            autenticacionFirebaseActiva &&
-            puedeAdministrarV2(
-              usuarioSeleccionado
-            ) && (
-              <button
-                onClick={() =>
-                  setPantalla("rutasV2")
-                }
-                style={{
-                  ...cardHome,
-                  background: "#1D4ED8"
-                }}
-              >
-                Productos y Rutas (V2)
-              </button>
-            )}
-</div>
+          return (
+            <section
+              key={seccion.titulo}
+              style={{
+                background: "white",
+                borderRadius: 18,
+                padding: 18,
+                boxShadow:
+                  "0 2px 10px rgba(15,23,42,0.07)",
+                border: "1px solid #E2E8F0"
+              }}
+            >
+              <h3 style={{
+                margin: 0,
+                color: "#0F172A"
+              }}>
+                {seccion.titulo}
+              </h3>
+              <p style={{
+                margin: "6px 0 14px",
+                color: "#64748B",
+                fontSize: 14
+              }}>
+                {seccion.descripcion}
+              </p>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: esMobile
+                  ? "1fr"
+                  : "repeat(2, minmax(0, 1fr))",
+                gap: 10
+              }}>
+                {items.map(item => (
+                  <button
+                    key={item.titulo}
+                    type="button"
+                    onClick={item.accion}
+                    style={tarjetaMenu}
+                  >
+                    {item.titulo}
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
