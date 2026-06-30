@@ -709,6 +709,7 @@ function ConstructorRutasV2({
 
   const agregarOperacion = async (evento) => {
     evento.preventDefault();
+    const versionRutaActual = ruta?.version || 1;
     const errores = validarOperacionBasica(
       vistaOperacion,
       ruta?.operaciones || []
@@ -733,7 +734,7 @@ function ConstructorRutasV2({
         db,
         perfil.empresa_id,
         productoId,
-        ruta?.version || 1,
+        versionRutaActual,
         {
           ...operacionForm,
           secuencia:
@@ -744,7 +745,10 @@ function ConstructorRutasV2({
         ruta?.operaciones || []
       );
       setOperacionForm(operacionInicial);
-      await cargarRuta(productoId);
+      await cargarRuta(
+        productoId,
+        versionRutaActual
+      );
       setMensaje(
         "Operación agregada a la ruta."
       );
