@@ -49,8 +49,11 @@ test("prepara una operacion con dependencia parcial", () => {
     {
       empresa_id: "bba",
       secuencia: "20",
-      codigo: "dt0005",
+      codigo: "op0005",
       nombre: "Perforacion 4 hoyos",
+      pieza_id: "pieza-1",
+      pieza_codigo: "PZ0001",
+      pieza_nombre: "Lateral 290",
       proceso_codigo: "PR0001",
       proceso_nombre: "Corte",
       subproceso_codigo: "SP0003",
@@ -59,19 +62,21 @@ test("prepara una operacion con dependencia parcial", () => {
       material_salida_id: "rf-2",
       unidades_por_producto: "4",
       unidades_por_hora: "80",
-      dependencia_id: "DT0001",
+      dependencia_id: "OP0001",
       porcentaje_minimo_avance: "20"
     },
     "producto-1",
-    "DT0005"
+    "OP0005"
   );
 
   expect(operacion).toMatchObject({
-    operacion_codigo: "DT0005",
+    operacion_codigo: "OP0005",
+    pieza_codigo: "PZ0001",
+    pieza_nombre: "Lateral 290",
     secuencia: 20,
     unidades_por_producto: 4,
     dependencias: [{
-      ruta_operacion_id: "DT0001",
+      ruta_operacion_id: "OP0001",
       porcentaje_minimo_avance: 20,
       requiere_material_disponible: true
     }]

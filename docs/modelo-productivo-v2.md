@@ -48,12 +48,31 @@ empresa_id
 `RF` es un recurso en fabricacion generado por una operacion anterior. Cada RF
 debe tener codigo propio para enlazar una salida con la siguiente entrada.
 
-### `catalogo_detalles/{empresaId}__{codigoDT}`
+### `catalogo_piezas/{empresaId}__{codigoPZ}`
 
 ```text
 empresa_id
-codigo: DT0001
+codigo: PZ0001
 nombre
+medida
+material_base_id
+activo
+creado_en
+actualizado_en
+```
+
+La pieza representa el componente fisico: lateral, bandeja, cabecero, gancho,
+lata, etc. Una misma pieza puede pasar por varias operaciones productivas.
+
+### `catalogo_operaciones/{empresaId}__{codigoOP}`
+
+```text
+empresa_id
+codigo: OP0001
+nombre
+pieza_id
+pieza_codigo
+pieza_nombre
 medida
 material_entrada_id
 material_salida_id
@@ -62,11 +81,10 @@ creado_en
 actualizado_en
 ```
 
-El DT se mantiene en un catalogo reutilizable para que el constructor de rutas
-no dependa de texto libre. Al seleccionar un codigo DT en una operacion del
-producto, el sistema completa nombre, medida, material de entrada y RF de
-salida sugerido. Si se corrige el catalogo, las nuevas operaciones toman la
-version corregida; las rutas ya guardadas conservan su copia congelada.
+La operacion representa una etapa productiva sobre una pieza: corte, perforado,
+doblez, soldadura, pintura, embalaje, etc. Al seleccionar un codigo `OP` en una
+ruta, el sistema completa nombre, pieza, medida, material de entrada y RF de
+salida sugerido. Las rutas ya guardadas conservan su copia congelada.
 
 ### `inventario_materiales/{empresaId}__{plantaId}__{materialId}`
 

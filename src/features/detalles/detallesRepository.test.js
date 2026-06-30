@@ -1,31 +1,39 @@
 import {
-  normalizarCodigoDetalle,
-  prepararDetalle,
-  validarDetalle
+  normalizarCodigoOperacionCatalogo,
+  prepararOperacionCatalogo,
+  validarOperacionCatalogo
 } from "./detallesRepository";
 
-test("normaliza código y textos del DT", () => {
+test("normaliza código y textos de operación", () => {
   expect(
-    normalizarCodigoDetalle(" dt 0001 ")
-  ).toBe("DT0001");
+    normalizarCodigoOperacionCatalogo(
+      " op 0001 "
+    )
+  ).toBe("OP0001");
 
   expect(
-    prepararDetalle(
+    prepararOperacionCatalogo(
       {
-        codigo: "dt0001",
-        nombre: " Lateral 290 ",
+        codigo: "op0001",
+        nombre: " Corte lateral 290 ",
+        pieza_id: "pieza-1",
+        pieza_codigo: "PZ0001",
+        pieza_nombre: "Lateral 290",
         medida: " 290 mm ",
         material_entrada_id: "mp-tubo",
         material_salida_id: "rf-tubo"
       },
       "bba",
-      "detalle-1"
+      "operacion-1"
     )
   ).toEqual({
-    id: "detalle-1",
+    id: "operacion-1",
     empresa_id: "bba",
-    codigo: "DT0001",
-    nombre: "Lateral 290",
+    codigo: "OP0001",
+    nombre: "Corte lateral 290",
+    pieza_id: "pieza-1",
+    pieza_codigo: "PZ0001",
+    pieza_nombre: "Lateral 290",
     medida: "290 mm",
     material_entrada_id: "mp-tubo",
     material_salida_id: "rf-tubo",
@@ -33,57 +41,42 @@ test("normaliza código y textos del DT", () => {
   });
 });
 
-test("exige código, nombre, medida y material", () => {
+test("exige código OP, pieza, nombre, medida y material", () => {
   expect(
-    validarDetalle({
-      id: "detalle-1",
-      codigo: "D1",
+    validarOperacionCatalogo({
+      id: "operacion-1",
+      codigo: "DT0001",
       nombre: "",
+      pieza_id: "",
       medida: "",
       material_entrada_id: ""
     })
   ).toEqual([
-    "El código DT debe usar el formato DT0001.",
-    "El DT requiere nombre.",
-    "El DT requiere medida.",
+    "El código de operación debe usar el formato OP0001.",
+    "La operación requiere nombre.",
+    "Selecciona una pieza.",
+    "La operación requiere medida.",
     "Selecciona el material de entrada."
   ]);
 });
 
-test("rechaza códigos DT duplicados", () => {
+test("rechaza códigos OP duplicados", () => {
   expect(
-    validarDetalle(
+    validarOperacionCatalogo(
       {
-        id: "detalle-2",
-        codigo: "DT0001",
-        nombre: "Lateral",
+        id: "operacion-2",
+        codigo: "OP0001",
+        nombre: "Corte lateral",
+        pieza_id: "pieza-1",
         medida: "290",
         material_entrada_id: "mp-tubo"
       },
       [{
-        id: "detalle-1",
-        codigo: "DT0001"
+        id: "operacion-1",
+        codigo: "OP0001"
       }]
     )
   ).toContain(
-    "El código DT0001 ya existe."
+    "El código OP0001 ya existe."
   );
-});
-
-test("permite editar el mismo DT sin marcar duplicado", () => {
-  expect(
-    validarDetalle(
-      {
-        id: "detalle-1",
-        codigo: "DT0001",
-        nombre: "Lateral corregido",
-        medida: "291",
-        material_entrada_id: "mp-tubo"
-      },
-      [{
-        id: "detalle-1",
-        codigo: "DT0001"
-      }]
-    )
-  ).toEqual([]);
 });

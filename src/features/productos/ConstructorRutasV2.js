@@ -11,7 +11,7 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
-  listarDetalles
+  listarOperacionesCatalogo
 } from "../detalles/detallesRepository";
 import {
   crearProductoConRuta,
@@ -35,6 +35,9 @@ const productoInicial = {
 const operacionInicial = {
   codigo: "",
   nombre: "",
+  pieza_id: "",
+  pieza_codigo: "",
+  pieza_nombre: "",
   proceso_codigo: "",
   proceso_nombre: "",
   subproceso_codigo: "",
@@ -80,7 +83,8 @@ function ConstructorRutasV2({
 }) {
   const [productos, setProductos] = useState([]);
   const [materiales, setMateriales] = useState([]);
-  const [detalles, setDetalles] = useState([]);
+  const [operacionesCatalogo,
+    setOperacionesCatalogo] = useState([]);
   const [productoId, setProductoId] =
     useState("");
   const [ruta, setRuta] = useState(null);
@@ -111,13 +115,14 @@ function ConstructorRutasV2({
   const salidasRf = materialesActivos.filter(
     material => material.tipo === "RF"
   );
-  const detallesActivos = detalles.filter(
-    detalle => detalle.activo
-  );
-  const detalleSeleccionadoId =
-    detallesActivos.find(
-      detalle =>
-        detalle.codigo ===
+  const operacionesCatalogoActivas =
+    operacionesCatalogo.filter(
+      operacion => operacion.activo
+    );
+  const operacionCatalogoSeleccionadaId =
+    operacionesCatalogoActivas.find(
+      operacion =>
+        operacion.codigo ===
         operacionForm.codigo
     )?.id || "";
 
@@ -129,7 +134,7 @@ function ConstructorRutasV2({
         const [
           productosData,
           materialesData,
-          detallesData
+          operacionesCatalogoData
         ] =
           await Promise.all([
             listarProductos(
@@ -140,14 +145,16 @@ function ConstructorRutasV2({
               db,
               perfil.empresa_id
             ),
-            listarDetalles(
+            listarOperacionesCatalogo(
               db,
               perfil.empresa_id
             )
           ]);
         setProductos(productosData);
         setMateriales(materialesData);
-        setDetalles(detallesData);
+        setOperacionesCatalogo(
+          operacionesCatalogoData
+        );
       } catch (fallo) {
         setError(
           fallo?.message ||
@@ -212,25 +219,30 @@ function ConstructorRutasV2({
     setMensaje("");
   };
 
-  const seleccionarDetalle = detalleId => {
-    const detalle = detalles.find(
-      item => item.id === detalleId
-    );
+  const seleccionarOperacionCatalogo =
+  operacionId => {
+    const operacion =
+      operacionesCatalogo.find(
+        item => item.id === operacionId
+      );
 
-    if (!detalle) {
+    if (!operacion) {
       actualizarOperacion("codigo", "");
       return;
     }
 
     setOperacionForm(actual => ({
       ...actual,
-      codigo: detalle.codigo,
-      nombre: detalle.nombre,
-      medida: detalle.medida,
+      codigo: operacion.codigo,
+      nombre: operacion.nombre,
+      pieza_id: operacion.pieza_id || "",
+      pieza_codigo: operacion.pieza_codigo || "",
+      pieza_nombre: operacion.pieza_nombre || "",
+      medida: operacion.medida,
       material_entrada_id:
-        detalle.material_entrada_id || "",
+        operacion.material_entrada_id || "",
       material_salida_id:
-        detalle.material_salida_id || ""
+        operacion.material_salida_id || ""
     }));
     setError("");
     setMensaje("");
@@ -779,40 +791,43 @@ function ConstructorRutasV2({
                       gap: 11
                     }}>
                       <label style={etiqueta}>
-                        Código detalle
+                        Operación catálogo
                         <select
-                          value={detalleSeleccionadoId}
+                          value={
+                            operacionCatalogoSeleccionadaId
+                          }
                           onChange={evento =>
-                            seleccionarDetalle(
+                            seleccionarOperacionCatalogo(
                               evento.target.value
                             )
                           }
                           style={campo}
                         >
                           <option value="">
-                            Seleccionar DT
+                            Seleccionar OP
                           </option>
-                          {detallesActivos.map(
-                            detalle => (
+                          {operacionesCatalogoActivas.map(
+                            operacion => (
                               <option
-                                key={detalle.id}
-                                value={detalle.id}
+                                key={operacion.id}
+                                value={operacion.id}
                               >
-                                {detalle.codigo}
+                                {operacion.codigo}
                                 {" - "}
-                                {detalle.nombre}
+                                {operacion.nombre}
                               </option>
                             )
                           )}
                         </select>
-                        {detallesActivos.length === 0 && (
+                        {operacionesCatalogoActivas.length === 0 && (
                           <span style={{
                             color: "#92400E",
                             fontWeight: "normal",
                             fontSize: 12
                           }}>
-                            Crea DT en Catálogo DT antes de
-                            armar la ruta.
+                            Crea operaciones en Catálogo
+                            de Operaciones antes de armar
+                            la ruta.
                           </span>
                         )}
                       </label>
@@ -1159,6 +1174,21 @@ function ConstructorRutasV2({
                                 color: "#475569",
                                 marginTop: 5
                               }}>
+                                {operacion.pieza_codigo && (
+                                  <>
+                                    Pieza{" "}
+                                    {
+                                      operacion
+                                        .pieza_codigo
+                                    }
+                                    {" - "}
+                                    {
+                                      operacion
+                                        .pieza_nombre
+                                    }
+                                    {" · "}
+                                  </>
+                                )}
                                 {
                                   operacion
                                     .proceso_nombre

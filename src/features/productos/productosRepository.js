@@ -101,6 +101,11 @@ export const prepararOperacionRuta = (
       normalizarCodigoOperacion(datos.codigo),
     operacion_nombre:
       limpiarTexto(datos.nombre),
+    pieza_id: limpiarTexto(datos.pieza_id),
+    pieza_codigo:
+      normalizarCodigo(datos.pieza_codigo),
+    pieza_nombre:
+      limpiarTexto(datos.pieza_nombre),
     proceso_id:
       normalizarCodigo(datos.proceso_codigo),
     proceso_nombre:
@@ -144,11 +149,11 @@ export const validarOperacionBasica = (
   if (
     !codigoValido(
       operacion.operacion_codigo,
-      "DT"
+      "OP"
     )
   ) {
     errores.push(
-      "El codigo de operacion debe usar el formato DT0001."
+      "El codigo de operacion debe usar el formato OP0001."
     );
   }
 

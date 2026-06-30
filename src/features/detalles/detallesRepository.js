@@ -9,33 +9,40 @@ import {
   where
 } from "firebase/firestore";
 
-const COLECCION = "catalogo_detalles";
+const COLECCION = "catalogo_operaciones";
 
 const limpiarTexto = valor =>
   (valor || "").toString().trim();
 
-export const normalizarCodigoDetalle = valor =>
+export const normalizarCodigoOperacionCatalogo = valor =>
   limpiarTexto(valor)
     .toUpperCase()
     .replace(/\s+/g, "");
 
 const codigoValido = codigo =>
-  /^DT\d{4,}$/.test(codigo);
+  /^OP\d{4,}$/.test(codigo);
 
-const idDetalle = (empresaId, codigo) =>
+const idOperacionCatalogo = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
 
-export const prepararDetalle = (
+export const prepararOperacionCatalogo = (
   datos,
   empresaId,
   id
 ) => ({
   id,
   empresa_id: empresaId,
-  codigo: normalizarCodigoDetalle(
+  codigo: normalizarCodigoOperacionCatalogo(
     datos.codigo
   ),
   nombre: limpiarTexto(datos.nombre),
+  pieza_id: limpiarTexto(datos.pieza_id),
+  pieza_codigo: limpiarTexto(
+    datos.pieza_codigo
+  ),
+  pieza_nombre: limpiarTexto(
+    datos.pieza_nombre
+  ),
   medida: limpiarTexto(datos.medida),
   material_entrada_id: limpiarTexto(
     datos.material_entrada_id
@@ -46,27 +53,35 @@ export const prepararDetalle = (
   activo: datos.activo !== false
 });
 
-export const validarDetalle = (
-  detalle,
+export const validarOperacionCatalogo = (
+  operacion,
   existentes = []
 ) => {
   const errores = [];
 
-  if (!codigoValido(detalle.codigo)) {
+  if (!codigoValido(operacion.codigo)) {
     errores.push(
-      "El código DT debe usar el formato DT0001."
+      "El código de operación debe usar el formato OP0001."
     );
   }
 
-  if (!detalle.nombre) {
-    errores.push("El DT requiere nombre.");
+  if (!operacion.nombre) {
+    errores.push(
+      "La operación requiere nombre."
+    );
   }
 
-  if (!detalle.medida) {
-    errores.push("El DT requiere medida.");
+  if (!operacion.pieza_id) {
+    errores.push("Selecciona una pieza.");
   }
 
-  if (!detalle.material_entrada_id) {
+  if (!operacion.medida) {
+    errores.push(
+      "La operación requiere medida."
+    );
+  }
+
+  if (!operacion.material_entrada_id) {
     errores.push(
       "Selecciona el material de entrada."
     );
@@ -75,19 +90,19 @@ export const validarDetalle = (
   if (
     existentes.some(
       existente =>
-        existente.codigo === detalle.codigo &&
-        existente.id !== detalle.id
+        existente.codigo === operacion.codigo &&
+        existente.id !== operacion.id
     )
   ) {
     errores.push(
-      `El código ${detalle.codigo} ya existe.`
+      `El código ${operacion.codigo} ya existe.`
     );
   }
 
   return errores;
 };
 
-export const listarDetalles = async (
+export const listarOperacionesCatalogo = async (
   db,
   empresaId
 ) => {
@@ -110,27 +125,27 @@ export const listarDetalles = async (
     );
 };
 
-export const guardarDetalle = async (
+export const guardarOperacionCatalogo = async (
   db,
   empresaId,
   datos,
   existentes = []
 ) => {
-  const codigo = normalizarCodigoDetalle(
+  const codigo = normalizarCodigoOperacionCatalogo(
     datos.codigo
   );
   const referencia = doc(
     db,
     COLECCION,
-    idDetalle(empresaId, codigo)
+    idOperacionCatalogo(empresaId, codigo)
   );
-  const detalle = prepararDetalle(
+  const operacion = prepararOperacionCatalogo(
     datos,
     empresaId,
     referencia.id
   );
-  const errores = validarDetalle(
-    detalle,
+  const errores = validarOperacionCatalogo(
+    operacion,
     existentes
   );
 
@@ -139,32 +154,32 @@ export const guardarDetalle = async (
   }
 
   await setDoc(referencia, {
-    ...detalle,
+    ...operacion,
     creado_en: serverTimestamp(),
     actualizado_en: serverTimestamp()
   });
 
-  return detalle;
+  return operacion;
 };
 
-export const actualizarDetalle = async (
+export const actualizarOperacionCatalogo = async (
   db,
   empresaId,
-  detalleId,
+  operacionId,
   datos,
   existentes = []
 ) => {
-  const detalleActualizado =
-    prepararDetalle(
+  const operacionActualizada =
+    prepararOperacionCatalogo(
       {
         ...datos,
         codigo: datos.codigo
       },
       empresaId,
-      detalleId
+      operacionId
     );
-  const errores = validarDetalle(
-    detalleActualizado,
+  const errores = validarOperacionCatalogo(
+    operacionActualizada,
     existentes
   );
 
@@ -173,18 +188,23 @@ export const actualizarDetalle = async (
   }
 
   await updateDoc(
-    doc(db, COLECCION, detalleId),
+    doc(db, COLECCION, operacionId),
     {
-      nombre: detalleActualizado.nombre,
-      medida: detalleActualizado.medida,
+      nombre: operacionActualizada.nombre,
+      pieza_id: operacionActualizada.pieza_id,
+      pieza_codigo:
+        operacionActualizada.pieza_codigo,
+      pieza_nombre:
+        operacionActualizada.pieza_nombre,
+      medida: operacionActualizada.medida,
       material_entrada_id:
-        detalleActualizado.material_entrada_id,
+        operacionActualizada.material_entrada_id,
       material_salida_id:
-        detalleActualizado.material_salida_id,
-      activo: detalleActualizado.activo,
+        operacionActualizada.material_salida_id,
+      activo: operacionActualizada.activo,
       actualizado_en: serverTimestamp()
     }
   );
 
-  return detalleActualizado;
+  return operacionActualizada;
 };

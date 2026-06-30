@@ -8,25 +8,18 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
-  listarPiezas
-} from "../piezas/piezasRepository";
-import {
-  actualizarOperacionCatalogo,
-  guardarOperacionCatalogo,
-  listarOperacionesCatalogo,
-  prepararOperacionCatalogo,
-  validarOperacionCatalogo
-} from "./detallesRepository";
+  actualizarPieza,
+  guardarPieza,
+  listarPiezas,
+  prepararPieza,
+  validarPieza
+} from "./piezasRepository";
 
 const estadoInicial = {
   codigo: "",
   nombre: "",
-  pieza_id: "",
-  pieza_codigo: "",
-  pieza_nombre: "",
   medida: "",
-  material_entrada_id: "",
-  material_salida_id: "",
+  material_base_id: "",
   activo: true
 };
 
@@ -39,13 +32,11 @@ const campo = {
   fontSize: 15
 };
 
-function CatalogoDetallesV2({
+function CatalogoPiezasV2({
   db,
   perfil,
   onVolver
 }) {
-  const [operaciones, setOperaciones] =
-    useState([]);
   const [piezas, setPiezas] = useState([]);
   const [materiales, setMateriales] =
     useState([]);
@@ -63,15 +54,12 @@ function CatalogoDetallesV2({
   const materialesActivos = materiales.filter(
     material => material.activo
   );
-  const salidasRf = materialesActivos.filter(
-    material => material.tipo === "RF"
-  );
 
-  const vistaOperacion = useMemo(
-    () => prepararOperacionCatalogo(
+  const vistaPieza = useMemo(
+    () => prepararPieza(
       formulario,
       perfil.empresa_id,
-      editandoId || "vista-operacion"
+      editandoId || "vista-pieza"
     ),
     [
       editandoId,
@@ -81,40 +69,28 @@ function CatalogoDetallesV2({
   );
 
   const erroresFormulario = useMemo(
-    () => validarOperacionCatalogo(
-      vistaOperacion,
-      operaciones
-    ),
-    [operaciones, vistaOperacion]
+    () => validarPieza(vistaPieza, piezas),
+    [piezas, vistaPieza]
   );
 
   const cargar = useCallback(async () => {
     try {
       setCargando(true);
       setError("");
-      const [
-        operacionesData,
-        materialesData,
-        piezasData
-      ] =
+      const [piezasData, materialesData] =
         await Promise.all([
-          listarOperacionesCatalogo(
-            db,
-            perfil.empresa_id
-          ),
+          listarPiezas(db, perfil.empresa_id),
           listarMateriales(
             db,
             perfil.empresa_id
-          ),
-          listarPiezas(db, perfil.empresa_id)
+          )
         ]);
-      setOperaciones(operacionesData);
-      setMateriales(materialesData);
       setPiezas(piezasData);
+      setMateriales(materialesData);
     } catch (fallo) {
       setError(
         fallo?.message ||
-        "No se pudo cargar el catálogo de operaciones."
+        "No se pudo cargar el catálogo de piezas."
       );
     } finally {
       setCargando(false);
@@ -134,45 +110,21 @@ function CatalogoDetallesV2({
     setMensaje("");
   };
 
-  const seleccionarPieza = piezaId => {
-    const pieza = piezas.find(
-      item => item.id === piezaId
-    );
-    setFormulario(actual => ({
-      ...actual,
-      pieza_id: pieza?.id || "",
-      pieza_codigo: pieza?.codigo || "",
-      pieza_nombre: pieza?.nombre || "",
-      medida: pieza?.medida || actual.medida,
-      material_entrada_id:
-        pieza?.material_base_id ||
-        actual.material_entrada_id
-    }));
-    setError("");
-    setMensaje("");
-  };
-
   const limpiarFormulario = () => {
     setFormulario(estadoInicial);
     setEditandoId("");
     setError("");
-    setMensaje("");
   };
 
-  const editar = operacion => {
-    setEditandoId(operacion.id);
+  const editar = pieza => {
+    setEditandoId(pieza.id);
     setFormulario({
-      codigo: operacion.codigo,
-      nombre: operacion.nombre,
-      pieza_id: operacion.pieza_id || "",
-      pieza_codigo: operacion.pieza_codigo || "",
-      pieza_nombre: operacion.pieza_nombre || "",
-      medida: operacion.medida,
-      material_entrada_id:
-        operacion.material_entrada_id || "",
-      material_salida_id:
-        operacion.material_salida_id || "",
-      activo: operacion.activo !== false
+      codigo: pieza.codigo,
+      nombre: pieza.nombre,
+      medida: pieza.medida,
+      material_base_id:
+        pieza.material_base_id || "",
+      activo: pieza.activo !== false
     });
     setError("");
     setMensaje("");
@@ -188,25 +140,22 @@ function CatalogoDetallesV2({
 
     try {
       setGuardando(true);
-      setError("");
-      let mensajeExito =
-        "Operación creada.";
+      let mensajeExito = "Pieza creada.";
       if (editandoId) {
-        await actualizarOperacionCatalogo(
+        await actualizarPieza(
           db,
           perfil.empresa_id,
           editandoId,
           formulario,
-          operaciones
+          piezas
         );
-        mensajeExito =
-          "Operación actualizada.";
+        mensajeExito = "Pieza actualizada.";
       } else {
-        await guardarOperacionCatalogo(
+        await guardarPieza(
           db,
           perfil.empresa_id,
           formulario,
-          operaciones
+          piezas
         );
       }
       limpiarFormulario();
@@ -215,7 +164,7 @@ function CatalogoDetallesV2({
     } catch (fallo) {
       setError(
         fallo?.message ||
-        "No se pudo guardar la operación."
+        "No se pudo guardar la pieza."
       );
     } finally {
       setGuardando(false);
@@ -254,15 +203,15 @@ function CatalogoDetallesV2({
         </button>
 
         <h1 style={{ marginBottom: 4 }}>
-          Catálogo de Operaciones
+          Catálogo de Piezas
         </h1>
         <p style={{
           color: "#475569",
           marginTop: 0
         }}>
-          Define etapas productivas reutilizables
-          sobre una pieza: corte, perforado,
-          doblez, soldadura u otra transformación.
+          Define componentes físicos reutilizables.
+          Una pieza puede pasar por varias operaciones
+          como corte, perforado o doblez.
         </p>
 
         <div style={{
@@ -284,12 +233,12 @@ function CatalogoDetallesV2({
           >
             <h2 style={{ marginTop: 0 }}>
               {editandoId
-                ? "Editar operación"
-                : "Nueva operación"}
+                ? "Editar pieza"
+                : "Nueva pieza"}
             </h2>
 
             <label>
-              Código operación
+              Código pieza
               <input
                 value={formulario.codigo}
                 onChange={evento =>
@@ -298,7 +247,7 @@ function CatalogoDetallesV2({
                     evento.target.value
                   )
                 }
-                placeholder="OP0001"
+                placeholder="PZ0001"
                 disabled={Boolean(editandoId)}
                 style={{
                   ...campo,
@@ -312,40 +261,7 @@ function CatalogoDetallesV2({
             </label>
 
             <label>
-              Pieza
-              <select
-                value={formulario.pieza_id}
-                onChange={evento =>
-                  seleccionarPieza(
-                    evento.target.value
-                  )
-                }
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
-              >
-                <option value="">
-                  Seleccionar pieza
-                </option>
-                {piezas
-                  .filter(pieza => pieza.activo)
-                  .map(pieza => (
-                    <option
-                      key={pieza.id}
-                      value={pieza.id}
-                    >
-                      {pieza.codigo}
-                      {" - "}
-                      {pieza.nombre}
-                    </option>
-                  ))}
-              </select>
-            </label>
-
-            <label>
-              Nombre operación
+              Nombre
               <input
                 value={formulario.nombre}
                 onChange={evento =>
@@ -354,7 +270,7 @@ function CatalogoDetallesV2({
                     evento.target.value
                   )
                 }
-                placeholder="Corte lateral 290"
+                placeholder="Lateral 290"
                 style={{
                   ...campo,
                   marginTop: 6,
@@ -383,14 +299,12 @@ function CatalogoDetallesV2({
             </label>
 
             <label>
-              Material entrada
+              Material base sugerido
               <select
-                value={
-                  formulario.material_entrada_id
-                }
+                value={formulario.material_base_id}
                 onChange={evento =>
                   actualizar(
-                    "material_entrada_id",
+                    "material_base_id",
                     evento.target.value
                   )
                 }
@@ -401,43 +315,9 @@ function CatalogoDetallesV2({
                 }}
               >
                 <option value="">
-                  Seleccionar material
+                  Sin material base
                 </option>
                 {materialesActivos.map(material => (
-                  <option
-                    key={material.id}
-                    value={material.id}
-                  >
-                    {material.codigo}
-                    {" - "}
-                    {material.nombre}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              RF salida sugerido
-              <select
-                value={
-                  formulario.material_salida_id
-                }
-                onChange={evento =>
-                  actualizar(
-                    "material_salida_id",
-                    evento.target.value
-                  )
-                }
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
-              >
-                <option value="">
-                  Sin RF sugerido
-                </option>
-                {salidasRf.map(material => (
                   <option
                     key={material.id}
                     value={material.id}
@@ -466,7 +346,7 @@ function CatalogoDetallesV2({
                   )
                 }
               />
-              Operación activa
+              Pieza activa
             </label>
 
             {error && (
@@ -501,7 +381,7 @@ function CatalogoDetallesV2({
                 padding: 12,
                 border: "none",
                 borderRadius: 9,
-                background: "#7C3AED",
+                background: "#2563EB",
                 color: "white",
                 fontWeight: "bold",
                 cursor: guardando
@@ -513,7 +393,7 @@ function CatalogoDetallesV2({
                 ? "Guardando..."
                 : editandoId
                   ? "Guardar cambios"
-                  : "Crear operación"}
+                  : "Crear pieza"}
             </button>
 
             {editandoId && (
@@ -540,38 +420,34 @@ function CatalogoDetallesV2({
               "0 2px 10px rgba(15,23,42,0.08)"
           }}>
             <h2 style={{ marginTop: 0 }}>
-              Operaciones registradas (
-              {operaciones.length})
+              Piezas registradas ({piezas.length})
             </h2>
 
             {cargando ? (
               <p>Cargando catálogo...</p>
-            ) : operaciones.length === 0 ? (
+            ) : piezas.length === 0 ? (
               <p style={{ color: "#64748B" }}>
-                Todavía no hay operaciones registradas.
+                Todavía no hay piezas registradas.
               </p>
             ) : (
               <div style={{
                 display: "grid",
                 gap: 10
               }}>
-                {operaciones.map(operacion => {
-                  const entrada = materialPorId(
-                    operacion.material_entrada_id
-                  );
-                  const salida = materialPorId(
-                    operacion.material_salida_id
+                {piezas.map(pieza => {
+                  const material = materialPorId(
+                    pieza.material_base_id
                   );
 
                   return (
                     <article
-                      key={operacion.id}
+                      key={pieza.id}
                       style={{
                         border:
                           "1px solid #E2E8F0",
                         borderRadius: 10,
                         padding: 13,
-                        opacity: operacion.activo
+                        opacity: pieza.activo
                           ? 1
                           : 0.58
                       }}
@@ -584,31 +460,25 @@ function CatalogoDetallesV2({
                       }}>
                         <div>
                           <strong>
-                            {operacion.codigo}
+                            {pieza.codigo}
                             {" - "}
-                            {operacion.nombre}
+                            {pieza.nombre}
                           </strong>
                           <div style={{
                             color: "#475569",
                             fontSize: 14,
                             marginTop: 5
                           }}>
-                            Medida:{" "}
-                            {operacion.medida}
-                            {" · Pieza: "}
-                            {operacion.pieza_codigo ||
-                              "-"}
-                            {" · Entrada: "}
-                            {entrada?.codigo || "?"}
-                            {salida
-                              ? ` · Salida: ${salida.codigo}`
+                            Medida: {pieza.medida}
+                            {material
+                              ? ` · Material base: ${material.codigo}`
                               : ""}
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() =>
-                            editar(operacion)
+                            editar(pieza)
                           }
                           style={{
                             alignSelf: "start",
@@ -635,4 +505,4 @@ function CatalogoDetallesV2({
   );
 }
 
-export default CatalogoDetallesV2;
+export default CatalogoPiezasV2;
