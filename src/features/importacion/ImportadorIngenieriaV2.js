@@ -163,16 +163,15 @@ function ImportadorIngenieriaV2({
       };
 
       data.piezas.forEach(pieza => {
-        if (
-          pieza.material_base_codigo &&
-          !materiales.has(
-            pieza.material_base_codigo
-          )
-        ) {
-          errores.push(
-            `Pieza ${pieza.codigo} usa material base inexistente ${pieza.material_base_codigo}.`
-          );
-        }
+        (pieza.materiales_base_codigos || []).forEach(
+          materialCodigo => {
+            if (!materiales.has(materialCodigo)) {
+              errores.push(
+                `Pieza ${pieza.codigo} usa material base inexistente ${materialCodigo}.`
+              );
+            }
+          }
+        );
         if (existentes.piezas.has(pieza.codigo)) {
           advertencias.push(
             `Pieza ${pieza.codigo} ya existe y se omitirá.`
@@ -333,10 +332,18 @@ function ImportadorIngenieriaV2({
         if (piezas.has(pieza.codigo)) {
           continue;
         }
-        const materialBase =
-          materiales.get(
-            pieza.material_base_codigo
-          );
+        const materialesBase =
+          (pieza.materiales_base_codigos || [])
+            .map(materialCodigo =>
+              materiales.get(materialCodigo)
+            )
+            .filter(Boolean)
+            .map(material => ({
+              material_id: material.id,
+              material_codigo: material.codigo,
+              material_nombre: material.nombre,
+              cantidad: 1
+            }));
         const creada = await guardarPieza(
           db,
           perfil.empresa_id,
@@ -345,7 +352,9 @@ function ImportadorIngenieriaV2({
             nombre: pieza.nombre,
             medida: pieza.medida,
             material_base_id:
-              materialBase?.id || "",
+              materialesBase[0]?.material_id ||
+              "",
+            materiales_base: materialesBase,
             activo: pieza.activo
           },
           Array.from(piezas.values())

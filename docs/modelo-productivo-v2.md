@@ -56,13 +56,22 @@ codigo: PZ0001
 nombre
 medida
 material_base_id
+materiales_base: [{
+  material_id,
+  material_codigo,
+  material_nombre,
+  cantidad
+}]
 activo
 creado_en
 actualizado_en
 ```
 
 La pieza representa el componente fisico: lateral, bandeja, cabecero, gancho,
-lata, etc. Una misma pieza puede pasar por varias operaciones productivas.
+lata, armado soldado, etc. Una misma pieza puede pasar por varias operaciones
+productivas. `material_base_id` se conserva por compatibilidad y corresponde al
+primer material de `materiales_base`; las piezas nuevas pueden usar uno o varios
+MP/RF como materiales base.
 
 ### `catalogo_subproductos/{empresaId}__{codigoSUB}`
 
@@ -109,7 +118,9 @@ El importador primero lee el archivo, normaliza codigos, valida referencias
 cruzadas y muestra una vista previa. Solo permite confirmar la importacion si no
 hay errores criticos. Los registros que ya existen se omiten para evitar
 duplicados. Los materiales `MP` y `RF` deben existir previamente en el catalogo
-MP/RF para que la operacion pueda enlazarse con seguridad.
+MP/RF para que la operacion pueda enlazarse con seguridad. En la hoja `Piezas`,
+la columna `material_base_codigo` acepta uno o varios codigos separados por coma
+(por ejemplo `RF0001, RF0002`).
 
 ### `catalogo_operaciones/{empresaId}__{codigoOP}`
 

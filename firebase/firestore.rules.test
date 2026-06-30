@@ -152,6 +152,7 @@ service cloud.firestore {
           'nombre',
           'medida',
           'material_base_id',
+          'materiales_base',
           'activo',
           'actualizado_en'
         ]);

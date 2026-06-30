@@ -20,6 +20,12 @@ const normalizarEncabezado = valor =>
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, "_");
 
+const normalizarListaCodigos = valor =>
+  limpiarTexto(valor)
+    .split(/[,;|]/)
+    .map(normalizarCodigo)
+    .filter(Boolean);
+
 const leerFilas = (hoja, xlsx) => {
   if (!hoja) {
     return [];
@@ -185,6 +191,10 @@ export const leerIngenieriaDesdeWorkbook = (
       material_base_codigo: normalizarCodigo(
         fila.material_base_codigo
       ),
+      materiales_base_codigos:
+        normalizarListaCodigos(
+          fila.material_base_codigo
+        ),
       activo: true
     }));
 
@@ -362,6 +372,18 @@ export const validarIngenieriaImportada = data => {
         `Pieza ${pieza.codigo} requiere nombre y medida.`
       );
     }
+
+    const materialesBase = new Set();
+    (pieza.materiales_base_codigos || []).forEach(
+      materialCodigo => {
+        if (materialesBase.has(materialCodigo)) {
+          errores.push(
+            `Pieza ${pieza.codigo} repite material base ${materialCodigo}.`
+          );
+        }
+        materialesBase.add(materialCodigo);
+      }
+    );
   });
 
   data.subproductos.forEach(subproducto => {

@@ -138,6 +138,10 @@ function CatalogoDetallesV2({
     const pieza = piezas.find(
       item => item.id === piezaId
     );
+    const materialBase =
+      pieza?.materiales_base?.[0]?.material_id ||
+      pieza?.material_base_id ||
+      "";
     setFormulario(actual => ({
       ...actual,
       pieza_id: pieza?.id || "",
@@ -145,7 +149,7 @@ function CatalogoDetallesV2({
       pieza_nombre: pieza?.nombre || "",
       medida: pieza?.medida || actual.medida,
       material_entrada_id:
-        pieza?.material_base_id ||
+        materialBase ||
         actual.material_entrada_id
     }));
     setError("");

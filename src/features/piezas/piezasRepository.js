@@ -25,23 +25,76 @@ const codigoValido = codigo =>
 const idPieza = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
 
+export const prepararMaterialesBase = (
+  materiales = [],
+  materialBaseId = ""
+) => {
+  const materialesNormalizados = materiales
+    .map(material => {
+      const cantidad = Number(material.cantidad);
+
+      return {
+        material_id: limpiarTexto(
+          material.material_id
+        ),
+        material_codigo:
+          normalizarCodigoPieza(
+            material.material_codigo
+          ),
+        material_nombre: limpiarTexto(
+          material.material_nombre
+        ),
+        cantidad: Number.isFinite(cantidad)
+          ? cantidad
+          : 1
+      };
+    })
+    .filter(material => material.material_id);
+
+  const materialSimple =
+    limpiarTexto(materialBaseId);
+
+  if (
+    materialesNormalizados.length === 0 &&
+    materialSimple
+  ) {
+    return [{
+      material_id: materialSimple,
+      material_codigo: "",
+      material_nombre: "",
+      cantidad: 1
+    }];
+  }
+
+  return materialesNormalizados;
+};
+
 export const prepararPieza = (
   datos,
   empresaId,
   id
-) => ({
-  id,
-  empresa_id: empresaId,
-  codigo: normalizarCodigoPieza(
-    datos.codigo
-  ),
-  nombre: limpiarTexto(datos.nombre),
-  medida: limpiarTexto(datos.medida),
-  material_base_id: limpiarTexto(
-    datos.material_base_id
-  ),
-  activo: datos.activo !== false
-});
+) => {
+  const materialesBase =
+    prepararMaterialesBase(
+      datos.materiales_base,
+      datos.material_base_id
+    );
+
+  return {
+    id,
+    empresa_id: empresaId,
+    codigo: normalizarCodigoPieza(
+      datos.codigo
+    ),
+    nombre: limpiarTexto(datos.nombre),
+    medida: limpiarTexto(datos.medida),
+    material_base_id:
+      materialesBase[0]?.material_id ||
+      limpiarTexto(datos.material_base_id),
+    materiales_base: materialesBase,
+    activo: datos.activo !== false
+  };
+};
 
 export const validarPieza = (
   pieza,
@@ -62,6 +115,36 @@ export const validarPieza = (
   if (!pieza.medida) {
     errores.push("La pieza requiere medida.");
   }
+
+  const materialesUsados = new Set();
+  (pieza.materiales_base || []).forEach(
+    (material, indice) => {
+      const posicion = indice + 1;
+
+      if (!material.material_id) {
+        errores.push(
+          `El material base ${posicion} requiere material.`
+        );
+      }
+
+      if (
+        !Number.isFinite(material.cantidad) ||
+        material.cantidad <= 0
+      ) {
+        errores.push(
+          `El material base ${posicion} requiere cantidad mayor que cero.`
+        );
+      }
+
+      if (materialesUsados.has(material.material_id)) {
+        errores.push(
+          `El material base ${material.material_codigo || material.material_id} está repetido.`
+        );
+      }
+
+      materialesUsados.add(material.material_id);
+    }
+  );
 
   if (
     existentes.some(
@@ -166,6 +249,8 @@ export const actualizarPieza = async (
       medida: pieza.medida,
       material_base_id:
         pieza.material_base_id,
+      materiales_base:
+        pieza.materiales_base,
       activo: pieza.activo,
       actualizado_en: serverTimestamp()
     }

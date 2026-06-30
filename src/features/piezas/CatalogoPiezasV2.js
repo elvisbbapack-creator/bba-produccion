@@ -20,7 +20,13 @@ const estadoInicial = {
   nombre: "",
   medida: "",
   material_base_id: "",
+  materiales_base: [],
   activo: true
+};
+
+const materialBaseInicial = {
+  material_id: "",
+  cantidad: 1
 };
 
 const campo = {
@@ -110,6 +116,96 @@ function CatalogoPiezasV2({
     setMensaje("");
   };
 
+  const materialesBaseFormulario =
+    formulario.materiales_base.length > 0
+      ? formulario.materiales_base
+      : [materialBaseInicial];
+
+  const actualizarMaterialBase = (
+    indice,
+    campoMaterial,
+    valor
+  ) => {
+    setFormulario(actual => {
+      const lista =
+        actual.materiales_base.length > 0
+          ? [...actual.materiales_base]
+          : [materialBaseInicial];
+      const materialSeleccionado =
+        campoMaterial === "material_id"
+          ? materiales.find(
+              material => material.id === valor
+            )
+          : null;
+
+      lista[indice] = {
+        ...lista[indice],
+        [campoMaterial]: valor,
+        ...(materialSeleccionado
+          ? {
+              material_codigo:
+                materialSeleccionado.codigo,
+              material_nombre:
+                materialSeleccionado.nombre
+            }
+          : {})
+      };
+
+      const materialesBase = lista.map(item => ({
+        ...item,
+        cantidad:
+          campoMaterial === "cantidad" &&
+          lista[indice] === item
+            ? valor
+            : item.cantidad
+      }));
+
+      return {
+        ...actual,
+        material_base_id:
+          materialesBase[0]?.material_id || "",
+        materiales_base: materialesBase
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const agregarMaterialBase = () => {
+    setFormulario(actual => ({
+      ...actual,
+      materiales_base: [
+        ...(actual.materiales_base.length > 0
+          ? actual.materiales_base
+          : [materialBaseInicial]),
+        materialBaseInicial
+      ]
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const quitarMaterialBase = indice => {
+    setFormulario(actual => {
+      const lista = (
+        actual.materiales_base.length > 0
+          ? actual.materiales_base
+          : [materialBaseInicial]
+      ).filter((_, posicion) => posicion !== indice);
+      const materialesBase =
+        lista.length > 0 ? lista : [];
+
+      return {
+        ...actual,
+        material_base_id:
+          materialesBase[0]?.material_id || "",
+        materiales_base: materialesBase
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
   const limpiarFormulario = () => {
     setFormulario(estadoInicial);
     setEditandoId("");
@@ -124,6 +220,15 @@ function CatalogoPiezasV2({
       medida: pieza.medida,
       material_base_id:
         pieza.material_base_id || "",
+      materiales_base:
+        pieza.materiales_base ||
+        (pieza.material_base_id
+          ? [{
+              material_id:
+                pieza.material_base_id,
+              cantidad: 1
+            }]
+          : []),
       activo: pieza.activo !== false
     });
     setError("");
@@ -298,37 +403,120 @@ function CatalogoPiezasV2({
               />
             </label>
 
-            <label>
-              Material base sugerido
-              <select
-                value={formulario.material_base_id}
-                onChange={evento =>
-                  actualizar(
-                    "material_base_id",
-                    evento.target.value
-                  )
-                }
+            <div style={{
+              border: "1px solid #E2E8F0",
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 14
+            }}>
+              <strong>Materiales base</strong>
+              <p style={{
+                color: "#64748B",
+                fontSize: 13,
+                marginTop: 6
+              }}>
+                Agrega uno o varios MP/RF que componen
+                esta pieza.
+              </p>
+
+              {materialesBaseFormulario.map(
+                (materialBase, indice) => (
+                  <div
+                    key={`${indice}-${materialBase.material_id}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "1fr 90px 42px",
+                      gap: 8,
+                      marginBottom: 8
+                    }}
+                  >
+                    <select
+                      value={
+                        materialBase.material_id || ""
+                      }
+                      onChange={evento =>
+                        actualizarMaterialBase(
+                          indice,
+                          "material_id",
+                          evento.target.value
+                        )
+                      }
+                      style={campo}
+                    >
+                      <option value="">
+                        Sin material base
+                      </option>
+                      {materialesActivos.map(
+                        material => (
+                          <option
+                            key={material.id}
+                            value={material.id}
+                          >
+                            {material.codigo}
+                            {" - "}
+                            {material.nombre}
+                          </option>
+                        )
+                      )}
+                    </select>
+                    <input
+                      type="number"
+                      min="0.0001"
+                      step="0.0001"
+                      value={
+                        materialBase.cantidad || 1
+                      }
+                      onChange={evento =>
+                        actualizarMaterialBase(
+                          indice,
+                          "cantidad",
+                          evento.target.value
+                        )
+                      }
+                      style={campo}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        quitarMaterialBase(indice)
+                      }
+                      disabled={
+                        materialesBaseFormulario
+                          .length === 1 &&
+                        !materialBase.material_id
+                      }
+                      style={{
+                        border:
+                          "1px solid #FCA5A5",
+                        borderRadius: 8,
+                        background: "#FEF2F2",
+                        color: "#B91C1C",
+                        cursor: "pointer"
+                      }}
+                      title="Quitar material base"
+                    >
+                      -
+                    </button>
+                  </div>
+                )
+              )}
+
+              <button
+                type="button"
+                onClick={agregarMaterialBase}
                 style={{
                   ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
+                  background: "#EFF6FF",
+                  borderColor: "#BFDBFE",
+                  color: "#1D4ED8",
+                  cursor: "pointer",
+                  fontWeight: "bold"
                 }}
               >
-                <option value="">
-                  Sin material base
-                </option>
-                {materialesActivos.map(material => (
-                  <option
-                    key={material.id}
-                    value={material.id}
-                  >
-                    {material.codigo}
-                    {" - "}
-                    {material.nombre}
-                  </option>
-                ))}
-              </select>
-            </label>
+                + Agregar material base
+              </button>
+            </div>
 
             <label style={{
               display: "flex",
@@ -435,9 +623,28 @@ function CatalogoPiezasV2({
                 gap: 10
               }}>
                 {piezas.map(pieza => {
-                  const material = materialPorId(
-                    pieza.material_base_id
-                  );
+                  const materialesBase =
+                    pieza.materiales_base?.length > 0
+                      ? pieza.materiales_base
+                      : pieza.material_base_id
+                        ? [{
+                            material_id:
+                              pieza.material_base_id,
+                            cantidad: 1
+                          }]
+                        : [];
+                  const materialesTexto =
+                    materialesBase
+                      .map(materialBase => {
+                        const material = materialPorId(
+                          materialBase.material_id
+                        );
+                        return material
+                          ? `${material.codigo} x ${materialBase.cantidad || 1}`
+                          : "";
+                      })
+                      .filter(Boolean)
+                      .join(", ");
 
                   return (
                     <article
@@ -470,8 +677,8 @@ function CatalogoPiezasV2({
                             marginTop: 5
                           }}>
                             Medida: {pieza.medida}
-                            {material
-                              ? ` · Material base: ${material.codigo}`
+                            {materialesTexto
+                              ? ` · Materiales base: ${materialesTexto}`
                               : ""}
                           </div>
                         </div>
