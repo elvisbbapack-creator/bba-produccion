@@ -64,6 +64,34 @@ actualizado_en
 La pieza representa el componente fisico: lateral, bandeja, cabecero, gancho,
 lata, etc. Una misma pieza puede pasar por varias operaciones productivas.
 
+### `catalogo_subproductos/{empresaId}__{codigoSUB}`
+
+```text
+empresa_id
+codigo: SUB0001
+nombre
+producto_id
+producto_codigo
+producto_nombre
+pieza_salida_id
+pieza_salida_codigo
+pieza_salida_nombre
+componentes: [{
+  pieza_id,
+  pieza_codigo,
+  pieza_nombre,
+  cantidad
+}]
+activo
+creado_en
+actualizado_en
+```
+
+El subproducto agrupa piezas que se unen, normalmente por soldadura. La salida
+del subproducto es una pieza fisica nueva, nombrada como el subproducto mas la
+palabra `Armado` (por ejemplo `Lateral Armado`). Esa pieza armada puede entrar
+despues a lavado, pintura, embalaje u otra operacion de ruta.
+
 ### `catalogo_operaciones/{empresaId}__{codigoOP}`
 
 ```text

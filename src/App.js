@@ -70,6 +70,8 @@ import CatalogoDetallesV2 from
   "./features/detalles/CatalogoDetallesV2";
 import CatalogoPiezasV2 from
   "./features/piezas/CatalogoPiezasV2";
+import CatalogoSubproductosV2 from
+  "./features/subproductos/CatalogoSubproductosV2";
 
 function App() {
   const esMobile =
@@ -1671,6 +1673,24 @@ const cargarTodosLosParos = async () => {
             ) && (
               <button
                 onClick={() =>
+                  setPantalla("subproductosV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#0F766E"
+                }}
+              >
+                Catálogo de Subproductos (V2)
+              </button>
+            )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
                   setPantalla("detallesV2")
                 }
                 style={{
@@ -1820,6 +1840,21 @@ if (
 ) {
   return (
     <CatalogoPiezasV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "subproductosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoSubproductosV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

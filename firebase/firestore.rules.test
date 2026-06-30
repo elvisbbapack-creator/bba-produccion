@@ -189,6 +189,38 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /catalogo_subproductos/{subproductoId} {
+      allow read: if belongsToCompany(resource.data);
+      allow create: if canManage() &&
+        belongsToCompany(
+          request.resource.data
+        );
+      allow update: if canManage() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.codigo ==
+          resource.data.codigo &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'nombre',
+          'producto_id',
+          'producto_codigo',
+          'producto_nombre',
+          'pieza_salida_id',
+          'pieza_salida_codigo',
+          'pieza_salida_nombre',
+          'componentes',
+          'activo',
+          'actualizado_en'
+        ]);
+      allow delete: if false;
+    }
+
     match /{catalogo}/{registroId} {
       allow read: if catalogo in [
           'catalogo_defectos',
