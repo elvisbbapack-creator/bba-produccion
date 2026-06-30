@@ -83,6 +83,9 @@ service cloud.firestore {
         request.resource.data.diff(
           resource.data
         ).affectedKeys().hasOnly([
+          'nombre',
+          'unidad_medida',
+          'es_comprado',
           'activo',
           'actualizado_en'
         ]);

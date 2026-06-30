@@ -72,3 +72,25 @@ test("rechaza codigos duplicados", () => {
     ])
   ).toContain("El codigo MP0001 ya existe.");
 });
+
+test("permite editar el mismo material sin marcarlo duplicado", () => {
+  const material = prepararMaterial(
+    {
+      codigo: "MP0001",
+      tipo: TIPOS_MATERIAL.MATERIA_PRIMA,
+      nombre: "Tubo corregido",
+      unidad_medida: "metro"
+    },
+    "bba",
+    "material-1"
+  );
+
+  expect(
+    validarNuevoMaterial(material, [
+      {
+        id: "material-1",
+        codigo: "MP0001"
+      }
+    ])
+  ).toEqual([]);
+});

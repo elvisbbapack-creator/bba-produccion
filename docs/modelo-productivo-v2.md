@@ -46,7 +46,8 @@ empresa_id
 ```
 
 `RF` es un recurso en fabricacion generado por una operacion anterior. Cada RF
-debe tener codigo propio para enlazar una salida con la siguiente entrada.
+debe tener codigo propio para enlazar una salida con la siguiente entrada. El
+nombre y la unidad de medida pueden corregirse sin cambiar el codigo.
 
 ### `catalogo_piezas/{empresaId}__{codigoPZ}`
 

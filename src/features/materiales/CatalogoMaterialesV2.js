@@ -8,6 +8,7 @@ import {
   TIPOS_MATERIAL
 } from "../../domain/produccionV2";
 import {
+  actualizarMaterial,
   cambiarEstadoMaterial,
   crearMaterial,
   listarMateriales,
@@ -40,6 +41,8 @@ function CatalogoMaterialesV2({
   const [materiales, setMateriales] = useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
+  const [editandoId, setEditandoId] =
+    useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -73,9 +76,9 @@ function CatalogoMaterialesV2({
     () => prepararMaterial(
       formulario,
       perfil.empresa_id,
-      "vista-previa"
+      editandoId || "vista-previa"
     ),
-    [formulario, perfil.empresa_id]
+    [editandoId, formulario, perfil.empresa_id]
   );
 
   const erroresFormulario = useMemo(
@@ -95,6 +98,26 @@ function CatalogoMaterialesV2({
     setMensaje("");
   };
 
+  const limpiarFormulario = () => {
+    setFormulario(estadoInicial);
+    setEditandoId("");
+    setError("");
+  };
+
+  const editar = material => {
+    setEditandoId(material.id);
+    setFormulario({
+      tipo: material.tipo,
+      codigo: material.codigo,
+      nombre: material.nombre,
+      unidad_medida: material.unidad_medida,
+      es_comprado: Boolean(material.es_comprado),
+      activo: material.activo !== false
+    });
+    setError("");
+    setMensaje("");
+  };
+
   const guardar = async (evento) => {
     evento.preventDefault();
 
@@ -106,18 +129,33 @@ function CatalogoMaterialesV2({
     try {
       setGuardando(true);
       setError("");
-      await crearMaterial(
-        db,
-        perfil.empresa_id,
-        formulario
-      );
-      setFormulario(estadoInicial);
-      setMensaje("Material creado correctamente.");
+      if (editandoId) {
+        await actualizarMaterial(
+          db,
+          perfil.empresa_id,
+          editandoId,
+          formulario,
+          materiales
+        );
+        setMensaje(
+          "Material actualizado correctamente."
+        );
+      } else {
+        await crearMaterial(
+          db,
+          perfil.empresa_id,
+          formulario
+        );
+        setMensaje(
+          "Material creado correctamente."
+        );
+      }
+      limpiarFormulario();
       await cargar();
     } catch (fallo) {
       setError(
         fallo?.message ||
-        "No se pudo crear el material."
+        "No se pudo guardar el material."
       );
     } finally {
       setGuardando(false);
@@ -206,7 +244,9 @@ function CatalogoMaterialesV2({
             }}
           >
             <h2 style={{ marginTop: 0 }}>
-              Nuevo material
+              {editandoId
+                ? "Editar material"
+                : "Nuevo material"}
             </h2>
 
             <label>
@@ -226,10 +266,14 @@ function CatalogoMaterialesV2({
                   setError("");
                   setMensaje("");
                 }}
+                disabled={Boolean(editandoId)}
                 style={{
                   ...estiloCampo,
                   marginTop: 6,
-                  marginBottom: 14
+                  marginBottom: 14,
+                  background: editandoId
+                    ? "#F8FAFC"
+                    : "white"
                 }}
               >
                 <option value="MP">
@@ -252,10 +296,14 @@ function CatalogoMaterialesV2({
                   )
                 }
                 placeholder={`${formulario.tipo}0001`}
+                disabled={Boolean(editandoId)}
                 style={{
                   ...estiloCampo,
                   marginTop: 6,
-                  marginBottom: 14
+                  marginBottom: 14,
+                  background: editandoId
+                    ? "#F8FAFC"
+                    : "white"
                 }}
               />
             </label>
@@ -361,8 +409,25 @@ function CatalogoMaterialesV2({
             >
               {guardando
                 ? "Guardando..."
-                : "Crear material"}
+                : editandoId
+                  ? "Guardar cambios"
+                  : "Crear material"}
             </button>
+
+            {editandoId && (
+              <button
+                type="button"
+                onClick={limpiarFormulario}
+                style={{
+                  ...estiloCampo,
+                  marginTop: 10,
+                  background: "white",
+                  cursor: "pointer"
+                }}
+              >
+                Cancelar edición
+              </button>
+            )}
           </form>
 
           <section style={{
@@ -423,25 +488,46 @@ function CatalogoMaterialesV2({
                             : ""}
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          cambiarEstado(material)
-                        }
-                        style={{
-                          alignSelf: "start",
-                          border:
-                            "1px solid #CBD5E1",
-                          borderRadius: 7,
-                          background: "white",
-                          padding: "7px 10px",
-                          cursor: "pointer"
-                        }}
-                      >
-                        {material.activo
-                          ? "Desactivar"
-                          : "Activar"}
-                      </button>
+                      <div style={{
+                        display: "flex",
+                        gap: 8,
+                        alignSelf: "start"
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            editar(material)
+                          }
+                          style={{
+                            border:
+                              "1px solid #CBD5E1",
+                            borderRadius: 7,
+                            background: "white",
+                            padding: "7px 10px",
+                            cursor: "pointer"
+                          }}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            cambiarEstado(material)
+                          }
+                          style={{
+                            border:
+                              "1px solid #CBD5E1",
+                            borderRadius: 7,
+                            background: "white",
+                            padding: "7px 10px",
+                            cursor: "pointer"
+                          }}
+                        >
+                          {material.activo
+                            ? "Desactivar"
+                            : "Activar"}
+                        </button>
+                      </div>
                     </div>
                   </article>
                 ))}

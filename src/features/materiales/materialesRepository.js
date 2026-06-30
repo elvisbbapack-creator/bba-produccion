@@ -127,6 +127,41 @@ export const crearMaterial = async (
   return material;
 };
 
+export const actualizarMaterial = async (
+  db,
+  empresaId,
+  materialId,
+  datos,
+  existentes = []
+) => {
+  const material = prepararMaterial(
+    datos,
+    empresaId,
+    materialId
+  );
+  const errores = validarNuevoMaterial(
+    material,
+    existentes
+  );
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  await updateDoc(
+    doc(db, COLECCION, materialId),
+    {
+      nombre: material.nombre,
+      unidad_medida: material.unidad_medida,
+      es_comprado: material.es_comprado,
+      activo: material.activo,
+      actualizado_en: serverTimestamp()
+    }
+  );
+
+  return material;
+};
+
 export const cambiarEstadoMaterial = async (
   db,
   materialId,
