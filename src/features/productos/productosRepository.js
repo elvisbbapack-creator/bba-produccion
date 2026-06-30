@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -572,8 +573,10 @@ export const obtenerRuta = async (
 
   return {
     id: rutaId,
+    ...(rutaSnap.exists() ? rutaSnap.data() : {}),
     producto_id: productoId,
     version,
+    existe: rutaSnap.exists(),
     estado:
       rutaSnap.exists()
         ? rutaSnap.data().estado
@@ -589,6 +592,37 @@ export const obtenerRuta = async (
           Number(b.secuencia)
       )
   };
+};
+
+export const contarOrdenesPorRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  version,
+  perfil
+}) => {
+  const filtros = [
+    where("empresa_id", "==", empresaId),
+    where("producto_id", "==", productoId),
+    where("ruta_version", "==", Number(version))
+  ];
+  const plantas = perfil?.planta_ids || [];
+
+  if (perfil?.rol !== "gerencia") {
+    if (plantas.length === 0) {
+      return 0;
+    }
+    filtros.push(where("planta_id", "in", plantas));
+  }
+
+  const snapshot = await getDocs(
+    query(
+      collection(db, "ordenes_trabajo"),
+      ...filtros
+    )
+  );
+
+  return snapshot.size;
 };
 
 export const guardarOperacionRuta = async (
@@ -635,6 +669,48 @@ export const guardarOperacionRuta = async (
   });
 
   return operacion;
+};
+
+export const eliminarOperacionRuta = async ({
+  db,
+  productoId,
+  version,
+  operacionId,
+  ruta
+}) => {
+  if (ruta?.estado !== "borrador") {
+    throw new Error(
+      "Solo se pueden eliminar operaciones de rutas en borrador."
+    );
+  }
+
+  const usadaComoDependencia = (
+    ruta?.operaciones || []
+  ).some(operacion =>
+    (operacion.dependencias || []).some(
+      dependencia =>
+        dependencia.ruta_operacion_id ===
+        operacionId
+    )
+  );
+
+  if (usadaComoDependencia) {
+    throw new Error(
+      "No se puede eliminar: otra operación depende de esta."
+    );
+  }
+
+  await deleteDoc(
+    doc(
+      db,
+      "productos",
+      productoId,
+      "rutas",
+      idRuta(version),
+      "operaciones",
+      operacionId
+    )
+  );
 };
 
 export const publicarRuta = async ({
@@ -685,6 +761,148 @@ export const publicarRuta = async ({
     empresa_id: empresaId
   });
   await lote.commit();
+};
+
+export const eliminarRutaBorrador = async ({
+  db,
+  empresaId,
+  producto,
+  ruta,
+  perfil
+}) => {
+  if (!producto?.id || !ruta?.version) {
+    throw new Error("Selecciona una ruta.");
+  }
+
+  if (ruta.estado !== "borrador") {
+    throw new Error(
+      "Solo se pueden eliminar rutas en borrador."
+    );
+  }
+
+  const ordenes = await contarOrdenesPorRuta({
+    db,
+    empresaId,
+    productoId: producto.id,
+    version: ruta.version,
+    perfil
+  });
+
+  if (ordenes > 0) {
+    throw new Error(
+      "No se puede eliminar: existen OT asociadas a esta ruta."
+    );
+  }
+
+  const rutaRef = doc(
+    db,
+    "productos",
+    producto.id,
+    "rutas",
+    idRuta(ruta.version)
+  );
+  const operacionesSnap = await getDocs(
+    collection(
+      db,
+      "productos",
+      producto.id,
+      "rutas",
+      idRuta(ruta.version),
+      "operaciones"
+    )
+  );
+  const lote = writeBatch(db);
+
+  operacionesSnap.docs.forEach(documento => {
+    lote.delete(documento.ref);
+  });
+  lote.delete(rutaRef);
+
+  if (
+    Number(producto.version_ruta_borrador) ===
+    Number(ruta.version)
+  ) {
+    lote.update(doc(db, "productos", producto.id), {
+      version_ruta_borrador: null,
+      fecha_actualizacion: serverTimestamp()
+    });
+  }
+
+  await lote.commit();
+
+  return {
+    eliminado_por: perfil?.uid || "",
+    version: ruta.version
+  };
+};
+
+export const anularRutaPublicada = async ({
+  db,
+  empresaId,
+  producto,
+  ruta,
+  motivo,
+  perfil
+}) => {
+  const motivoLimpio = limpiarTexto(motivo);
+
+  if (!producto?.id || !ruta?.version) {
+    throw new Error("Selecciona una ruta.");
+  }
+
+  if (ruta.estado !== "publicada") {
+    throw new Error(
+      "Solo se pueden anular rutas publicadas."
+    );
+  }
+
+  if (motivoLimpio.length < 10) {
+    throw new Error(
+      "Indica un motivo de al menos 10 caracteres."
+    );
+  }
+
+  const productoRef = doc(
+    db,
+    "productos",
+    producto.id
+  );
+  const rutaRef = doc(
+    db,
+    "productos",
+    producto.id,
+    "rutas",
+    idRuta(ruta.version)
+  );
+  const lote = writeBatch(db);
+  const actualizacionesProducto = {
+    fecha_actualizacion: serverTimestamp()
+  };
+
+  if (
+    Number(producto.version_ruta_activa) ===
+    Number(ruta.version)
+  ) {
+    actualizacionesProducto.version_ruta_activa =
+      null;
+  }
+
+  lote.update(rutaRef, {
+    estado: "anulada",
+    motivo_anulacion: motivoLimpio,
+    anulada_por: perfil?.uid || "",
+    anulada_en: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp(),
+    empresa_id: empresaId
+  });
+  lote.update(productoRef, actualizacionesProducto);
+
+  await lote.commit();
+
+  return {
+    version: ruta.version,
+    motivo: motivoLimpio
+  };
 };
 
 export const actualizarComposicionProducto = async (

@@ -24,8 +24,11 @@ import {
 } from "../subproductos/subproductosRepository";
 import {
   actualizarComposicionProducto,
+  anularRutaPublicada,
   crearVersionBorradorRuta,
   crearProductoConRuta,
+  eliminarOperacionRuta,
+  eliminarRutaBorrador,
   extraerCatalogoProcesosRuta,
   guardarOperacionRuta,
   listarProductos,
@@ -140,12 +143,16 @@ function ConstructorRutasV2({
       unidades_por_hora: "",
       motivo: ""
     });
+  const [motivoAnulacion, setMotivoAnulacion] =
+    useState("");
 
   const productoSeleccionado = productos.find(
     producto => producto.id === productoId
   );
   const rutaPublicada =
     ruta?.estado === "publicada";
+  const rutaBorrador =
+    ruta?.estado === "borrador";
   const materialesActivos = materiales.filter(
     material => material.activo
   );
@@ -900,6 +907,111 @@ function ConstructorRutasV2({
     }
   };
 
+  const eliminarOperacion = async operacion => {
+    if (!rutaBorrador) {
+      setError(
+        "Solo puedes eliminar operaciones de una ruta en borrador."
+      );
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      await eliminarOperacionRuta({
+        db,
+        productoId,
+        version: ruta.version,
+        operacionId: operacion.id,
+        ruta
+      });
+      await cargarRuta(productoId, ruta.version);
+      setMensaje(
+        `Operación ${operacion.operacion_codigo} eliminada de la ruta.`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo eliminar la operación."
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const eliminarBorrador = async () => {
+    if (!productoSeleccionado || !ruta) {
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      await eliminarRutaBorrador({
+        db,
+        empresaId: perfil.empresa_id,
+        producto: productoSeleccionado,
+        ruta,
+        perfil
+      });
+      await cargarCatalogos();
+
+      if (productoSeleccionado.version_ruta_activa) {
+        await cargarRuta(
+          productoId,
+          productoSeleccionado.version_ruta_activa
+        );
+      } else {
+        setRuta(null);
+      }
+
+      setMensaje(
+        `Ruta V${ruta.version} eliminada.`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo eliminar la ruta borrador."
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const anularPublicada = async () => {
+    if (!productoSeleccionado || !ruta) {
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      const resultado =
+        await anularRutaPublicada({
+          db,
+          empresaId: perfil.empresa_id,
+          producto: productoSeleccionado,
+          ruta,
+          motivo: motivoAnulacion,
+          perfil
+        });
+      await cargarCatalogos();
+      setRuta(actual => ({
+        ...actual,
+        estado: "anulada",
+        motivo_anulacion: resultado.motivo
+      }));
+      setMotivoAnulacion("");
+      setMensaje(
+        `Ruta V${resultado.version} anulada. No se usará para nuevas OT.`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo anular la ruta."
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -1147,52 +1259,94 @@ function ConstructorRutasV2({
                         {ruta?.estado || "borrador"}
                       </p>
                     </div>
-                    {rutaPublicada ? (
-                      <button
-                        type="button"
-                        onClick={crearBorradorEditable}
-                        disabled={guardando}
-                        style={{
-                          padding: "10px 14px",
-                          border: "none",
-                          borderRadius: 8,
-                          background: "#2563EB",
-                          color: "white",
-                          fontWeight: "bold",
-                          cursor: guardando
-                            ? "wait"
-                            : "pointer"
-                        }}
-                      >
-                        Crear versión editable
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={publicar}
-                        disabled={
-                          guardando ||
-                          erroresRuta.length > 0
-                        }
-                        style={{
-                          padding: "10px 14px",
-                          border: "none",
-                          borderRadius: 8,
-                          background:
-                            erroresRuta.length > 0
-                              ? "#94A3B8"
-                              : "#15803D",
-                          color: "white",
-                          fontWeight: "bold",
-                          cursor:
-                            erroresRuta.length > 0
-                              ? "not-allowed"
+                    <div style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end"
+                    }}>
+                      {rutaPublicada ? (
+                        <button
+                          type="button"
+                          onClick={crearBorradorEditable}
+                          disabled={guardando}
+                          style={{
+                            padding: "10px 14px",
+                            border: "none",
+                            borderRadius: 8,
+                            background: "#2563EB",
+                            color: "white",
+                            fontWeight: "bold",
+                            cursor: guardando
+                              ? "wait"
                               : "pointer"
-                        }}
-                      >
-                        Publicar ruta
-                      </button>
-                    )}
+                          }}
+                        >
+                          Crear versión editable
+                        </button>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={publicar}
+                            disabled={
+                              guardando ||
+                              erroresRuta.length > 0 ||
+                              !ruta?.existe
+                            }
+                            style={{
+                              padding: "10px 14px",
+                              border: "none",
+                              borderRadius: 8,
+                              background:
+                                erroresRuta.length > 0 ||
+                                !ruta?.existe
+                                  ? "#94A3B8"
+                                  : "#15803D",
+                              color: "white",
+                              fontWeight: "bold",
+                              cursor:
+                                erroresRuta.length > 0 ||
+                                !ruta?.existe
+                                  ? "not-allowed"
+                                  : "pointer"
+                            }}
+                          >
+                            Publicar ruta
+                          </button>
+                          {rutaBorrador &&
+                            ruta?.existe && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `¿Eliminar la ruta V${ruta.version} en borrador? Esta acción no se puede deshacer.`
+                                  )
+                                ) {
+                                  eliminarBorrador();
+                                }
+                              }}
+                              disabled={guardando}
+                              style={{
+                                padding: "10px 14px",
+                                border:
+                                  "1px solid #B91C1C",
+                                borderRadius: 8,
+                                background: "white",
+                                color: "#B91C1C",
+                                fontWeight: "bold",
+                                cursor: guardando
+                                  ? "wait"
+                                  : "pointer"
+                              }}
+                            >
+                              Eliminar borrador
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
 
                   {rutaPublicada && (
@@ -1207,6 +1361,83 @@ function ConstructorRutasV2({
                       Esta ruta está publicada y protegida.
                       Para agregar subproductos u operaciones,
                       crea una nueva versión editable.
+                    </div>
+                  )}
+
+                  {ruta?.estado === "anulada" && (
+                    <div style={{
+                      marginTop: 12,
+                      color: "#991B1B",
+                      background: "#FEF2F2",
+                      padding: 10,
+                      borderRadius: 8,
+                      fontSize: 14
+                    }}>
+                      Esta ruta fue anulada. Motivo:{" "}
+                      {ruta.motivo_anulacion ||
+                        "sin motivo visible"}
+                    </div>
+                  )}
+
+                  {rutaPublicada && (
+                    <div style={{
+                      marginTop: 12,
+                      display: "grid",
+                      gap: 8,
+                      border: "1px solid #FECACA",
+                      borderRadius: 10,
+                      padding: 12,
+                      background: "#FFFBFB"
+                    }}>
+                      <strong style={{ color: "#991B1B" }}>
+                        Anular ruta publicada
+                      </strong>
+                      <p style={{
+                        color: "#64748B",
+                        margin: 0,
+                        fontSize: 14
+                      }}>
+                        Úsalo solo si esta versión no debe
+                        seguir disponible para nuevas OT. Las
+                        OT históricas mantienen su copia.
+                      </p>
+                      <textarea
+                        value={motivoAnulacion}
+                        onChange={evento =>
+                          setMotivoAnulacion(
+                            evento.target.value
+                          )
+                        }
+                        rows={2}
+                        placeholder="Motivo de anulación"
+                        style={campo}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `¿Anular la ruta V${ruta.version}?`
+                            )
+                          ) {
+                            anularPublicada();
+                          }
+                        }}
+                        disabled={guardando}
+                        style={{
+                          padding: "9px 12px",
+                          border: "none",
+                          borderRadius: 8,
+                          background: "#B91C1C",
+                          color: "white",
+                          fontWeight: "bold",
+                          cursor: guardando
+                            ? "wait"
+                            : "pointer"
+                        }}
+                      >
+                        Anular ruta publicada
+                      </button>
                     </div>
                   )}
 
@@ -2199,6 +2430,39 @@ function ConstructorRutasV2({
                                   }}
                                 >
                                   Actualizar estándar
+                                </button>
+                              )}
+                              {rutaBorrador && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (
+                                      window.confirm(
+                                        `¿Eliminar la operación ${operacion.operacion_codigo} de esta ruta?`
+                                      )
+                                    ) {
+                                      eliminarOperacion(
+                                        operacion
+                                      );
+                                    }
+                                  }}
+                                  disabled={guardando}
+                                  style={{
+                                    marginTop: 10,
+                                    marginLeft: 8,
+                                    border:
+                                      "1px solid #B91C1C",
+                                    borderRadius: 7,
+                                    padding: "7px 10px",
+                                    background: "white",
+                                    color: "#B91C1C",
+                                    fontWeight: "bold",
+                                    cursor: guardando
+                                      ? "wait"
+                                      : "pointer"
+                                  }}
+                                >
+                                  Eliminar operación
                                 </button>
                               )}
                               {rutaPublicada &&

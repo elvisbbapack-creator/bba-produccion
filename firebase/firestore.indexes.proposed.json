@@ -5,6 +5,46 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "empresa_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "producto_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ruta_version",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "ordenes_trabajo",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "empresa_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "producto_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "ruta_version",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "planta_id",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "ordenes_trabajo",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
           "fieldPath": "planta_id",
           "order": "ASCENDING"
         },

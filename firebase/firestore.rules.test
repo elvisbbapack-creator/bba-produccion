@@ -430,9 +430,14 @@ service cloud.firestore {
           ).affectedKeys().hasOnly([
             'estado',
             'vigente_desde',
+            'motivo_anulacion',
+            'anulada_por',
+            'anulada_en',
             'fecha_actualizacion'
           ]);
-        allow delete: if false;
+        allow delete: if canManage() &&
+          belongsToCompany(resource.data) &&
+          resource.data.estado == 'borrador';
 
         match /operaciones/{operacionId} {
           allow read: if belongsToCompany(
@@ -442,7 +447,12 @@ service cloud.firestore {
             belongsToCompany(
               request.resource.data
             );
-          allow update, delete: if false;
+          allow update: if false;
+          allow delete: if canManage() &&
+            belongsToCompany(resource.data) &&
+            get(
+              /databases/$(database)/documents/productos/$(productoId)/rutas/$(rutaId)
+            ).data.estado == 'borrador';
         }
       }
     }

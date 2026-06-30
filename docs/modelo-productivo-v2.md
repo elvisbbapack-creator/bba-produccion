@@ -276,11 +276,20 @@ fecha_actualizacion
 
 ```text
 version
-estado: borrador | publicada | retirada
+estado: borrador | publicada | retirada | anulada
 vigente_desde
 creada_por
+motivo_anulacion
+anulada_por
+anulada_en
 fecha_creacion
 ```
+
+Las rutas en `borrador` pueden eliminarse junto con sus operaciones si aun no
+tienen OT asociadas. Las rutas `publicada` no se borran fisicamente: se marcan
+como `anulada` con motivo, usuario y fecha para mantener trazabilidad. Si la
+ruta anulada era la activa del producto, deja de estar disponible para nuevas
+OT hasta publicar una version correcta.
 
 ### `productos/{productoId}/rutas/{rutaId}/operaciones/{rutaOperacionId}`
 
