@@ -139,11 +139,14 @@ export const extraerCatalogoProcesosRuta = (
       item.proceso_nombre
     );
     const subprocesoId = normalizarCodigo(
-      item.subproceso_id ||
+      item.estacion_id ||
+        item.estacion_codigo ||
+        item.subproceso_id ||
         item.subproceso_codigo
     );
     const subprocesoNombre = limpiarTexto(
-      item.subproceso_nombre
+      item.estacion_nombre ||
+        item.subproceso_nombre
     );
 
     if (procesoId && procesoNombre) {
@@ -157,6 +160,8 @@ export const extraerCatalogoProcesosRuta = (
       subprocesos.set(subprocesoId, {
         codigo: subprocesoId,
         nombre: subprocesoNombre,
+        estacion_codigo: subprocesoId,
+        estacion_nombre: subprocesoNombre,
         proceso_codigo: procesoId,
         proceso_nombre: procesoNombre
       });
@@ -287,12 +292,26 @@ export const prepararOperacionRuta = (
       normalizarCodigo(datos.proceso_codigo),
     proceso_nombre:
       limpiarTexto(datos.proceso_nombre),
+    estacion_id:
+      normalizarCodigo(
+        datos.estacion_codigo ||
+          datos.subproceso_codigo
+      ),
+    estacion_nombre:
+      limpiarTexto(
+        datos.estacion_nombre ||
+          datos.subproceso_nombre
+      ),
     subproceso_id:
       normalizarCodigo(
-        datos.subproceso_codigo
+        datos.estacion_codigo ||
+          datos.subproceso_codigo
       ),
     subproceso_nombre:
-      limpiarTexto(datos.subproceso_nombre),
+      limpiarTexto(
+        datos.estacion_nombre ||
+          datos.subproceso_nombre
+      ),
     material_entrada_id:
       materialesEntrada[0]?.material_id ||
       limpiarTexto(datos.material_entrada_id),
@@ -356,13 +375,13 @@ export const validarOperacionBasica = (
 
   if (!operacion.subproceso_id) {
     errores.push(
-      "La operacion requiere codigo de subproceso."
+      "La operacion requiere codigo de estación."
     );
   }
 
   if (!operacion.subproceso_nombre) {
     errores.push(
-      "La operacion requiere nombre de subproceso."
+      "La operacion requiere nombre de estación."
     );
   }
 

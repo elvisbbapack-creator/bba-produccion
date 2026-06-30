@@ -14,6 +14,10 @@ import {
   listarCapacidadesProceso
 } from "../capacidad/capacidadRepository";
 import {
+  aCatalogoProcesosRuta,
+  listarProcesosEstaciones
+} from "../procesos/procesosRepository";
+import {
   listarPiezas
 } from "../piezas/piezasRepository";
 import {
@@ -58,6 +62,8 @@ const operacionInicial = {
   subproducto_nombre: "",
   proceso_codigo: "",
   proceso_nombre: "",
+  estacion_codigo: "",
+  estacion_nombre: "",
   subproceso_codigo: "",
   subproceso_nombre: "",
   material_entrada_id: "",
@@ -115,6 +121,8 @@ function ConstructorRutasV2({
   const [productos, setProductos] = useState([]);
   const [materiales, setMateriales] = useState([]);
   const [piezas, setPiezas] = useState([]);
+  const [procesosEstaciones,
+    setProcesosEstaciones] = useState([]);
   const [capacidadesProceso,
     setCapacidadesProceso] = useState([]);
   const [operacionesCatalogo,
@@ -186,9 +194,18 @@ function ConstructorRutasV2({
   const catalogoProcesosRuta = useMemo(
     () => extraerCatalogoProcesosRuta(
       ruta?.operaciones || [],
-      capacidadesProceso
+      [
+        ...aCatalogoProcesosRuta(
+          procesosEstaciones
+        ),
+        ...capacidadesProceso
+      ]
     ),
-    [capacidadesProceso, ruta]
+    [
+      capacidadesProceso,
+      procesosEstaciones,
+      ruta
+    ]
   );
   const opcionesProceso =
     catalogoProcesosRuta.procesos;
@@ -209,6 +226,7 @@ function ConstructorRutasV2({
           productosData,
           materialesData,
           piezasData,
+          procesosEstacionesData,
           capacidadesProcesoData,
           operacionesCatalogoData,
           subproductosData
@@ -223,6 +241,10 @@ function ConstructorRutasV2({
               perfil.empresa_id
             ),
             listarPiezas(
+              db,
+              perfil.empresa_id
+            ),
+            listarProcesosEstaciones(
               db,
               perfil.empresa_id
             ),
@@ -242,6 +264,9 @@ function ConstructorRutasV2({
         setProductos(productosData);
         setMateriales(materialesData);
         setPiezas(piezasData);
+        setProcesosEstaciones(
+          procesosEstacionesData
+        );
         setCapacidadesProceso(
           capacidadesProcesoData
         );
@@ -329,6 +354,8 @@ function ConstructorRutasV2({
         ...actual,
         proceso_codigo: "",
         proceso_nombre: "",
+        estacion_codigo: "",
+        estacion_nombre: "",
         subproceso_codigo: "",
         subproceso_nombre: ""
       }));
@@ -367,6 +394,8 @@ function ConstructorRutasV2({
     if (!valor) {
       setOperacionForm(actual => ({
         ...actual,
+        estacion_codigo: "",
+        estacion_nombre: "",
         subproceso_codigo: "",
         subproceso_nombre: ""
       }));
@@ -386,10 +415,14 @@ function ConstructorRutasV2({
     setOperacionForm(actual => ({
       ...actual,
       [campoSubproceso === "codigo"
-        ? "subproceso_codigo"
-        : "subproceso_nombre"]: valor,
+        ? "estacion_codigo"
+        : "estacion_nombre"]: valor,
       ...(subproceso
         ? {
+            estacion_codigo:
+              subproceso.codigo,
+            estacion_nombre:
+              subproceso.nombre,
             subproceso_codigo:
               subproceso.codigo,
             subproceso_nombre:
@@ -1902,17 +1935,17 @@ function ConstructorRutasV2({
                         )}
                       </label>
                       <label style={etiqueta}>
-                        Subproceso registrado
+                        Estación registrada
                         <select
                           value={
                             opcionesSubproceso.some(
                               subproceso =>
                                 subproceso.codigo ===
                                 operacionForm
-                                  .subproceso_codigo
+                                  .estacion_codigo
                             )
                               ? operacionForm
-                                  .subproceso_codigo
+                                  .estacion_codigo
                               : ""
                           }
                           onChange={evento =>
@@ -1924,7 +1957,7 @@ function ConstructorRutasV2({
                           style={campo}
                         >
                           <option value="">
-                            Seleccionar subproceso
+                            Seleccionar estación
                           </option>
                           {opcionesSubproceso.map(
                             subproceso => (
@@ -1946,7 +1979,7 @@ function ConstructorRutasV2({
                             fontWeight: "normal",
                             fontSize: 12
                           }}>
-                            Aún no hay subprocesos
+                            Aún no hay estaciones
                             guardados para sugerir.
                           </span>
                         )}
@@ -2006,12 +2039,12 @@ function ConstructorRutasV2({
                         </datalist>
                       </label>
                       <label style={etiqueta}>
-                        Código subproceso
+                        Código estación
                         <input
                           list="catalogo-codigos-subproceso"
                           value={
                             operacionForm
-                              .subproceso_codigo
+                              .estacion_codigo
                           }
                           onChange={evento =>
                             seleccionarSubprocesoRuta(
@@ -2019,7 +2052,7 @@ function ConstructorRutasV2({
                               evento.target.value
                             )
                           }
-                          placeholder="SP0001"
+                          placeholder="ET0001"
                           style={campo}
                         />
                         <datalist id="catalogo-codigos-subproceso">
@@ -2036,12 +2069,12 @@ function ConstructorRutasV2({
                         </datalist>
                       </label>
                       <label style={etiqueta}>
-                        Subproceso
+                        Estación de trabajo
                         <input
                           list="catalogo-nombres-subproceso"
                           value={
                             operacionForm
-                              .subproceso_nombre
+                              .estacion_nombre
                           }
                           onChange={evento =>
                             seleccionarSubprocesoRuta(
@@ -2049,7 +2082,7 @@ function ConstructorRutasV2({
                               evento.target.value
                             )
                           }
-                          placeholder="Tubo en prensa"
+                          placeholder="Láser fibra tubo"
                           style={campo}
                         />
                         <datalist id="catalogo-nombres-subproceso">
@@ -2484,6 +2517,8 @@ function ConstructorRutasV2({
                                 }
                                 {" / "}
                                 {
+                                  operacion
+                                    .estacion_nombre ||
                                   operacion
                                     .subproceso_nombre
                                 }

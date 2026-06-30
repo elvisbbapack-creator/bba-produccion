@@ -162,6 +162,32 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /catalogo_procesos_estaciones/{procesoId} {
+      allow read: if belongsToCompany(resource.data);
+      allow create: if canManage() &&
+        belongsToCompany(
+          request.resource.data
+        );
+      allow update: if canManage() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.codigo ==
+          resource.data.codigo &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'nombre',
+          'estaciones',
+          'activo',
+          'actualizado_en'
+        ]);
+      allow delete: if false;
+    }
+
     match /catalogo_operaciones/{operacionId} {
       allow read: if belongsToCompany(resource.data);
       allow create: if canManage() &&

@@ -112,27 +112,27 @@ test("rechaza composición duplicada o sin cantidad", () => {
   ]);
 });
 
-test("extrae catálogo único de procesos y subprocesos de rutas", () => {
+test("extrae catálogo único de procesos y estaciones de rutas", () => {
   const catalogo = extraerCatalogoProcesosRuta(
     [
       {
         proceso_id: "PR0001",
         proceso_nombre: "Corte",
-        subproceso_id: "SP0001",
-        subproceso_nombre: "Tubo en prensa"
+        estacion_id: "ET0001",
+        estacion_nombre: "Prensa"
       },
       {
         proceso_id: "PR0001",
         proceso_nombre: "Corte",
-        subproceso_id: "SP0002",
-        subproceso_nombre: "Corte alambre"
+        estacion_id: "ET0002",
+        estacion_nombre: "Corte alambre"
       }
     ],
     [
       {
         proceso_id: "pr0002",
         proceso_nombre: "Doblez",
-        subproceso_id: "sp0005",
+        estacion_codigo: "et0005",
         subproceso_nombre: "Doblez lata"
       }
     ]
@@ -150,20 +150,26 @@ test("extrae catálogo único de procesos y subprocesos de rutas", () => {
   ]);
   expect(catalogo.subprocesos).toEqual([
     {
-      codigo: "SP0001",
-      nombre: "Tubo en prensa",
+      codigo: "ET0001",
+      nombre: "Prensa",
+      estacion_codigo: "ET0001",
+      estacion_nombre: "Prensa",
       proceso_codigo: "PR0001",
       proceso_nombre: "Corte"
     },
     {
-      codigo: "SP0002",
+      codigo: "ET0002",
       nombre: "Corte alambre",
+      estacion_codigo: "ET0002",
+      estacion_nombre: "Corte alambre",
       proceso_codigo: "PR0001",
       proceso_nombre: "Corte"
     },
     {
-      codigo: "SP0005",
+      codigo: "ET0005",
       nombre: "Doblez lata",
+      estacion_codigo: "ET0005",
+      estacion_nombre: "Doblez lata",
       proceso_codigo: "PR0002",
       proceso_nombre: "Doblez"
     }
@@ -182,8 +188,8 @@ test("prepara una operacion con dependencia parcial", () => {
       pieza_nombre: "Lateral 290",
       proceso_codigo: "PR0001",
       proceso_nombre: "Corte",
-      subproceso_codigo: "SP0003",
-      subproceso_nombre: "Laser tubo",
+      estacion_codigo: "ET0003",
+      estacion_nombre: "Laser tubo",
       material_entrada_id: "rf-1",
       materiales_entrada: [{
         material_id: "rf-1",
@@ -205,6 +211,10 @@ test("prepara una operacion con dependencia parcial", () => {
     operacion_codigo: "OP0005",
     pieza_codigo: "PZ0001",
     pieza_nombre: "Lateral 290",
+    estacion_id: "ET0003",
+    estacion_nombre: "Laser tubo",
+    subproceso_id: "ET0003",
+    subproceso_nombre: "Laser tubo",
     material_entrada_id: "rf-1",
     materiales_entrada: [{
       material_id: "rf-1",

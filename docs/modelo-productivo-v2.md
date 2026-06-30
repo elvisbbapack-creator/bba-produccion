@@ -150,6 +150,27 @@ la columna `material_base_codigo` acepta uno o varios codigos separados por coma
 (por ejemplo `RF0001, RF0002`). En la hoja `Operaciones`,
 `material_entrada_codigo` tambien acepta varios codigos separados por coma.
 
+### `catalogo_procesos_estaciones/{empresaId}__{codigoPR}`
+
+Catalogo maestro nuevo para reemplazar `config_procesos`.
+
+```text
+empresa_id
+codigo: PR0001
+nombre: Corte
+activo
+estaciones: [{
+  codigo: ET0001,
+  nombre: Laser fibra tubo,
+  activo
+}]
+```
+
+La ingenieria visible usa `Proceso` + `Estacion de trabajo`. No se crean
+codigos `SP` nuevos. Durante la transicion, algunas colecciones aun conservan
+campos `subproceso_id` como compatibilidad tecnica, pero se llenan con el codigo
+ET de la estacion.
+
 ### `catalogo_operaciones/{empresaId}__{codigoOP}`
 
 ```text
@@ -299,8 +320,10 @@ operacion_id
 operacion_codigo
 proceso_id
 proceso_nombre
-subproceso_id
-subproceso_nombre
+estacion_id
+estacion_nombre
+subproceso_id (compatibilidad: copia de estacion_id)
+subproceso_nombre (compatibilidad: copia de estacion_nombre)
 nombre
 material_entrada_id
 material_entrada_codigo

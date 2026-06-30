@@ -70,6 +70,8 @@ import CatalogoDetallesV2 from
   "./features/detalles/CatalogoDetallesV2";
 import CatalogoPiezasV2 from
   "./features/piezas/CatalogoPiezasV2";
+import CatalogoProcesosEstacionesV2 from
+  "./features/procesos/CatalogoProcesosEstacionesV2";
 import CatalogoSubproductosV2 from
   "./features/subproductos/CatalogoSubproductosV2";
 import ImportadorIngenieriaV2 from
@@ -1675,6 +1677,24 @@ const cargarTodosLosParos = async () => {
             ) && (
               <button
                 onClick={() =>
+                  setPantalla("procesosEstacionesV2")
+                }
+                style={{
+                  ...cardHome,
+                  background: "#1E40AF"
+                }}
+              >
+                Catálogo de Procesos y Estaciones (V2)
+              </button>
+            )}
+
+          {interfazV2Activa &&
+            autenticacionFirebaseActiva &&
+            puedeAdministrarV2(
+              usuarioSeleccionado
+            ) && (
+              <button
+                onClick={() =>
                   setPantalla("piezasV2")
                 }
                 style={{
@@ -1845,6 +1865,21 @@ if (
 ) {
   return (
     <AlmacenV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "procesosEstacionesV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoProcesosEstacionesV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
