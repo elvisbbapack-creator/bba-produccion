@@ -108,6 +108,26 @@ al armado de un lateral, bandeja o cabecero. Si una ruta ya esta publicada, se
 debe crear una nueva version en borrador para agregar subproductos u operaciones;
 la version publicada sigue vigente para las OT hasta que se publique la nueva.
 
+### Composición del producto
+
+Además de la ruta productiva, cada producto puede guardar una `composicion` con
+lo que lleva una unidad terminada:
+
+```text
+composicion: [{
+  tipo: SUBPRODUCTO | PIEZA | MATERIAL,
+  categoria: subproducto | pieza_grafica | accesorio | empaque | otro,
+  item_id,
+  item_codigo,
+  item_nombre,
+  cantidad
+}]
+```
+
+Ejemplo: `2 x Lateral`, `2 x Bandeja`, `3 x Cruceta`, `1 x Cabecero`, piezas
+graficas, accesorios y caja de empaque. La composicion responde "que lleva el
+producto"; la ruta responde "como se fabrica".
+
 ## Importador de ingenieria Excel
 
 El modulo `Importar Ingenieria Excel (V2)` permite cargar una plantilla `.xlsx`

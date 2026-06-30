@@ -405,6 +405,7 @@ service cloud.firestore {
           resource.data
         ).affectedKeys().hasOnly([
           'activo',
+          'composicion',
           'version_ruta_activa',
           'version_ruta_borrador',
           'fecha_actualizacion'

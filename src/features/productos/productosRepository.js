@@ -45,10 +45,83 @@ export const prepararProducto = (
   ),
   nombre: limpiarTexto(datos.nombre),
   familia: limpiarTexto(datos.familia),
+  composicion:
+    prepararComposicionProducto(
+      datos.composicion
+    ),
   activo: datos.activo !== false,
   version_ruta_activa:
     datos.version_ruta_activa || null
 });
+
+export const prepararComposicionProducto = (
+  composicion = []
+) =>
+  composicion
+    .map(item => ({
+      tipo: normalizarCodigo(item.tipo),
+      categoria: limpiarTexto(item.categoria),
+      item_id: limpiarTexto(item.item_id),
+      item_codigo: normalizarCodigo(
+        item.item_codigo
+      ),
+      item_nombre: limpiarTexto(
+        item.item_nombre
+      ),
+      cantidad: Number(item.cantidad)
+    }))
+    .filter(item =>
+      item.tipo ||
+      item.item_id ||
+      item.item_codigo ||
+      item.item_nombre ||
+      Number.isFinite(item.cantidad)
+    );
+
+export const validarComposicionProducto = (
+  composicion = []
+) => {
+  const errores = [];
+  const usados = new Set();
+
+  composicion.forEach((item, indice) => {
+    const posicion = indice + 1;
+
+    if (
+      !["SUBPRODUCTO", "PIEZA", "MATERIAL"]
+        .includes(item.tipo)
+    ) {
+      errores.push(
+        `El item ${posicion} requiere tipo válido.`
+      );
+    }
+
+    if (!item.item_id) {
+      errores.push(
+        `El item ${posicion} requiere selección.`
+      );
+    }
+
+    if (
+      !Number.isFinite(item.cantidad) ||
+      item.cantidad <= 0
+    ) {
+      errores.push(
+        `El item ${posicion} requiere cantidad mayor que cero.`
+      );
+    }
+
+    const clave = `${item.tipo}:${item.item_id}`;
+    if (item.item_id && usados.has(clave)) {
+      errores.push(
+        `El item ${item.item_codigo || item.item_nombre} está repetido.`
+      );
+    }
+    usados.add(clave);
+  });
+
+  return errores;
+};
 
 export const validarProducto = (
   producto,
@@ -563,6 +636,33 @@ export const publicarRuta = async ({
     empresa_id: empresaId
   });
   await lote.commit();
+};
+
+export const actualizarComposicionProducto = async (
+  db,
+  productoId,
+  composicion
+) => {
+  const composicionNormalizada =
+    prepararComposicionProducto(composicion);
+  const errores =
+    validarComposicionProducto(
+      composicionNormalizada
+    );
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  await updateDoc(
+    doc(db, "productos", productoId),
+    {
+      composicion: composicionNormalizada,
+      fecha_actualizacion: serverTimestamp()
+    }
+  );
+
+  return composicionNormalizada;
 };
 
 export const crearVersionBorradorRuta = async ({

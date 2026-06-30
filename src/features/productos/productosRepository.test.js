@@ -1,6 +1,8 @@
 import {
+  prepararComposicionProducto,
   prepararOperacionRuta,
   prepararProducto,
+  validarComposicionProducto,
   validarRecalibracionEstandar,
   validarOperacionBasica,
   validarProducto
@@ -42,6 +44,71 @@ test("rechaza productos duplicados", () => {
       codigo: "PCL0001"
     }])
   ).toContain("El codigo PCL0001 ya existe.");
+});
+
+test("prepara y valida composición del producto", () => {
+  const composicion = prepararComposicionProducto([
+    {
+      tipo: "subproducto",
+      categoria: "subproducto",
+      item_id: "sub-lateral",
+      item_codigo: "sub0001",
+      item_nombre: "Lateral",
+      cantidad: "2"
+    },
+    {
+      tipo: "material",
+      categoria: "empaque",
+      item_id: "mp-caja",
+      item_codigo: "mp0009",
+      item_nombre: "Caja empaque",
+      cantidad: "1"
+    }
+  ]);
+
+  expect(composicion).toEqual([
+    {
+      tipo: "SUBPRODUCTO",
+      categoria: "subproducto",
+      item_id: "sub-lateral",
+      item_codigo: "SUB0001",
+      item_nombre: "Lateral",
+      cantidad: 2
+    },
+    {
+      tipo: "MATERIAL",
+      categoria: "empaque",
+      item_id: "mp-caja",
+      item_codigo: "MP0009",
+      item_nombre: "Caja empaque",
+      cantidad: 1
+    }
+  ]);
+  expect(
+    validarComposicionProducto(composicion)
+  ).toEqual([]);
+});
+
+test("rechaza composición duplicada o sin cantidad", () => {
+  expect(
+    validarComposicionProducto([
+      {
+        tipo: "SUBPRODUCTO",
+        item_id: "sub-lateral",
+        item_codigo: "SUB0001",
+        cantidad: 2
+      },
+      {
+        tipo: "SUBPRODUCTO",
+        item_id: "sub-lateral",
+        item_codigo: "SUB0001",
+        cantidad: 0
+      }
+    ])
+  ).toEqual([
+    "El item 2 requiere cantidad mayor que cero.",
+    "El item SUB0001 está repetido."
+  ]);
 });
 
 test("prepara una operacion con dependencia parcial", () => {

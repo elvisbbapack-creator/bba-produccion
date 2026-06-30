@@ -11,12 +11,16 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
+  listarPiezas
+} from "../piezas/piezasRepository";
+import {
   listarOperacionesCatalogo
 } from "../detalles/detallesRepository";
 import {
   listarSubproductos
 } from "../subproductos/subproductosRepository";
 import {
+  actualizarComposicionProducto,
   crearVersionBorradorRuta,
   crearProductoConRuta,
   guardarOperacionRuta,
@@ -64,6 +68,13 @@ const crearMaterialEntradaInicial = () => ({
   cantidad: 1
 });
 
+const itemComposicionInicial = {
+  tipo: "SUBPRODUCTO",
+  categoria: "subproducto",
+  item_id: "",
+  cantidad: 1
+};
+
 const campo = {
   width: "100%",
   padding: 10,
@@ -96,6 +107,7 @@ function ConstructorRutasV2({
 }) {
   const [productos, setProductos] = useState([]);
   const [materiales, setMateriales] = useState([]);
+  const [piezas, setPiezas] = useState([]);
   const [operacionesCatalogo,
     setOperacionesCatalogo] = useState([]);
   const [subproductos, setSubproductos] =
@@ -107,6 +119,10 @@ function ConstructorRutasV2({
     useState(productoInicial);
   const [operacionForm, setOperacionForm] =
     useState(operacionInicial);
+  const [itemComposicion, setItemComposicion] =
+    useState(itemComposicionInicial);
+  const [composicionProducto,
+    setComposicionProducto] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -140,6 +156,14 @@ function ConstructorRutasV2({
         subproducto.activo !== false &&
         subproducto.producto_id === productoId
     );
+  const opcionesComposicion =
+    itemComposicion.tipo === "SUBPRODUCTO"
+      ? subproductosProducto
+      : itemComposicion.tipo === "PIEZA"
+        ? piezas.filter(
+            pieza => pieza.activo !== false
+          )
+        : materialesActivos;
   const operacionCatalogoSeleccionadaId =
     operacionesCatalogoActivas.find(
       operacion =>
@@ -155,6 +179,7 @@ function ConstructorRutasV2({
         const [
           productosData,
           materialesData,
+          piezasData,
           operacionesCatalogoData,
           subproductosData
         ] =
@@ -164,6 +189,10 @@ function ConstructorRutasV2({
               perfil.empresa_id
             ),
             listarMateriales(
+              db,
+              perfil.empresa_id
+            ),
+            listarPiezas(
               db,
               perfil.empresa_id
             ),
@@ -178,6 +207,7 @@ function ConstructorRutasV2({
           ]);
         setProductos(productosData);
         setMateriales(materialesData);
+        setPiezas(piezasData);
         setOperacionesCatalogo(
           operacionesCatalogoData
         );
@@ -225,6 +255,13 @@ function ConstructorRutasV2({
     [db, perfil.empresa_id]
   );
 
+  useEffect(() => {
+    setComposicionProducto(
+      productoSeleccionado?.composicion || []
+    );
+    setItemComposicion(itemComposicionInicial);
+  }, [productoSeleccionado]);
+
   const actualizarProducto = (nombre, valor) => {
     setProductoForm(actual => ({
       ...actual,
@@ -244,6 +281,120 @@ function ConstructorRutasV2({
     }));
     setError("");
     setMensaje("");
+  };
+
+  const actualizarItemComposicion = (
+    nombre,
+    valor
+  ) => {
+    setItemComposicion(actual => ({
+      ...actual,
+      [nombre]: valor,
+      ...(nombre === "tipo"
+        ? {
+            item_id: "",
+            categoria:
+              valor === "SUBPRODUCTO"
+                ? "subproducto"
+                : valor === "PIEZA"
+                  ? "pieza_grafica"
+                  : "accesorio"
+          }
+        : {})
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const agregarItemComposicion = () => {
+    const seleccionado =
+      opcionesComposicion.find(
+        item => item.id ===
+          itemComposicion.item_id
+      );
+    const cantidad = Number(
+      itemComposicion.cantidad
+    );
+
+    if (!seleccionado) {
+      setError(
+        "Selecciona un item para la composición."
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(cantidad) ||
+      cantidad <= 0
+    ) {
+      setError(
+        "La cantidad debe ser mayor que cero."
+      );
+      return;
+    }
+
+    setComposicionProducto(actual => [
+      ...actual,
+      {
+        tipo: itemComposicion.tipo,
+        categoria:
+          itemComposicion.categoria,
+        item_id: seleccionado.id,
+        item_codigo: seleccionado.codigo,
+        item_nombre: seleccionado.nombre,
+        cantidad
+      }
+    ]);
+    setItemComposicion(itemComposicionInicial);
+    setError("");
+    setMensaje("");
+  };
+
+  const quitarItemComposicion = indice => {
+    setComposicionProducto(actual =>
+      actual.filter((_, posicion) =>
+        posicion !== indice
+      )
+    );
+    setError("");
+    setMensaje("");
+  };
+
+  const guardarComposicion = async () => {
+    if (!productoId) {
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      const composicionGuardada =
+        await actualizarComposicionProducto(
+          db,
+          productoId,
+          composicionProducto
+        );
+      setProductos(actuales =>
+        actuales.map(producto =>
+          producto.id === productoId
+            ? {
+                ...producto,
+                composicion:
+                  composicionGuardada
+              }
+            : producto
+        )
+      );
+      setMensaje(
+        "Composición del producto guardada."
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo guardar la composición."
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const materialesEntradaFormulario =
@@ -1013,6 +1164,218 @@ function ConstructorRutasV2({
                       )}
                     </div>
                   )}
+                </section>
+
+                <section style={tarjeta}>
+                  <h2 style={{ marginTop: 0 }}>
+                    Composición del producto
+                  </h2>
+                  <p style={{
+                    color: "#64748B",
+                    marginTop: 0
+                  }}>
+                    Define cuántos subproductos, piezas
+                    gráficas, accesorios o empaque lleva
+                    una unidad del producto terminado.
+                  </p>
+
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(170px, 1fr))",
+                    gap: 10,
+                    alignItems: "end"
+                  }}>
+                    <label style={etiqueta}>
+                      Tipo
+                      <select
+                        value={itemComposicion.tipo}
+                        onChange={evento =>
+                          actualizarItemComposicion(
+                            "tipo",
+                            evento.target.value
+                          )
+                        }
+                        style={campo}
+                      >
+                        <option value="SUBPRODUCTO">
+                          Subproducto
+                        </option>
+                        <option value="PIEZA">
+                          Pieza gráfica
+                        </option>
+                        <option value="MATERIAL">
+                          Accesorio / empaque
+                        </option>
+                      </select>
+                    </label>
+                    <label style={etiqueta}>
+                      Categoría
+                      <select
+                        value={
+                          itemComposicion.categoria
+                        }
+                        onChange={evento =>
+                          actualizarItemComposicion(
+                            "categoria",
+                            evento.target.value
+                          )
+                        }
+                        style={campo}
+                      >
+                        <option value="subproducto">
+                          Subproducto
+                        </option>
+                        <option value="pieza_grafica">
+                          Pieza gráfica
+                        </option>
+                        <option value="accesorio">
+                          Accesorio
+                        </option>
+                        <option value="empaque">
+                          Empaque
+                        </option>
+                        <option value="otro">
+                          Otro
+                        </option>
+                      </select>
+                    </label>
+                    <label style={etiqueta}>
+                      Item
+                      <select
+                        value={itemComposicion.item_id}
+                        onChange={evento =>
+                          actualizarItemComposicion(
+                            "item_id",
+                            evento.target.value
+                          )
+                        }
+                        style={campo}
+                      >
+                        <option value="">
+                          Seleccionar
+                        </option>
+                        {opcionesComposicion.map(item => (
+                          <option
+                            key={item.id}
+                            value={item.id}
+                          >
+                            {item.codigo}
+                            {" - "}
+                            {item.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label style={etiqueta}>
+                      Cantidad
+                      <input
+                        type="number"
+                        min="0.0001"
+                        step="0.0001"
+                        value={
+                          itemComposicion.cantidad
+                        }
+                        onChange={evento =>
+                          actualizarItemComposicion(
+                            "cantidad",
+                            evento.target.value
+                          )
+                        }
+                        style={campo}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={agregarItemComposicion}
+                      style={{
+                        ...campo,
+                        background: "#EFF6FF",
+                        borderColor: "#BFDBFE",
+                        color: "#1D4ED8",
+                        cursor: "pointer",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      + Agregar
+                    </button>
+                  </div>
+
+                  {composicionProducto.length === 0 ? (
+                    <p style={{ color: "#64748B" }}>
+                      Aún no hay composición definida.
+                    </p>
+                  ) : (
+                    <div style={{
+                      display: "grid",
+                      gap: 8,
+                      marginTop: 14
+                    }}>
+                      {composicionProducto.map(
+                        (item, indice) => (
+                          <div
+                            key={`${item.tipo}-${item.item_id}-${indice}`}
+                            style={{
+                              display: "flex",
+                              justifyContent:
+                                "space-between",
+                              gap: 10,
+                              border:
+                                "1px solid #E2E8F0",
+                              borderRadius: 8,
+                              padding: 10
+                            }}
+                          >
+                            <span>
+                              {item.cantidad}
+                              {" x "}
+                              {item.item_codigo}
+                              {" - "}
+                              {item.item_nombre}
+                              {" · "}
+                              {item.categoria}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                quitarItemComposicion(
+                                  indice
+                                )
+                              }
+                              style={{
+                                border: "none",
+                                background:
+                                  "transparent",
+                                color: "#B91C1C",
+                                cursor: "pointer"
+                              }}
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={guardarComposicion}
+                    disabled={guardando}
+                    style={{
+                      ...campo,
+                      marginTop: 14,
+                      border: "none",
+                      background: "#2563EB",
+                      color: "white",
+                      fontWeight: "bold",
+                      cursor: guardando
+                        ? "wait"
+                        : "pointer"
+                    }}
+                  >
+                    Guardar composición
+                  </button>
                 </section>
 
                 {!rutaPublicada && (
