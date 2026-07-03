@@ -87,6 +87,48 @@ function App() {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+  const fechaDesdeValor = valor => {
+    if (!valor) return null;
+    if (valor.toDate) return valor.toDate();
+    if (valor.seconds) {
+      return new Date(valor.seconds * 1000);
+    }
+    if (valor instanceof Date) return valor;
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime())
+      ? null
+      : fecha;
+  };
+  const fechaParaDatetimeLocal = valor => {
+    const fecha = fechaDesdeValor(valor);
+
+    if (!fecha) return "";
+
+    const offsetMs =
+      fecha.getTimezoneOffset() * 60000;
+
+    return new Date(fecha.getTime() - offsetMs)
+      .toISOString()
+      .slice(0, 16);
+  };
+  const fechaDesdeDatetimeLocal = valor => {
+    if (!valor) return null;
+    const fecha = new Date(valor);
+    return Number.isNaN(fecha.getTime())
+      ? null
+      : fecha;
+  };
+  const calcularEstadoEficiencia = eficiencia => {
+    if (eficiencia < 70) return "🔴";
+    if (eficiencia < 90) return "🟡";
+    return "🟢";
+  };
+  const obtenerUnidadesHora = estandar =>
+    Number(
+      estandar?.unidades_por_hora ??
+      estandar?.unidades_hora ??
+      0
+    );
   const registroFueAjustado = (
     registroId
   ) => {
@@ -7319,19 +7361,15 @@ const avanceProceso =
             setRegistroAjuste(r);
 
             setNuevaHoraInicio(
-  r.inicio?.seconds
-    ? new Date(
-        r.inicio.seconds * 1000
-      ).toLocaleString()
-    : ""
-);
+              fechaParaDatetimeLocal(
+                r.inicio || r.hora_inicio
+              )
+            );
 
 setNuevaHoraFin(
-  r.fin?.seconds
-    ? new Date(
-        r.fin.seconds * 1000
-      ).toLocaleString()
-    : ""
+  fechaParaDatetimeLocal(
+    r.fin || r.hora_fin
+  )
 );
 
             setNuevaCantidad(
@@ -7469,7 +7507,7 @@ setNuevaHoraFin(
       </div>
 
       <input
-        type="text"
+        type="datetime-local"
         placeholder="Nueva Hora Inicio"
         style={estiloInput}
         value={nuevaHoraInicio}
@@ -7481,7 +7519,7 @@ setNuevaHoraFin(
       />
 
       <input
-        type="text"
+        type="datetime-local"
         placeholder="Nueva Hora Fin"
         style={estiloInput}
         value={nuevaHoraFin}
@@ -7523,72 +7561,48 @@ setNuevaHoraFin(
         onClick={async () => {
 
           try {
-
-            await addDoc(
-
-              collection(
-                db,
-                "ajustes_produccion"
-              ),
-
-              {
-
-                produccion_id:
-                  registroAjuste.id,
-
-                hora_inicio_original:
-                  registroAjuste.hora_inicio
-                  || "",
-
-                hora_inicio_nueva:
-                  nuevaHoraInicio,
-
-                hora_fin_original:
-                  registroAjuste.hora_fin
-                  || "",
-
-                hora_fin_nueva:
-                  nuevaHoraFin,
-
-                cantidad_original:
-                  registroAjuste.cantidad_ok
-                  || 0,
-
-                cantidad_nueva:
-                  Number(
-                    nuevaCantidad
-                  ),
-
-                motivo:
-                  motivoAjuste,
-
-                responsable:
-                  usuarioSeleccionado?.nombre
-                  || "GERENCIA",
-
-                fecha_ajuste:
-                  new Date()
-
-              }
-
-            );
-
 const nuevaCantidadNum =
   Number(nuevaCantidad);
 
 const nuevoInicio =
   nuevaHoraInicio
-    ? new Date(nuevaHoraInicio)
-    : new Date(
-        registroAjuste.inicio.seconds * 1000
+    ? fechaDesdeDatetimeLocal(
+        nuevaHoraInicio
+      )
+    : fechaDesdeValor(
+        registroAjuste.inicio ||
+        registroAjuste.hora_inicio
       );
 
 const nuevoFin =
   nuevaHoraFin
-    ? new Date(nuevaHoraFin)
-    : new Date(
-        registroAjuste.fin.seconds * 1000
+    ? fechaDesdeDatetimeLocal(nuevaHoraFin)
+    : fechaDesdeValor(
+        registroAjuste.fin ||
+        registroAjuste.hora_fin
       );
+
+if (!nuevoInicio || !nuevoFin) {
+  alert(
+    "Ingresa fechas válidas para inicio y fin."
+  );
+  return;
+}
+
+if (nuevoFin <= nuevoInicio) {
+  alert(
+    "La hora de fin debe ser posterior a la hora de inicio."
+  );
+  return;
+}
+
+if (
+  !Number.isFinite(nuevaCantidadNum) ||
+  nuevaCantidadNum < 0
+) {
+  alert("Ingresa una cantidad válida.");
+  return;
+}
 
 const nuevasHoras =
   (nuevoFin - nuevoInicio)
@@ -7629,15 +7643,17 @@ const estandar =
   });
 
 let nuevaEficiencia = 0;
+const unidadesHora =
+  obtenerUnidadesHora(estandar);
 
 if (
   estandar &&
-  estandar.unidades_por_hora > 0 &&
+  unidadesHora > 0 &&
   nuevasHoras > 0
 ) {
 
   const produccionEsperada =
-    estandar.unidades_por_hora *
+    unidadesHora *
     nuevasHoras;
 
   nuevaEficiencia =
@@ -7654,24 +7670,50 @@ nuevaEficiencia =
     150
   );
 
-nuevaEficiencia =
-  Math.min(
-    Math.round(nuevaEficiencia),
-    150
+let nuevoSemaforo =
+  calcularEstadoEficiencia(
+    nuevaEficiencia
   );
 
-let nuevoSemaforo = "🟢";
-
-if (nuevaEficiencia < 70) {
-
-  nuevoSemaforo = "🔴";
-
-}
-else if (nuevaEficiencia < 90) {
-
-  nuevoSemaforo = "🟡";
-
-}
+            await addDoc(
+              collection(
+                db,
+                "ajustes_produccion"
+              ),
+              {
+                produccion_id:
+                  registroAjuste.id,
+                hora_inicio_original:
+                  fechaDesdeValor(
+                    registroAjuste.inicio ||
+                    registroAjuste.hora_inicio
+                  ),
+                hora_inicio_nueva:
+                  nuevoInicio,
+                hora_fin_original:
+                  fechaDesdeValor(
+                    registroAjuste.fin ||
+                    registroAjuste.hora_fin
+                  ),
+                hora_fin_nueva:
+                  nuevoFin,
+                cantidad_original:
+                  registroAjuste.cantidad_ok || 0,
+                cantidad_nueva:
+                  nuevaCantidadNum,
+                eficiencia_original:
+                  registroAjuste.eficiencia || 0,
+                eficiencia_nueva:
+                  nuevaEficiencia,
+                motivo:
+                  motivoAjuste,
+                responsable:
+                  usuarioSeleccionado?.nombre ||
+                  "GERENCIA",
+                fecha_ajuste:
+                  new Date()
+              }
+            );
 
             await updateDoc(
   doc(
@@ -7683,6 +7725,10 @@ else if (nuevaEficiencia < 90) {
     inicio: nuevoInicio,
 
     fin: nuevoFin,
+
+    hora_inicio: nuevoInicio,
+
+    hora_fin: nuevoFin,
 
     tiempo_horas:
       Number(
