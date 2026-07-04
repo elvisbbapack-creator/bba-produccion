@@ -88,6 +88,15 @@ function App() {
       estandar?.unidades_hora ??
       0
     );
+  const nombreDetalle = detalle =>
+    typeof detalle === "string"
+      ? detalle
+      : detalle?.nombre || "";
+  const detallesDeSubproceso = nombreSubproceso =>
+    subprocesos.find(s =>
+      normalizar(s.nombre) ===
+      normalizar(nombreSubproceso)
+    )?.detalles || [];
   const registroFueAjustado = (
     registroId
   ) => {
@@ -133,6 +142,8 @@ function App() {
   const [subprocesos, setSubprocesos] = useState([]);
   const [subprocesoSeleccionado, setSubprocesoSeleccionado] = useState("");
   const [detalleSeleccionado, setDetalleSeleccionado] = useState("");
+  const [subprocesoAjuste, setSubprocesoAjuste] = useState("");
+  const [detalleAjuste, setDetalleAjuste] = useState("");
 
   const [produccionActiva, setProduccionActiva] = useState([]);
   const [procesoAbierto, setProcesoAbierto] = useState(null);
@@ -6768,6 +6779,14 @@ setNuevaHoraFin(
               r.cantidad_ok || ""
             );
 
+            setSubprocesoAjuste(
+              r.subproceso || ""
+            );
+
+            setDetalleAjuste(
+              r.detalle || ""
+            );
+
           }}
 
         >
@@ -6922,6 +6941,60 @@ setNuevaHoraFin(
         }
       />
 
+      <select
+        style={estiloInput}
+        value={subprocesoAjuste}
+        onChange={(e) => {
+          setSubprocesoAjuste(
+            e.target.value
+          );
+          setDetalleAjuste("");
+        }}
+      >
+        <option value="">
+          Subproceso correcto
+        </option>
+        {subprocesos
+          .filter(s =>
+            normalizar(s.proceso) ===
+            normalizar(registroAjuste.proceso)
+          )
+          .map((s, i) => (
+            <option
+              key={i}
+              value={s.nombre}
+            >
+              {s.nombre}
+            </option>
+          ))}
+      </select>
+
+      <select
+        style={estiloInput}
+        value={detalleAjuste}
+        onChange={(e) =>
+          setDetalleAjuste(e.target.value)
+        }
+      >
+        <option value="">
+          Detalle correcto
+        </option>
+        {detallesDeSubproceso(subprocesoAjuste)
+          .map((d, i) => {
+            const detalleNombre =
+              nombreDetalle(d);
+
+            return (
+              <option
+                key={i}
+                value={detalleNombre}
+              >
+                {detalleNombre}
+              </option>
+            );
+          })}
+      </select>
+
       <input
         type="number"
         placeholder="Nueva Cantidad"
@@ -6996,6 +7069,26 @@ if (
   return;
 }
 
+const nuevoSubproceso =
+  subprocesoAjuste ||
+  registroAjuste.subproceso ||
+  "";
+
+const nuevoDetalle =
+  detalleAjuste ||
+  registroAjuste.detalle ||
+  "";
+
+if (!nuevoSubproceso) {
+  alert("Selecciona el subproceso correcto.");
+  return;
+}
+
+if (!nuevoDetalle) {
+  alert("Selecciona el detalle correcto.");
+  return;
+}
+
 const nuevasHoras =
   (nuevoFin - nuevoInicio)
   /
@@ -7015,7 +7108,7 @@ const estandar =
       normalizar(e.subproceso)
       ===
       normalizar(
-        registroAjuste.subproceso
+        nuevoSubproceso
       );
 
     const matchDet =
@@ -7023,7 +7116,7 @@ const estandar =
       normalizar(e.detalle)
       ===
       normalizar(
-        registroAjuste.detalle
+        nuevoDetalle
       );
 
     return (
@@ -7037,6 +7130,13 @@ const estandar =
 let nuevaEficiencia = 0;
 const unidadesHora =
   obtenerUnidadesHora(estandar);
+
+if (!estandar || unidadesHora <= 0) {
+  alert(
+    "No existe estándar para el subproceso y detalle seleccionados."
+  );
+  return;
+}
 
 if (
   estandar &&
@@ -7093,6 +7193,14 @@ let nuevoSemaforo =
                   registroAjuste.cantidad_ok || 0,
                 cantidad_nueva:
                   nuevaCantidadNum,
+                subproceso_original:
+                  registroAjuste.subproceso || "",
+                subproceso_nuevo:
+                  nuevoSubproceso,
+                detalle_original:
+                  registroAjuste.detalle || "",
+                detalle_nuevo:
+                  nuevoDetalle,
                 eficiencia_original:
                   registroAjuste.eficiencia || 0,
                 eficiencia_nueva:
@@ -7130,6 +7238,12 @@ let nuevoSemaforo =
     cantidad_ok:
       nuevaCantidadNum,
 
+    subproceso:
+      nuevoSubproceso,
+
+    detalle:
+      nuevoDetalle,
+
     eficiencia:
       nuevaEficiencia,
 
@@ -7163,6 +7277,10 @@ setNuevaCantidad("");
 setNuevaHoraInicio("");
 
 setNuevaHoraFin("");
+
+setSubprocesoAjuste("");
+
+setDetalleAjuste("");
 
 setMotivoAjuste("");
 
