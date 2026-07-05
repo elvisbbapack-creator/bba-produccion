@@ -80,6 +80,10 @@ function AlmacenV2({
   const [ordenes, setOrdenes] = useState([]);
   const [operacionesOrden, setOperacionesOrden] =
     useState([]);
+  const [
+    operacionesTrazabilidad,
+    setOperacionesTrazabilidad
+  ] = useState([]);
   const [otTrazabilidad, setOtTrazabilidad] =
     useState("");
   const [formulario, setFormulario] =
@@ -212,6 +216,66 @@ function AlmacenV2({
     ),
     [movimientosTrazabilidad]
   );
+  const disponibilidadTrazabilidad = useMemo(
+    () => calcularDisponibilidadOT(
+      operacionesTrazabilidad,
+      stocks
+    ),
+    [operacionesTrazabilidad, stocks]
+  );
+  const cuadraturaTrazabilidad = useMemo(
+    () => disponibilidadTrazabilidad.map(item => {
+      const movimientosItem =
+        resumenTrazabilidad[
+          item.material_codigo
+        ] || {};
+      const consumido = Number(
+        movimientosItem.consumido || 0
+      );
+      const producido = Number(
+        movimientosItem.producido || 0
+      );
+      const reservadoNeto = Math.max(
+        0,
+        Number(movimientosItem.reservado || 0) -
+          Number(movimientosItem.liberado || 0) -
+          consumido
+      );
+      const requerido = Number(
+        item.cantidad_requerida || 0
+      );
+      const faltante =
+        item.material_tipo === "MP"
+          ? Math.max(
+            0,
+            requerido - consumido - reservadoNeto
+          )
+          : Math.max(0, requerido - producido);
+      const estado =
+        item.material_tipo === "MP"
+          ? faltante > 0
+            ? "mp_pendiente"
+            : "mp_cuadrado"
+          : producido > 0
+            ? "rf_producido"
+            : item.estado === "rf_en_flujo"
+              ? "rf_en_flujo"
+              : "rf_pendiente";
+
+      return {
+        ...item,
+        consumido,
+        producido,
+        reservado_neto: reservadoNeto,
+        faltante,
+        estado_cuadratura: estado
+      };
+    }),
+    [
+      disponibilidadTrazabilidad,
+      resumenTrazabilidad
+    ]
+  );
 
   const movimientoVista = useMemo(
     () => prepararMovimientoAlmacen({
@@ -336,6 +400,49 @@ function AlmacenV2({
     formulario.ot_codigo,
     formulario.tipo,
     ordenSeleccionada,
+    perfil.empresa_id,
+    plantaId
+  ]);
+
+  useEffect(() => {
+    const cargarOperacionesTrazabilidad =
+      async () => {
+        const orden = ordenes.find(
+          item =>
+            item.codigo === otTrazabilidad
+        );
+
+        if (!orden) {
+          setOperacionesTrazabilidad([]);
+          return;
+        }
+
+        try {
+          const operaciones =
+            await listarOperacionesOT(
+              db,
+              perfil.empresa_id,
+              plantaId,
+              orden.id
+            );
+
+          setOperacionesTrazabilidad(
+            operaciones
+          );
+        } catch (fallo) {
+          setError(
+            fallo?.message ||
+            "No se pudo cargar la trazabilidad de la OT."
+          );
+          setOperacionesTrazabilidad([]);
+        }
+      };
+
+    cargarOperacionesTrazabilidad();
+  }, [
+    db,
+    ordenes,
+    otTrazabilidad,
     perfil.empresa_id,
     plantaId
   ]);
@@ -1057,13 +1164,141 @@ function AlmacenV2({
                   Selecciona una OT para revisar
                   reservas, consumos y RF producidos.
                 </p>
-              ) : movimientosTrazabilidad.length === 0 ? (
-                <p style={{ color: "#64748B" }}>
-                  Esta OT aún no tiene movimientos de
-                  almacén registrados.
-                </p>
               ) : (
                 <>
+                  <h3 style={{ marginTop: 0 }}>
+                    Estado de cuadratura
+                  </h3>
+
+                  {cuadraturaTrazabilidad.length === 0 ? (
+                    <p style={{ color: "#64748B" }}>
+                      Esta OT no tiene materiales de
+                      entrada asociados a sus operaciones.
+                    </p>
+                  ) : (
+                    <div style={{
+                      display: "grid",
+                      gap: 9,
+                      marginBottom: 16
+                    }}>
+                      {cuadraturaTrazabilidad.map(
+                        item => (
+                          <div
+                            key={item.material_id}
+                            style={{
+                              border:
+                                "1px solid #E2E8F0",
+                              borderRadius: 10,
+                              padding: 10,
+                              background:
+                                item.estado_cuadratura
+                                  .includes("pendiente")
+                                  ? "#FFFBEB"
+                                  : "#F0FDF4"
+                            }}
+                          >
+                            <div style={{
+                              display: "flex",
+                              justifyContent:
+                                "space-between",
+                              gap: 8,
+                              alignItems: "center"
+                            }}>
+                              <strong>
+                                {item.material_codigo}
+                                {" - "}
+                                {item.material_nombre}
+                              </strong>
+                              <span style={{
+                                padding: "3px 8px",
+                                borderRadius: 999,
+                                fontSize: 12,
+                                fontWeight: "bold",
+                                color:
+                                  item.material_tipo ===
+                                  "RF"
+                                    ? "#0369A1"
+                                    : "#166534",
+                                background:
+                                  item.material_tipo ===
+                                  "RF"
+                                    ? "#E0F2FE"
+                                    : "#DCFCE7"
+                              }}>
+                                {item.material_tipo}
+                              </span>
+                            </div>
+                            <div style={{
+                              color: "#475569",
+                              fontSize: 13,
+                              marginTop: 4
+                            }}>
+                              Requerido:{" "}
+                              {formatearNumero(
+                                item.cantidad_requerida
+                              )}
+                              {item.material_tipo ===
+                              "MP" ? (
+                                <>
+                                  {" · Reservado neto: "}
+                                  {formatearNumero(
+                                    item.reservado_neto
+                                  )}
+                                  {" · Consumido: "}
+                                  {formatearNumero(
+                                    item.consumido
+                                  )}
+                                  {" · Pendiente: "}
+                                  {formatearNumero(
+                                    item.faltante
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {" · Producido: "}
+                                  {formatearNumero(
+                                    item.producido
+                                  )}
+                                  {" · RF disponible ahora: "}
+                                  {formatearNumero(
+                                    item.disponible_flujo
+                                  )}
+                                  {" · Pendiente: "}
+                                  {formatearNumero(
+                                    item.faltante
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <div style={{
+                              marginTop: 4,
+                              fontSize: 13,
+                              fontWeight: "bold",
+                              color:
+                                item.faltante > 0
+                                  ? "#B45309"
+                                  : "#166534"
+                            }}>
+                              {item.faltante > 0
+                                ? item.material_tipo ===
+                                  "MP"
+                                  ? "Pendiente de reservar o consumir MP."
+                                  : "RF en flujo o pendiente de producción."
+                                : "Cuadrado para esta OT."}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
+
+                  {movimientosTrazabilidad.length === 0 ? (
+                    <p style={{ color: "#64748B" }}>
+                      Esta OT aún no tiene movimientos de
+                      almacén registrados.
+                    </p>
+                  ) : (
+                    <>
                   <div style={{
                     display: "grid",
                     gap: 9,
@@ -1112,6 +1347,8 @@ function AlmacenV2({
                       </div>
                     ))}
                   </div>
+                    </>
+                  )}
 
                   <div style={{
                     display: "grid",
