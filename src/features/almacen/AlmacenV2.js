@@ -80,6 +80,8 @@ function AlmacenV2({
   const [ordenes, setOrdenes] = useState([]);
   const [operacionesOrden, setOperacionesOrden] =
     useState([]);
+  const [otTrazabilidad, setOtTrazabilidad] =
+    useState("");
   const [formulario, setFormulario] =
     useState(estadoInicial);
   const [cargando, setCargando] = useState(true);
@@ -138,6 +140,77 @@ function AlmacenV2({
       stocks
     ),
     [operacionesOrden, stocks]
+  );
+  const movimientosRecientes = useMemo(
+    () => movimientos.slice(0, 25),
+    [movimientos]
+  );
+  const movimientosTrazabilidad = useMemo(
+    () => movimientos.filter(
+      movimiento =>
+        movimiento.ot_codigo ===
+        otTrazabilidad
+    ),
+    [movimientos, otTrazabilidad]
+  );
+  const resumenTrazabilidad = useMemo(
+    () => movimientosTrazabilidad.reduce(
+      (resumen, movimiento) => {
+        const codigo =
+          movimiento.material_codigo ||
+          "SIN_CODIGO";
+        const actual =
+          resumen[codigo] || {
+            material_codigo: codigo,
+            material_nombre:
+              movimiento.material_nombre || "",
+            material_tipo:
+              movimiento.material_tipo || "",
+            consumido: 0,
+            producido: 0,
+            reservado: 0,
+            liberado: 0
+          };
+
+        if (
+          movimiento.tipo ===
+          TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT
+        ) {
+          actual.consumido += Number(
+            movimiento.cantidad || 0
+          );
+        } else if (
+          movimiento.tipo ===
+          TIPOS_MOVIMIENTO_ALMACEN.RECEPCION
+        ) {
+          actual.producido += Number(
+            movimiento.cantidad || 0
+          );
+        } else if (
+          movimiento.tipo ===
+          TIPOS_MOVIMIENTO_ALMACEN.RESERVA_OT
+        ) {
+          actual.reservado += Number(
+            movimiento.cantidad || 0
+          );
+        } else if (
+          movimiento.tipo ===
+          TIPOS_MOVIMIENTO_ALMACEN
+            .LIBERACION_RESERVA
+        ) {
+          actual.liberado += Number(
+            movimiento.cantidad || 0
+          );
+        }
+
+        return {
+          ...resumen,
+          [codigo]: actual
+        };
+      },
+      {}
+    ),
+    [movimientosTrazabilidad]
   );
 
   const movimientoVista = useMemo(
@@ -204,9 +277,7 @@ function AlmacenV2({
         )
       );
       setStocks(stocksData);
-      setMovimientos(
-        movimientosData.slice(0, 25)
-      );
+      setMovimientos(movimientosData);
       setOrdenes(
         ordenesData.filter(
           orden =>
@@ -379,6 +450,7 @@ function AlmacenV2({
               onChange={evento => {
                 setPlantaId(evento.target.value);
                 setFormulario(estadoInicial);
+                setOtTrazabilidad("");
               }}
               style={{
                 ...campo,
@@ -946,10 +1018,181 @@ function AlmacenV2({
                 "0 2px 10px rgba(15,23,42,0.08)"
             }}>
               <h2 style={{ marginTop: 0 }}>
+                Trazabilidad por OT
+              </h2>
+
+              <label>
+                OT
+                <select
+                  value={otTrazabilidad}
+                  onChange={evento =>
+                    setOtTrazabilidad(
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                >
+                  <option value="">
+                    Seleccionar OT
+                  </option>
+                  {ordenes.map(orden => (
+                    <option
+                      key={orden.id}
+                      value={orden.codigo}
+                    >
+                      {orden.codigo}
+                      {" - "}
+                      {orden.producto_nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {!otTrazabilidad ? (
+                <p style={{ color: "#64748B" }}>
+                  Selecciona una OT para revisar
+                  reservas, consumos y RF producidos.
+                </p>
+              ) : movimientosTrazabilidad.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  Esta OT aún no tiene movimientos de
+                  almacén registrados.
+                </p>
+              ) : (
+                <>
+                  <div style={{
+                    display: "grid",
+                    gap: 9,
+                    marginBottom: 14
+                  }}>
+                    {Object.values(
+                      resumenTrazabilidad
+                    ).map(item => (
+                      <div
+                        key={item.material_codigo}
+                        style={{
+                          border:
+                            "1px solid #E2E8F0",
+                          borderRadius: 10,
+                          padding: 10,
+                          background: "#F8FAFC"
+                        }}
+                      >
+                        <strong>
+                          {item.material_codigo}
+                          {" - "}
+                          {item.material_nombre}
+                        </strong>
+                        <div style={{
+                          color: "#475569",
+                          fontSize: 13,
+                          marginTop: 4
+                        }}>
+                          Reservado:{" "}
+                          {formatearNumero(
+                            item.reservado
+                          )}
+                          {" · Liberado: "}
+                          {formatearNumero(
+                            item.liberado
+                          )}
+                          {" · Consumido: "}
+                          {formatearNumero(
+                            item.consumido
+                          )}
+                          {" · Producido: "}
+                          {formatearNumero(
+                            item.producido
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{
+                    display: "grid",
+                    gap: 8
+                  }}>
+                    {movimientosTrazabilidad.map(
+                      movimiento => (
+                        <article
+                          key={movimiento.id}
+                          style={{
+                            border:
+                              "1px solid #E2E8F0",
+                            borderRadius: 10,
+                            padding: 10
+                          }}
+                        >
+                          <strong>
+                            {
+                              movimiento.tipo_nombre
+                            }
+                            {" · "}
+                            {
+                              movimiento
+                                .material_codigo
+                            }
+                          </strong>
+                          <div style={{
+                            color: "#475569",
+                            fontSize: 13,
+                            marginTop: 4
+                          }}>
+                            {formatearFecha(
+                              movimiento.fecha
+                            )}
+                            {" · Cantidad "}
+                            {formatearNumero(
+                              movimiento.cantidad
+                            )}
+                            {" · "}
+                            {movimiento.origen ===
+                            "produccion"
+                              ? "Producción"
+                              : "Manual"}
+                          </div>
+                          {movimiento.operacion_codigo && (
+                            <div style={{
+                              color: "#64748B",
+                              fontSize: 13,
+                              marginTop: 3
+                            }}>
+                              Operación:{" "}
+                              {
+                                movimiento
+                                  .operacion_codigo
+                              }
+                              {movimiento
+                                .operacion_nombre
+                                ? ` · ${movimiento.operacion_nombre}`
+                                : ""}
+                            </div>
+                          )}
+                        </article>
+                      )
+                    )}
+                  </div>
+                </>
+              )}
+            </section>
+
+            <section style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)"
+            }}>
+              <h2 style={{ marginTop: 0 }}>
                 Últimos movimientos
               </h2>
 
-              {movimientos.length === 0 ? (
+              {movimientosRecientes.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
                   Sin movimientos registrados.
                 </p>
@@ -958,7 +1201,7 @@ function AlmacenV2({
                   display: "grid",
                   gap: 10
                 }}>
-                  {movimientos.map(movimiento => (
+                  {movimientosRecientes.map(movimiento => (
                     <article
                       key={movimiento.id}
                       style={{
