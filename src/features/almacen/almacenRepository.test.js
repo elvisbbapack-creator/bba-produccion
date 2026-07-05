@@ -165,9 +165,45 @@ test("consumo por OT exige OT y stock disponible", () => {
       }
     )
   ).toEqual([
-    "Stock disponible insuficiente. Disponible: 10.",
+    "Stock físico insuficiente. Stock: 10.",
     "Indica la OT asociada al movimiento."
   ]);
+});
+
+test("consumo OT descuenta stock físico y libera reserva existente", () => {
+  const movimiento =
+    prepararMovimientoAlmacen({
+      empresaId: "bba",
+      plantaId: "chile",
+      material,
+      tipo: TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT,
+      cantidad: 30,
+      otCodigo: "OT-CHI-000001",
+      usuario
+    });
+
+  expect(
+    validarMovimientoAlmacen(
+      movimiento,
+      {
+        stock_actual: 100,
+        stock_reservado: 80
+      }
+    )
+  ).toEqual([]);
+  expect(
+    calcularStockTrasMovimiento(
+      {
+        stock_actual: 100,
+        stock_reservado: 80
+      },
+      movimiento
+    )
+  ).toEqual({
+    stock_actual: 70,
+    stock_reservado: 50,
+    stock_disponible: 20
+  });
 });
 
 test("agrupa requerimientos de materiales por OT y calcula brecha", () => {

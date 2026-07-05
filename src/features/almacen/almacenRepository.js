@@ -174,6 +174,18 @@ export const validarMovimientoAlmacen = (
   }
 
   if (
+    movimiento?.tipo ===
+      TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT &&
+    cantidad > stock
+  ) {
+    errores.push(
+      `Stock físico insuficiente. Stock: ${stock}.`
+    );
+  }
+
+  if (
+    movimiento?.tipo !==
+      TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT &&
     definicion?.signo_stock < 0 &&
     cantidad > disponible
   ) {
@@ -240,9 +252,16 @@ export const calcularStockTrasMovimiento = (
   const siguienteStock = stock +
     cantidad *
       Number(movimiento?.signo_stock || 0);
-  const siguienteReservado = reservado +
-    cantidad *
-      Number(movimiento?.signo_reserva || 0);
+  const siguienteReservado =
+    movimiento?.tipo ===
+      TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT
+      ? Math.max(
+        0,
+        reservado - Math.min(reservado, cantidad)
+      )
+      : reservado +
+        cantidad *
+          Number(movimiento?.signo_reserva || 0);
 
   return {
     stock_actual: siguienteStock,

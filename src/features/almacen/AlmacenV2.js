@@ -968,11 +968,40 @@ function AlmacenV2({
                         padding: 12
                       }}
                     >
-                      <strong>
-                        {movimiento.tipo_nombre}
-                        {" · "}
-                        {movimiento.material_codigo}
-                      </strong>
+                      <div style={{
+                        display: "flex",
+                        justifyContent:
+                          "space-between",
+                        gap: 8,
+                        alignItems: "center"
+                      }}>
+                        <strong>
+                          {movimiento.tipo_nombre}
+                          {" · "}
+                          {movimiento.material_codigo}
+                        </strong>
+                        <span style={{
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          fontSize: 12,
+                          fontWeight: "bold",
+                          color:
+                            movimiento.origen ===
+                            "produccion"
+                              ? "#7C2D12"
+                              : "#334155",
+                          background:
+                            movimiento.origen ===
+                            "produccion"
+                              ? "#FFEDD5"
+                              : "#E2E8F0"
+                        }}>
+                          {movimiento.origen ===
+                          "produccion"
+                            ? "Producción"
+                            : "Manual"}
+                        </span>
+                      </div>
                       <div style={{
                         color: "#334155",
                         marginTop: 4
@@ -981,7 +1010,15 @@ function AlmacenV2({
                         {formatearNumero(
                           movimiento.cantidad
                         )}
-                        {" · Nuevo disponible: "}
+                        {" · Stock: "}
+                        {formatearNumero(
+                          movimiento.stock_anterior
+                        )}
+                        {" → "}
+                        {formatearNumero(
+                          movimiento.stock_nuevo
+                        )}
+                        {" · Disponible: "}
                         {formatearNumero(
                           movimiento
                             .stock_disponible_nuevo
@@ -1002,6 +1039,24 @@ function AlmacenV2({
                           ? ` · ${movimiento.referencia}`
                           : ""}
                       </div>
+                      {movimiento.origen ===
+                        "produccion" && (
+                        <div style={{
+                          color: "#475569",
+                          fontSize: 13,
+                          marginTop: 4
+                        }}>
+                          Operación:{" "}
+                          {movimiento.operacion_codigo ||
+                            "-"}
+                          {movimiento.operacion_nombre
+                            ? ` · ${movimiento.operacion_nombre}`
+                            : ""}
+                          {movimiento.sesion_id
+                            ? ` · Sesión ${movimiento.sesion_id}`
+                            : ""}
+                        </div>
+                      )}
                     </article>
                   ))}
                 </div>
