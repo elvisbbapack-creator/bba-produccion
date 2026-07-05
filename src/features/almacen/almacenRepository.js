@@ -759,6 +759,40 @@ export const listarMovimientosAlmacen = async (
     });
 };
 
+export const listarMovimientosAlmacenOT = async (
+  db,
+  empresaId,
+  plantaId,
+  otCodigo
+) => {
+  const codigo = limpiarTexto(otCodigo)
+    .toUpperCase();
+
+  if (!codigo) {
+    return [];
+  }
+
+  const snapshot = await getDocs(
+    query(
+      collection(db, "movimientos_almacen"),
+      where("empresa_id", "==", empresaId),
+      where("planta_id", "==", plantaId),
+      where("ot_codigo", "==", codigo)
+    )
+  );
+
+  return snapshot.docs
+    .map(documento => ({
+      id: documento.id,
+      ...documento.data()
+    }))
+    .sort((a, b) => {
+      const derecha = b.fecha?.toMillis?.() || 0;
+      const izquierda = a.fecha?.toMillis?.() || 0;
+      return derecha - izquierda;
+    });
+};
+
 export const registrarMovimientoAlmacen =
   async ({
     db,

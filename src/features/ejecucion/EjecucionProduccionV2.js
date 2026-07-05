@@ -21,7 +21,9 @@ import {
   obtenerResumenEstandar
 } from "../resumenes/resumenesRepository";
 import {
+  calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
+  listarMovimientosAlmacenOT,
   listarStockMateriales
 } from "../almacen/almacenRepository";
 import {
@@ -93,6 +95,8 @@ function EjecucionProduccionV2({
   const [operaciones, setOperaciones] = useState([]);
   const [stocksMateriales, setStocksMateriales] =
     useState([]);
+  const [movimientosAlmacenOT,
+    setMovimientosAlmacenOT] = useState([]);
   const [operacionId, setOperacionId] =
     useState("");
   const [operarioCodigo, setOperarioCodigo] =
@@ -153,6 +157,18 @@ function EjecucionProduccionV2({
       stocksMateriales
     ),
     [operaciones, stocksMateriales]
+  );
+  const cuadraturaAlmacenOT = useMemo(
+    () => calcularCuadraturaAlmacenOT({
+      operaciones,
+      stocks: stocksMateriales,
+      movimientos: movimientosAlmacenOT
+    }),
+    [
+      movimientosAlmacenOT,
+      operaciones,
+      stocksMateriales
+    ]
   );
   const disponibilidadOperacion =
     useMemo(() => {
@@ -583,6 +599,7 @@ function EjecucionProduccionV2({
     setOrdenId("");
     setOperacionId("");
     setOperaciones([]);
+    setMovimientosAlmacenOT([]);
     setSesionId("");
     setProgramacionId("");
     setOperarioCodigo("");
@@ -620,17 +637,31 @@ function EjecucionProduccionV2({
 
     if (!orden) {
       setOperaciones([]);
+      setMovimientosAlmacenOT([]);
       return;
     }
 
     try {
-      setOperaciones(
-        await listarOperacionesOT(
+      const [
+        operacionesOrden,
+        movimientosOrden
+      ] = await Promise.all([
+        listarOperacionesOT(
           db,
           perfil.empresa_id,
           orden.planta_id,
           orden.id
+        ),
+        listarMovimientosAlmacenOT(
+          db,
+          perfil.empresa_id,
+          orden.planta_id,
+          orden.codigo
         )
+      ]);
+      setOperaciones(operacionesOrden);
+      setMovimientosAlmacenOT(
+        movimientosOrden
       );
     } catch (fallo) {
       setError(
@@ -986,6 +1017,93 @@ function EjecucionProduccionV2({
                   ))}
                 </select>
               </label>
+
+              {ordenSeleccionada && (
+                <div style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  border:
+                    cuadraturaAlmacenOT
+                      .estado_general ===
+                    "bloqueada_por_mp"
+                      ? "1px solid #FCA5A5"
+                      : cuadraturaAlmacenOT
+                        .estado_general ===
+                        "rf_en_flujo"
+                        ? "1px solid #FCD34D"
+                        : cuadraturaAlmacenOT
+                          .estado_general ===
+                          "cuadrada"
+                          ? "1px solid #BBF7D0"
+                          : "1px solid #CBD5E1",
+                  background:
+                    cuadraturaAlmacenOT
+                      .estado_general ===
+                    "bloqueada_por_mp"
+                      ? "#FEF2F2"
+                      : cuadraturaAlmacenOT
+                        .estado_general ===
+                        "rf_en_flujo"
+                        ? "#FFFBEB"
+                        : cuadraturaAlmacenOT
+                          .estado_general ===
+                          "cuadrada"
+                          ? "#F0FDF4"
+                          : "#F8FAFC"
+                }}>
+                  <strong>
+                    {cuadraturaAlmacenOT
+                      .estado_general ===
+                    "bloqueada_por_mp"
+                      ? "Riesgo OT: falta MP"
+                      : cuadraturaAlmacenOT
+                        .estado_general ===
+                        "rf_en_flujo"
+                        ? "Riesgo OT: RF en flujo"
+                        : cuadraturaAlmacenOT
+                          .estado_general ===
+                          "cuadrada"
+                          ? "OT cuadrada para iniciar"
+                          : "OT sin materiales para validar"}
+                  </strong>
+                  <div style={{
+                    color: "#475569",
+                    fontSize: 13,
+                    marginTop: 5
+                  }}>
+                    MP pendientes:{" "}
+                    {
+                      cuadraturaAlmacenOT.totales
+                        .mp_pendientes
+                    }
+                    {"/"}
+                    {
+                      cuadraturaAlmacenOT.totales
+                        .mp_total
+                    }
+                    {" · RF pendientes: "}
+                    {
+                      cuadraturaAlmacenOT.totales
+                        .rf_pendientes
+                    }
+                    {"/"}
+                    {
+                      cuadraturaAlmacenOT.totales
+                        .rf_total
+                    }
+                  </div>
+                  <div style={{
+                    color: "#334155",
+                    fontSize: 13,
+                    marginTop: 5
+                  }}>
+                    {
+                      cuadraturaAlmacenOT
+                        .recomendacion
+                    }
+                  </div>
+                </div>
+              )}
 
               <label style={etiqueta}>
                 Operación disponible
