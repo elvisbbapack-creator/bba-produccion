@@ -432,6 +432,87 @@ export const ordenarOrdenesActivas = (
       Number(a.correlativo || 0)
   );
 
+export const resumirRiesgosDashboard = (
+  ordenes = []
+) => {
+  const resumen = ordenes.reduce(
+    (acumulado, orden) => {
+      const riesgo =
+        orden.riesgo_entrega || "sin_fecha";
+      const pendiente = Number(
+        orden.cuello_carga
+          ?.cantidad_pendiente ??
+        orden.cantidad_total_pendiente ??
+        0
+      );
+
+      acumulado.total_ots += 1;
+      acumulado.unidades_pendientes +=
+        pendiente;
+      acumulado.por_riesgo[riesgo] =
+        (acumulado.por_riesgo[riesgo] || 0) +
+        1;
+
+      if (
+        ["atrasada", "en_riesgo"].includes(
+          riesgo
+        )
+      ) {
+        acumulado.ots_criticas += 1;
+      }
+
+      if (
+        orden.cuello_carga?.pendiente_estandar ||
+        riesgo === "sin_estandar"
+      ) {
+        acumulado.sin_estandar += 1;
+      }
+
+      if (pendiente > 0) {
+        acumulado.con_cuello_pendiente += 1;
+      }
+
+      return acumulado;
+    },
+    {
+      total_ots: 0,
+      ots_criticas: 0,
+      sin_estandar: 0,
+      con_cuello_pendiente: 0,
+      unidades_pendientes: 0,
+      por_riesgo: {
+        atrasada: 0,
+        en_riesgo: 0,
+        sin_estandar: 0,
+        sin_fecha: 0,
+        en_fecha: 0
+      }
+    }
+  );
+  const estado_general =
+    resumen.ots_criticas > 0
+      ? "critico"
+      : resumen.sin_estandar > 0
+        ? "estandar_pendiente"
+        : resumen.con_cuello_pendiente > 0
+          ? "operativo"
+          : "sin_riesgo";
+  const recomendacion =
+    estado_general === "critico"
+      ? "Revisar primero OTs atrasadas o en riesgo y resolver el cuello principal."
+      : estado_general === "estandar_pendiente"
+        ? "Definir estándares pendientes para proyectar fin real y priorizar con confianza."
+        : estado_general === "operativo"
+          ? "Mantener foco en los cuellos pendientes y controlar avance por turno."
+          : "No hay OTs activas con riesgo visible en el dashboard.";
+
+  return {
+    ...resumen,
+    estado_general,
+    recomendacion
+  };
+};
+
 export const observarOrdenesActivas = (
   db,
   empresaId,

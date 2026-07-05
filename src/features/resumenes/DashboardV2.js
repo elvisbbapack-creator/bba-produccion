@@ -5,7 +5,8 @@ import {
 } from "react";
 import {
   observarOrdenesActivas,
-  observarResumenPlanta
+  observarResumenPlanta,
+  resumirRiesgosDashboard
 } from "./resumenesRepository";
 
 const zonaPorPlanta = {
@@ -154,6 +155,12 @@ function DashboardV2({
 
   const ranking =
     resumen?.ranking_operarios || [];
+  const resumenRiesgos = useMemo(
+    () => resumirRiesgosDashboard(
+      ordenesActivas
+    ),
+    [ordenesActivas]
+  );
   const tarjetas = [
     {
       titulo: "Producción OK",
@@ -193,6 +200,46 @@ function DashboardV2({
       color: colorIndicador(
         resumen?.eficiencia_calidad_pct
       )
+    }
+  ];
+  const tarjetasRiesgo = [
+    {
+      titulo: "OTs críticas",
+      valor: resumenRiesgos.ots_criticas,
+      detalle: "Atrasadas o en riesgo",
+      color:
+        resumenRiesgos.ots_criticas > 0
+          ? "#F87171"
+          : "#4ADE80"
+    },
+    {
+      titulo: "Sin estándar",
+      valor: resumenRiesgos.sin_estandar,
+      detalle: "No proyectan con confianza",
+      color:
+        resumenRiesgos.sin_estandar > 0
+          ? "#FACC15"
+          : "#4ADE80"
+    },
+    {
+      titulo: "Cuellos activos",
+      valor:
+        resumenRiesgos.con_cuello_pendiente,
+      detalle: "OTs con carga pendiente",
+      color:
+        resumenRiesgos
+          .con_cuello_pendiente > 0
+          ? "#38BDF8"
+          : "#4ADE80"
+    },
+    {
+      titulo: "Unidades cuello",
+      valor: Number(
+        resumenRiesgos
+          .unidades_pendientes || 0
+      ).toLocaleString("es-CL"),
+      detalle: "Pendientes en cuellos",
+      color: "#A78BFA"
     }
   ];
 
@@ -365,6 +412,95 @@ function DashboardV2({
             </div>
           ))}
         </div>
+
+        <section style={{
+          background: "#1E293B",
+          borderRadius: 14,
+          padding: modoTv ? 22 : 18,
+          marginBottom: 20,
+          border:
+            resumenRiesgos.estado_general ===
+            "critico"
+              ? "1px solid #F87171"
+              : resumenRiesgos.estado_general ===
+                "estandar_pendiente"
+                ? "1px solid #FACC15"
+                : "1px solid transparent"
+        }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+            marginBottom: 12
+          }}>
+            <h2 style={{ margin: 0 }}>
+              Riesgos gerenciales de OTs
+            </h2>
+            <strong style={{
+              color:
+                resumenRiesgos.estado_general ===
+                "critico"
+                  ? "#F87171"
+                  : resumenRiesgos
+                    .estado_general ===
+                    "estandar_pendiente"
+                    ? "#FACC15"
+                    : "#4ADE80"
+            }}>
+              {resumenRiesgos.total_ots}
+              {" OTs activas"}
+            </strong>
+          </div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              "repeat(auto-fit, minmax(150px, 1fr))",
+            gap: 10
+          }}>
+            {tarjetasRiesgo.map(item => (
+              <div
+                key={item.titulo}
+                style={{
+                  background: "#0F172A",
+                  borderRadius: 10,
+                  padding: modoTv ? 14 : 12,
+                  borderTop:
+                    `4px solid ${item.color}`
+                }}
+              >
+                <div style={{
+                  color: "#CBD5E1",
+                  fontSize: 13
+                }}>
+                  {item.titulo}
+                </div>
+                <strong style={{
+                  display: "block",
+                  color: item.color,
+                  fontSize: modoTv ? 27 : 22,
+                  marginTop: 5
+                }}>
+                  {item.valor}
+                </strong>
+                <div style={{
+                  color: "#94A3B8",
+                  fontSize: 12,
+                  marginTop: 3
+                }}>
+                  {item.detalle}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{
+            color: "#CBD5E1",
+            marginTop: 12
+          }}>
+            {resumenRiesgos.recomendacion}
+          </div>
+        </section>
 
         <section style={{
           background: "#1E293B",

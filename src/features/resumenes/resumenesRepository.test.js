@@ -5,7 +5,8 @@ import {
   calcularResumenAcumulado,
   clasificarRiesgoOT,
   idsResumenReporte,
-  ordenarOrdenesActivas
+  ordenarOrdenesActivas,
+  resumirRiesgosDashboard
 } from "./resumenesRepository";
 
 test("sugiere estándar con mediciones válidas de calidad", () => {
@@ -180,4 +181,43 @@ test("prioriza OTs atrasadas, en riesgo y sin estándar", () => {
       new Date("2026-06-15T12:00:00Z")
     ).desviacion_horas
   ).toBe(24);
+});
+
+test("resume riesgos gerenciales del dashboard", () => {
+  const resumen = resumirRiesgosDashboard([
+    {
+      id: "atrasada",
+      riesgo_entrega: "atrasada",
+      cuello_carga: {
+        cantidad_pendiente: 120
+      }
+    },
+    {
+      id: "sin-estandar",
+      riesgo_entrega: "sin_estandar",
+      cuello_carga: {
+        cantidad_pendiente: 80,
+        pendiente_estandar: true
+      }
+    },
+    {
+      id: "en-fecha",
+      riesgo_entrega: "en_fecha",
+      cantidad_total_pendiente: 30
+    }
+  ]);
+
+  expect(resumen).toMatchObject({
+    total_ots: 3,
+    ots_criticas: 1,
+    sin_estandar: 1,
+    con_cuello_pendiente: 3,
+    unidades_pendientes: 230,
+    estado_general: "critico"
+  });
+  expect(resumen.por_riesgo.atrasada).toBe(1);
+  expect(resumen.por_riesgo.sin_estandar).toBe(1);
+  expect(resumen.recomendacion).toContain(
+    "atrasadas"
+  );
 });
