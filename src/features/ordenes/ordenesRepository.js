@@ -171,6 +171,87 @@ export const calcularProyeccionOT = (
   };
 };
 
+export const validarCierreFormalOT = ({
+  orden = {},
+  operaciones = [],
+  sesionesActivas = []
+} = {}) => {
+  const operacionesPendientes =
+    operaciones.filter(
+      operacion =>
+        Number(
+          operacion.cantidad_pendiente || 0
+        ) > 0
+    );
+  const operacionesConReproceso =
+    operaciones.filter(
+      operacion =>
+        Number(
+          operacion.reproceso_pendiente || 0
+        ) > 0
+    );
+  const reprocesosPendientes = Number(
+    orden.reprocesos_pendientes || 0
+  );
+  const bloqueos = [];
+
+  if (
+    ["cerrada", "anulada"].includes(
+      orden.estado
+    )
+  ) {
+    bloqueos.push(
+      "La OT ya está cerrada o anulada."
+    );
+  }
+
+  if (operaciones.length === 0) {
+    bloqueos.push(
+      "La OT no tiene operaciones para validar."
+    );
+  }
+
+  if (operacionesPendientes.length > 0) {
+    bloqueos.push(
+      `Quedan ${operacionesPendientes.length} operaciones con unidades pendientes.`
+    );
+  }
+
+  if (operacionesConReproceso.length > 0) {
+    bloqueos.push(
+      `Quedan ${operacionesConReproceso.length} operaciones con reproceso pendiente.`
+    );
+  }
+
+  if (reprocesosPendientes > 0) {
+    bloqueos.push(
+      `La OT tiene ${reprocesosPendientes} reprocesos pendientes.`
+    );
+  }
+
+  if (sesionesActivas.length > 0) {
+    bloqueos.push(
+      `Hay ${sesionesActivas.length} sesiones activas o pausadas.`
+    );
+  }
+
+  return {
+    puede_cerrar: bloqueos.length === 0,
+    bloqueos,
+    resumen: {
+      operaciones_total: operaciones.length,
+      operaciones_pendientes:
+        operacionesPendientes.length,
+      operaciones_reproceso_pendiente:
+        operacionesConReproceso.length,
+      reprocesos_pendientes:
+        reprocesosPendientes,
+      sesiones_activas:
+        sesionesActivas.length
+    }
+  };
+};
+
 export const CALENDARIOS_PLANTA = {
   chile: {
     nombre: "Chile",
@@ -929,6 +1010,101 @@ export const listarOperacionesOT = async (
         Number(a.secuencia) -
         Number(b.secuencia)
     );
+};
+
+export const listarSesionesActivasOT = async (
+  db,
+  empresaId,
+  plantaId,
+  otId
+) => {
+  if (!otId) {
+    return [];
+  }
+
+  const estados = ["activa", "pausada"];
+  const snapshots = await Promise.all(
+    estados.map(estado =>
+      getDocs(
+        query(
+          collection(
+            db,
+            "sesiones_produccion"
+          ),
+          where(
+            "empresa_id",
+            "==",
+            empresaId
+          ),
+          where("planta_id", "==", plantaId),
+          where("ot_id", "==", otId),
+          where("estado", "==", estado)
+        )
+      )
+    )
+  );
+
+  return snapshots.flatMap(snapshot =>
+    snapshot.docs.map(documento => ({
+      id: documento.id,
+      ...documento.data()
+    }))
+  );
+};
+
+export const cerrarOrdenTrabajoV2 = async ({
+  db,
+  perfil,
+  orden,
+  operaciones,
+  observacion = ""
+}) => {
+  const sesionesActivas =
+    await listarSesionesActivasOT(
+      db,
+      perfil.empresa_id,
+      orden.planta_id,
+      orden.id
+    );
+  const validacion = validarCierreFormalOT({
+    orden,
+    operaciones,
+    sesionesActivas
+  });
+
+  if (!validacion.puede_cerrar) {
+    throw new Error(
+      validacion.bloqueos.join(" ")
+    );
+  }
+
+  const cierre = {
+    estado: "cerrada",
+    cierre_formal_estado: "cerrada",
+    cierre_observacion:
+      limpiarTexto(observacion),
+    cierre_validacion: validacion.resumen,
+    cerrada_por_id: perfil.uid,
+    cerrada_por_nombre:
+      perfil.nombre || "",
+    cerrada_en: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  };
+
+  if (!orden.fecha_real_fin) {
+    cierre.fecha_real_fin = serverTimestamp();
+  }
+
+  await updateDoc(
+    doc(db, "ordenes_trabajo", orden.id),
+    cierre
+  );
+
+  return {
+    ...orden,
+    ...cierre,
+    cierre_validacion: validacion.resumen
+  };
 };
 
 export const crearOrdenV2 = async ({

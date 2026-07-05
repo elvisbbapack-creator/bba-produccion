@@ -567,6 +567,14 @@ service cloud.firestore {
           resource.data
         ).affectedKeys().hasOnly([
           'fecha_planificada_entrega',
+          'estado',
+          'fecha_real_fin',
+          'cierre_formal_estado',
+          'cierre_observacion',
+          'cierre_validacion',
+          'cerrada_por_id',
+          'cerrada_por_nombre',
+          'cerrada_en',
           'fecha_actualizacion'
         ]);
       allow delete: if

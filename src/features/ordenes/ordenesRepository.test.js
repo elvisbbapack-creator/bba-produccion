@@ -7,6 +7,7 @@ import {
   prepararOrden,
   simularTurnosOT,
   sumarHorasEnCalendario,
+  validarCierreFormalOT,
   validarDatosOrden
 } from "./ordenesRepository";
 
@@ -346,6 +347,74 @@ test("no recomienda turnos con capacidad provisional", () => {
       .capacidad_validada
   ).toBe(false);
   expect(simulacion.recomienda_ampliar).toBe(false);
+});
+
+test("bloquea cierre formal con pendientes, reprocesos o sesiones activas", () => {
+  const validacion = validarCierreFormalOT({
+    orden: {
+      estado: "en_produccion",
+      reprocesos_pendientes: 2
+    },
+    operaciones: [
+      {
+        cantidad_pendiente: 10,
+        reproceso_pendiente: 0
+      },
+      {
+        cantidad_pendiente: 0,
+        reproceso_pendiente: 1
+      }
+    ],
+    sesionesActivas: [
+      {
+        id: "sesion-1",
+        estado: "activa"
+      }
+    ]
+  });
+
+  expect(validacion.puede_cerrar).toBe(false);
+  expect(validacion.resumen).toMatchObject({
+    operaciones_total: 2,
+    operaciones_pendientes: 1,
+    operaciones_reproceso_pendiente: 1,
+    reprocesos_pendientes: 2,
+    sesiones_activas: 1
+  });
+  expect(validacion.bloqueos.join(" ")).toContain(
+    "operaciones con unidades pendientes"
+  );
+  expect(validacion.bloqueos.join(" ")).toContain(
+    "sesiones activas"
+  );
+});
+
+test("permite cierre formal cuando la OT esta completada y sin bloqueos", () => {
+  const validacion = validarCierreFormalOT({
+    orden: {
+      estado: "completada",
+      reprocesos_pendientes: 0
+    },
+    operaciones: [
+      {
+        cantidad_pendiente: 0,
+        reproceso_pendiente: 0
+      }
+    ],
+    sesionesActivas: []
+  });
+
+  expect(validacion).toMatchObject({
+    puede_cerrar: true,
+    bloqueos: [],
+    resumen: {
+      operaciones_total: 1,
+      operaciones_pendientes: 0,
+      operaciones_reproceso_pendiente: 0,
+      reprocesos_pendientes: 0,
+      sesiones_activas: 0
+    }
+  });
 });
 
 test("usa los calendarios semanales de Chile y Perú", () => {

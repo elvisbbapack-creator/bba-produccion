@@ -19,14 +19,17 @@ import {
   CALENDARIOS_PLANTA,
   actualizarFechaEntregaOrdenV2,
   calcularProyeccionOT,
+  cerrarOrdenTrabajoV2,
   crearOrdenV2,
   guardarConfiguracionCapacidad,
   listarOperacionesOT,
   listarOrdenesV2,
+  listarSesionesActivasOT,
   obtenerConfiguracionCapacidad,
   horasSemanalesCalendario,
   horasSemanalesTercerTurno,
   simularTurnosOT,
+  validarCierreFormalOT,
   validarDatosOrden
 } from "./ordenesRepository";
 
@@ -134,6 +137,8 @@ function OrdenesTrabajoV2({
   const [ordenSeleccionada, setOrdenSeleccionada] =
     useState(null);
   const [operaciones, setOperaciones] = useState([]);
+  const [sesionesActivasOT, setSesionesActivasOT] =
+    useState([]);
   const [capacidadesProceso,
     setCapacidadesProceso] = useState([]);
   const [programacionTurnos,
@@ -146,6 +151,10 @@ function OrdenesTrabajoV2({
   const [mensaje, setMensaje] = useState("");
   const [fechaEntregaEdicion,
     setFechaEntregaEdicion] = useState("");
+  const [cierreObservacion,
+    setCierreObservacion] = useState("");
+  const [cerrandoOT, setCerrandoOT] =
+    useState(false);
   const [guardandoFechaEntrega,
     setGuardandoFechaEntrega] = useState(false);
   const [configuracionCapacidad,
@@ -229,6 +238,18 @@ function OrdenesTrabajoV2({
       Number(
         operacion.unidades_por_hora || 0
       ) <= 0
+  );
+  const validacionCierre = useMemo(
+    () => validarCierreFormalOT({
+      orden: ordenSeleccionada || {},
+      operaciones,
+      sesionesActivas: sesionesActivasOT
+    }),
+    [
+      operaciones,
+      ordenSeleccionada,
+      sesionesActivasOT
+    ]
   );
   const simulacionTurnos = useMemo(
     () => simularTurnosOT(
@@ -347,7 +368,9 @@ function OrdenesTrabajoV2({
     if (nombre === "planta_id") {
       setOrdenSeleccionada(null);
       setOperaciones([]);
+      setSesionesActivasOT([]);
       setFechaEntregaEdicion("");
+      setCierreObservacion("");
 
       try {
         await cargarOrdenes(valor);
@@ -402,6 +425,8 @@ function OrdenesTrabajoV2({
         )
       );
       setOperaciones(resultado.operaciones);
+      setSesionesActivasOT([]);
+      setCierreObservacion("");
       setMensaje(
         `${resultado.orden.codigo} creada con ${resultado.operaciones.length} operaciones.`
       );
@@ -431,13 +456,29 @@ function OrdenesTrabajoV2({
           orden.fecha_planificada_entrega
         )
       );
-      setOperaciones(
-        await listarOperacionesOT(
+      setCierreObservacion(
+        orden.cierre_observacion || ""
+      );
+      const [
+        operacionesOrden,
+        sesionesActivas
+      ] = await Promise.all([
+        listarOperacionesOT(
+          db,
+          perfil.empresa_id,
+          orden.planta_id,
+          orden.id
+        ),
+        listarSesionesActivasOT(
           db,
           perfil.empresa_id,
           orden.planta_id,
           orden.id
         )
+      ]);
+      setOperaciones(operacionesOrden);
+      setSesionesActivasOT(
+        sesionesActivas
       );
     } catch (fallo) {
       setError(
@@ -476,6 +517,46 @@ function OrdenesTrabajoV2({
       );
     } finally {
       setGuardandoFechaEntrega(false);
+    }
+  };
+
+  const cerrarFormalmenteOT = async () => {
+    if (!ordenSeleccionada) {
+      return;
+    }
+
+    try {
+      setCerrandoOT(true);
+      setError("");
+      const actualizada =
+        await cerrarOrdenTrabajoV2({
+          db,
+          perfil,
+          orden: ordenSeleccionada,
+          operaciones,
+          observacion: cierreObservacion
+        });
+
+      setOrdenSeleccionada(actualizada);
+      setOrdenes(actual =>
+        actual.map(orden =>
+          orden.id === actualizada.id
+            ? actualizada
+            : orden
+        )
+      );
+      setSesionesActivasOT([]);
+      setMensaje(
+        `${actualizada.codigo} cerrada formalmente.`
+      );
+      await cargarOrdenes(actualizada.planta_id);
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo cerrar formalmente la OT."
+      );
+    } finally {
+      setCerrandoOT(false);
     }
   };
 
@@ -924,6 +1005,160 @@ function OrdenesTrabajoV2({
                     </div>
                   </div>
                 </div>
+
+                <section style={{
+                  border:
+                    validacionCierre.puede_cerrar
+                      ? "1px solid #BBF7D0"
+                      : "1px solid #FCA5A5",
+                  borderRadius: 10,
+                  padding: 14,
+                  marginBottom: 16,
+                  background:
+                    validacionCierre.puede_cerrar
+                      ? "#F0FDF4"
+                      : "#FEF2F2"
+                }}>
+                  <h3 style={{
+                    marginTop: 0,
+                    marginBottom: 6
+                  }}>
+                    Cierre formal de OT
+                  </h3>
+                  <div style={{
+                    color:
+                      validacionCierre.puede_cerrar
+                        ? "#166534"
+                        : "#B91C1C",
+                    fontWeight: "bold",
+                    marginBottom: 8
+                  }}>
+                    {ordenSeleccionada.estado ===
+                    "cerrada"
+                      ? "Esta OT ya fue cerrada formalmente."
+                      : validacionCierre.puede_cerrar
+                        ? "La OT cumple condiciones para cierre formal."
+                        : "La OT aún no puede cerrarse formalmente."}
+                  </div>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(130px, 1fr))",
+                    gap: 8,
+                    color: "#334155",
+                    marginBottom: 10
+                  }}>
+                    <span>
+                      Operaciones:{" "}
+                      <strong>
+                        {
+                          validacionCierre
+                            .resumen
+                            .operaciones_total
+                        }
+                      </strong>
+                    </span>
+                    <span>
+                      Pendientes:{" "}
+                      <strong>
+                        {
+                          validacionCierre
+                            .resumen
+                            .operaciones_pendientes
+                        }
+                      </strong>
+                    </span>
+                    <span>
+                      Reprocesos:{" "}
+                      <strong>
+                        {
+                          validacionCierre
+                            .resumen
+                            .reprocesos_pendientes
+                        }
+                      </strong>
+                    </span>
+                    <span>
+                      Sesiones activas:{" "}
+                      <strong>
+                        {
+                          validacionCierre
+                            .resumen
+                            .sesiones_activas
+                        }
+                      </strong>
+                    </span>
+                  </div>
+
+                  {validacionCierre.bloqueos
+                    .length > 0 && (
+                    <ul style={{
+                      marginTop: 0,
+                      color: "#7F1D1D"
+                    }}>
+                      {validacionCierre.bloqueos
+                        .map(bloqueo => (
+                          <li key={bloqueo}>
+                            {bloqueo}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+
+                  <label style={{
+                    ...etiqueta,
+                    marginBottom: 10
+                  }}>
+                    Observación de cierre
+                    <textarea
+                      rows={3}
+                      value={cierreObservacion}
+                      onChange={evento =>
+                        setCierreObservacion(
+                          evento.target.value
+                        )
+                      }
+                      disabled={
+                        ordenSeleccionada.estado ===
+                        "cerrada"
+                      }
+                      placeholder="Ej: OT entregada a almacén / producción validada por jefe."
+                      style={campo}
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={cerrarFormalmenteOT}
+                    disabled={
+                      cerrandoOT ||
+                      !validacionCierre.puede_cerrar ||
+                      ordenSeleccionada.estado ===
+                        "cerrada"
+                    }
+                    style={{
+                      border: "none",
+                      borderRadius: 8,
+                      padding: "11px 14px",
+                      background:
+                        validacionCierre.puede_cerrar &&
+                        ordenSeleccionada.estado !==
+                          "cerrada"
+                          ? "#166534"
+                          : "#94A3B8",
+                      color: "white",
+                      fontWeight: "bold",
+                      cursor:
+                        validacionCierre.puede_cerrar
+                          ? "pointer"
+                          : "not-allowed"
+                    }}
+                  >
+                    {cerrandoOT
+                      ? "Cerrando..."
+                      : "Cerrar OT formalmente"}
+                  </button>
+                </section>
 
                 <div style={{
                   padding: 12,
