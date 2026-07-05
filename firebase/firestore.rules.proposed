@@ -181,6 +181,17 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /movimientos_almacen/{movimientoId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isPlantOperator() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope();
+      allow delete: if false;
+    }
+
     match /registros_calidad/{registroId} {
       allow read: if belongsToPlant(resource.data);
       allow create: if isPlantOperator() &&
@@ -208,4 +219,3 @@ service cloud.firestore {
     }
   }
 }
-

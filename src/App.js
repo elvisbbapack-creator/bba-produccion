@@ -238,6 +238,31 @@ const [unidadesHoraOperacionProducto,
   const [todosLosParos, setTodosLosParos] = useState([]);
 
   const [ajustesProduccion, setAjustesProduccion] = useState([]);
+  const [movimientosAlmacen, setMovimientosAlmacen] = useState([]);
+  const [tipoMovimientoAlmacen, setTipoMovimientoAlmacen] =
+    useState("ENTRADA");
+  const [motivoMovimientoAlmacen, setMotivoMovimientoAlmacen] =
+    useState("Entrada por compra");
+  const [bodegaEntradaAlmacen, setBodegaEntradaAlmacen] =
+    useState("BBA QUILICURA");
+  const [bodegaSalidaAlmacen, setBodegaSalidaAlmacen] =
+    useState("");
+  const [origenMovimientoAlmacen, setOrigenMovimientoAlmacen] =
+    useState("MANUAL");
+  const [otMovimientoAlmacen, setOtMovimientoAlmacen] =
+    useState("");
+  const [codigoItemAlmacen, setCodigoItemAlmacen] =
+    useState("");
+  const [nombreItemAlmacen, setNombreItemAlmacen] =
+    useState("");
+  const [tipoItemAlmacen, setTipoItemAlmacen] =
+    useState("MP");
+  const [cantidadItemAlmacen, setCantidadItemAlmacen] =
+    useState("");
+  const [unidadItemAlmacen, setUnidadItemAlmacen] =
+    useState("unidad");
+  const [glosaMovimientoAlmacen, setGlosaMovimientoAlmacen] =
+    useState("");
 
   const [produccionSeleccionada, setProduccionSeleccionada] = useState(null);
 
@@ -433,11 +458,193 @@ setDashboard(
     .slice(0, 50)
 );
 
+try {
+  const movimientosAlmacenQuery = query(
+    collection(db, "movimientos_almacen"),
+    orderBy("fecha", "desc"),
+    limit(200)
+  );
+
+  const movimientosAlmacenSnap =
+    await getDocs(movimientosAlmacenQuery);
+
+  setMovimientosAlmacen(
+    movimientosAlmacenSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+  );
+} catch (error) {
+  console.error("ERROR almacén:", error);
+}
+
   } catch (error) {
     console.error("ERROR:", error);
   }
 
 }, []);
+
+const cargarMovimientosAlmacen = async () => {
+  try {
+    const q = query(
+      collection(db, "movimientos_almacen"),
+      orderBy("fecha", "desc"),
+      limit(200)
+    );
+
+    const snap = await getDocs(q);
+
+    setMovimientosAlmacen(
+      snap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    );
+  } catch (error) {
+    console.error("ERROR almacén:", error);
+  }
+};
+
+const stockAlmacen = movimientosAlmacen.reduce(
+  (acumulado, movimiento) => {
+    const codigo =
+      movimiento.item_codigo || "SIN_CODIGO";
+    const cantidadMovimiento =
+      Number(movimiento.cantidad || 0);
+
+    const signo =
+      movimiento.tipo === "SALIDA"
+        ? -1
+        : movimiento.tipo === "TRASPASO"
+          ? 0
+          : 1;
+
+    if (!acumulado[codigo]) {
+      acumulado[codigo] = {
+        codigo,
+        nombre: movimiento.item_nombre || "",
+        tipo: movimiento.item_tipo || "",
+        unidad: movimiento.unidad || "",
+        stock: 0
+      };
+    }
+
+    acumulado[codigo].stock +=
+      cantidadMovimiento * signo;
+
+    return acumulado;
+  },
+  {}
+);
+
+const resumenStockAlmacen =
+  Object.values(stockAlmacen)
+    .sort((a, b) =>
+      a.codigo.localeCompare(b.codigo)
+    );
+
+const guardarMovimientoAlmacen = async () => {
+  if (
+    !tipoMovimientoAlmacen ||
+    !motivoMovimientoAlmacen ||
+    !codigoItemAlmacen ||
+    !nombreItemAlmacen ||
+    !cantidadItemAlmacen
+  ) {
+    alert(
+      "Completa tipo, motivo, código, nombre y cantidad."
+    );
+    return;
+  }
+
+  const cantidadNumerica =
+    Number(cantidadItemAlmacen);
+
+  if (
+    Number.isNaN(cantidadNumerica) ||
+    cantidadNumerica <= 0
+  ) {
+    alert("La cantidad debe ser mayor a cero.");
+    return;
+  }
+
+  if (
+    ["ENTRADA", "TRASPASO"].includes(
+      tipoMovimientoAlmacen
+    ) &&
+    !bodegaEntradaAlmacen
+  ) {
+    alert("Selecciona bodega de entrada.");
+    return;
+  }
+
+  if (
+    ["SALIDA", "TRASPASO"].includes(
+      tipoMovimientoAlmacen
+    ) &&
+    !bodegaSalidaAlmacen
+  ) {
+    alert("Selecciona bodega de salida.");
+    return;
+  }
+
+  try {
+    const plantaMovimiento =
+      (
+        bodegaEntradaAlmacen ||
+        bodegaSalidaAlmacen
+      )
+        .toLowerCase()
+        .includes("peru")
+          ? "peru"
+          : usuarioSeleccionado?.planta_ids?.[0] ||
+            "chile";
+
+    await addDoc(
+      collection(db, "movimientos_almacen"),
+      {
+        empresa_id:
+          usuarioSeleccionado?.empresa_id ||
+          "bba",
+        planta_id: plantaMovimiento,
+        tipo: tipoMovimientoAlmacen,
+        motivo: motivoMovimientoAlmacen,
+        origen: origenMovimientoAlmacen,
+        ot: otMovimientoAlmacen,
+        bodega_entrada:
+          bodegaEntradaAlmacen,
+        bodega_salida:
+          bodegaSalidaAlmacen,
+        item_codigo:
+          codigoItemAlmacen.trim(),
+        item_nombre:
+          nombreItemAlmacen.trim(),
+        item_tipo: tipoItemAlmacen,
+        cantidad: cantidadNumerica,
+        unidad: unidadItemAlmacen,
+        glosa:
+          glosaMovimientoAlmacen.trim(),
+        creado_por:
+          usuarioSeleccionado?.nombre ||
+          "SIN USUARIO",
+        fecha: new Date()
+      }
+    );
+
+    alert("✅ Movimiento de almacén registrado");
+
+    setCodigoItemAlmacen("");
+    setNombreItemAlmacen("");
+    setCantidadItemAlmacen("");
+    setGlosaMovimientoAlmacen("");
+    setOtMovimientoAlmacen("");
+
+    cargarMovimientosAlmacen();
+  } catch (error) {
+    console.error(error);
+    alert("Error registrando movimiento de almacén");
+  }
+};
 
 useEffect(() => {
 
@@ -1304,7 +1511,7 @@ const cargarTodosLosParos = async () => {
         gridTemplateColumns:
           esMobile
             ? "1fr"
-            : "1.4fr 1fr 1fr",
+            : "1.4fr 1fr 1fr 1fr",
 
         gap: 40,
 
@@ -1474,6 +1681,39 @@ const cargarTodosLosParos = async () => {
             }}
           >
             ⚙️ Operaciones Maestras
+          </button>
+</div>
+
+<div style={{
+
+  display: "flex",
+
+  flexDirection: "column",
+
+  gap: 20
+
+}}>
+          <h3 style={{
+            marginTop: 30,
+            marginBottom: 15,
+            color: "#555"
+          }}>
+
+            📦 Almacén
+
+          </h3>
+
+          <button
+            onClick={() => {
+              setPantalla("almacen");
+              cargarMovimientosAlmacen();
+            }}
+            style={{
+              ...cardHome,
+              background: "#00695C"
+            }}
+          >
+            📦 Movimientos y Stock
           </button>
 </div>
       </div>
@@ -8937,6 +9177,539 @@ if (pantalla === "operacionesMaestras") {
 
         ⬅ Volver
 
+      </button>
+
+    </div>
+
+  );
+
+}
+
+if (pantalla === "almacen") {
+
+  const motivosPorTipo = {
+    ENTRADA: [
+      "Entrada por compra",
+      "Entrada por importación",
+      "Devolución de producción",
+      "Ajuste positivo"
+    ],
+    SALIDA: [
+      "Consumo por OT",
+      "Salida a producción",
+      "Merma",
+      "Devolución a proveedor",
+      "Ajuste negativo"
+    ],
+    TRASPASO: [
+      "Traspaso entre bodegas",
+      "Traspaso entre plantas"
+    ],
+    AJUSTE: [
+      "Corrección de inventario",
+      "Conteo físico"
+    ]
+  };
+
+  const movimientosRecientes =
+    movimientosAlmacen.slice(0, 25);
+
+  return (
+
+    <div style={{
+      padding: 20,
+      maxWidth: 1100,
+      margin: "0 auto",
+      fontFamily: "Arial"
+    }}>
+
+      <h2>
+        📦 Almacén
+      </h2>
+
+      <p style={{
+        color: "#555",
+        lineHeight: 1.5
+      }}>
+        Registra movimientos documentales de inventario.
+        Esta primera base permite controlar entradas,
+        salidas, traspasos, ajustes y preparar el enlace
+        con OT, consumo de materiales y RF.
+      </p>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns:
+          esMobile ? "1fr" : "1fr 1fr",
+        gap: 20,
+        alignItems: "start"
+      }}>
+
+        <div style={{
+          background: "white",
+          padding: 20,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,0.08)"
+        }}>
+
+          <h3>
+            ➕ Nuevo Movimiento
+          </h3>
+
+          <label style={{
+            fontWeight: "bold",
+            display: "block",
+            marginBottom: 6
+          }}>
+            Tipo de movimiento
+          </label>
+
+          <select
+            style={estiloInput}
+            value={tipoMovimientoAlmacen}
+            onChange={(e) => {
+              const nuevoTipo =
+                e.target.value;
+              setTipoMovimientoAlmacen(
+                nuevoTipo
+              );
+              setMotivoMovimientoAlmacen(
+                motivosPorTipo[nuevoTipo]?.[0] ||
+                ""
+              );
+            }}
+          >
+            <option value="ENTRADA">
+              ENTRADA
+            </option>
+            <option value="SALIDA">
+              SALIDA
+            </option>
+            <option value="TRASPASO">
+              TRASPASO
+            </option>
+            <option value="AJUSTE">
+              AJUSTE
+            </option>
+          </select>
+
+          <label style={{
+            fontWeight: "bold",
+            display: "block",
+            marginBottom: 6
+          }}>
+            Motivo
+          </label>
+
+          <select
+            style={estiloInput}
+            value={motivoMovimientoAlmacen}
+            onChange={(e) =>
+              setMotivoMovimientoAlmacen(
+                e.target.value
+              )
+            }
+          >
+            {(motivosPorTipo[
+              tipoMovimientoAlmacen
+            ] || []).map(motivo => (
+              <option
+                key={motivo}
+                value={motivo}
+              >
+                {motivo}
+              </option>
+            ))}
+          </select>
+
+          <label style={{
+            fontWeight: "bold",
+            display: "block",
+            marginBottom: 6
+          }}>
+            Origen
+          </label>
+
+          <select
+            style={estiloInput}
+            value={origenMovimientoAlmacen}
+            onChange={(e) =>
+              setOrigenMovimientoAlmacen(
+                e.target.value
+              )
+            }
+          >
+            <option value="MANUAL">
+              Manual
+            </option>
+            <option value="PRODUCCION">
+              Producción
+            </option>
+            <option value="COMPRA">
+              Compra
+            </option>
+            <option value="AJUSTE">
+              Ajuste
+            </option>
+          </select>
+
+          <select
+            style={estiloInput}
+            value={bodegaEntradaAlmacen}
+            onChange={(e) =>
+              setBodegaEntradaAlmacen(
+                e.target.value
+              )
+            }
+          >
+            <option value="">
+              Bodega de entrada
+            </option>
+            <option value="BBA QUILICURA">
+              BBA QUILICURA
+            </option>
+            <option value="BBA PERU">
+              BBA PERU
+            </option>
+          </select>
+
+          <select
+            style={estiloInput}
+            value={bodegaSalidaAlmacen}
+            onChange={(e) =>
+              setBodegaSalidaAlmacen(
+                e.target.value
+              )
+            }
+          >
+            <option value="">
+              Bodega de salida
+            </option>
+            <option value="BBA QUILICURA">
+              BBA QUILICURA
+            </option>
+            <option value="BBA PERU">
+              BBA PERU
+            </option>
+          </select>
+
+          <select
+            style={estiloInput}
+            value={otMovimientoAlmacen}
+            onChange={(e) =>
+              setOtMovimientoAlmacen(
+                e.target.value
+              )
+            }
+          >
+            <option value="">
+              OT relacionada opcional
+            </option>
+            {ots.map(ot => (
+              <option
+                key={ot.id || ot.nombre}
+                value={ot.nombre || ot.codigo}
+              >
+                {ot.nombre || ot.codigo}
+              </option>
+            ))}
+          </select>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              esMobile ? "1fr" : "1fr 1fr",
+            gap: 12
+          }}>
+
+            <input
+              type="text"
+              placeholder="Código ítem, ej. MP0001 o RF0001"
+              style={estiloInput}
+              value={codigoItemAlmacen}
+              onChange={(e) =>
+                setCodigoItemAlmacen(
+                  e.target.value
+                )
+              }
+            />
+
+            <select
+              style={estiloInput}
+              value={tipoItemAlmacen}
+              onChange={(e) =>
+                setTipoItemAlmacen(
+                  e.target.value
+                )
+              }
+            >
+              <option value="MP">
+                MP
+              </option>
+              <option value="RF">
+                RF
+              </option>
+              <option value="PIEZA">
+                PIEZA
+              </option>
+              <option value="SUBPRODUCTO">
+                SUBPRODUCTO
+              </option>
+              <option value="PRODUCTO">
+                PRODUCTO
+              </option>
+            </select>
+
+          </div>
+
+          <input
+            type="text"
+            placeholder="Nombre del ítem"
+            style={estiloInput}
+            value={nombreItemAlmacen}
+            onChange={(e) =>
+              setNombreItemAlmacen(
+                e.target.value
+              )
+            }
+          />
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              esMobile ? "1fr" : "1fr 1fr",
+            gap: 12
+          }}>
+
+            <input
+              type="number"
+              placeholder="Cantidad"
+              style={estiloInput}
+              value={cantidadItemAlmacen}
+              onChange={(e) =>
+                setCantidadItemAlmacen(
+                  e.target.value
+                )
+              }
+            />
+
+            <select
+              style={estiloInput}
+              value={unidadItemAlmacen}
+              onChange={(e) =>
+                setUnidadItemAlmacen(
+                  e.target.value
+                )
+              }
+            >
+              <option value="unidad">
+                unidad
+              </option>
+              <option value="kg">
+                kg
+              </option>
+              <option value="metro">
+                metro
+              </option>
+              <option value="plancha">
+                plancha
+              </option>
+            </select>
+
+          </div>
+
+          <textarea
+            placeholder="Glosa u observación"
+            style={{
+              ...estiloInput,
+              minHeight: 80,
+              resize: "vertical"
+            }}
+            value={glosaMovimientoAlmacen}
+            onChange={(e) =>
+              setGlosaMovimientoAlmacen(
+                e.target.value
+              )
+            }
+          />
+
+          <button
+            style={botonVerde}
+            onClick={guardarMovimientoAlmacen}
+          >
+            ✅ Registrar Movimiento
+          </button>
+
+        </div>
+
+        <div>
+
+          <div style={{
+            background: "#E0F2F1",
+            color: "#00695C",
+            padding: 20,
+            borderRadius: 14,
+            marginBottom: 20,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+
+            <div style={{
+              fontSize: 14,
+              fontWeight: "bold"
+            }}>
+              Ítems con movimiento
+            </div>
+
+            <div style={{
+              fontSize: 36,
+              fontWeight: "bold",
+              marginTop: 8
+            }}>
+              {resumenStockAlmacen.length}
+            </div>
+
+          </div>
+
+          <div style={{
+            background: "white",
+            padding: 20,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+
+            <h3>
+              📊 Stock calculado
+            </h3>
+
+            {resumenStockAlmacen.length === 0 ? (
+              <p style={{ color: "#666" }}>
+                Aún no hay movimientos registrados.
+              </p>
+            ) : (
+              resumenStockAlmacen.map(item => (
+                <div
+                  key={item.codigo}
+                  style={{
+                    borderBottom:
+                      "1px solid #eee",
+                    padding: "10px 0"
+                  }}
+                >
+                  <div style={{
+                    fontWeight: "bold"
+                  }}>
+                    {item.codigo}
+                    {" • "}
+                    {item.nombre}
+                  </div>
+                  <div style={{
+                    color:
+                      item.stock < 0
+                        ? "#C62828"
+                        : "#2E7D32",
+                    marginTop: 4
+                  }}>
+                    Stock: {item.stock}
+                    {" "}
+                    {item.unidad}
+                    {" • "}
+                    {item.tipo}
+                  </div>
+                </div>
+              ))
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div style={{
+        background: "white",
+        padding: 20,
+        borderRadius: 14,
+        marginTop: 20,
+        boxShadow:
+          "0 2px 8px rgba(0,0,0,0.08)"
+      }}>
+
+        <h3>
+          📋 Últimos movimientos
+        </h3>
+
+        {movimientosRecientes.length === 0 ? (
+          <p style={{ color: "#666" }}>
+            Sin movimientos registrados.
+          </p>
+        ) : (
+          movimientosRecientes.map(movimiento => {
+            const fechaMovimiento =
+              fechaDesdeValor(movimiento.fecha);
+
+            return (
+              <div
+                key={movimiento.id}
+                style={{
+                  borderBottom:
+                    "1px solid #eee",
+                  padding: "12px 0"
+                }}
+              >
+                <div style={{
+                  fontWeight: "bold"
+                }}>
+                  {movimiento.tipo}
+                  {" • "}
+                  {movimiento.motivo}
+                  {" • "}
+                  {movimiento.item_codigo}
+                </div>
+
+                <div style={{
+                  color: "#555",
+                  marginTop: 4
+                }}>
+                  {movimiento.item_nombre}
+                  {" • "}
+                  Cantidad: {movimiento.cantidad}
+                  {" "}
+                  {movimiento.unidad}
+                </div>
+
+                <div style={{
+                  color: "#777",
+                  marginTop: 4,
+                  fontSize: 13
+                }}>
+                  {fechaMovimiento
+                    ? formatearFecha(fechaMovimiento)
+                    : "Sin fecha"}
+                  {" • "}
+                  Entrada: {movimiento.bodega_entrada || "-"}
+                  {" • "}
+                  Salida: {movimiento.bodega_salida || "-"}
+                  {movimiento.ot
+                    ? ` • OT: ${movimiento.ot}`
+                    : ""}
+                </div>
+              </div>
+            );
+          })
+        )}
+
+      </div>
+
+      <button
+        style={botonAzul}
+        onClick={() =>
+          setPantalla("home")
+        }
+      >
+        ⬅ Volver
       </button>
 
     </div>

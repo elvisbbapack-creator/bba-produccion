@@ -204,6 +204,58 @@ fecha_creacion
 modelo_version: 2
 ```
 
+## Almacen
+
+El modulo de almacen registra movimientos documentales de inventario. La
+primera version usa una coleccion simple para capturar movimientos manuales y
+preparar el enlace con OT, consumo de materiales y generacion de RF.
+
+### `movimientos_almacen/{movimientoId}`
+
+```text
+tipo: ENTRADA | SALIDA | TRASPASO | AJUSTE
+motivo
+origen: MANUAL | PRODUCCION | COMPRA | AJUSTE
+ot
+bodega_entrada
+bodega_salida
+item_codigo
+item_nombre
+item_tipo: MP | RF | PIEZA | SUBPRODUCTO | PRODUCTO
+cantidad
+unidad
+glosa
+creado_por
+fecha
+empresa_id
+planta_id
+```
+
+Reglas operativas esperadas:
+
+```text
+ENTRADA suma stock.
+SALIDA resta stock.
+TRASPASO no cambia el stock global, pero mueve stock entre bodegas.
+AJUSTE corrige inventario con auditoria.
+```
+
+Siguientes enlaces productivos:
+
+```text
+Consumo por OT:
+  salida desde MP o RF al iniciar/finalizar una operacion.
+
+Generacion de RF:
+  entrada de semielaborado al finalizar una operacion.
+
+Merma:
+  salida documentada con motivo Merma y OT relacionada.
+
+Producto terminado:
+  entrada al completar la ultima operacion de la OT.
+```
+
 ### `ordenes_trabajo/{otId}/operaciones/{otOperacionId}`
 
 Es la copia congelada de una operacion de ruta:
