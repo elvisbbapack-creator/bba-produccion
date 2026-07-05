@@ -357,6 +357,160 @@ export const calcularRequerimientosMaterialesOT = (
     );
 };
 
+export const calcularDisponibilidadOT = (
+  operaciones = [],
+  stocks = []
+) => {
+  const requerimientos =
+    calcularRequerimientosMaterialesOT(
+      operaciones,
+      stocks
+    );
+  const produccionPorSalida = new Map();
+  const consumoPorEntrada = new Map();
+
+  operaciones.forEach(operacion => {
+    const salidaId = limpiarTexto(
+      operacion.material_salida_id
+    );
+    const entradaId = limpiarTexto(
+      operacion.material_entrada_id
+    );
+
+    if (salidaId) {
+      const actual =
+        produccionPorSalida.get(salidaId) || {
+          cantidad_ok: 0,
+          cantidad_pendiente: 0,
+          avance_pct: 0,
+          operaciones: []
+        };
+
+      actual.cantidad_ok += Number(
+        operacion.cantidad_ok || 0
+      );
+      actual.cantidad_pendiente += Number(
+        operacion.cantidad_pendiente || 0
+      );
+      actual.avance_pct = Math.max(
+        actual.avance_pct,
+        Number(operacion.avance_pct || 0)
+      );
+      actual.operaciones.push({
+        operacion_codigo:
+          operacion.operacion_codigo || "",
+        operacion_nombre:
+          operacion.operacion_nombre || "",
+        cantidad_ok: Number(
+          operacion.cantidad_ok || 0
+        ),
+        cantidad_pendiente: Number(
+          operacion.cantidad_pendiente || 0
+        )
+      });
+
+      produccionPorSalida.set(
+        salidaId,
+        actual
+      );
+    }
+
+    if (entradaId) {
+      consumoPorEntrada.set(
+        entradaId,
+        (
+          consumoPorEntrada.get(entradaId) ||
+          0
+        ) +
+          Number(
+            operacion.cantidad_consumida || 0
+          )
+      );
+    }
+  });
+
+  return requerimientos.map(
+    requerimiento => {
+      const materialTipo =
+        requerimiento.material_codigo
+          .startsWith("RF")
+          ? "RF"
+          : "MP";
+      const producido =
+        produccionPorSalida.get(
+          requerimiento.material_id
+        );
+      const consumido = Number(
+        consumoPorEntrada.get(
+          requerimiento.material_id
+        ) || 0
+      );
+      const disponibleFlujo = Math.max(
+        0,
+        Number(producido?.cantidad_ok || 0) -
+          consumido
+      );
+
+      if (materialTipo === "RF") {
+        const estado =
+          disponibleFlujo > 0
+            ? "rf_disponible"
+            : Number(
+              producido?.cantidad_pendiente || 0
+            ) > 0
+              ? "rf_en_flujo"
+              : "rf_sin_fuente";
+
+        return {
+          ...requerimiento,
+          material_tipo: materialTipo,
+          disponible_flujo: disponibleFlujo,
+          producido_ok: Number(
+            producido?.cantidad_ok || 0
+          ),
+          producido_pendiente: Number(
+            producido?.cantidad_pendiente || 0
+          ),
+          consumido,
+          avance_fuente_pct: Number(
+            producido?.avance_pct || 0
+          ),
+          operaciones_fuente:
+            producido?.operaciones || [],
+          estado,
+          recomendacion:
+            estado === "rf_disponible"
+              ? "RF disponible para alimentar el siguiente proceso."
+              : estado === "rf_en_flujo"
+                ? "RF en flujo: balancear ritmo con el proceso anterior."
+                : "RF sin proceso productor identificado en esta OT."
+        };
+      }
+
+      const estado =
+        requerimiento.brecha > 0
+          ? "falta_mp"
+          : "mp_ok";
+
+      return {
+        ...requerimiento,
+        material_tipo: materialTipo,
+        disponible_flujo: 0,
+        producido_ok: 0,
+        producido_pendiente: 0,
+        consumido,
+        avance_fuente_pct: 0,
+        operaciones_fuente: [],
+        estado,
+        recomendacion:
+          estado === "mp_ok"
+            ? "MP disponible según stock de almacén."
+            : "Falta MP: recibir, ajustar o comprar antes de producir."
+      };
+    }
+  );
+};
+
 export const listarStockMateriales = async (
   db,
   empresaId,

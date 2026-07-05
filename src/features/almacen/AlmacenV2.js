@@ -14,7 +14,7 @@ import {
 import {
   MOVIMIENTOS_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
-  calcularRequerimientosMaterialesOT,
+  calcularDisponibilidadOT,
   calcularStockDisponible,
   listarMovimientosAlmacen,
   listarStockMateriales,
@@ -132,8 +132,8 @@ function AlmacenV2({
     [formulario.ot_codigo, ordenes]
   );
 
-  const requerimientosOrden = useMemo(
-    () => calcularRequerimientosMaterialesOT(
+  const disponibilidadOrden = useMemo(
+    () => calcularDisponibilidadOT(
       operacionesOrden,
       stocks
     ),
@@ -582,7 +582,7 @@ function AlmacenV2({
                 <strong>
                   Materiales sugeridos por OT
                 </strong>
-                {requerimientosOrden.length === 0 ? (
+                {disponibilidadOrden.length === 0 ? (
                   <p style={{
                     color: "#64748B",
                     marginBottom: 0
@@ -597,11 +597,11 @@ function AlmacenV2({
                     gap: 10,
                     marginTop: 10
                   }}>
-                    {requerimientosOrden.map(
-                      requerimiento => (
+                    {disponibilidadOrden.map(
+                      item => (
                         <article
                           key={
-                            requerimiento.material_id
+                            item.material_id
                           }
                           style={{
                             border:
@@ -612,17 +612,44 @@ function AlmacenV2({
                           }}
                         >
                           <div style={{
-                            fontWeight: "bold"
+                            display: "flex",
+                            justifyContent:
+                              "space-between",
+                            gap: 8,
+                            alignItems: "center"
                           }}>
-                            {
-                              requerimiento
-                                .material_codigo
-                            }
-                            {" - "}
-                            {
-                              requerimiento
-                                .material_nombre
-                            }
+                            <div style={{
+                              fontWeight: "bold"
+                            }}>
+                              {
+                                item
+                                  .material_codigo
+                              }
+                              {" - "}
+                              {
+                                item
+                                  .material_nombre
+                              }
+                            </div>
+                            <span style={{
+                              padding:
+                                "3px 8px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: "bold",
+                              color:
+                                item.material_tipo ===
+                                "RF"
+                                  ? "#0369A1"
+                                  : "#166534",
+                              background:
+                                item.material_tipo ===
+                                "RF"
+                                  ? "#E0F2FE"
+                                  : "#DCFCE7"
+                            }}>
+                              {item.material_tipo}
+                            </span>
                           </div>
                           <div style={{
                             color: "#334155",
@@ -631,32 +658,66 @@ function AlmacenV2({
                           }}>
                             Requerido:{" "}
                             {formatearNumero(
-                              requerimiento
+                              item
                                 .cantidad_requerida
                             )}
-                            {" · Disponible: "}
-                            {formatearNumero(
-                              requerimiento
-                                .stock_disponible
+                            {item.material_tipo ===
+                            "RF" ? (
+                              <>
+                                {" · RF disponible ahora: "}
+                                {formatearNumero(
+                                  item.disponible_flujo
+                                )}
+                                {" · Producido OK: "}
+                                {formatearNumero(
+                                  item.producido_ok
+                                )}
+                                {" · Pendiente origen: "}
+                                {formatearNumero(
+                                  item.producido_pendiente
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                {" · Stock disponible: "}
+                                {formatearNumero(
+                                  item.stock_disponible
+                                )}
+                                {" · Brecha: "}
+                                <span style={{
+                                  color:
+                                    item.brecha > 0
+                                      ? "#B91C1C"
+                                      : "#166534",
+                                  fontWeight: "bold"
+                                }}>
+                                  {formatearNumero(
+                                    item.brecha
+                                  )}
+                                </span>
+                              </>
                             )}
-                            {" · Brecha: "}
-                            <span style={{
-                              color:
-                                requerimiento.brecha > 0
-                                  ? "#B91C1C"
+                          </div>
+                          <div style={{
+                            marginTop: 6,
+                            color:
+                              item.estado ===
+                              "falta_mp"
+                                ? "#B91C1C"
+                                : item.estado ===
+                                  "rf_sin_fuente"
+                                  ? "#B45309"
                                   : "#166534",
-                              fontWeight: "bold"
-                            }}>
-                              {formatearNumero(
-                                requerimiento.brecha
-                              )}
-                            </span>
+                            fontSize: 13,
+                            fontWeight: "bold"
+                          }}>
+                            {item.recomendacion}
                           </div>
                           <button
                             type="button"
                             onClick={() =>
                               usarRequerimiento(
-                                requerimiento
+                                item
                               )
                             }
                             style={{

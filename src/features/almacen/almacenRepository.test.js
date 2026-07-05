@@ -1,5 +1,6 @@
 import {
   TIPOS_MOVIMIENTO_ALMACEN,
+  calcularDisponibilidadOT,
   calcularStockDisponible,
   calcularRequerimientosMaterialesOT,
   calcularStockTrasMovimiento,
@@ -222,4 +223,102 @@ test("agrupa requerimientos de materiales por OT y calcula brecha", () => {
       operacion => operacion.operacion_codigo
     )
   ).toEqual(["DT0001", "DT0002"]);
+});
+
+test("separa MP por stock y RF por flujo productivo", () => {
+  const disponibilidad =
+    calcularDisponibilidadOT(
+      [
+        {
+          id: "corte",
+          operacion_codigo: "DT0001",
+          material_entrada_id: "mp-1",
+          materiales_entrada: [
+            {
+              material_id: "mp-1",
+              material_codigo: "MP0001",
+              material_nombre: "Tubo",
+              cantidad: 1
+            }
+          ],
+          material_salida_id: "rf-1",
+          cantidad_pendiente: 1000,
+          cantidad_ok: 100,
+          avance_pct: 10
+        },
+        {
+          id: "doblez",
+          operacion_codigo: "DT0002",
+          material_entrada_id: "rf-1",
+          materiales_entrada: [
+            {
+              material_id: "rf-1",
+              material_codigo: "RF0001",
+              material_nombre: "Tubo cortado",
+              cantidad: 1
+            }
+          ],
+          material_salida_id: "rf-2",
+          cantidad_pendiente: 5000,
+          cantidad_consumida: 0
+        }
+      ],
+      [
+        {
+          material_id: "mp-1",
+          stock_actual: 500,
+          stock_reservado: 100
+        }
+      ]
+    );
+
+  const mp = disponibilidad.find(
+    item => item.material_codigo === "MP0001"
+  );
+  const rf = disponibilidad.find(
+    item => item.material_codigo === "RF0001"
+  );
+
+  expect(mp.estado).toBe("falta_mp");
+  expect(mp.brecha).toBe(600);
+  expect(rf.estado).toBe("rf_disponible");
+  expect(rf.disponible_flujo).toBe(100);
+  expect(rf.brecha).toBe(5000);
+});
+
+test("RF queda en flujo aunque no haya disponibilidad inicial", () => {
+  const disponibilidad =
+    calcularDisponibilidadOT(
+      [
+        {
+          id: "corte",
+          operacion_codigo: "DT0001",
+          material_salida_id: "rf-1",
+          cantidad_ok: 0,
+          cantidad_pendiente: 5000
+        },
+        {
+          id: "doblez",
+          operacion_codigo: "DT0002",
+          material_entrada_id: "rf-1",
+          materiales_entrada: [
+            {
+              material_id: "rf-1",
+              material_codigo: "RF0001",
+              material_nombre: "Tubo cortado",
+              cantidad: 1
+            }
+          ],
+          cantidad_pendiente: 5000
+        }
+      ],
+      []
+    );
+
+  expect(disponibilidad[0].estado).toBe(
+    "rf_en_flujo"
+  );
+  expect(
+    disponibilidad[0].recomendacion
+  ).toContain("balancear ritmo");
 });
