@@ -21,6 +21,10 @@ import {
   obtenerResumenEstandar
 } from "../resumenes/resumenesRepository";
 import {
+  calcularDisponibilidadOT,
+  listarStockMateriales
+} from "../almacen/almacenRepository";
+import {
   listarProgramacionSemanal,
   lunesDeSemana,
   normalizarSubprocesosHabilitados
@@ -87,6 +91,8 @@ function EjecucionProduccionV2({
   const [ordenes, setOrdenes] = useState([]);
   const [ordenId, setOrdenId] = useState("");
   const [operaciones, setOperaciones] = useState([]);
+  const [stocksMateriales, setStocksMateriales] =
+    useState([]);
   const [operacionId, setOperacionId] =
     useState("");
   const [operarioCodigo, setOperarioCodigo] =
@@ -141,6 +147,45 @@ function EjecucionProduccionV2({
   const operacionSeleccionada = disponibles.find(
     operacion => operacion.id === operacionId
   );
+  const disponibilidadOT = useMemo(
+    () => calcularDisponibilidadOT(
+      operaciones,
+      stocksMateriales
+    ),
+    [operaciones, stocksMateriales]
+  );
+  const disponibilidadOperacion =
+    useMemo(() => {
+      if (!operacionSeleccionada) {
+        return [];
+      }
+
+      const materiales = new Set(
+        (
+          operacionSeleccionada
+            .materiales_entrada || []
+        ).map(material => material.material_id)
+      );
+
+      return disponibilidadOT.filter(item =>
+        materiales.has(item.material_id)
+      );
+    }, [
+      disponibilidadOT,
+      operacionSeleccionada
+    ]);
+  const mpFaltanteOperacion =
+    disponibilidadOperacion.filter(
+      item =>
+        item.material_tipo === "MP" &&
+        item.estado === "falta_mp"
+    );
+  const rfAdvertenciaOperacion =
+    disponibilidadOperacion.filter(
+      item =>
+        item.material_tipo === "RF" &&
+        item.estado !== "rf_disponible"
+    );
   const sesionSeleccionada = sesiones.find(
     sesion => sesion.id === sesionId
   );
@@ -301,7 +346,8 @@ function EjecucionProduccionV2({
         ordenesData,
         sesionesData,
         programacionData,
-        capacidadesData
+        capacidadesData,
+        stocksData
       ] =
         await Promise.all([
           listarOrdenesEjecutables(
@@ -324,16 +370,23 @@ function EjecucionProduccionV2({
             db,
             perfil.empresa_id,
             planta
+          ),
+          listarStockMateriales(
+            db,
+            perfil.empresa_id,
+            planta
           )
         ]);
       setOrdenes(ordenesData);
       setSesiones(sesionesData);
       setProgramacionTurnos(programacionData);
       setCapacidades(capacidadesData);
+      setStocksMateriales(stocksData);
       return {
         ordenesData,
         sesionesData,
-        programacionData
+        programacionData,
+        stocksData
       };
     },
     [db, perfil.empresa_id, semanaInicio]
@@ -589,6 +642,18 @@ function EjecucionProduccionV2({
 
   const iniciar = async (evento) => {
     evento.preventDefault();
+
+    if (mpFaltanteOperacion.length > 0) {
+      setError(
+        "No se puede iniciar: falta MP en almacén. " +
+        mpFaltanteOperacion
+          .map(item =>
+            `${item.material_codigo} falta ${item.brecha}`
+          )
+          .join("; ")
+      );
+      return;
+    }
 
     try {
       setGuardando(true);
@@ -994,6 +1059,128 @@ function EjecucionProduccionV2({
                       sugerencia.
                     </div>
                   )}
+                </div>
+              )}
+
+              {operacionSeleccionada &&
+                disponibilidadOperacion.length > 0 && (
+                <div style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  border:
+                    mpFaltanteOperacion.length > 0
+                      ? "1px solid #FCA5A5"
+                      : rfAdvertenciaOperacion.length > 0
+                        ? "1px solid #FCD34D"
+                        : "1px solid #BBF7D0",
+                  background:
+                    mpFaltanteOperacion.length > 0
+                      ? "#FEF2F2"
+                      : rfAdvertenciaOperacion.length > 0
+                        ? "#FFFBEB"
+                        : "#F0FDF4"
+                }}>
+                  <strong>
+                    Disponibilidad para iniciar
+                  </strong>
+                  <div style={{
+                    marginTop: 8,
+                    display: "grid",
+                    gap: 8
+                  }}>
+                    {disponibilidadOperacion.map(
+                      item => (
+                        <div
+                          key={item.material_id}
+                          style={{
+                            padding: 9,
+                            borderRadius: 8,
+                            background: "white",
+                            border:
+                              "1px solid #E2E8F0"
+                          }}
+                        >
+                          <div style={{
+                            display: "flex",
+                            justifyContent:
+                              "space-between",
+                            gap: 8,
+                            alignItems: "center"
+                          }}>
+                            <strong>
+                              {item.material_codigo}
+                              {" - "}
+                              {item.material_nombre}
+                            </strong>
+                            <span style={{
+                              padding:
+                                "2px 7px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: "bold",
+                              color:
+                                item.material_tipo ===
+                                "RF"
+                                  ? "#0369A1"
+                                  : "#166534",
+                              background:
+                                item.material_tipo ===
+                                "RF"
+                                  ? "#E0F2FE"
+                                  : "#DCFCE7"
+                            }}>
+                              {item.material_tipo}
+                            </span>
+                          </div>
+                          <div style={{
+                            marginTop: 4,
+                            color: "#475569",
+                            fontSize: 13
+                          }}>
+                            {item.material_tipo ===
+                            "MP" ? (
+                              <>
+                                Stock disponible:{" "}
+                                {
+                                  item.stock_disponible
+                                }
+                                {" · Brecha: "}
+                                {item.brecha}
+                              </>
+                            ) : (
+                              <>
+                                RF disponible ahora:{" "}
+                                {
+                                  item.disponible_flujo
+                                }
+                                {" · Producido OK: "}
+                                {item.producido_ok}
+                                {" · Pendiente origen: "}
+                                {
+                                  item.producido_pendiente
+                                }
+                              </>
+                            )}
+                          </div>
+                          <div style={{
+                            marginTop: 4,
+                            color:
+                              item.estado ===
+                              "falta_mp"
+                                ? "#B91C1C"
+                                : item.estado ===
+                                  "rf_sin_fuente"
+                                  ? "#B45309"
+                                  : "#166534",
+                            fontSize: 13,
+                            fontWeight: "bold"
+                          }}>
+                            {item.recomendacion}
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1419,6 +1606,9 @@ function EjecucionProduccionV2({
                   (
                     !ingresoExcepcional &&
                     !programacionSeleccionada
+                  ) ||
+                  (
+                    mpFaltanteOperacion.length > 0
                   )
                 }
                 style={{
