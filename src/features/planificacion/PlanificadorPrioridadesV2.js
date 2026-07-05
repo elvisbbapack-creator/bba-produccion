@@ -17,6 +17,11 @@ import {
   lunesDeSemana
 } from "../turnos/turnosRepository";
 import {
+  calcularCuadraturaAlmacenOT,
+  listarMovimientosAlmacenOT,
+  listarStockMateriales
+} from "../almacen/almacenRepository";
+import {
   filtrarPlanPrioridades,
   construirPlanPrioridades,
   construirDetalleOperacionesPlanificador,
@@ -169,6 +174,8 @@ function PlanificadorPrioridadesV2({
     useState([]);
   const [programacion, setProgramacion] =
     useState([]);
+  const [stocksMateriales, setStocksMateriales] =
+    useState([]);
   const [semanaInicio, setSemanaInicio] =
     useState(lunesDeSemana());
   const [cargando, setCargando] = useState(true);
@@ -289,13 +296,23 @@ function PlanificadorPrioridadesV2({
     }));
 
     try {
-      const operaciones =
-        await listarOperacionesOT(
+      const [
+        operaciones,
+        movimientosAlmacen
+      ] = await Promise.all([
+        listarOperacionesOT(
           db,
           perfil.empresa_id,
           orden.planta_id || plantaId,
           orden.id
-        );
+        ),
+        listarMovimientosAlmacenOT(
+          db,
+          perfil.empresa_id,
+          orden.planta_id || plantaId,
+          orden.codigo
+        )
+      ]);
       const resumen =
         construirDetalleOperacionesPlanificador(
           operaciones,
@@ -305,6 +322,12 @@ function PlanificadorPrioridadesV2({
               grupo?.decision_turno || null
           }
         );
+      const cuadraturaAlmacen =
+        calcularCuadraturaAlmacenOT({
+          operaciones,
+          stocks: stocksMateriales,
+          movimientos: movimientosAlmacen
+        });
 
       setDetallesOperaciones(actual => ({
         ...actual,
@@ -312,7 +335,8 @@ function PlanificadorPrioridadesV2({
           abierto: true,
           cargando: false,
           error: "",
-          resumen
+          resumen,
+          cuadraturaAlmacen
         }
       }));
     } catch (fallo) {
@@ -435,7 +459,8 @@ function PlanificadorPrioridadesV2({
         setSemanaInicio(semanaActual);
         const [
           capacidadesProceso,
-          programacionSemanal
+          programacionSemanal,
+          stockPlanta
         ] = await Promise.all([
           listarCapacidadesProceso(
             db,
@@ -447,12 +472,18 @@ function PlanificadorPrioridadesV2({
             perfil.empresa_id,
             plantaId,
             semanaActual
+          ),
+          listarStockMateriales(
+            db,
+            perfil.empresa_id,
+            plantaId
           )
         ]);
 
         if (!cancelado) {
           setCapacidades(capacidadesProceso);
           setProgramacion(programacionSemanal);
+          setStocksMateriales(stockPlanta);
         }
       } catch (fallo) {
         if (!cancelado) {
@@ -523,9 +554,11 @@ function PlanificadorPrioridadesV2({
           {plantas.length > 1 && (
             <select
               value={plantaId}
-              onChange={evento =>
-                setPlantaId(evento.target.value)
-              }
+              onChange={evento => {
+                setPlantaId(evento.target.value);
+                setDetallesOperaciones({});
+                setStocksMateriales([]);
+              }}
               style={{
                 padding: 10,
                 borderRadius: 8,
@@ -1143,6 +1176,110 @@ function PlanificadorPrioridadesV2({
                                     </span>
                                   )}
                                 </div>
+                                {detalleOrden
+                                  .cuadraturaAlmacen && (
+                                  <div style={{
+                                    padding: 10,
+                                    borderRadius: 8,
+                                    marginBottom: 10,
+                                    border:
+                                      detalleOrden
+                                        .cuadraturaAlmacen
+                                        .estado_general ===
+                                      "bloqueada_por_mp"
+                                        ? "1px solid #FCA5A5"
+                                        : detalleOrden
+                                          .cuadraturaAlmacen
+                                          .estado_general ===
+                                          "rf_en_flujo"
+                                          ? "1px solid #FCD34D"
+                                          : detalleOrden
+                                            .cuadraturaAlmacen
+                                            .estado_general ===
+                                            "cuadrada"
+                                            ? "1px solid #BBF7D0"
+                                            : "1px solid #CBD5E1",
+                                    background:
+                                      detalleOrden
+                                        .cuadraturaAlmacen
+                                        .estado_general ===
+                                      "bloqueada_por_mp"
+                                        ? "#FEF2F2"
+                                        : detalleOrden
+                                          .cuadraturaAlmacen
+                                          .estado_general ===
+                                          "rf_en_flujo"
+                                          ? "#FFFBEB"
+                                          : detalleOrden
+                                            .cuadraturaAlmacen
+                                            .estado_general ===
+                                            "cuadrada"
+                                            ? "#F0FDF4"
+                                            : "white"
+                                  }}>
+                                    <strong>
+                                      {detalleOrden
+                                        .cuadraturaAlmacen
+                                        .estado_general ===
+                                      "bloqueada_por_mp"
+                                        ? "Almacén: falta MP"
+                                        : detalleOrden
+                                          .cuadraturaAlmacen
+                                          .estado_general ===
+                                          "rf_en_flujo"
+                                          ? "Almacén: RF en flujo"
+                                          : detalleOrden
+                                            .cuadraturaAlmacen
+                                            .estado_general ===
+                                            "cuadrada"
+                                            ? "Almacén: OT cuadrada"
+                                            : "Almacén: sin materiales para validar"}
+                                    </strong>
+                                    <div style={{
+                                      color: "#475569",
+                                      marginTop: 4
+                                    }}>
+                                      MP pendientes:{" "}
+                                      {
+                                        detalleOrden
+                                          .cuadraturaAlmacen
+                                          .totales
+                                          .mp_pendientes
+                                      }
+                                      {"/"}
+                                      {
+                                        detalleOrden
+                                          .cuadraturaAlmacen
+                                          .totales
+                                          .mp_total
+                                      }
+                                      {" · RF pendientes: "}
+                                      {
+                                        detalleOrden
+                                          .cuadraturaAlmacen
+                                          .totales
+                                          .rf_pendientes
+                                      }
+                                      {"/"}
+                                      {
+                                        detalleOrden
+                                          .cuadraturaAlmacen
+                                          .totales
+                                          .rf_total
+                                      }
+                                    </div>
+                                    <div style={{
+                                      color: "#334155",
+                                      marginTop: 4
+                                    }}>
+                                      {
+                                        detalleOrden
+                                          .cuadraturaAlmacen
+                                          .recomendacion
+                                      }
+                                    </div>
+                                  </div>
+                                )}
                                 <div style={{
                                   display: "grid",
                                   gap: 7
