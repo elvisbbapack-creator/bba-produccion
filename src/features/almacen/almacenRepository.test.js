@@ -1,5 +1,6 @@
 import {
   TIPOS_MOVIMIENTO_ALMACEN,
+  calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
   calcularStockDisponible,
   calcularRequerimientosMaterialesOT,
@@ -357,4 +358,103 @@ test("RF queda en flujo aunque no haya disponibilidad inicial", () => {
   expect(
     disponibilidad[0].recomendacion
   ).toContain("balancear ritmo");
+});
+
+test("cuadratura OT prioriza bloqueo por MP pendiente", () => {
+  const cuadratura =
+    calcularCuadraturaAlmacenOT({
+      operaciones: [
+        {
+          id: "corte",
+          operacion_codigo: "DT0001",
+          materiales_entrada: [
+            {
+              material_id: "mp-1",
+              material_codigo: "MP0001",
+              material_nombre: "Tubo",
+              cantidad: 2
+            }
+          ],
+          cantidad_pendiente: 100
+        }
+      ],
+      stocks: [
+        {
+          material_id: "mp-1",
+          stock_actual: 120,
+          stock_reservado: 20
+        }
+      ],
+      movimientos: [
+        {
+          material_codigo: "MP0001",
+          material_nombre: "Tubo",
+          material_tipo: "MP",
+          tipo: TIPOS_MOVIMIENTO_ALMACEN
+            .RESERVA_OT,
+          cantidad: 50
+        }
+      ]
+    });
+
+  expect(cuadratura.estado_general).toBe(
+    "bloqueada_por_mp"
+  );
+  expect(
+    cuadratura.totales.mp_pendientes
+  ).toBe(1);
+  expect(cuadratura.items[0]).toMatchObject({
+    material_codigo: "MP0001",
+    reservado_neto: 50,
+    faltante: 150,
+    estado_cuadratura: "mp_pendiente"
+  });
+  expect(cuadratura.recomendacion).toContain(
+    "recibir"
+  );
+});
+
+test("cuadratura OT recomienda balancear RF en flujo", () => {
+  const cuadratura =
+    calcularCuadraturaAlmacenOT({
+      operaciones: [
+        {
+          id: "corte",
+          operacion_codigo: "DT0001",
+          material_salida_id: "rf-1",
+          cantidad_ok: 0,
+          cantidad_pendiente: 500
+        },
+        {
+          id: "doblez",
+          operacion_codigo: "DT0002",
+          materiales_entrada: [
+            {
+              material_id: "rf-1",
+              material_codigo: "RF0001",
+              material_nombre: "Tubo cortado",
+              cantidad: 1
+            }
+          ],
+          cantidad_pendiente: 500
+        }
+      ],
+      stocks: [],
+      movimientos: []
+    });
+
+  expect(cuadratura.estado_general).toBe(
+    "rf_en_flujo"
+  );
+  expect(
+    cuadratura.totales.rf_en_flujo
+  ).toBe(1);
+  expect(cuadratura.items[0]).toMatchObject({
+    material_codigo: "RF0001",
+    faltante: 500,
+    estado_cuadratura: "rf_en_flujo"
+  });
+  expect(cuadratura.recomendacion).toContain(
+    "balancear"
+  );
 });

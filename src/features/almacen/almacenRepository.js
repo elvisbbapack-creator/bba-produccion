@@ -530,6 +530,185 @@ export const calcularDisponibilidadOT = (
   );
 };
 
+export const resumirMovimientosAlmacenOT = (
+  movimientos = []
+) => movimientos.reduce(
+  (resumen, movimiento) => {
+    const codigo =
+      movimiento.material_codigo ||
+      "SIN_CODIGO";
+    const actual =
+      resumen[codigo] || {
+        material_codigo: codigo,
+        material_nombre:
+          movimiento.material_nombre || "",
+        material_tipo:
+          movimiento.material_tipo || "",
+        consumido: 0,
+        producido: 0,
+        reservado: 0,
+        liberado: 0
+      };
+
+    if (
+      movimiento.tipo ===
+      TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT
+    ) {
+      actual.consumido += Number(
+        movimiento.cantidad || 0
+      );
+    } else if (
+      movimiento.tipo ===
+      TIPOS_MOVIMIENTO_ALMACEN.RECEPCION
+    ) {
+      actual.producido += Number(
+        movimiento.cantidad || 0
+      );
+    } else if (
+      movimiento.tipo ===
+      TIPOS_MOVIMIENTO_ALMACEN.RESERVA_OT
+    ) {
+      actual.reservado += Number(
+        movimiento.cantidad || 0
+      );
+    } else if (
+      movimiento.tipo ===
+      TIPOS_MOVIMIENTO_ALMACEN
+        .LIBERACION_RESERVA
+    ) {
+      actual.liberado += Number(
+        movimiento.cantidad || 0
+      );
+    }
+
+    return {
+      ...resumen,
+      [codigo]: actual
+    };
+  },
+  {}
+);
+
+export const calcularCuadraturaAlmacenOT = ({
+  operaciones = [],
+  stocks = [],
+  movimientos = []
+} = {}) => {
+  const resumenMovimientos =
+    resumirMovimientosAlmacenOT(movimientos);
+  const disponibilidad =
+    calcularDisponibilidadOT(
+      operaciones,
+      stocks
+    );
+  const items = disponibilidad.map(item => {
+    const movimientosItem =
+      resumenMovimientos[
+        item.material_codigo
+      ] || {};
+    const consumido = Number(
+      movimientosItem.consumido || 0
+    );
+    const producido = Number(
+      movimientosItem.producido || 0
+    );
+    const reservadoNeto = Math.max(
+      0,
+      Number(movimientosItem.reservado || 0) -
+        Number(movimientosItem.liberado || 0) -
+        consumido
+    );
+    const requerido = Number(
+      item.cantidad_requerida || 0
+    );
+    const faltante =
+      item.material_tipo === "MP"
+        ? Math.max(
+          0,
+          requerido - consumido - reservadoNeto
+        )
+        : Math.max(0, requerido - producido);
+    const estado =
+      item.material_tipo === "MP"
+        ? faltante > 0
+          ? "mp_pendiente"
+          : "mp_cuadrado"
+        : producido > 0
+          ? "rf_producido"
+          : item.estado === "rf_en_flujo"
+            ? "rf_en_flujo"
+            : "rf_pendiente";
+
+    return {
+      ...item,
+      consumido,
+      producido,
+      reservado_neto: reservadoNeto,
+      faltante,
+      estado_cuadratura: estado
+    };
+  });
+  const totales = items.reduce(
+    (acumulado, item) => {
+      if (item.material_tipo === "MP") {
+        acumulado.mp_total += 1;
+        if (item.faltante > 0) {
+          acumulado.mp_pendientes += 1;
+        }
+      } else {
+        acumulado.rf_total += 1;
+        if (item.faltante > 0) {
+          acumulado.rf_pendientes += 1;
+        }
+        if (
+          item.estado_cuadratura === "rf_en_flujo"
+        ) {
+          acumulado.rf_en_flujo += 1;
+        }
+      }
+      acumulado.materiales_pendientes +=
+        item.faltante > 0 ? 1 : 0;
+      acumulado.unidades_pendientes += Number(
+        item.faltante || 0
+      );
+      return acumulado;
+    },
+    {
+      mp_total: 0,
+      mp_pendientes: 0,
+      rf_total: 0,
+      rf_pendientes: 0,
+      rf_en_flujo: 0,
+      materiales_pendientes: 0,
+      unidades_pendientes: 0
+    }
+  );
+  const estadoGeneral =
+    items.length === 0
+      ? "sin_materiales"
+      : totales.mp_pendientes > 0
+        ? "bloqueada_por_mp"
+        : totales.rf_pendientes > 0
+          ? "rf_en_flujo"
+          : "cuadrada";
+  const recomendacion =
+    estadoGeneral === "bloqueada_por_mp"
+      ? "Prioridad: recibir, comprar o ajustar MP antes de exigir avance a producción."
+      : estadoGeneral === "rf_en_flujo"
+        ? "Prioridad: balancear el proceso anterior para alimentar el siguiente sin bloquear la OT."
+        : estadoGeneral === "cuadrada"
+          ? "La OT está cuadrada en almacén para los materiales revisados."
+          : "Esta OT no tiene materiales de entrada configurados para cuadratura.";
+
+  return {
+    items,
+    resumen_movimientos: resumenMovimientos,
+    totales,
+    estado_general: estadoGeneral,
+    recomendacion
+  };
+};
+
 export const listarStockMateriales = async (
   db,
   empresaId,

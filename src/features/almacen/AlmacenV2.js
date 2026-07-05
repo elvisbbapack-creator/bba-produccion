@@ -14,6 +14,7 @@ import {
 import {
   MOVIMIENTOS_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
+  calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
   calcularStockDisponible,
   listarMovimientosAlmacen,
@@ -157,125 +158,22 @@ function AlmacenV2({
     ),
     [movimientos, otTrazabilidad]
   );
-  const resumenTrazabilidad = useMemo(
-    () => movimientosTrazabilidad.reduce(
-      (resumen, movimiento) => {
-        const codigo =
-          movimiento.material_codigo ||
-          "SIN_CODIGO";
-        const actual =
-          resumen[codigo] || {
-            material_codigo: codigo,
-            material_nombre:
-              movimiento.material_nombre || "",
-            material_tipo:
-              movimiento.material_tipo || "",
-            consumido: 0,
-            producido: 0,
-            reservado: 0,
-            liberado: 0
-          };
-
-        if (
-          movimiento.tipo ===
-          TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT
-        ) {
-          actual.consumido += Number(
-            movimiento.cantidad || 0
-          );
-        } else if (
-          movimiento.tipo ===
-          TIPOS_MOVIMIENTO_ALMACEN.RECEPCION
-        ) {
-          actual.producido += Number(
-            movimiento.cantidad || 0
-          );
-        } else if (
-          movimiento.tipo ===
-          TIPOS_MOVIMIENTO_ALMACEN.RESERVA_OT
-        ) {
-          actual.reservado += Number(
-            movimiento.cantidad || 0
-          );
-        } else if (
-          movimiento.tipo ===
-          TIPOS_MOVIMIENTO_ALMACEN
-            .LIBERACION_RESERVA
-        ) {
-          actual.liberado += Number(
-            movimiento.cantidad || 0
-          );
-        }
-
-        return {
-          ...resumen,
-          [codigo]: actual
-        };
-      },
-      {}
-    ),
-    [movimientosTrazabilidad]
-  );
-  const disponibilidadTrazabilidad = useMemo(
-    () => calcularDisponibilidadOT(
-      operacionesTrazabilidad,
-      stocks
-    ),
-    [operacionesTrazabilidad, stocks]
-  );
-  const cuadraturaTrazabilidad = useMemo(
-    () => disponibilidadTrazabilidad.map(item => {
-      const movimientosItem =
-        resumenTrazabilidad[
-          item.material_codigo
-        ] || {};
-      const consumido = Number(
-        movimientosItem.consumido || 0
-      );
-      const producido = Number(
-        movimientosItem.producido || 0
-      );
-      const reservadoNeto = Math.max(
-        0,
-        Number(movimientosItem.reservado || 0) -
-          Number(movimientosItem.liberado || 0) -
-          consumido
-      );
-      const requerido = Number(
-        item.cantidad_requerida || 0
-      );
-      const faltante =
-        item.material_tipo === "MP"
-          ? Math.max(
-            0,
-            requerido - consumido - reservadoNeto
-          )
-          : Math.max(0, requerido - producido);
-      const estado =
-        item.material_tipo === "MP"
-          ? faltante > 0
-            ? "mp_pendiente"
-            : "mp_cuadrado"
-          : producido > 0
-            ? "rf_producido"
-            : item.estado === "rf_en_flujo"
-              ? "rf_en_flujo"
-              : "rf_pendiente";
-
-      return {
-        ...item,
-        consumido,
-        producido,
-        reservado_neto: reservadoNeto,
-        faltante,
-        estado_cuadratura: estado
-      };
+  const cuadraturaOT = useMemo(
+    () => calcularCuadraturaAlmacenOT({
+      operaciones: operacionesTrazabilidad,
+      stocks,
+      movimientos: movimientosTrazabilidad
     }),
     [
-      disponibilidadTrazabilidad,
-      resumenTrazabilidad
+      movimientosTrazabilidad,
+      operacionesTrazabilidad,
+      stocks
     ]
   );
+  const resumenTrazabilidad =
+    cuadraturaOT.resumen_movimientos;
+  const cuadraturaTrazabilidad =
+    cuadraturaOT.items;
 
   const movimientoVista = useMemo(
     () => prepararMovimientoAlmacen({
@@ -1166,6 +1064,69 @@ function AlmacenV2({
                 </p>
               ) : (
                 <>
+                  <div style={{
+                    border: "1px solid #CBD5E1",
+                    borderRadius: 12,
+                    padding: 12,
+                    marginBottom: 16,
+                    background:
+                      cuadraturaOT.estado_general ===
+                      "bloqueada_por_mp"
+                        ? "#FEF2F2"
+                        : cuadraturaOT.estado_general ===
+                          "rf_en_flujo"
+                          ? "#FFFBEB"
+                          : cuadraturaOT.estado_general ===
+                            "cuadrada"
+                            ? "#F0FDF4"
+                            : "#F8FAFC"
+                  }}>
+                    <strong>
+                      {cuadraturaOT.estado_general ===
+                      "bloqueada_por_mp"
+                        ? "OT con riesgo por falta de MP"
+                        : cuadraturaOT.estado_general ===
+                          "rf_en_flujo"
+                          ? "OT con RF en flujo"
+                          : cuadraturaOT.estado_general ===
+                            "cuadrada"
+                            ? "OT cuadrada en almacén"
+                            : "OT sin materiales configurados"}
+                    </strong>
+                    <div style={{
+                      color: "#475569",
+                      fontSize: 13,
+                      marginTop: 5
+                    }}>
+                      MP pendientes:{" "}
+                      {
+                        cuadraturaOT.totales
+                          .mp_pendientes
+                      }
+                      {"/"}
+                      {cuadraturaOT.totales.mp_total}
+                      {" · RF pendientes: "}
+                      {
+                        cuadraturaOT.totales
+                          .rf_pendientes
+                      }
+                      {"/"}
+                      {cuadraturaOT.totales.rf_total}
+                      {" · Unidades pendientes: "}
+                      {formatearNumero(
+                        cuadraturaOT.totales
+                          .unidades_pendientes
+                      )}
+                    </div>
+                    <div style={{
+                      color: "#334155",
+                      fontSize: 13,
+                      marginTop: 5
+                    }}>
+                      {cuadraturaOT.recomendacion}
+                    </div>
+                  </div>
+
                   <h3 style={{ marginTop: 0 }}>
                     Estado de cuadratura
                   </h3>
