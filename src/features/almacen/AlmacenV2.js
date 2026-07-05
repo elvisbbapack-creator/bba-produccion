@@ -8,6 +8,9 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
+  listarOrdenesV2
+} from "../ordenes/ordenesRepository";
+import {
   MOVIMIENTOS_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
   calcularStockDisponible,
@@ -51,6 +54,11 @@ const formatearFecha = fecha => {
     : "Recién registrado";
 };
 
+const movimientoRequiereOT = tipo => [
+  TIPOS_MOVIMIENTO_ALMACEN.RESERVA_OT,
+  TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT
+].includes(tipo);
+
 function AlmacenV2({
   db,
   perfil,
@@ -67,6 +75,7 @@ function AlmacenV2({
   const [stocks, setStocks] = useState([]);
   const [movimientos, setMovimientos] =
     useState([]);
+  const [ordenes, setOrdenes] = useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
   const [cargando, setCargando] = useState(true);
@@ -146,7 +155,8 @@ function AlmacenV2({
       const [
         materialesData,
         stocksData,
-        movimientosData
+        movimientosData,
+        ordenesData
       ] = await Promise.all([
         listarMateriales(
           db,
@@ -161,6 +171,11 @@ function AlmacenV2({
           db,
           perfil.empresa_id,
           plantaId
+        ),
+        listarOrdenesV2(
+          db,
+          perfil.empresa_id,
+          plantaId
         )
       ]);
       setMateriales(
@@ -171,6 +186,15 @@ function AlmacenV2({
       setStocks(stocksData);
       setMovimientos(
         movimientosData.slice(0, 25)
+      );
+      setOrdenes(
+        ordenesData.filter(
+          orden =>
+            ![
+              "cerrada",
+              "completada"
+            ].includes(orden.estado)
+        )
       );
     } catch (fallo) {
       setError(
@@ -356,12 +380,26 @@ function AlmacenV2({
               Tipo de movimiento
               <select
                 value={formulario.tipo}
-                onChange={evento =>
+                onChange={evento => {
+                  const nuevoTipo =
+                    evento.target.value;
                   actualizar(
                     "tipo",
-                    evento.target.value
-                  )
-                }
+                    nuevoTipo
+                  );
+
+                  if (
+                    !movimientoRequiereOT(
+                      nuevoTipo
+                    )
+                  ) {
+                    setFormulario(actual => ({
+                      ...actual,
+                      tipo: nuevoTipo,
+                      ot_codigo: ""
+                    }));
+                  }
+                }}
                 style={{
                   ...campo,
                   marginTop: 6,
@@ -402,24 +440,60 @@ function AlmacenV2({
               />
             </label>
 
-            <label>
-              OT asociada
-              <input
-                value={formulario.ot_codigo}
-                onChange={evento =>
-                  actualizar(
-                    "ot_codigo",
-                    evento.target.value
-                  )
-                }
-                placeholder="OT-CHI-000001"
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
-              />
-            </label>
+            {movimientoRequiereOT(
+              formulario.tipo
+            ) ? (
+              <label>
+                OT asociada
+                <select
+                  value={formulario.ot_codigo}
+                  onChange={evento =>
+                    actualizar(
+                      "ot_codigo",
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                >
+                  <option value="">
+                    Seleccionar OT
+                  </option>
+                  {ordenes.map(orden => (
+                    <option
+                      key={orden.id}
+                      value={orden.codigo}
+                    >
+                      {orden.codigo}
+                      {" - "}
+                      {orden.producto_nombre}
+                      {" ("}
+                      {orden.estado}
+                      {")"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label>
+                OT asociada
+                <input
+                  value={formulario.ot_codigo}
+                  disabled
+                  placeholder="No aplica a este movimiento"
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14,
+                    background: "#F8FAFC",
+                    color: "#94A3B8"
+                  }}
+                />
+              </label>
+            )}
 
             <label>
               Referencia
