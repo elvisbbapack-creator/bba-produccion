@@ -1,6 +1,7 @@
 import {
   TIPOS_MOVIMIENTO_ALMACEN,
   calcularStockDisponible,
+  calcularRequerimientosMaterialesOT,
   calcularStockTrasMovimiento,
   prepararMovimientoAlmacen,
   validarMovimientoAlmacen
@@ -166,4 +167,59 @@ test("consumo por OT exige OT y stock disponible", () => {
     "Stock disponible insuficiente. Disponible: 10.",
     "Indica la OT asociada al movimiento."
   ]);
+});
+
+test("agrupa requerimientos de materiales por OT y calcula brecha", () => {
+  const requerimientos =
+    calcularRequerimientosMaterialesOT(
+      [
+        {
+          id: "op-1",
+          operacion_codigo: "DT0001",
+          cantidad_pendiente: 10,
+          materiales_entrada: [
+            {
+              material_id: "mat-1",
+              material_codigo: "MP0001",
+              material_nombre: "Tubo",
+              cantidad: 4
+            }
+          ]
+        },
+        {
+          id: "op-2",
+          operacion_codigo: "DT0002",
+          cantidad_requerida: 5,
+          materiales_entrada: [
+            {
+              material_id: "mat-1",
+              material_codigo: "MP0001",
+              material_nombre: "Tubo",
+              cantidad: 2
+            }
+          ]
+        }
+      ],
+      [
+        {
+          material_id: "mat-1",
+          stock_actual: 45,
+          stock_reservado: 10
+        }
+      ]
+    );
+
+  expect(requerimientos).toHaveLength(1);
+  expect(
+    requerimientos[0].cantidad_requerida
+  ).toBe(50);
+  expect(
+    requerimientos[0].stock_disponible
+  ).toBe(35);
+  expect(requerimientos[0].brecha).toBe(15);
+  expect(
+    requerimientos[0].operaciones.map(
+      operacion => operacion.operacion_codigo
+    )
+  ).toEqual(["DT0001", "DT0002"]);
 });

@@ -254,6 +254,109 @@ export const calcularStockTrasMovimiento = (
   };
 };
 
+export const calcularRequerimientosMaterialesOT = (
+  operaciones = [],
+  stocks = []
+) => {
+  const stockPorMaterial = new Map(
+    stocks.map(stock => [
+      stock.material_id,
+      stock
+    ])
+  );
+  const requerimientos = new Map();
+
+  operaciones.forEach(operacion => {
+    const cantidadOperacion = Number(
+      operacion.cantidad_pendiente ??
+      operacion.cantidad_requerida ??
+      0
+    );
+
+    (operacion.materiales_entrada || [])
+      .forEach(material => {
+        const materialId =
+          limpiarTexto(material.material_id);
+
+        if (!materialId) {
+          return;
+        }
+
+        const cantidadPorUnidad = Number(
+          material.cantidad || 1
+        );
+        const cantidadRequerida =
+          cantidadOperacion *
+          cantidadPorUnidad;
+        const actual =
+          requerimientos.get(materialId) || {
+            material_id: materialId,
+            material_codigo:
+              limpiarTexto(
+                material.material_codigo
+              ),
+            material_nombre:
+              limpiarTexto(
+                material.material_nombre
+              ),
+            cantidad_requerida: 0,
+            operaciones: []
+          };
+
+        actual.cantidad_requerida +=
+          cantidadRequerida;
+        actual.operaciones.push({
+          operacion_id:
+            operacion.id ||
+            operacion.ruta_operacion_id ||
+            "",
+          operacion_codigo:
+            operacion.operacion_codigo || "",
+          operacion_nombre:
+            operacion.operacion_nombre || "",
+          cantidad_requerida:
+            cantidadRequerida
+        });
+
+        requerimientos.set(
+          materialId,
+          actual
+        );
+      });
+  });
+
+  return Array.from(requerimientos.values())
+    .map(requerimiento => {
+      const stock =
+        stockPorMaterial.get(
+          requerimiento.material_id
+        ) || {};
+      const disponible =
+        calcularStockDisponible(stock);
+
+      return {
+        ...requerimiento,
+        stock_actual: Number(
+          stock.stock_actual || 0
+        ),
+        stock_reservado: Number(
+          stock.stock_reservado || 0
+        ),
+        stock_disponible: disponible,
+        brecha: Math.max(
+          0,
+          requerimiento.cantidad_requerida -
+            disponible
+        )
+      };
+    })
+    .sort((a, b) =>
+      a.material_codigo.localeCompare(
+        b.material_codigo
+      )
+    );
+};
+
 export const listarStockMateriales = async (
   db,
   empresaId,

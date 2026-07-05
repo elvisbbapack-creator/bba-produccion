@@ -8,11 +8,13 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
+  listarOperacionesOT,
   listarOrdenesV2
 } from "../ordenes/ordenesRepository";
 import {
   MOVIMIENTOS_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
+  calcularRequerimientosMaterialesOT,
   calcularStockDisponible,
   listarMovimientosAlmacen,
   listarStockMateriales,
@@ -76,6 +78,8 @@ function AlmacenV2({
   const [movimientos, setMovimientos] =
     useState([]);
   const [ordenes, setOrdenes] = useState([]);
+  const [operacionesOrden, setOperacionesOrden] =
+    useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
   const [cargando, setCargando] = useState(true);
@@ -118,6 +122,22 @@ function AlmacenV2({
       formulario.material_id,
       stocksPorMaterial
     ]
+  );
+
+  const ordenSeleccionada = useMemo(
+    () => ordenes.find(
+      orden =>
+        orden.codigo === formulario.ot_codigo
+    ) || null,
+    [formulario.ot_codigo, ordenes]
+  );
+
+  const requerimientosOrden = useMemo(
+    () => calcularRequerimientosMaterialesOT(
+      operacionesOrden,
+      stocks
+    ),
+    [operacionesOrden, stocks]
   );
 
   const movimientoVista = useMemo(
@@ -210,6 +230,45 @@ function AlmacenV2({
     cargar();
   }, [cargar]);
 
+  useEffect(() => {
+    const cargarOperacionesOrden = async () => {
+      if (
+        !ordenSeleccionada ||
+        !movimientoRequiereOT(formulario.tipo)
+      ) {
+        setOperacionesOrden([]);
+        return;
+      }
+
+      try {
+        const operaciones =
+          await listarOperacionesOT(
+            db,
+            perfil.empresa_id,
+            plantaId,
+            ordenSeleccionada.id
+          );
+
+        setOperacionesOrden(operaciones);
+      } catch (fallo) {
+        setError(
+          fallo?.message ||
+          "No se pudieron cargar los materiales requeridos de la OT."
+        );
+        setOperacionesOrden([]);
+      }
+    };
+
+    cargarOperacionesOrden();
+  }, [
+    db,
+    formulario.ot_codigo,
+    formulario.tipo,
+    ordenSeleccionada,
+    perfil.empresa_id,
+    plantaId
+  ]);
+
   const actualizar = (campoNombre, valor) => {
     setFormulario(actual => ({
       ...actual,
@@ -217,6 +276,21 @@ function AlmacenV2({
     }));
     setError("");
     setMensaje("");
+  };
+
+  const usarRequerimiento = requerimiento => {
+    setFormulario(actual => ({
+      ...actual,
+      material_id:
+        requerimiento.material_id,
+      cantidad: String(
+        requerimiento.cantidad_requerida
+      )
+    }));
+    setMensaje(
+      `Material ${requerimiento.material_codigo} seleccionado desde la OT.`
+    );
+    setError("");
   };
 
   const guardar = async evento => {
@@ -493,6 +567,117 @@ function AlmacenV2({
                   }}
                 />
               </label>
+            )}
+
+            {movimientoRequiereOT(
+              formulario.tipo
+            ) && formulario.ot_codigo && (
+              <section style={{
+                background: "#F8FAFC",
+                border: "1px solid #E2E8F0",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 14
+              }}>
+                <strong>
+                  Materiales sugeridos por OT
+                </strong>
+                {requerimientosOrden.length === 0 ? (
+                  <p style={{
+                    color: "#64748B",
+                    marginBottom: 0
+                  }}>
+                    No hay materiales de entrada en
+                    las operaciones pendientes de esta
+                    OT.
+                  </p>
+                ) : (
+                  <div style={{
+                    display: "grid",
+                    gap: 10,
+                    marginTop: 10
+                  }}>
+                    {requerimientosOrden.map(
+                      requerimiento => (
+                        <article
+                          key={
+                            requerimiento.material_id
+                          }
+                          style={{
+                            border:
+                              "1px solid #CBD5E1",
+                            borderRadius: 9,
+                            padding: 10,
+                            background: "white"
+                          }}
+                        >
+                          <div style={{
+                            fontWeight: "bold"
+                          }}>
+                            {
+                              requerimiento
+                                .material_codigo
+                            }
+                            {" - "}
+                            {
+                              requerimiento
+                                .material_nombre
+                            }
+                          </div>
+                          <div style={{
+                            color: "#334155",
+                            fontSize: 13,
+                            marginTop: 4
+                          }}>
+                            Requerido:{" "}
+                            {formatearNumero(
+                              requerimiento
+                                .cantidad_requerida
+                            )}
+                            {" · Disponible: "}
+                            {formatearNumero(
+                              requerimiento
+                                .stock_disponible
+                            )}
+                            {" · Brecha: "}
+                            <span style={{
+                              color:
+                                requerimiento.brecha > 0
+                                  ? "#B91C1C"
+                                  : "#166534",
+                              fontWeight: "bold"
+                            }}>
+                              {formatearNumero(
+                                requerimiento.brecha
+                              )}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              usarRequerimiento(
+                                requerimiento
+                              )
+                            }
+                            style={{
+                              marginTop: 8,
+                              padding: "8px 10px",
+                              border: "none",
+                              borderRadius: 8,
+                              background: "#0F766E",
+                              color: "white",
+                              fontWeight: "bold",
+                              cursor: "pointer"
+                            }}
+                          >
+                            Usar material y cantidad
+                          </button>
+                        </article>
+                      )
+                    )}
+                  </div>
+                )}
+              </section>
             )}
 
             <label>
