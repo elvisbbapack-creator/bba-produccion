@@ -29,6 +29,12 @@ import {
   datosTurnoParaSesion,
   normalizarSubprocesosHabilitados
 } from "../turnos/turnosRepository";
+import {
+  TIPOS_MOVIMIENTO_ALMACEN,
+  calcularStockTrasMovimiento,
+  idStockMaterial,
+  prepararMovimientoAlmacen
+} from "../almacen/almacenRepository";
 
 const limpiarTexto = (valor) =>
   (valor || "").toString().trim();
@@ -55,6 +61,113 @@ export const idOcupacionOperario = ({
 
 const fechaOperativa = () =>
   new Date().toISOString().slice(0, 10);
+
+export const calcularMovimientosAutomaticosAlmacen = ({
+  operacion,
+  cantidadOk = 0,
+  cantidadDefectuosa = 0,
+  cantidadReproceso = 0,
+  perfil,
+  plantaId,
+  otCodigo,
+  sesionId
+}) => {
+  const totalEntrada =
+    Number(cantidadOk || 0) +
+    Number(cantidadDefectuosa || 0) +
+    Number(cantidadReproceso || 0);
+  const movimientos = [];
+  const usuario = perfil || {};
+  const referencia =
+    `sesion:${sesionId || ""}`;
+
+  if (
+    totalEntrada > 0 &&
+    Array.isArray(operacion?.materiales_entrada)
+  ) {
+    operacion.materiales_entrada.forEach(
+      materialEntrada => {
+        const cantidad =
+          totalEntrada *
+          Number(materialEntrada.cantidad || 1);
+
+        if (cantidad <= 0) {
+          return;
+        }
+
+        movimientos.push(
+          prepararMovimientoAlmacen({
+            empresaId: perfil.empresa_id,
+            plantaId,
+            material: {
+              id: materialEntrada.material_id,
+              codigo:
+                materialEntrada.material_codigo,
+              nombre:
+                materialEntrada.material_nombre,
+              tipo: (
+                materialEntrada.material_codigo ||
+                ""
+              ).startsWith("RF")
+                ? "RF"
+                : "MP",
+              unidad_medida:
+                materialEntrada.unidad_medida ||
+                "unidad"
+            },
+            tipo:
+              TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT,
+            cantidad,
+            otCodigo,
+            referencia,
+            observacion:
+              `Consumo automático ${operacion.operacion_codigo || ""}`,
+            usuario
+          })
+        );
+      }
+    );
+  }
+
+  if (
+    Number(cantidadOk || 0) > 0 &&
+    operacion?.material_salida_id
+  ) {
+    movimientos.push(
+      prepararMovimientoAlmacen({
+        empresaId: perfil.empresa_id,
+        plantaId,
+        material: {
+          id: operacion.material_salida_id,
+          codigo:
+            operacion.material_salida_codigo,
+          nombre:
+            operacion.material_salida_nombre ||
+            operacion.material_salida_codigo,
+          tipo: (
+            operacion.material_salida_codigo ||
+            ""
+          ).startsWith("RF")
+            ? "RF"
+            : "MP",
+          unidad_medida:
+            operacion.unidad_medida_salida ||
+            "unidad"
+        },
+        tipo:
+          TIPOS_MOVIMIENTO_ALMACEN.RECEPCION,
+        cantidad: Number(cantidadOk || 0),
+        otCodigo,
+        referencia,
+        observacion:
+          `Entrada automática ${operacion.operacion_codigo || ""}`,
+        usuario
+      })
+    );
+  }
+
+  return movimientos;
+};
 
 export const calcularDisponibilidadPorMaterial = (
   operaciones = []
@@ -1267,6 +1380,48 @@ export const registrarReporteProduccion =
           valores[0] +
           valores[1] +
           valores[2];
+        const movimientosAlmacen =
+          calcularMovimientosAutomaticosAlmacen({
+            operacion: objetivo,
+            cantidadOk: valores[0],
+            cantidadDefectuosa: valores[1],
+            cantidadReproceso: valores[2],
+            perfil,
+            plantaId: sesion.planta_id,
+            otCodigo: sesion.ot_codigo,
+            sesionId: sesion.id
+          });
+        const referenciasAlmacen =
+          movimientosAlmacen.map(movimiento => ({
+            movimiento,
+            movimientoRef: doc(
+              collection(
+                db,
+                "movimientos_almacen"
+              )
+            ),
+            stockRef: doc(
+              db,
+              "inventario_materiales",
+              idStockMaterial({
+                empresaId: perfil.empresa_id,
+                plantaId: sesion.planta_id,
+                materialId:
+                  movimiento.material_id
+              })
+            )
+          }));
+        const stockSnapshots = [];
+
+        for (const item of referenciasAlmacen) {
+          stockSnapshots.push({
+            ...item,
+            snapshot:
+              await transaccion.get(
+                item.stockRef
+              )
+          });
+        }
 
         const posteriores = actuales.map(
           operacion =>
@@ -1541,6 +1696,84 @@ export const registrarReporteProduccion =
           timestamp: serverTimestamp(),
           registrado_por_id: perfil.uid,
           modelo_version: 2
+        });
+        const estadoStockPorRef = new Map();
+
+        stockSnapshots.forEach(item => {
+          const stockKey = item.stockRef.path;
+          const stockActual =
+            estadoStockPorRef.get(stockKey) ||
+            (
+              item.snapshot.exists()
+                ? item.snapshot.data()
+                : {
+                  stock_actual: 0,
+                  stock_reservado: 0
+                }
+            );
+          const siguiente =
+            calcularStockTrasMovimiento(
+              stockActual,
+              item.movimiento
+            );
+
+          estadoStockPorRef.set(
+            stockKey,
+            siguiente
+          );
+
+          transaccion.set(
+            item.stockRef,
+            {
+              empresa_id: perfil.empresa_id,
+              planta_id: sesion.planta_id,
+              material_id:
+                item.movimiento.material_id,
+              material_codigo:
+                item.movimiento.material_codigo,
+              material_nombre:
+                item.movimiento.material_nombre,
+              material_tipo:
+                item.movimiento.material_tipo,
+              unidad_medida:
+                item.movimiento.unidad_medida ||
+                "unidad",
+              ...siguiente,
+              actualizado_por_id: perfil.uid,
+              actualizado_por_nombre:
+                perfil.nombre || "",
+              actualizado_en:
+                serverTimestamp(),
+              modelo_version: 2
+            },
+            { merge: true }
+          );
+          transaccion.set(item.movimientoRef, {
+            ...item.movimiento,
+            origen: "produccion",
+            sesion_id: sesion.id,
+            ot_id: sesion.ot_id,
+            ot_operacion_id:
+              sesion.ot_operacion_id,
+            operacion_codigo:
+              sesion.operacion_codigo,
+            operacion_nombre:
+              sesion.operacion_nombre,
+            stock_anterior: Number(
+              stockActual.stock_actual || 0
+            ),
+            stock_reservado_anterior:
+              Number(
+                stockActual.stock_reservado || 0
+              ),
+            stock_nuevo:
+              siguiente.stock_actual,
+            stock_reservado_nuevo:
+              siguiente.stock_reservado,
+            stock_disponible_nuevo:
+              siguiente.stock_disponible,
+            fecha: serverTimestamp()
+          });
         });
         if (calidadRef) {
           transaccion.set(calidadRef, {

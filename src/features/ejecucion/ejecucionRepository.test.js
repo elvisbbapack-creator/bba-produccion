@@ -1,4 +1,5 @@
 import {
+  calcularMovimientosAutomaticosAlmacen,
   calcularIndicadoresSesion,
   calcularDisponibilidadPorMaterial,
   calcularTiemposSesion,
@@ -211,4 +212,47 @@ test("exige defecto y causa cuando hay merma o reproceso", () => {
       causa: { id: "CAU0001" }
     })
   ).toEqual([]);
+});
+
+test("genera consumo y recepción automática para almacén", () => {
+  const movimientos =
+    calcularMovimientosAutomaticosAlmacen({
+      operacion: {
+        operacion_codigo: "DT0001",
+        materiales_entrada: [
+          {
+            material_id: "mp-1",
+            material_codigo: "MP0001",
+            material_nombre: "Tubo",
+            cantidad: 2
+          }
+        ],
+        material_salida_id: "rf-1",
+        material_salida_codigo: "RF0001"
+      },
+      cantidadOk: 10,
+      cantidadDefectuosa: 2,
+      cantidadReproceso: 1,
+      perfil: {
+        empresa_id: "bba",
+        uid: "user-1",
+        nombre: "Jefe"
+      },
+      plantaId: "chile",
+      otCodigo: "OT-CHI-000001",
+      sesionId: "sesion-1"
+    });
+
+  expect(movimientos).toHaveLength(2);
+  expect(movimientos[0]).toMatchObject({
+    tipo: "consumo_ot",
+    material_codigo: "MP0001",
+    cantidad: 26,
+    ot_codigo: "OT-CHI-000001"
+  });
+  expect(movimientos[1]).toMatchObject({
+    tipo: "recepcion",
+    material_codigo: "RF0001",
+    cantidad: 10
+  });
 });
