@@ -384,6 +384,89 @@ export const validarTraspasoSalida = (
   return errores;
 };
 
+export const prepararConteoFisico = ({
+  empresaId,
+  plantaId,
+  material,
+  stockSistema,
+  stockReservado,
+  cantidadContada,
+  referencia = "",
+  observacion = "",
+  usuario
+}) => {
+  const sistema = Number(stockSistema || 0);
+  const reservado = Number(stockReservado || 0);
+  const contado = Number(cantidadContada);
+  const diferencia =
+    Number.isFinite(contado)
+      ? contado - sistema
+      : 0;
+
+  return {
+    empresa_id: limpiarTexto(empresaId),
+    planta_id: limpiarTexto(plantaId),
+    material_id: limpiarTexto(material?.id),
+    material_codigo: limpiarTexto(material?.codigo),
+    material_nombre: limpiarTexto(material?.nombre),
+    material_tipo: limpiarTexto(material?.tipo),
+    unidad_medida: limpiarTexto(material?.unidad_medida),
+    stock_sistema: sistema,
+    stock_reservado: reservado,
+    stock_contado: Number.isFinite(contado)
+      ? contado
+      : 0,
+    diferencia,
+    estado:
+      diferencia === 0
+        ? "cuadrado"
+        : "ajustado",
+    referencia: limpiarTexto(referencia),
+    observacion: limpiarTexto(observacion),
+    contado_por_id: limpiarTexto(usuario?.uid),
+    contado_por_nombre: limpiarTexto(usuario?.nombre),
+    modelo_version: 2
+  };
+};
+
+export const validarConteoFisico = conteo => {
+  const errores = [];
+  const contado = Number(conteo?.stock_contado);
+  const reservado = Number(
+    conteo?.stock_reservado || 0
+  );
+
+  if (!conteo?.material_id) {
+    errores.push("Selecciona un material.");
+  }
+
+  if (
+    !Number.isFinite(contado) ||
+    contado < 0
+  ) {
+    errores.push(
+      "La cantidad contada debe ser cero o mayor."
+    );
+  }
+
+  if (contado < reservado) {
+    errores.push(
+      `El conteo no puede quedar bajo el stock reservado (${reservado}). Libera reservas antes de ajustar.`
+    );
+  }
+
+  if (
+    conteo?.diferencia !== 0 &&
+    !limpiarTexto(conteo?.observacion)
+  ) {
+    errores.push(
+      "Indica el motivo de la diferencia del conteo físico."
+    );
+  }
+
+  return errores;
+};
+
 export const calcularStockTrasMovimiento = (
   stockActual,
   movimiento
@@ -991,6 +1074,33 @@ export const listarTraspasosAlmacen = async (
   );
 };
 
+export const listarConteosFisicos = async (
+  db,
+  empresaId,
+  plantaId
+) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, "conteos_fisicos"),
+      where("empresa_id", "==", empresaId),
+      where("planta_id", "==", plantaId)
+    )
+  );
+
+  return snapshot.docs
+    .map(documento => ({
+      id: documento.id,
+      ...documento.data()
+    }))
+    .sort((a, b) => {
+      const derecha =
+        b.contado_en?.toMillis?.() || 0;
+      const izquierda =
+        a.contado_en?.toMillis?.() || 0;
+      return derecha - izquierda;
+    });
+};
+
 export const registrarMovimientoAlmacen =
   async ({
     db,
@@ -1094,6 +1204,161 @@ export const registrarMovimientoAlmacen =
     return {
       id: movimientoRef.id,
       ...movimiento
+    };
+  };
+
+export const registrarConteoFisico =
+  async ({
+    db,
+    perfil,
+    plantaId,
+    material,
+    cantidadContada,
+    referencia,
+    observacion
+  }) => {
+    const stockRef = doc(
+      db,
+      "inventario_materiales",
+      idStockMaterial({
+        empresaId: perfil.empresa_id,
+        plantaId,
+        materialId: material?.id
+      })
+    );
+    const conteoRef = doc(
+      collection(db, "conteos_fisicos")
+    );
+    const movimientoRef = doc(
+      collection(db, "movimientos_almacen")
+    );
+
+    await runTransaction(db, async transaccion => {
+      const stockSnapshot =
+        await transaccion.get(stockRef);
+      const stockActual = stockSnapshot.exists()
+        ? stockSnapshot.data()
+        : {
+          stock_actual: 0,
+          stock_reservado: 0
+        };
+      const conteo = prepararConteoFisico({
+        empresaId: perfil.empresa_id,
+        plantaId,
+        material,
+        stockSistema:
+          stockActual.stock_actual,
+        stockReservado:
+          stockActual.stock_reservado,
+        cantidadContada,
+        referencia,
+        observacion,
+        usuario: perfil
+      });
+      const erroresConteo =
+        validarConteoFisico(conteo);
+
+      if (erroresConteo.length > 0) {
+        throw new Error(
+          erroresConteo.join(" ")
+        );
+      }
+
+      const diferencia = Number(
+        conteo.diferencia || 0
+      );
+
+      if (diferencia === 0) {
+        transaccion.set(conteoRef, {
+          ...conteo,
+          contado_en: serverTimestamp()
+        });
+        return;
+      }
+
+      const tipo =
+        diferencia > 0
+          ? TIPOS_MOVIMIENTO_ALMACEN
+            .AJUSTE_POSITIVO
+          : TIPOS_MOVIMIENTO_ALMACEN
+            .AJUSTE_NEGATIVO;
+      const movimiento =
+        prepararMovimientoAlmacen({
+          empresaId: perfil.empresa_id,
+          plantaId,
+          material,
+          tipo,
+          cantidad: Math.abs(diferencia),
+          referencia:
+            limpiarTexto(referencia) ||
+            `conteo:${conteoRef.id}`,
+          observacion:
+            limpiarTexto(observacion) ||
+            "Diferencia por conteo físico",
+          usuario: perfil
+        });
+      const erroresMovimiento =
+        validarMovimientoAlmacen(
+          movimiento,
+          stockActual
+        );
+
+      if (erroresMovimiento.length > 0) {
+        throw new Error(
+          erroresMovimiento.join(" ")
+        );
+      }
+
+      const siguiente =
+        calcularStockTrasMovimiento(
+          stockActual,
+          movimiento
+        );
+
+      transaccion.set(stockRef, {
+        empresa_id: perfil.empresa_id,
+        planta_id: plantaId,
+        material_id: material.id,
+        material_codigo: material.codigo,
+        material_nombre: material.nombre,
+        material_tipo: material.tipo,
+        unidad_medida: material.unidad_medida,
+        ...siguiente,
+        actualizado_por_id: perfil.uid,
+        actualizado_por_nombre:
+          perfil.nombre || "",
+        actualizado_en: serverTimestamp(),
+        modelo_version: 2
+      });
+      transaccion.set(movimientoRef, {
+        ...movimiento,
+        origen: "ajuste_autorizado",
+        conteo_fisico_id: conteoRef.id,
+        stock_anterior:
+          Number(
+            stockActual.stock_actual || 0
+          ),
+        stock_reservado_anterior:
+          Number(
+            stockActual.stock_reservado || 0
+          ),
+        stock_nuevo: siguiente.stock_actual,
+        stock_reservado_nuevo:
+          siguiente.stock_reservado,
+        stock_disponible_nuevo:
+          siguiente.stock_disponible,
+        fecha: serverTimestamp()
+      });
+      transaccion.set(conteoRef, {
+        ...conteo,
+        movimiento_ajuste_id:
+          movimientoRef.id,
+        contado_en: serverTimestamp()
+      });
+    });
+
+    return {
+      id: conteoRef.id
     };
   };
 

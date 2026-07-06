@@ -210,6 +210,25 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /conteos_fisicos/{conteoId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if canManage() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.contado_por_id ==
+          request.auth.uid &&
+        request.resource.data.stock_contado >= 0 &&
+        (
+          request.resource.data.diferencia == 0 ||
+          (
+            request.resource.data.observacion is string &&
+            request.resource.data.observacion.size() > 0
+          )
+        );
+      allow update, delete: if false;
+    }
+
     match /catalogo_piezas/{piezaId} {
       allow read: if belongsToCompany(resource.data);
       allow create: if canManage() &&

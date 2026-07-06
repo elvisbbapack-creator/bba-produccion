@@ -19,14 +19,18 @@ import {
   calcularDisponibilidadOT,
   calcularStockDisponible,
   esMovimientoAjusteAutorizado,
+  listarConteosFisicos,
   listarTraspasosAlmacen,
   listarMovimientosAlmacen,
   listarStockMateriales,
   prepararMovimientoAlmacen,
+  prepararConteoFisico,
   prepararTraspasoAlmacen,
+  registrarConteoFisico,
   registrarMovimientoAlmacen,
   registrarTraspasoRecepcion,
   registrarTraspasoSalida,
+  validarConteoFisico,
   validarTraspasoSalida,
   validarMovimientoAlmacen
 } from "./almacenRepository";
@@ -53,6 +57,13 @@ const traspasoInicial = {
   material_id: "",
   planta_destino_id: "",
   cantidad: "",
+  referencia: "",
+  observacion: ""
+};
+
+const conteoInicial = {
+  material_id: "",
+  cantidad_contada: "",
   referencia: "",
   observacion: ""
 };
@@ -133,6 +144,7 @@ function AlmacenV2({
     useState([]);
   const [traspasos, setTraspasos] =
     useState([]);
+  const [conteos, setConteos] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
   const [operacionesOrden, setOperacionesOrden] =
     useState([]);
@@ -146,10 +158,14 @@ function AlmacenV2({
     useState(estadoInicial);
   const [formularioTraspaso, setFormularioTraspaso] =
     useState(traspasoInicial);
+  const [formularioConteo, setFormularioConteo] =
+    useState(conteoInicial);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] =
     useState(false);
   const [guardandoTraspaso, setGuardandoTraspaso] =
+    useState(false);
+  const [guardandoConteo, setGuardandoConteo] =
     useState(false);
   const [
     recibiendoTraspasoId,
@@ -178,6 +194,18 @@ function AlmacenV2({
     ) || null,
     [
       formularioTraspaso.material_id,
+      materiales
+    ]
+  );
+
+  const materialConteoSeleccionado = useMemo(
+    () => materiales.find(
+      material =>
+        material.id ===
+        formularioConteo.material_id
+    ) || null,
+    [
+      formularioConteo.material_id,
       materiales
     ]
   );
@@ -220,6 +248,20 @@ function AlmacenV2({
     ]
   );
 
+  const stockConteoSeleccionado = useMemo(
+    () => stocksPorMaterial.get(
+      formularioConteo.material_id
+    ) || {
+      stock_actual: 0,
+      stock_reservado: 0,
+      stock_disponible: 0
+    },
+    [
+      formularioConteo.material_id,
+      stocksPorMaterial
+    ]
+  );
+
   const ordenSeleccionada = useMemo(
     () => ordenes.find(
       orden =>
@@ -246,6 +288,10 @@ function AlmacenV2({
         "ajuste_autorizado"
     ).slice(0, 10),
     [movimientos]
+  );
+  const conteosRecientes = useMemo(
+    () => conteos.slice(0, 10),
+    [conteos]
   );
   const esAjusteAutorizadoSeleccionado =
     esMovimientoAjusteAutorizado(
@@ -356,6 +402,35 @@ function AlmacenV2({
     ]
   );
 
+  const conteoVista = useMemo(
+    () => prepararConteoFisico({
+      empresaId: perfil.empresa_id,
+      plantaId,
+      material: materialConteoSeleccionado,
+      stockSistema:
+        stockConteoSeleccionado.stock_actual,
+      stockReservado:
+        stockConteoSeleccionado.stock_reservado,
+      cantidadContada:
+        formularioConteo.cantidad_contada,
+      referencia: formularioConteo.referencia,
+      observacion: formularioConteo.observacion,
+      usuario: perfil
+    }),
+    [
+      formularioConteo,
+      materialConteoSeleccionado,
+      perfil,
+      plantaId,
+      stockConteoSeleccionado
+    ]
+  );
+
+  const erroresConteo = useMemo(
+    () => validarConteoFisico(conteoVista),
+    [conteoVista]
+  );
+
   const erroresTraspaso = useMemo(
     () => validarTraspasoSalida(
       traspasoVista,
@@ -373,7 +448,8 @@ function AlmacenV2({
         stocksData,
         movimientosData,
         ordenesData,
-        traspasosData
+        traspasosData,
+        conteosData
       ] = await Promise.all([
         listarMateriales(
           db,
@@ -398,6 +474,11 @@ function AlmacenV2({
           db,
           perfil.empresa_id,
           plantaId
+        ),
+        listarConteosFisicos(
+          db,
+          perfil.empresa_id,
+          plantaId
         )
       ]);
       setMateriales(
@@ -408,6 +489,7 @@ function AlmacenV2({
       setStocks(stocksData);
       setMovimientos(movimientosData);
       setTraspasos(traspasosData);
+      setConteos(conteosData);
       setOrdenes(
         ordenesData.filter(
           orden =>
@@ -534,6 +616,18 @@ function AlmacenV2({
     setMensaje("");
   };
 
+  const actualizarConteo = (
+    campoNombre,
+    valor
+  ) => {
+    setFormularioConteo(actual => ({
+      ...actual,
+      [campoNombre]: valor
+    }));
+    setError("");
+    setMensaje("");
+  };
+
   const usarRequerimiento = requerimiento => {
     setFormulario(actual => ({
       ...actual,
@@ -623,6 +717,44 @@ function AlmacenV2({
     }
   };
 
+  const guardarConteo = async evento => {
+    evento.preventDefault();
+
+    if (erroresConteo.length > 0) {
+      setError(erroresConteo.join(" "));
+      return;
+    }
+
+    try {
+      setGuardandoConteo(true);
+      setError("");
+      await registrarConteoFisico({
+        db,
+        perfil,
+        plantaId,
+        material: materialConteoSeleccionado,
+        cantidadContada:
+          formularioConteo.cantidad_contada,
+        referencia: formularioConteo.referencia,
+        observacion: formularioConteo.observacion
+      });
+      setFormularioConteo(conteoInicial);
+      setMensaje(
+        conteoVista.diferencia === 0
+          ? "Conteo físico registrado sin diferencias."
+          : "Conteo físico registrado y ajuste autorizado aplicado."
+      );
+      await cargar();
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo registrar el conteo físico."
+      );
+    } finally {
+      setGuardandoConteo(false);
+    }
+  };
+
   const recibirTraspaso = async traspaso => {
     try {
       setRecibiendoTraspasoId(traspaso.id);
@@ -696,6 +828,7 @@ function AlmacenV2({
                 setPlantaId(evento.target.value);
                 setFormulario(estadoInicial);
                 setFormularioTraspaso(traspasoInicial);
+                setFormularioConteo(conteoInicial);
                 setOtTrazabilidad("");
               }}
               style={{
@@ -1208,6 +1341,194 @@ function AlmacenV2({
           </form>
 
           <form
+            onSubmit={guardarConteo}
+            style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)",
+              border: "1px solid #FED7AA"
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>
+              Conteo físico
+            </h2>
+            <p style={{
+              color: "#475569",
+              marginTop: -4,
+              fontSize: 14
+            }}>
+              Compara el stock del sistema contra lo
+              contado físicamente. Si hay diferencia,
+              se genera un ajuste autorizado.
+            </p>
+
+            <label>
+              Material
+              <select
+                value={formularioConteo.material_id}
+                onChange={evento =>
+                  actualizarConteo(
+                    "material_id",
+                    evento.target.value
+                  )
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              >
+                <option value="">
+                  Seleccionar material
+                </option>
+                {materiales.map(material => (
+                  <option
+                    key={material.id}
+                    value={material.id}
+                  >
+                    {material.codigo}
+                    {" - "}
+                    {material.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Cantidad contada
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={
+                  formularioConteo.cantidad_contada
+                }
+                onChange={evento =>
+                  actualizarConteo(
+                    "cantidad_contada",
+                    evento.target.value
+                  )
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              />
+            </label>
+
+            {materialConteoSeleccionado && (
+              <div style={{
+                background:
+                  conteoVista.diferencia === 0
+                    ? "#F0FDF4"
+                    : "#FFFBEB",
+                border:
+                  conteoVista.diferencia === 0
+                    ? "1px solid #BBF7D0"
+                    : "1px solid #FDE68A",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 14,
+                color:
+                  conteoVista.diferencia === 0
+                    ? "#166534"
+                    : "#92400E"
+              }}>
+                <strong>Comparación</strong>
+                <div>
+                  Sistema:{" "}
+                  {formatearNumero(
+                    conteoVista.stock_sistema
+                  )}
+                  {" · Reservado: "}
+                  {formatearNumero(
+                    conteoVista.stock_reservado
+                  )}
+                  {" · Contado: "}
+                  {formatearNumero(
+                    conteoVista.stock_contado
+                  )}
+                  {" · Diferencia: "}
+                  <strong>
+                    {formatearNumero(
+                      conteoVista.diferencia
+                    )}
+                  </strong>
+                </div>
+              </div>
+            )}
+
+            <label>
+              Referencia
+              <input
+                value={formularioConteo.referencia}
+                onChange={evento =>
+                  actualizarConteo(
+                    "referencia",
+                    evento.target.value
+                  )
+                }
+                placeholder="Inventario cíclico, auditoría, conteo..."
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              />
+            </label>
+
+            <label>
+              Observación
+              <textarea
+                value={formularioConteo.observacion}
+                onChange={evento =>
+                  actualizarConteo(
+                    "observacion",
+                    evento.target.value
+                  )
+                }
+                rows={3}
+                placeholder={
+                  conteoVista.diferencia !== 0
+                    ? "Motivo obligatorio de la diferencia"
+                    : "Opcional si el conteo cuadra"
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={guardandoConteo || cargando}
+              style={{
+                width: "100%",
+                padding: 12,
+                border: "none",
+                borderRadius: 9,
+                background: "#C2410C",
+                color: "white",
+                fontWeight: "bold",
+                cursor: guardandoConteo
+                  ? "wait"
+                  : "pointer"
+              }}
+            >
+              {guardandoConteo
+                ? "Registrando conteo..."
+                : conteoVista.diferencia === 0
+                  ? "Registrar conteo"
+                  : "Registrar conteo y ajustar stock"}
+            </button>
+          </form>
+
+          <form
             onSubmit={guardarTraspaso}
             style={{
               background: "white",
@@ -1631,6 +1952,126 @@ function AlmacenV2({
                       );
                     }
                   )}
+                </div>
+              )}
+            </section>
+
+            <section style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)"
+            }}>
+              <h2 style={{ marginTop: 0 }}>
+                Conteos físicos recientes
+              </h2>
+
+              {conteosRecientes.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  Todavía no hay conteos físicos para
+                  esta planta.
+                </p>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gap: 10
+                }}>
+                  {conteosRecientes.map(conteo => {
+                    const cuadrado =
+                      Number(conteo.diferencia || 0) ===
+                      0;
+
+                    return (
+                      <article
+                        key={conteo.id}
+                        style={{
+                          border: cuadrado
+                            ? "1px solid #BBF7D0"
+                            : "1px solid #FDE68A",
+                          borderRadius: 10,
+                          padding: 12,
+                          background: cuadrado
+                            ? "#F0FDF4"
+                            : "#FFFBEB"
+                        }}
+                      >
+                        <div style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          gap: 8,
+                          alignItems: "center"
+                        }}>
+                          <strong>
+                            {conteo.material_codigo}
+                            {" - "}
+                            {conteo.material_nombre}
+                          </strong>
+                          <span style={{
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: "bold",
+                            color: cuadrado
+                              ? "#166534"
+                              : "#92400E",
+                            background: cuadrado
+                              ? "#DCFCE7"
+                              : "#FEF3C7"
+                          }}>
+                            {cuadrado
+                              ? "Cuadrado"
+                              : "Ajustado"}
+                          </span>
+                        </div>
+                        <div style={{
+                          color: "#334155",
+                          marginTop: 4
+                        }}>
+                          Sistema:{" "}
+                          {formatearNumero(
+                            conteo.stock_sistema
+                          )}
+                          {" · Contado: "}
+                          {formatearNumero(
+                            conteo.stock_contado
+                          )}
+                          {" · Diferencia: "}
+                          <strong>
+                            {formatearNumero(
+                              conteo.diferencia
+                            )}
+                          </strong>
+                        </div>
+                        <div style={{
+                          color: "#64748B",
+                          fontSize: 13,
+                          marginTop: 4
+                        }}>
+                          {formatearFecha(
+                            conteo.contado_en
+                          )}
+                          {" · Contó: "}
+                          {conteo.contado_por_nombre ||
+                            "-"}
+                          {conteo.movimiento_ajuste_id
+                            ? " · Ajuste generado"
+                            : ""}
+                        </div>
+                        {conteo.observacion && (
+                          <div style={{
+                            color: "#475569",
+                            fontSize: 13,
+                            marginTop: 4
+                          }}>
+                            Motivo:{" "}
+                            {conteo.observacion}
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </section>

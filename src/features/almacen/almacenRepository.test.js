@@ -8,8 +8,10 @@ import {
   calcularStockTrasMovimiento,
   esMovimientoAjusteAutorizado,
   obtenerOrigenMovimientoAlmacen,
+  prepararConteoFisico,
   prepararMovimientoAlmacen,
   prepararTraspasoAlmacen,
+  validarConteoFisico,
   validarTraspasoSalida,
   validarMovimientoAlmacen
 } from "./almacenRepository";
@@ -278,6 +280,76 @@ test("mermas y ajustes autorizados exigen motivo y guardan autorizacion", () => 
     stock_reservado: 0,
     stock_disponible: 15
   });
+});
+
+test("conteo fisico calcula diferencia y exige motivo si ajusta", () => {
+  const cuadrado = prepararConteoFisico({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    stockSistema: 100,
+    stockReservado: 20,
+    cantidadContada: 100,
+    usuario
+  });
+  const conDiferencia = prepararConteoFisico({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    stockSistema: 100,
+    stockReservado: 20,
+    cantidadContada: 95,
+    usuario
+  });
+  const conMotivo = prepararConteoFisico({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    stockSistema: 100,
+    stockReservado: 20,
+    cantidadContada: 95,
+    observacion: "Diferencia por inventario cíclico",
+    usuario
+  });
+
+  expect(cuadrado).toMatchObject({
+    stock_sistema: 100,
+    stock_contado: 100,
+    diferencia: 0,
+    estado: "cuadrado"
+  });
+  expect(validarConteoFisico(cuadrado))
+    .toEqual([]);
+  expect(conDiferencia).toMatchObject({
+    diferencia: -5,
+    estado: "ajustado"
+  });
+  expect(
+    validarConteoFisico(conDiferencia)
+  ).toContain(
+    "Indica el motivo de la diferencia del conteo físico."
+  );
+  expect(validarConteoFisico(conMotivo))
+    .toEqual([]);
+});
+
+test("conteo fisico bloquea ajustes bajo stock reservado", () => {
+  const conteo = prepararConteoFisico({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    stockSistema: 100,
+    stockReservado: 30,
+    cantidadContada: 20,
+    observacion: "Conteo menor al reservado",
+    usuario
+  });
+
+  expect(
+    validarConteoFisico(conteo)
+  ).toContain(
+    "El conteo no puede quedar bajo el stock reservado (30). Libera reservas antes de ajustar."
+  );
 });
 
 test("prepara traspaso entre plantas en estado en transito", () => {
