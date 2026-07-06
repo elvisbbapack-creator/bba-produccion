@@ -54,6 +54,8 @@ import OrdenesTrabajoV2 from
   "./features/ordenes/OrdenesTrabajoV2";
 import EjecucionProduccionV2 from
   "./features/ejecucion/EjecucionProduccionV2";
+import GestionEstandaresV2 from
+  "./features/estandares/GestionEstandaresV2";
 import DashboardV2 from
   "./features/resumenes/DashboardV2";
 import CalidadV2 from
@@ -1379,6 +1381,12 @@ const cargarTodosLosParos = async () => {
           accion: () => setPantalla("planificadorV2")
         },
         {
+          titulo: "Gestión de Estándares (V2)",
+          visible: puedeAdministrar,
+          accion: () =>
+            setPantalla("gestionEstandaresV2")
+        },
+        {
           titulo: "Capacidad por Estación (V2)",
           visible: puedeAdministrar,
           accion: limpiarContextoCapacidad
@@ -1985,6 +1993,22 @@ if (
         setContextoTurnosV2(contexto);
         setPantalla("turnosV2");
       }}
+    />
+  );
+}
+
+if (
+  pantalla ===
+    "gestionEstandaresV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <GestionEstandaresV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
     />
   );
 }
