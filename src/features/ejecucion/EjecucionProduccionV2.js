@@ -36,6 +36,7 @@ import {
   iniciarSesionProduccion,
   listarOrdenesEjecutables,
   listarSesionesActivas,
+  listarSesionesFinalizadasRecientes,
   obtenerOperacionesDisponibles,
   pausarSesionProduccion,
   reanudarSesionProduccion,
@@ -66,6 +67,68 @@ const tarjeta = {
   borderRadius: 14,
   boxShadow:
     "0 2px 10px rgba(15,23,42,0.08)"
+};
+
+const numeroVisible = valor =>
+  Number(valor || 0).toLocaleString(
+    "es-CL",
+    {
+      maximumFractionDigits: 2
+    }
+  );
+
+const unidadesHoraReal = sesion => {
+  const ok = Number(sesion?.cantidad_ok || 0);
+  const segundos = Number(
+    sesion?.tiempo_productivo_seg || 0
+  );
+
+  return segundos > 0
+    ? ok / (segundos / 3600)
+    : 0;
+};
+
+const estadoEstandarSesion = sesion => {
+  const estandar = Number(
+    sesion?.estandar_unidades_hora || 0
+  );
+  const real = unidadesHoraReal(sesion);
+
+  if (estandar <= 0) {
+    return {
+      texto: "Sin estándar",
+      color: "#92400E"
+    };
+  }
+
+  if (real <= 0) {
+    return {
+      texto: "Meta pendiente de resultado",
+      color: "#475569"
+    };
+  }
+
+  const cumplimiento =
+    (real / estandar) * 100;
+
+  if (cumplimiento >= 110) {
+    return {
+      texto: "Supera estándar: revisar al alza",
+      color: "#0369A1"
+    };
+  }
+
+  if (cumplimiento >= 90) {
+    return {
+      texto: "Dentro del estándar",
+      color: "#166534"
+    };
+  }
+
+  return {
+    texto: "Bajo estándar: revisar causa",
+    color: "#B91C1C"
+  };
 };
 
 const etiqueta = {
@@ -114,6 +177,8 @@ function EjecucionProduccionV2({
   const [ingresoExcepcional,
     setIngresoExcepcional] = useState(false);
   const [sesiones, setSesiones] = useState([]);
+  const [sesionesFinalizadas,
+    setSesionesFinalizadas] = useState([]);
   const [defectos, setDefectos] = useState([]);
   const [causas, setCausas] = useState([]);
   const [motivosParo, setMotivosParo] =
@@ -361,6 +426,7 @@ function EjecucionProduccionV2({
       const [
         ordenesData,
         sesionesData,
+        sesionesFinalizadasData,
         programacionData,
         capacidadesData,
         stocksData
@@ -372,6 +438,11 @@ function EjecucionProduccionV2({
             planta
           ),
           listarSesionesActivas(
+            db,
+            perfil.empresa_id,
+            planta
+          ),
+          listarSesionesFinalizadasRecientes(
             db,
             perfil.empresa_id,
             planta
@@ -395,6 +466,9 @@ function EjecucionProduccionV2({
         ]);
       setOrdenes(ordenesData);
       setSesiones(sesionesData);
+      setSesionesFinalizadas(
+        sesionesFinalizadasData
+      );
       setProgramacionTurnos(programacionData);
       setCapacidades(capacidadesData);
       setStocksMateriales(stocksData);
@@ -1832,6 +1906,27 @@ function EjecucionProduccionV2({
                           : "Ingreso excepcional no programado"}
                       </div>
                       <div style={{
+                        color:
+                          Number(
+                            sesion
+                              .estandar_unidades_hora ||
+                            0
+                          ) > 0
+                            ? "#1D4ED8"
+                            : "#92400E",
+                        marginTop: 3,
+                        fontWeight: "bold"
+                      }}>
+                        Estándar meta:{" "}
+                        {Number(
+                          sesion
+                            .estandar_unidades_hora ||
+                          0
+                        ) > 0
+                          ? `${numeroVisible(sesion.estandar_unidades_hora)} un/h`
+                          : "en medición"}
+                      </div>
+                      <div style={{
                         marginTop: 6,
                         fontWeight: "bold",
                         color:
@@ -1845,6 +1940,100 @@ function EjecucionProduccionV2({
                       </div>
                     </button>
                   ))}
+                </div>
+              )}
+            </section>
+
+            <section style={tarjeta}>
+              <h2 style={{ marginTop: 0 }}>
+                Producciones finalizadas hoy
+              </h2>
+              {sesionesFinalizadas.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  Aún no hay sesiones finalizadas para
+                  revisar estándar.
+                </p>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gap: 9
+                }}>
+                  {sesionesFinalizadas.map(sesion => {
+                    const estado =
+                      estadoEstandarSesion(sesion);
+                    const real =
+                      unidadesHoraReal(sesion);
+                    const estandar = Number(
+                      sesion
+                        .estandar_unidades_hora || 0
+                    );
+                    const cumplimiento =
+                      estandar > 0 && real > 0
+                        ? (real / estandar) * 100
+                        : null;
+
+                    return (
+                      <article
+                        key={sesion.id}
+                        style={{
+                          padding: 12,
+                          borderRadius: 9,
+                          border:
+                            "1px solid #E2E8F0",
+                          background: "white"
+                        }}
+                      >
+                        <strong>
+                          {sesion.ot_codigo}
+                          {" · "}
+                          {sesion.operacion_codigo}
+                        </strong>
+                        <div style={{
+                          color: "#475569",
+                          marginTop: 4
+                        }}>
+                          {sesion.operacion_nombre}
+                          {" · "}
+                          {sesion.operario_nombre}
+                        </div>
+                        <div style={{
+                          color: "#64748B",
+                          marginTop: 4
+                        }}>
+                          Estándar:{" "}
+                          <strong>
+                            {estandar > 0
+                              ? `${numeroVisible(estandar)} un/h`
+                              : "en medición"}
+                          </strong>
+                          {" · Real OK/h: "}
+                          <strong>
+                            {real > 0
+                              ? numeroVisible(real)
+                              : "-"}
+                          </strong>
+                          {cumplimiento !== null && (
+                            <>
+                              {" · Cumplimiento: "}
+                              <strong>
+                                {numeroVisible(
+                                  cumplimiento
+                                )}
+                                %
+                              </strong>
+                            </>
+                          )}
+                        </div>
+                        <div style={{
+                          marginTop: 5,
+                          color: estado.color,
+                          fontWeight: "bold"
+                        }}>
+                          {estado.texto}
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -1870,6 +2059,34 @@ function EjecucionProduccionV2({
                       .operario_nombre
                   }
                 </p>
+                <div style={{
+                  padding: 10,
+                  borderRadius: 8,
+                  background:
+                    Number(
+                      sesionSeleccionada
+                        .estandar_unidades_hora || 0
+                    ) > 0
+                      ? "#EFF6FF"
+                      : "#FFFBEB",
+                  color:
+                    Number(
+                      sesionSeleccionada
+                        .estandar_unidades_hora || 0
+                    ) > 0
+                      ? "#1D4ED8"
+                      : "#92400E",
+                  marginBottom: 12,
+                  fontWeight: "bold"
+                }}>
+                  Estándar congelado de esta sesión:{" "}
+                  {Number(
+                    sesionSeleccionada
+                      .estandar_unidades_hora || 0
+                  ) > 0
+                    ? `${numeroVisible(sesionSeleccionada.estandar_unidades_hora)} unidades/hora`
+                    : "en medición, no afecta eficiencia ni ranking"}
+                </div>
 
                 <div style={{
                   display: "grid",

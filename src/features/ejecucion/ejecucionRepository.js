@@ -513,6 +513,37 @@ export const listarSesionesActivas = async (
   );
 };
 
+export const listarSesionesFinalizadasRecientes =
+  async (
+    db,
+    empresaId,
+    plantaId,
+    fecha = fechaOperativa()
+  ) => {
+    const snapshot = await getDocs(
+      query(
+        collection(db, "sesiones_produccion"),
+        where("empresa_id", "==", empresaId),
+        where("planta_id", "==", plantaId),
+        where("estado", "==", "finalizada"),
+        where("fecha_operativa", "==", fecha)
+      )
+    );
+
+    return snapshot.docs
+      .map(documento => ({
+        id: documento.id,
+        ...documento.data()
+      }))
+      .sort((a, b) => {
+        const derecha = b.fin?.toMillis?.() || 0;
+        const izquierda =
+          a.fin?.toMillis?.() || 0;
+        return derecha - izquierda;
+      })
+      .slice(0, 20);
+  };
+
 export const iniciarSesionProduccion = async ({
   db,
   perfil,
