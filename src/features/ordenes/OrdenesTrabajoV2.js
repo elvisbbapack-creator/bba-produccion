@@ -1041,6 +1041,27 @@ function OrdenesTrabajoV2({
                         : "La OT aún no puede cerrarse formalmente."}
                   </div>
                   <div style={{
+                    color: "#334155",
+                    marginBottom: 10
+                  }}>
+                    Al cerrar se registrará una recepción
+                    de Producto Terminado en Almacén por{" "}
+                    <strong>
+                      {
+                        ordenSeleccionada
+                          .cantidad_producto
+                      }
+                    </strong>
+                    {" unidades de "}
+                    <strong>
+                      {
+                        ordenSeleccionada
+                          .producto_codigo
+                      }
+                    </strong>
+                    .
+                  </div>
+                  <div style={{
                     display: "grid",
                     gridTemplateColumns:
                       "repeat(auto-fit, minmax(130px, 1fr))",

@@ -23,6 +23,12 @@ import {
   calcularCapacidadRecursos
 } from "../capacidad/capacidadRepository";
 import {
+  TIPOS_MOVIMIENTO_ALMACEN,
+  calcularStockTrasMovimiento,
+  idStockMaterial,
+  prepararMovimientoAlmacen
+} from "../almacen/almacenRepository";
+import {
   calcularBrechasDotacion,
   calcularCoberturaSubproceso,
   sugerirReasignacionesDotacion
@@ -251,6 +257,41 @@ export const validarCierreFormalOT = ({
     }
   };
 };
+
+export const materialProductoTerminadoOT = (
+  orden = {}
+) => ({
+  id: `pt__${limpiarTexto(orden.producto_id)}`,
+  codigo: limpiarTexto(
+    orden.producto_codigo
+  ),
+  nombre: limpiarTexto(
+    orden.producto_nombre
+  ),
+  tipo: "PT",
+  unidad_medida: "unidad"
+});
+
+export const prepararRecepcionProductoTerminadoOT =
+  ({
+    orden,
+    perfil,
+    observacion = ""
+  }) => prepararMovimientoAlmacen({
+    empresaId: perfil.empresa_id,
+    plantaId: orden.planta_id,
+    material: materialProductoTerminadoOT(orden),
+    tipo: TIPOS_MOVIMIENTO_ALMACEN.RECEPCION,
+    cantidad: Number(
+      orden.cantidad_producto || 0
+    ),
+    otCodigo: orden.codigo,
+    referencia: `cierre_ot:${orden.id}`,
+    observacion:
+      limpiarTexto(observacion) ||
+      `Recepción PT por cierre formal ${orden.codigo || ""}`,
+    usuario: perfil
+  });
 
 export const CALENDARIOS_PLANTA = {
   chile: {
@@ -1078,12 +1119,37 @@ export const cerrarOrdenTrabajoV2 = async ({
     );
   }
 
+  const otRef = doc(
+    db,
+    "ordenes_trabajo",
+    orden.id
+  );
+  const movimiento =
+    prepararRecepcionProductoTerminadoOT({
+      orden,
+      perfil,
+      observacion
+    });
+  const movimientoRef = doc(
+    collection(db, "movimientos_almacen")
+  );
+  const stockRef = doc(
+    db,
+    "inventario_materiales",
+    idStockMaterial({
+      empresaId: perfil.empresa_id,
+      plantaId: orden.planta_id,
+      materialId: movimiento.material_id
+    })
+  );
   const cierre = {
     estado: "cerrada",
     cierre_formal_estado: "cerrada",
     cierre_observacion:
       limpiarTexto(observacion),
     cierre_validacion: validacion.resumen,
+    cierre_movimiento_pt_id:
+      movimientoRef.id,
     cerrada_por_id: perfil.uid,
     cerrada_por_nombre:
       perfil.nombre || "",
@@ -1095,15 +1161,82 @@ export const cerrarOrdenTrabajoV2 = async ({
     cierre.fecha_real_fin = serverTimestamp();
   }
 
-  await updateDoc(
-    doc(db, "ordenes_trabajo", orden.id),
-    cierre
-  );
+  await runTransaction(db, async transaccion => {
+    const [otSnap, stockSnap] =
+      await Promise.all([
+        transaccion.get(otRef),
+        transaccion.get(stockRef)
+      ]);
+
+    if (!otSnap.exists()) {
+      throw new Error("La OT ya no existe.");
+    }
+
+    if (
+      ["cerrada", "anulada"].includes(
+        otSnap.data().estado
+      )
+    ) {
+      throw new Error(
+        "La OT ya está cerrada o anulada."
+      );
+    }
+
+    const stockActual = stockSnap.exists()
+      ? stockSnap.data()
+      : {
+        stock_actual: 0,
+        stock_reservado: 0
+      };
+    const siguienteStock =
+      calcularStockTrasMovimiento(
+        stockActual,
+        movimiento
+      );
+
+    transaccion.update(otRef, cierre);
+    transaccion.set(stockRef, {
+      empresa_id: perfil.empresa_id,
+      planta_id: orden.planta_id,
+      material_id: movimiento.material_id,
+      material_codigo:
+        movimiento.material_codigo,
+      material_nombre:
+        movimiento.material_nombre,
+      material_tipo: movimiento.material_tipo,
+      unidad_medida: movimiento.unidad_medida,
+      ...siguienteStock,
+      actualizado_por_id: perfil.uid,
+      actualizado_por_nombre:
+        perfil.nombre || "",
+      actualizado_en: serverTimestamp(),
+      modelo_version: 2
+    });
+    transaccion.set(movimientoRef, {
+      ...movimiento,
+      origen: "cierre_ot",
+      stock_anterior: Number(
+        stockActual.stock_actual || 0
+      ),
+      stock_reservado_anterior: Number(
+        stockActual.stock_reservado || 0
+      ),
+      stock_nuevo:
+        siguienteStock.stock_actual,
+      stock_reservado_nuevo:
+        siguienteStock.stock_reservado,
+      stock_disponible_nuevo:
+        siguienteStock.stock_disponible,
+      fecha: serverTimestamp()
+    });
+  });
 
   return {
     ...orden,
     ...cierre,
-    cierre_validacion: validacion.resumen
+    cierre_validacion: validacion.resumen,
+    cierre_movimiento_pt_id:
+      movimientoRef.id
   };
 };
 

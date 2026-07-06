@@ -572,6 +572,7 @@ service cloud.firestore {
           'cierre_formal_estado',
           'cierre_observacion',
           'cierre_validacion',
+          'cierre_movimiento_pt_id',
           'cerrada_por_id',
           'cerrada_por_nombre',
           'cerrada_en',

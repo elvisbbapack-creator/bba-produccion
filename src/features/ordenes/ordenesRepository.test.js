@@ -4,7 +4,9 @@ import {
   horasSemanalesTercerTurno,
   calcularProyeccionOT,
   formatearCodigoOT,
+  materialProductoTerminadoOT,
   prepararOrden,
+  prepararRecepcionProductoTerminadoOT,
   simularTurnosOT,
   sumarHorasEnCalendario,
   validarCierreFormalOT,
@@ -414,6 +416,52 @@ test("permite cierre formal cuando la OT esta completada y sin bloqueos", () => 
       reprocesos_pendientes: 0,
       sesiones_activas: 0
     }
+  });
+});
+
+test("prepara recepcion de producto terminado al cerrar OT", () => {
+  const orden = {
+    id: "ot-1",
+    codigo: "OT-CHI-000001",
+    planta_id: "chile",
+    producto_id: "prod-1",
+    producto_codigo: "PCL0001",
+    producto_nombre: "Modular 2N",
+    cantidad_producto: 25
+  };
+  const perfil = {
+    empresa_id: "bba",
+    uid: "jefe-1",
+    nombre: "Jefe Planta"
+  };
+  const material =
+    materialProductoTerminadoOT(orden);
+  const movimiento =
+    prepararRecepcionProductoTerminadoOT({
+      orden,
+      perfil,
+      observacion: "Cierre validado"
+    });
+
+  expect(material).toMatchObject({
+    id: "pt__prod-1",
+    codigo: "PCL0001",
+    nombre: "Modular 2N",
+    tipo: "PT",
+    unidad_medida: "unidad"
+  });
+  expect(movimiento).toMatchObject({
+    empresa_id: "bba",
+    planta_id: "chile",
+    material_id: "pt__prod-1",
+    material_codigo: "PCL0001",
+    material_tipo: "PT",
+    tipo: "recepcion",
+    cantidad: 25,
+    ot_codigo: "OT-CHI-000001",
+    referencia: "cierre_ot:ot-1",
+    observacion: "Cierre validado",
+    usuario_id: "jefe-1"
   });
 });
 
