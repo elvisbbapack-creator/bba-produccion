@@ -6,6 +6,8 @@ import {
   calcularStockDisponible,
   calcularRequerimientosMaterialesOT,
   calcularStockTrasMovimiento,
+  esMovimientoAjusteAutorizado,
+  obtenerOrigenMovimientoAlmacen,
   prepararMovimientoAlmacen,
   prepararTraspasoAlmacen,
   validarTraspasoSalida,
@@ -207,6 +209,74 @@ test("consumo OT descuenta stock físico y libera reserva existente", () => {
     stock_actual: 70,
     stock_reservado: 50,
     stock_disponible: 20
+  });
+});
+
+test("mermas y ajustes autorizados exigen motivo y guardan autorizacion", () => {
+  const sinMotivo = prepararMovimientoAlmacen({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    tipo: TIPOS_MOVIMIENTO_ALMACEN.MERMA,
+    cantidad: 5,
+    usuario
+  });
+  const conMotivo = prepararMovimientoAlmacen({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    tipo: TIPOS_MOVIMIENTO_ALMACEN.MERMA,
+    cantidad: 5,
+    observacion: "Daño detectado en conteo físico",
+    usuario
+  });
+
+  expect(
+    esMovimientoAjusteAutorizado(
+      TIPOS_MOVIMIENTO_ALMACEN.MERMA
+    )
+  ).toBe(true);
+  expect(
+    obtenerOrigenMovimientoAlmacen(
+      TIPOS_MOVIMIENTO_ALMACEN.MERMA
+    )
+  ).toBe("ajuste_autorizado");
+  expect(sinMotivo).toMatchObject({
+    autorizacion_tipo: "ajuste_autorizado",
+    autorizado_por_id: "user-1"
+  });
+  expect(
+    validarMovimientoAlmacen(
+      sinMotivo,
+      {
+        stock_actual: 20,
+        stock_reservado: 0
+      }
+    )
+  ).toContain(
+    "Indica el motivo del ajuste o merma."
+  );
+  expect(
+    validarMovimientoAlmacen(
+      conMotivo,
+      {
+        stock_actual: 20,
+        stock_reservado: 0
+      }
+    )
+  ).toEqual([]);
+  expect(
+    calcularStockTrasMovimiento(
+      {
+        stock_actual: 20,
+        stock_reservado: 0
+      },
+      conMotivo
+    )
+  ).toEqual({
+    stock_actual: 15,
+    stock_reservado: 0,
+    stock_disponible: 15
   });
 });
 

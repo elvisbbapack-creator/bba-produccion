@@ -57,6 +57,27 @@ service cloud.firestore {
         );
     }
 
+    function isWarehouseAdjustment(data) {
+      return data.tipo in [
+        'ajuste_positivo',
+        'ajuste_negativo',
+        'merma'
+      ];
+    }
+
+    function validWarehouseAdjustment(data) {
+      return !isWarehouseAdjustment(data) ||
+        (
+          data.origen == 'ajuste_autorizado' &&
+          data.autorizacion_tipo ==
+            'ajuste_autorizado' &&
+          data.autorizado_por_id ==
+            request.auth.uid &&
+          data.observacion is string &&
+          data.observacion.size() > 0
+        );
+    }
+
     function legacyCollection(collectionName) {
       return collectionName in [
         'ajustes_produccion',
@@ -136,6 +157,9 @@ service cloud.firestore {
       allow read: if belongsToPlant(resource.data);
       allow create: if canManage() &&
         belongsToPlant(
+          request.resource.data
+        ) &&
+        validWarehouseAdjustment(
           request.resource.data
         ) &&
         request.resource.data.usuario_id ==

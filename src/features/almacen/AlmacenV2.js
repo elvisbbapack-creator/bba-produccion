@@ -18,6 +18,7 @@ import {
   calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
   calcularStockDisponible,
+  esMovimientoAjusteAutorizado,
   listarTraspasosAlmacen,
   listarMovimientosAlmacen,
   listarStockMateriales,
@@ -75,6 +76,44 @@ const movimientoRequiereOT = tipo => [
   TIPOS_MOVIMIENTO_ALMACEN.RESERVA_OT,
   TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT
 ].includes(tipo);
+
+const etiquetaOrigenMovimiento = origen => {
+  if (origen === "produccion") {
+    return "Producción";
+  }
+  if (origen === "traspaso") {
+    return "Traspaso";
+  }
+  if (origen === "ajuste_autorizado") {
+    return "Ajuste autorizado";
+  }
+  return "Manual";
+};
+
+const estiloOrigenMovimiento = origen => {
+  if (origen === "produccion") {
+    return {
+      color: "#7C2D12",
+      background: "#FFEDD5"
+    };
+  }
+  if (origen === "traspaso") {
+    return {
+      color: "#1D4ED8",
+      background: "#DBEAFE"
+    };
+  }
+  if (origen === "ajuste_autorizado") {
+    return {
+      color: "#991B1B",
+      background: "#FEE2E2"
+    };
+  }
+  return {
+    color: "#334155",
+    background: "#E2E8F0"
+  };
+};
 
 function AlmacenV2({
   db,
@@ -200,6 +239,18 @@ function AlmacenV2({
     () => movimientos.slice(0, 25),
     [movimientos]
   );
+  const diferenciasRecientes = useMemo(
+    () => movimientos.filter(
+      movimiento =>
+        movimiento.origen ===
+        "ajuste_autorizado"
+    ).slice(0, 10),
+    [movimientos]
+  );
+  const esAjusteAutorizadoSeleccionado =
+    esMovimientoAjusteAutorizado(
+      formulario.tipo
+    );
   const movimientosManuales = useMemo(
     () => MOVIMIENTOS_ALMACEN.filter(
       movimiento => ![
@@ -785,6 +836,30 @@ function AlmacenV2({
               />
             </label>
 
+            {esAjusteAutorizadoSeleccionado && (
+              <section style={{
+                background: "#FEF2F2",
+                border: "1px solid #FECACA",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 14,
+                color: "#7F1D1D"
+              }}>
+                <strong>
+                  Movimiento autorizado
+                </strong>
+                <div style={{
+                  fontSize: 13,
+                  marginTop: 4
+                }}>
+                  Este registro ajusta el stock físico.
+                  Debe indicar el motivo real: merma,
+                  daño, conteo físico, diferencia de
+                  recepción u otra causa verificable.
+                </div>
+              </section>
+            )}
+
             {movimientoRequiereOT(
               formulario.tipo
             ) ? (
@@ -1042,6 +1117,11 @@ function AlmacenV2({
                   )
                 }
                 rows={3}
+                placeholder={
+                  esAjusteAutorizadoSeleccionado
+                    ? "Motivo obligatorio del ajuste o merma"
+                    : ""
+                }
                 style={{
                   ...campo,
                   marginTop: 6,
@@ -1121,7 +1201,9 @@ function AlmacenV2({
             >
               {guardando
                 ? "Registrando..."
-                : "Registrar movimiento"}
+                : esAjusteAutorizadoSeleccionado
+                  ? "Registrar ajuste autorizado"
+                  : "Registrar movimiento"}
             </button>
           </form>
 
@@ -1561,6 +1643,110 @@ function AlmacenV2({
                 "0 2px 10px rgba(15,23,42,0.08)"
             }}>
               <h2 style={{ marginTop: 0 }}>
+                Mermas y ajustes recientes
+              </h2>
+
+              {diferenciasRecientes.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  Sin mermas ni ajustes autorizados
+                  registrados para esta planta.
+                </p>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gap: 10
+                }}>
+                  {diferenciasRecientes.map(
+                    movimiento => (
+                      <article
+                        key={movimiento.id}
+                        style={{
+                          border:
+                            "1px solid #FECACA",
+                          borderRadius: 10,
+                          padding: 12,
+                          background: "#FEF2F2"
+                        }}
+                      >
+                        <div style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          gap: 8,
+                          alignItems: "center"
+                        }}>
+                          <strong>
+                            {movimiento.tipo_nombre}
+                            {" · "}
+                            {movimiento.material_codigo}
+                          </strong>
+                          <span style={{
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: "bold",
+                            color: "#991B1B",
+                            background: "#FEE2E2"
+                          }}>
+                            Autorizado
+                          </span>
+                        </div>
+                        <div style={{
+                          color: "#334155",
+                          marginTop: 4
+                        }}>
+                          Cantidad:{" "}
+                          {formatearNumero(
+                            movimiento.cantidad
+                          )}
+                          {" · Stock: "}
+                          {formatearNumero(
+                            movimiento.stock_anterior
+                          )}
+                          {" → "}
+                          {formatearNumero(
+                            movimiento.stock_nuevo
+                          )}
+                        </div>
+                        <div style={{
+                          color: "#64748B",
+                          fontSize: 13,
+                          marginTop: 4
+                        }}>
+                          {formatearFecha(
+                            movimiento.fecha
+                          )}
+                          {" · Autorizó: "}
+                          {movimiento
+                            .autorizado_por_nombre ||
+                            movimiento.usuario_nombre ||
+                            "-"}
+                        </div>
+                        <div style={{
+                          color: "#7F1D1D",
+                          fontSize: 13,
+                          marginTop: 4,
+                          fontWeight: "bold"
+                        }}>
+                          Motivo:{" "}
+                          {movimiento.observacion ||
+                            "-"}
+                        </div>
+                      </article>
+                    )
+                  )}
+                </div>
+              )}
+            </section>
+
+            <section style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)"
+            }}>
+              <h2 style={{ marginTop: 0 }}>
                 Stock por material
               </h2>
 
@@ -1970,10 +2156,9 @@ function AlmacenV2({
                             {movimiento.origen ===
                             "produccion"
                               ? "Producción"
-                              : movimiento.origen ===
-                                "traspaso"
-                                ? "Traspaso"
-                              : "Manual"}
+                              : etiquetaOrigenMovimiento(
+                                movimiento.origen
+                              )}
                           </div>
                           {movimiento.operacion_codigo && (
                             <div style={{
@@ -2047,30 +2232,13 @@ function AlmacenV2({
                           borderRadius: 999,
                           fontSize: 12,
                           fontWeight: "bold",
-                          color:
-                            movimiento.origen ===
-                            "produccion"
-                              ? "#7C2D12"
-                              : movimiento.origen ===
-                                "traspaso"
-                                ? "#1D4ED8"
-                              : "#334155",
-                          background:
-                            movimiento.origen ===
-                            "produccion"
-                              ? "#FFEDD5"
-                              : movimiento.origen ===
-                                "traspaso"
-                                ? "#DBEAFE"
-                              : "#E2E8F0"
+                          ...estiloOrigenMovimiento(
+                            movimiento.origen
+                          )
                         }}>
-                          {movimiento.origen ===
-                          "produccion"
-                            ? "Producción"
-                            : movimiento.origen ===
-                              "traspaso"
-                              ? "Traspaso"
-                            : "Manual"}
+                          {etiquetaOrigenMovimiento(
+                            movimiento.origen
+                          )}
                         </span>
                       </div>
                       <div style={{

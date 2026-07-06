@@ -12,6 +12,7 @@ export const TIPOS_MOVIMIENTO_ALMACEN = {
   RECEPCION: "recepcion",
   AJUSTE_POSITIVO: "ajuste_positivo",
   AJUSTE_NEGATIVO: "ajuste_negativo",
+  MERMA: "merma",
   RESERVA_OT: "reserva_ot",
   LIBERACION_RESERVA: "liberacion_reserva",
   CONSUMO_OT: "consumo_ot",
@@ -41,6 +42,12 @@ export const MOVIMIENTOS_ALMACEN = [
   {
     tipo: TIPOS_MOVIMIENTO_ALMACEN.AJUSTE_NEGATIVO,
     nombre: "Ajuste negativo",
+    signo_stock: -1,
+    signo_reserva: 0
+  },
+  {
+    tipo: TIPOS_MOVIMIENTO_ALMACEN.MERMA,
+    nombre: "Merma / pérdida",
     signo_stock: -1,
     signo_reserva: 0
   },
@@ -93,6 +100,20 @@ export const obtenerDefinicionMovimiento = tipo =>
   MOVIMIENTOS_ALMACEN.find(
     movimiento => movimiento.tipo === tipo
   ) || null;
+
+export const TIPOS_AJUSTE_AUTORIZADO = [
+  TIPOS_MOVIMIENTO_ALMACEN.AJUSTE_POSITIVO,
+  TIPOS_MOVIMIENTO_ALMACEN.AJUSTE_NEGATIVO,
+  TIPOS_MOVIMIENTO_ALMACEN.MERMA
+];
+
+export const esMovimientoAjusteAutorizado = tipo =>
+  TIPOS_AJUSTE_AUTORIZADO.includes(tipo);
+
+export const obtenerOrigenMovimientoAlmacen = tipo =>
+  esMovimientoAjusteAutorizado(tipo)
+    ? "ajuste_autorizado"
+    : "manual";
 
 export const calcularStockDisponible = stock =>
   Math.max(
@@ -149,6 +170,17 @@ export const prepararMovimientoAlmacen = ({
     usuario_nombre: limpiarTexto(
       usuario?.nombre
     ),
+    ...(esMovimientoAjusteAutorizado(tipo)
+      ? {
+        autorizacion_tipo: "ajuste_autorizado",
+        autorizado_por_id: limpiarTexto(
+          usuario?.uid
+        ),
+        autorizado_por_nombre: limpiarTexto(
+          usuario?.nombre
+        )
+      }
+      : {}),
     modelo_version: 2
   };
 };
@@ -241,6 +273,17 @@ export const validarMovimientoAlmacen = (
   ) {
     errores.push(
       "Indica la OT asociada al movimiento."
+    );
+  }
+
+  if (
+    esMovimientoAjusteAutorizado(
+      movimiento?.tipo
+    ) &&
+    !limpiarTexto(movimiento?.observacion)
+  ) {
+    errores.push(
+      "Indica el motivo del ajuste o merma."
     );
   }
 
@@ -1027,6 +1070,10 @@ export const registrarMovimientoAlmacen =
       });
       transaccion.set(movimientoRef, {
         ...movimiento,
+        origen:
+          obtenerOrigenMovimientoAlmacen(
+            movimiento.tipo
+          ),
         stock_anterior:
           Number(
             stockActual.stock_actual || 0
