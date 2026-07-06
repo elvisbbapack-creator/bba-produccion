@@ -15,6 +15,8 @@ import {
   ESTADOS_TRASPASO_ALMACEN,
   MOVIMIENTOS_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
+  actualizarPoliticaStock,
+  calcularAlertasStock,
   calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
   calcularStockDisponible,
@@ -66,6 +68,14 @@ const conteoInicial = {
   cantidad_contada: "",
   referencia: "",
   observacion: ""
+};
+
+const politicaInicial = {
+  material_id: "",
+  stock_minimo: "",
+  punto_reposicion: "",
+  stock_objetivo: "",
+  lead_time_dias: ""
 };
 
 const formatearNumero = valor =>
@@ -160,12 +170,16 @@ function AlmacenV2({
     useState(traspasoInicial);
   const [formularioConteo, setFormularioConteo] =
     useState(conteoInicial);
+  const [formularioPolitica, setFormularioPolitica] =
+    useState(politicaInicial);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] =
     useState(false);
   const [guardandoTraspaso, setGuardandoTraspaso] =
     useState(false);
   const [guardandoConteo, setGuardandoConteo] =
+    useState(false);
+  const [guardandoPolitica, setGuardandoPolitica] =
     useState(false);
   const [
     recibiendoTraspasoId,
@@ -206,6 +220,18 @@ function AlmacenV2({
     ) || null,
     [
       formularioConteo.material_id,
+      materiales
+    ]
+  );
+
+  const materialPoliticaSeleccionado = useMemo(
+    () => materiales.find(
+      material =>
+        material.id ===
+        formularioPolitica.material_id
+    ) || null,
+    [
+      formularioPolitica.material_id,
       materiales
     ]
   );
@@ -262,6 +288,24 @@ function AlmacenV2({
     ]
   );
 
+  const stockPoliticaSeleccionado = useMemo(
+    () => stocksPorMaterial.get(
+      formularioPolitica.material_id
+    ) || {
+      stock_actual: 0,
+      stock_reservado: 0,
+      stock_disponible: 0,
+      stock_minimo: 0,
+      punto_reposicion: 0,
+      stock_objetivo: 0,
+      lead_time_dias: 0
+    },
+    [
+      formularioPolitica.material_id,
+      stocksPorMaterial
+    ]
+  );
+
   const ordenSeleccionada = useMemo(
     () => ordenes.find(
       orden =>
@@ -292,6 +336,38 @@ function AlmacenV2({
   const conteosRecientes = useMemo(
     () => conteos.slice(0, 10),
     [conteos]
+  );
+  const alertasStock = useMemo(
+    () => calcularAlertasStock({
+      materiales,
+      stocks
+    }),
+    [materiales, stocks]
+  );
+  const alertasCriticas = useMemo(
+    () => alertasStock.filter(alerta =>
+      [
+        "sin_stock",
+        "bajo_minimo",
+        "reponer"
+      ].includes(alerta.estado)
+    ),
+    [alertasStock]
+  );
+  const alertasSinPolitica = useMemo(
+    () => alertasStock.filter(
+      alerta => alerta.estado === "sin_politica"
+    ).length,
+    [alertasStock]
+  );
+  const alertasPorMaterial = useMemo(
+    () => new Map(
+      alertasStock.map(alerta => [
+        alerta.material_id,
+        alerta
+      ])
+    ),
+    [alertasStock]
   );
   const esAjusteAutorizadoSeleccionado =
     esMovimientoAjusteAutorizado(
@@ -628,6 +704,42 @@ function AlmacenV2({
     setMensaje("");
   };
 
+  const actualizarPolitica = (
+    campoNombre,
+    valor
+  ) => {
+    setFormularioPolitica(actual => ({
+      ...actual,
+      [campoNombre]: valor
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const seleccionarMaterialPolitica =
+    materialId => {
+      const stock =
+        stocksPorMaterial.get(materialId) || {};
+      setFormularioPolitica({
+        material_id: materialId,
+        stock_minimo: stock.stock_minimo
+          ? String(stock.stock_minimo)
+          : "",
+        punto_reposicion:
+          stock.punto_reposicion
+            ? String(stock.punto_reposicion)
+            : "",
+        stock_objetivo: stock.stock_objetivo
+          ? String(stock.stock_objetivo)
+          : "",
+        lead_time_dias: stock.lead_time_dias
+          ? String(stock.lead_time_dias)
+          : ""
+      });
+      setError("");
+      setMensaje("");
+    };
+
   const usarRequerimiento = requerimiento => {
     setFormulario(actual => ({
       ...actual,
@@ -755,6 +867,40 @@ function AlmacenV2({
     }
   };
 
+  const guardarPolitica = async evento => {
+    evento.preventDefault();
+
+    try {
+      setGuardandoPolitica(true);
+      setError("");
+      await actualizarPoliticaStock({
+        db,
+        perfil,
+        plantaId,
+        material: materialPoliticaSeleccionado,
+        stockMinimo:
+          formularioPolitica.stock_minimo,
+        puntoReposicion:
+          formularioPolitica.punto_reposicion,
+        stockObjetivo:
+          formularioPolitica.stock_objetivo,
+        leadTimeDias:
+          formularioPolitica.lead_time_dias
+      });
+      setMensaje(
+        "Política de stock actualizada. Las alertas se recalcularon con los nuevos niveles."
+      );
+      await cargar();
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo actualizar la política de stock."
+      );
+    } finally {
+      setGuardandoPolitica(false);
+    }
+  };
+
   const recibirTraspaso = async traspaso => {
     try {
       setRecibiendoTraspasoId(traspaso.id);
@@ -829,6 +975,7 @@ function AlmacenV2({
                 setFormulario(estadoInicial);
                 setFormularioTraspaso(traspasoInicial);
                 setFormularioConteo(conteoInicial);
+                setFormularioPolitica(politicaInicial);
                 setOtTrazabilidad("");
               }}
               style={{
@@ -1529,6 +1676,210 @@ function AlmacenV2({
           </form>
 
           <form
+            onSubmit={guardarPolitica}
+            style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)",
+              border: "1px solid #BBF7D0"
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>
+              Política de stock
+            </h2>
+            <p style={{
+              color: "#475569",
+              marginTop: -4,
+              fontSize: 14
+            }}>
+              Define mínimos y punto de reposición por
+              planta para activar alertas preventivas.
+            </p>
+
+            <label>
+              Material
+              <select
+                value={formularioPolitica.material_id}
+                onChange={evento =>
+                  seleccionarMaterialPolitica(
+                    evento.target.value
+                  )
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              >
+                <option value="">
+                  Seleccionar material
+                </option>
+                {materiales.map(material => (
+                  <option
+                    key={material.id}
+                    value={material.id}
+                  >
+                    {material.codigo}
+                    {" - "}
+                    {material.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(2, minmax(0, 1fr))",
+              gap: 10
+            }}>
+              <label>
+                Stock mínimo
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={
+                    formularioPolitica.stock_minimo
+                  }
+                  onChange={evento =>
+                    actualizarPolitica(
+                      "stock_minimo",
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                />
+              </label>
+
+              <label>
+                Punto reposición
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={
+                    formularioPolitica
+                      .punto_reposicion
+                  }
+                  onChange={evento =>
+                    actualizarPolitica(
+                      "punto_reposicion",
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                />
+              </label>
+
+              <label>
+                Stock objetivo
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={
+                    formularioPolitica.stock_objetivo
+                  }
+                  onChange={evento =>
+                    actualizarPolitica(
+                      "stock_objetivo",
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                />
+              </label>
+
+              <label>
+                Días reposición
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={
+                    formularioPolitica.lead_time_dias
+                  }
+                  onChange={evento =>
+                    actualizarPolitica(
+                      "lead_time_dias",
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                />
+              </label>
+            </div>
+
+            {materialPoliticaSeleccionado && (
+              <div style={{
+                background: "#F0FDF4",
+                border: "1px solid #BBF7D0",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 14,
+                color: "#166534"
+              }}>
+                <strong>Saldo actual</strong>
+                <div>
+                  Stock:{" "}
+                  {formatearNumero(
+                    stockPoliticaSeleccionado
+                      .stock_actual
+                  )}
+                  {" · Disponible: "}
+                  {formatearNumero(
+                    calcularStockDisponible(
+                      stockPoliticaSeleccionado
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={
+                guardandoPolitica || cargando
+              }
+              style={{
+                width: "100%",
+                padding: 12,
+                border: "none",
+                borderRadius: 9,
+                background: "#15803D",
+                color: "white",
+                fontWeight: "bold",
+                cursor: guardandoPolitica
+                  ? "wait"
+                  : "pointer"
+              }}
+            >
+              {guardandoPolitica
+                ? "Guardando política..."
+                : "Guardar política de stock"}
+            </button>
+          </form>
+
+          <form
             onSubmit={guardarTraspaso}
             style={{
               background: "white",
@@ -1757,6 +2108,164 @@ function AlmacenV2({
             display: "grid",
             gap: 18
           }}>
+            <section style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)"
+            }}>
+              <h2 style={{ marginTop: 0 }}>
+                Alertas de stock y reposición
+              </h2>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: 10,
+                marginBottom: 14
+              }}>
+                <div style={{
+                  background: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  <strong>Alertas activas</strong>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#B91C1C",
+                    marginTop: 4
+                  }}>
+                    {alertasCriticas.length}
+                  </div>
+                </div>
+                <div style={{
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  <strong>Sin política</strong>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#475569",
+                    marginTop: 4
+                  }}>
+                    {alertasSinPolitica}
+                  </div>
+                </div>
+              </div>
+
+              {alertasCriticas.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  No hay materiales bajo mínimo o en
+                  punto de reposición para esta planta.
+                </p>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gap: 10
+                }}>
+                  {alertasCriticas
+                    .slice(0, 12)
+                    .map(alerta => {
+                      const critica = [
+                        "sin_stock",
+                        "bajo_minimo"
+                      ].includes(alerta.estado);
+
+                      return (
+                        <article
+                          key={alerta.material_id}
+                          style={{
+                            border: critica
+                              ? "1px solid #FECACA"
+                              : "1px solid #FDE68A",
+                            borderRadius: 10,
+                            padding: 12,
+                            background: critica
+                              ? "#FEF2F2"
+                              : "#FFFBEB"
+                          }}
+                        >
+                          <div style={{
+                            display: "flex",
+                            justifyContent:
+                              "space-between",
+                            gap: 8,
+                            alignItems: "center"
+                          }}>
+                            <strong>
+                              {alerta.material_codigo}
+                              {" - "}
+                              {alerta.material_nombre}
+                            </strong>
+                            <span style={{
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: "bold",
+                              color: critica
+                                ? "#991B1B"
+                                : "#92400E",
+                              background: critica
+                                ? "#FEE2E2"
+                                : "#FEF3C7"
+                            }}>
+                              {alerta.estado ===
+                              "sin_stock"
+                                ? "Sin stock"
+                                : alerta.estado ===
+                                  "bajo_minimo"
+                                  ? "Bajo mínimo"
+                                  : "Reponer"}
+                            </span>
+                          </div>
+                          <div style={{
+                            color: "#334155",
+                            marginTop: 4
+                          }}>
+                            Disponible:{" "}
+                            {formatearNumero(
+                              alerta.stock_disponible
+                            )}
+                            {" · Mínimo: "}
+                            {formatearNumero(
+                              alerta.stock_minimo
+                            )}
+                            {" · Reposición: "}
+                            {formatearNumero(
+                              alerta.punto_reposicion
+                            )}
+                            {" · Sugerido: "}
+                            <strong>
+                              {formatearNumero(
+                                alerta.cantidad_sugerida
+                              )}
+                            </strong>
+                          </div>
+                          <div style={{
+                            color: "#64748B",
+                            fontSize: 13,
+                            marginTop: 4
+                          }}>
+                            Lead time:{" "}
+                            {formatearNumero(
+                              alerta.lead_time_dias
+                            )}
+                            {" días · "}
+                            {alerta.recomendacion}
+                          </div>
+                        </article>
+                      );
+                    })}
+                </div>
+              )}
+            </section>
+
             <section style={{
               background: "white",
               padding: 22,
@@ -2216,10 +2725,23 @@ function AlmacenV2({
                         <th>Stock</th>
                         <th>Reservado</th>
                         <th>Disponible</th>
+                        <th>Reposición</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {stocks.map(stock => (
+                      {stocks.map(stock => {
+                        const alerta =
+                          alertasPorMaterial.get(
+                            stock.material_id
+                          );
+                        const critica =
+                          alerta &&
+                          [
+                            "sin_stock",
+                            "bajo_minimo"
+                          ].includes(alerta.estado);
+
+                        return (
                         <tr key={stock.id}>
                           <td style={{
                             padding: "10px 6px",
@@ -2252,8 +2774,48 @@ function AlmacenV2({
                               stock.stock_disponible
                             )}
                           </td>
+                          <td>
+                            {alerta ? (
+                              <span style={{
+                                padding: "3px 8px",
+                                borderRadius: 999,
+                                fontSize: 12,
+                                fontWeight: "bold",
+                                color:
+                                  alerta.estado ===
+                                  "ok"
+                                    ? "#166534"
+                                    : critica
+                                      ? "#991B1B"
+                                      : "#92400E",
+                                background:
+                                  alerta.estado ===
+                                  "ok"
+                                    ? "#DCFCE7"
+                                    : critica
+                                      ? "#FEE2E2"
+                                      : "#FEF3C7"
+                              }}>
+                                {alerta.estado === "ok"
+                                  ? "OK"
+                                  : alerta.estado ===
+                                    "sin_politica"
+                                    ? "Sin política"
+                                    : alerta.estado ===
+                                      "sin_stock"
+                                      ? "Sin stock"
+                                      : alerta.estado ===
+                                        "bajo_minimo"
+                                        ? "Bajo mínimo"
+                                        : "Reponer"}
+                              </span>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

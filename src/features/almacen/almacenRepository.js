@@ -467,6 +467,196 @@ export const validarConteoFisico = conteo => {
   return errores;
 };
 
+export const prepararPoliticaStock = ({
+  empresaId,
+  plantaId,
+  material,
+  stockMinimo,
+  puntoReposicion,
+  stockObjetivo,
+  leadTimeDias,
+  usuario
+}) => {
+  const minimo = Number(stockMinimo || 0);
+  const reposicion = Number(puntoReposicion || 0);
+  const objetivo = Number(stockObjetivo || 0);
+  const leadTime = Number(leadTimeDias || 0);
+
+  return {
+    empresa_id: limpiarTexto(empresaId),
+    planta_id: limpiarTexto(plantaId),
+    material_id: limpiarTexto(material?.id),
+    material_codigo: limpiarTexto(material?.codigo),
+    material_nombre: limpiarTexto(material?.nombre),
+    material_tipo: limpiarTexto(material?.tipo),
+    unidad_medida: limpiarTexto(material?.unidad_medida),
+    stock_minimo: Number.isFinite(minimo)
+      ? minimo
+      : 0,
+    punto_reposicion: Number.isFinite(reposicion)
+      ? reposicion
+      : 0,
+    stock_objetivo: Number.isFinite(objetivo)
+      ? objetivo
+      : 0,
+    lead_time_dias: Number.isFinite(leadTime)
+      ? leadTime
+      : 0,
+    actualizado_por_id: limpiarTexto(usuario?.uid),
+    actualizado_por_nombre: limpiarTexto(usuario?.nombre),
+    modelo_version: 2
+  };
+};
+
+export const validarPoliticaStock = politica => {
+  const errores = [];
+  const minimo = Number(politica?.stock_minimo || 0);
+  const reposicion = Number(
+    politica?.punto_reposicion || 0
+  );
+  const objetivo = Number(
+    politica?.stock_objetivo || 0
+  );
+  const leadTime = Number(
+    politica?.lead_time_dias || 0
+  );
+
+  if (!politica?.material_id) {
+    errores.push("Selecciona un material.");
+  }
+
+  if (minimo < 0 || reposicion < 0 || objetivo < 0) {
+    errores.push(
+      "Los niveles de stock deben ser cero o mayores."
+    );
+  }
+
+  if (leadTime < 0) {
+    errores.push(
+      "Los días de reposición deben ser cero o mayores."
+    );
+  }
+
+  if (reposicion > 0 && reposicion < minimo) {
+    errores.push(
+      "El punto de reposición no puede ser menor que el stock mínimo."
+    );
+  }
+
+  if (objetivo > 0 && objetivo < reposicion) {
+    errores.push(
+      "El stock objetivo no puede ser menor que el punto de reposición."
+    );
+  }
+
+  return errores;
+};
+
+export const calcularAlertasStock = ({
+  materiales = [],
+  stocks = []
+} = {}) => {
+  const stocksPorMaterial = new Map(
+    stocks.map(stock => [
+      stock.material_id,
+      stock
+    ])
+  );
+
+  return materiales
+    .filter(material => material.activo !== false)
+    .map(material => {
+      const stock =
+        stocksPorMaterial.get(material.id) || {};
+      const stockActual = Number(
+        stock.stock_actual || 0
+      );
+      const stockReservado = Number(
+        stock.stock_reservado || 0
+      );
+      const disponible =
+        calcularStockDisponible(stock);
+      const minimo = Number(
+        stock.stock_minimo || 0
+      );
+      const reposicion = Number(
+        stock.punto_reposicion || 0
+      );
+      const objetivo = Number(
+        stock.stock_objetivo || 0
+      );
+      const umbralReposicion =
+        reposicion > 0 ? reposicion : minimo;
+      const objetivoReposicion =
+        objetivo > 0
+          ? objetivo
+          : Math.max(umbralReposicion, minimo);
+      const cantidadSugerida = Math.max(
+        0,
+        objetivoReposicion - disponible
+      );
+      const estado =
+        minimo <= 0 && reposicion <= 0
+          ? "sin_politica"
+          : stockActual <= 0
+            ? "sin_stock"
+            : minimo > 0 && disponible < minimo
+              ? "bajo_minimo"
+              : umbralReposicion > 0 &&
+                disponible <= umbralReposicion
+                ? "reponer"
+                : "ok";
+      const prioridad =
+        estado === "sin_stock"
+          ? 1
+          : estado === "bajo_minimo"
+            ? 2
+            : estado === "reponer"
+              ? 3
+              : estado === "sin_politica"
+                ? 4
+                : 5;
+      const recomendacion =
+        estado === "sin_stock"
+          ? "Sin stock disponible: comprar, recibir o traspasar antes de producir."
+          : estado === "bajo_minimo"
+            ? "Bajo mínimo: priorizar reposición o traspaso."
+            : estado === "reponer"
+              ? "Llegó al punto de reposición: planificar compra o traslado."
+              : estado === "sin_politica"
+                ? "Configura mínimo y punto de reposición para activar alertas."
+                : "Stock dentro de política.";
+
+      return {
+        material_id: material.id,
+        material_codigo: material.codigo,
+        material_nombre: material.nombre,
+        material_tipo: material.tipo,
+        unidad_medida: material.unidad_medida,
+        stock_actual: stockActual,
+        stock_reservado: stockReservado,
+        stock_disponible: disponible,
+        stock_minimo: minimo,
+        punto_reposicion: reposicion,
+        stock_objetivo: objetivo,
+        lead_time_dias: Number(
+          stock.lead_time_dias || 0
+        ),
+        cantidad_sugerida: cantidadSugerida,
+        estado,
+        prioridad,
+        recomendacion
+      };
+    })
+    .sort((a, b) => {
+      if (a.prioridad !== b.prioridad) {
+        return a.prioridad - b.prioridad;
+      }
+      return (a.material_codigo || "")
+        .localeCompare(b.material_codigo || "");
+    });
+};
+
 export const calcularStockTrasMovimiento = (
   stockActual,
   movimiento
@@ -1360,6 +1550,73 @@ export const registrarConteoFisico =
     return {
       id: conteoRef.id
     };
+  };
+
+export const actualizarPoliticaStock =
+  async ({
+    db,
+    perfil,
+    plantaId,
+    material,
+    stockMinimo,
+    puntoReposicion,
+    stockObjetivo,
+    leadTimeDias
+  }) => {
+    const politica = prepararPoliticaStock({
+      empresaId: perfil.empresa_id,
+      plantaId,
+      material,
+      stockMinimo,
+      puntoReposicion,
+      stockObjetivo,
+      leadTimeDias,
+      usuario: perfil
+    });
+    const errores =
+      validarPoliticaStock(politica);
+
+    if (errores.length > 0) {
+      throw new Error(errores.join(" "));
+    }
+
+    const stockRef = doc(
+      db,
+      "inventario_materiales",
+      idStockMaterial({
+        empresaId: perfil.empresa_id,
+        plantaId,
+        materialId: material?.id
+      })
+    );
+
+    await runTransaction(db, async transaccion => {
+      const stockSnapshot =
+        await transaccion.get(stockRef);
+      const stockActual = stockSnapshot.exists()
+        ? stockSnapshot.data()
+        : {
+          stock_actual: 0,
+          stock_reservado: 0,
+          stock_disponible: 0
+        };
+
+      transaccion.set(stockRef, {
+        ...stockActual,
+        ...politica,
+        stock_actual: Number(
+          stockActual.stock_actual || 0
+        ),
+        stock_reservado: Number(
+          stockActual.stock_reservado || 0
+        ),
+        stock_disponible:
+          calcularStockDisponible(stockActual),
+        actualizado_en: serverTimestamp()
+      });
+    });
+
+    return politica;
   };
 
 export const registrarTraspasoSalida =

@@ -1,6 +1,7 @@
 import {
   ESTADOS_TRASPASO_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
+  calcularAlertasStock,
   calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
   calcularStockDisponible,
@@ -10,8 +11,10 @@ import {
   obtenerOrigenMovimientoAlmacen,
   prepararConteoFisico,
   prepararMovimientoAlmacen,
+  prepararPoliticaStock,
   prepararTraspasoAlmacen,
   validarConteoFisico,
+  validarPoliticaStock,
   validarTraspasoSalida,
   validarMovimientoAlmacen
 } from "./almacenRepository";
@@ -350,6 +353,61 @@ test("conteo fisico bloquea ajustes bajo stock reservado", () => {
   ).toContain(
     "El conteo no puede quedar bajo el stock reservado (30). Libera reservas antes de ajustar."
   );
+});
+
+test("valida politica de stock y calcula alertas de reposicion", () => {
+  const politicaInvalida = prepararPoliticaStock({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    stockMinimo: 50,
+    puntoReposicion: 40,
+    stockObjetivo: 100,
+    leadTimeDias: 7,
+    usuario
+  });
+
+  expect(
+    validarPoliticaStock(politicaInvalida)
+  ).toContain(
+    "El punto de reposición no puede ser menor que el stock mínimo."
+  );
+
+  const alertas = calcularAlertasStock({
+    materiales: [
+      material,
+      {
+        id: "bba__MP0002",
+        codigo: "MP0002",
+        nombre: "Alambre",
+        tipo: "MP",
+        unidad_medida: "kg",
+        activo: true
+      }
+    ],
+    stocks: [
+      {
+        material_id: material.id,
+        stock_actual: 45,
+        stock_reservado: 10,
+        stock_minimo: 40,
+        punto_reposicion: 60,
+        stock_objetivo: 100,
+        lead_time_dias: 7
+      }
+    ]
+  });
+
+  expect(alertas[0]).toMatchObject({
+    material_codigo: "MP0001",
+    stock_disponible: 35,
+    estado: "bajo_minimo",
+    cantidad_sugerida: 65
+  });
+  expect(alertas[1]).toMatchObject({
+    material_codigo: "MP0002",
+    estado: "sin_politica"
+  });
 });
 
 test("prepara traspaso entre plantas en estado en transito", () => {
