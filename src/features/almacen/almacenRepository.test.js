@@ -4,6 +4,7 @@ import {
   calcularAlertasStock,
   calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
+  calcularNecesidadesMaterialesOTs,
   calcularStockDisponible,
   calcularRequerimientosMaterialesOT,
   calcularStockTrasMovimiento,
@@ -407,6 +408,62 @@ test("valida politica de stock y calcula alertas de reposicion", () => {
   expect(alertas[1]).toMatchObject({
     material_codigo: "MP0002",
     estado: "sin_politica"
+  });
+});
+
+test("calcula brechas de materiales para OTs abiertas", () => {
+  const necesidades =
+    calcularNecesidadesMaterialesOTs({
+      ordenes: [
+        {
+          id: "ot-1",
+          codigo: "OT-001",
+          producto_nombre: "Exhibidor"
+        }
+      ],
+      operacionesPorOrden: [
+        {
+          orden_id: "ot-1",
+          operaciones: [
+            {
+              id: "op-1",
+              operacion_codigo: "DT0001",
+              operacion_nombre: "Corte tubo",
+              cantidad_pendiente: 10,
+              materiales_entrada: [
+                {
+                  material_id: material.id,
+                  material_codigo: material.codigo,
+                  material_nombre: material.nombre,
+                  material_tipo: material.tipo,
+                  cantidad: 4
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      stocks: [
+        {
+          material_id: material.id,
+          stock_actual: 30,
+          stock_reservado: 5
+        }
+      ]
+    });
+
+  expect(necesidades).toHaveLength(1);
+  expect(necesidades[0]).toMatchObject({
+    material_codigo: "MP0001",
+    cantidad_requerida: 40,
+    stock_disponible: 25,
+    brecha: 15,
+    estado: "faltante_ot"
+  });
+  expect(necesidades[0].ots[0]).toMatchObject({
+    ot_codigo: "OT-001",
+    operacion_codigo: "DT0001",
+    cantidad_requerida: 40
   });
 });
 

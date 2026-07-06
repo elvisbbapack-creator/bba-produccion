@@ -19,6 +19,7 @@ import {
   calcularAlertasStock,
   calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
+  calcularNecesidadesMaterialesOTs,
   calcularStockDisponible,
   esMovimientoAjusteAutorizado,
   listarConteosFisicos,
@@ -158,6 +159,10 @@ function AlmacenV2({
   const [ordenes, setOrdenes] = useState([]);
   const [operacionesOrden, setOperacionesOrden] =
     useState([]);
+  const [
+    operacionesOrdenesAbiertas,
+    setOperacionesOrdenesAbiertas
+  ] = useState([]);
   const [
     operacionesTrazabilidad,
     setOperacionesTrazabilidad
@@ -369,6 +374,21 @@ function AlmacenV2({
     ),
     [alertasStock]
   );
+  const necesidadesOTs = useMemo(
+    () => calcularNecesidadesMaterialesOTs({
+      ordenes,
+      operacionesPorOrden:
+        operacionesOrdenesAbiertas,
+      stocks
+    }),
+    [operacionesOrdenesAbiertas, ordenes, stocks]
+  );
+  const necesidadesConBrecha = useMemo(
+    () => necesidadesOTs.filter(
+      item => item.brecha > 0
+    ),
+    [necesidadesOTs]
+  );
   const esAjusteAutorizadoSeleccionado =
     esMovimientoAjusteAutorizado(
       formulario.tipo
@@ -566,14 +586,33 @@ function AlmacenV2({
       setMovimientos(movimientosData);
       setTraspasos(traspasosData);
       setConteos(conteosData);
-      setOrdenes(
+      const ordenesAbiertas =
         ordenesData.filter(
           orden =>
             ![
               "cerrada",
               "completada"
             ].includes(orden.estado)
-        )
+        );
+      setOrdenes(ordenesAbiertas);
+      const operacionesAbiertas =
+        await Promise.all(
+          ordenesAbiertas.slice(0, 30).map(
+            async orden => ({
+              orden_id: orden.id,
+              orden,
+              operaciones:
+                await listarOperacionesOT(
+                  db,
+                  perfil.empresa_id,
+                  plantaId,
+                  orden.id
+                )
+            })
+          )
+        );
+      setOperacionesOrdenesAbiertas(
+        operacionesAbiertas
       );
     } catch (fallo) {
       setError(
@@ -2262,6 +2301,164 @@ function AlmacenV2({
                         </article>
                       );
                     })}
+                </div>
+              )}
+            </section>
+
+            <section style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)"
+            }}>
+              <h2 style={{ marginTop: 0 }}>
+                Cobertura de OTs abiertas
+              </h2>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: 10,
+                marginBottom: 14
+              }}>
+                <div style={{
+                  background: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  <strong>
+                    Materiales con brecha
+                  </strong>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#B91C1C",
+                    marginTop: 4
+                  }}>
+                    {necesidadesConBrecha.length}
+                  </div>
+                </div>
+                <div style={{
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  <strong>OTs revisadas</strong>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#334155",
+                    marginTop: 4
+                  }}>
+                    {
+                      operacionesOrdenesAbiertas
+                        .length
+                    }
+                  </div>
+                </div>
+              </div>
+
+              {necesidadesOTs.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  No hay materiales requeridos en las
+                  OTs abiertas revisadas.
+                </p>
+              ) : necesidadesConBrecha.length === 0 ? (
+                <p style={{ color: "#166534" }}>
+                  El stock disponible cubre los
+                  materiales revisados de las OTs
+                  abiertas.
+                </p>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gap: 10
+                }}>
+                  {necesidadesConBrecha
+                    .slice(0, 12)
+                    .map(item => (
+                      <article
+                        key={item.material_id}
+                        style={{
+                          border:
+                            "1px solid #FECACA",
+                          borderRadius: 10,
+                          padding: 12,
+                          background: "#FEF2F2"
+                        }}
+                      >
+                        <div style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          gap: 8,
+                          alignItems: "center"
+                        }}>
+                          <strong>
+                            {item.material_codigo}
+                            {" - "}
+                            {item.material_nombre}
+                          </strong>
+                          <span style={{
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: "bold",
+                            color: "#991B1B",
+                            background: "#FEE2E2"
+                          }}>
+                            No alcanza
+                          </span>
+                        </div>
+                        <div style={{
+                          color: "#334155",
+                          marginTop: 4
+                        }}>
+                          Requerido OTs:{" "}
+                          {formatearNumero(
+                            item.cantidad_requerida
+                          )}
+                          {" · Disponible: "}
+                          {formatearNumero(
+                            item.stock_disponible
+                          )}
+                          {" · Brecha: "}
+                          <strong>
+                            {formatearNumero(
+                              item.brecha
+                            )}
+                          </strong>
+                        </div>
+                        <div style={{
+                          color: "#64748B",
+                          fontSize: 13,
+                          marginTop: 4
+                        }}>
+                          OTs afectadas:{" "}
+                          {item.ots
+                            .slice(0, 4)
+                            .map(ot =>
+                              ot.ot_codigo ||
+                              ot.operacion_codigo
+                            )
+                            .join(", ")}
+                          {item.ots.length > 4
+                            ? ` y ${item.ots.length - 4} más`
+                            : ""}
+                        </div>
+                        <div style={{
+                          color: "#7F1D1D",
+                          fontSize: 13,
+                          marginTop: 4,
+                          fontWeight: "bold"
+                        }}>
+                          {item.recomendacion}
+                        </div>
+                      </article>
+                    ))}
                 </div>
               )}
             </section>

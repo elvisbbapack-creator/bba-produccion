@@ -657,6 +657,144 @@ export const calcularAlertasStock = ({
     });
 };
 
+export const calcularNecesidadesMaterialesOTs = ({
+  ordenes = [],
+  operacionesPorOrden = [],
+  stocks = []
+} = {}) => {
+  const stocksPorMaterial = new Map(
+    stocks.map(stock => [
+      stock.material_id,
+      stock
+    ])
+  );
+  const ordenesPorId = new Map(
+    ordenes.map(orden => [
+      orden.id,
+      orden
+    ])
+  );
+  const necesidades = new Map();
+
+  operacionesPorOrden.forEach(item => {
+    const orden =
+      item.orden ||
+      ordenesPorId.get(item.orden_id) ||
+      {};
+
+    (item.operaciones || []).forEach(operacion => {
+      const cantidadOperacion = Number(
+        operacion.cantidad_pendiente ??
+        operacion.cantidad_requerida ??
+        0
+      );
+
+      if (cantidadOperacion <= 0) {
+        return;
+      }
+
+      (operacion.materiales_entrada || [])
+        .forEach(material => {
+          const materialId =
+            limpiarTexto(material.material_id);
+
+          if (!materialId) {
+            return;
+          }
+
+          const cantidadPorUnidad = Number(
+            material.cantidad || 1
+          );
+          const requerida =
+            cantidadOperacion * cantidadPorUnidad;
+          const actual =
+            necesidades.get(materialId) || {
+              material_id: materialId,
+              material_codigo: limpiarTexto(
+                material.material_codigo
+              ),
+              material_nombre: limpiarTexto(
+                material.material_nombre
+              ),
+              material_tipo: limpiarTexto(
+                material.material_tipo
+              ),
+              cantidad_requerida: 0,
+              ots: []
+            };
+
+          actual.cantidad_requerida += requerida;
+          actual.ots.push({
+            ot_id:
+              orden.id ||
+              item.orden_id ||
+              "",
+            ot_codigo:
+              orden.codigo ||
+              item.orden_codigo ||
+              "",
+            producto_nombre:
+              orden.producto_nombre || "",
+            operacion_codigo:
+              operacion.operacion_codigo || "",
+            operacion_nombre:
+              operacion.operacion_nombre || "",
+            cantidad_requerida: requerida
+          });
+
+          necesidades.set(materialId, actual);
+        });
+    });
+  });
+
+  return Array.from(necesidades.values())
+    .map(necesidad => {
+      const stock =
+        stocksPorMaterial.get(
+          necesidad.material_id
+        ) || {};
+      const disponible =
+        calcularStockDisponible(stock);
+      const brecha = Math.max(
+        0,
+        Number(necesidad.cantidad_requerida || 0) -
+          disponible
+      );
+      const estado =
+        brecha > 0
+          ? "faltante_ot"
+          : "cubre_ots";
+
+      return {
+        ...necesidad,
+        stock_actual: Number(
+          stock.stock_actual || 0
+        ),
+        stock_reservado: Number(
+          stock.stock_reservado || 0
+        ),
+        stock_disponible: disponible,
+        brecha,
+        estado,
+        prioridad: brecha > 0 ? 1 : 2,
+        recomendacion:
+          brecha > 0
+            ? "No alcanza para las OTs abiertas: comprar, recibir, traspasar o reprogramar."
+            : "Stock disponible cubre las OTs abiertas revisadas."
+      };
+    })
+    .sort((a, b) => {
+      if (a.prioridad !== b.prioridad) {
+        return a.prioridad - b.prioridad;
+      }
+      if (b.brecha !== a.brecha) {
+        return b.brecha - a.brecha;
+      }
+      return (a.material_codigo || "")
+        .localeCompare(b.material_codigo || "");
+    });
+};
+
 export const calcularStockTrasMovimiento = (
   stockActual,
   movimiento
