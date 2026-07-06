@@ -12,15 +12,21 @@ import {
   listarOrdenesV2
 } from "../ordenes/ordenesRepository";
 import {
+  ESTADOS_TRASPASO_ALMACEN,
   MOVIMIENTOS_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
   calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
   calcularStockDisponible,
+  listarTraspasosAlmacen,
   listarMovimientosAlmacen,
   listarStockMateriales,
   prepararMovimientoAlmacen,
+  prepararTraspasoAlmacen,
   registrarMovimientoAlmacen,
+  registrarTraspasoRecepcion,
+  registrarTraspasoSalida,
+  validarTraspasoSalida,
   validarMovimientoAlmacen
 } from "./almacenRepository";
 
@@ -38,6 +44,14 @@ const estadoInicial = {
   tipo: TIPOS_MOVIMIENTO_ALMACEN.RECEPCION,
   cantidad: "",
   ot_codigo: "",
+  referencia: "",
+  observacion: ""
+};
+
+const traspasoInicial = {
+  material_id: "",
+  planta_destino_id: "",
+  cantidad: "",
   referencia: "",
   observacion: ""
 };
@@ -78,6 +92,8 @@ function AlmacenV2({
   const [stocks, setStocks] = useState([]);
   const [movimientos, setMovimientos] =
     useState([]);
+  const [traspasos, setTraspasos] =
+    useState([]);
   const [ordenes, setOrdenes] = useState([]);
   const [operacionesOrden, setOperacionesOrden] =
     useState([]);
@@ -89,9 +105,17 @@ function AlmacenV2({
     useState("");
   const [formulario, setFormulario] =
     useState(estadoInicial);
+  const [formularioTraspaso, setFormularioTraspaso] =
+    useState(traspasoInicial);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] =
     useState(false);
+  const [guardandoTraspaso, setGuardandoTraspaso] =
+    useState(false);
+  const [
+    recibiendoTraspasoId,
+    setRecibiendoTraspasoId
+  ] = useState("");
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
 
@@ -105,6 +129,18 @@ function AlmacenV2({
         material.id === formulario.material_id
     ) || null,
     [formulario.material_id, materiales]
+  );
+
+  const materialTraspasoSeleccionado = useMemo(
+    () => materiales.find(
+      material =>
+        material.id ===
+        formularioTraspaso.material_id
+    ) || null,
+    [
+      formularioTraspaso.material_id,
+      materiales
+    ]
   );
 
   const stocksPorMaterial = useMemo(
@@ -131,6 +167,20 @@ function AlmacenV2({
     ]
   );
 
+  const stockTraspasoSeleccionado = useMemo(
+    () => stocksPorMaterial.get(
+      formularioTraspaso.material_id
+    ) || {
+      stock_actual: 0,
+      stock_reservado: 0,
+      stock_disponible: 0
+    },
+    [
+      formularioTraspaso.material_id,
+      stocksPorMaterial
+    ]
+  );
+
   const ordenSeleccionada = useMemo(
     () => ordenes.find(
       orden =>
@@ -149,6 +199,38 @@ function AlmacenV2({
   const movimientosRecientes = useMemo(
     () => movimientos.slice(0, 25),
     [movimientos]
+  );
+  const movimientosManuales = useMemo(
+    () => MOVIMIENTOS_ALMACEN.filter(
+      movimiento => ![
+        TIPOS_MOVIMIENTO_ALMACEN.TRASPASO_SALIDA,
+        TIPOS_MOVIMIENTO_ALMACEN
+          .TRASPASO_RECEPCION
+      ].includes(movimiento.tipo)
+    ),
+    []
+  );
+  const traspasosEnTransito = useMemo(
+    () => traspasos.filter(
+      traspaso =>
+        traspaso.estado ===
+        ESTADOS_TRASPASO_ALMACEN.EN_TRANSITO
+    ),
+    [traspasos]
+  );
+  const stockEnTransitoEntrada = useMemo(
+    () => traspasosEnTransito
+      .filter(
+        traspaso =>
+          traspaso.planta_destino_id ===
+          plantaId
+      )
+      .reduce(
+        (total, traspaso) =>
+          total + Number(traspaso.cantidad || 0),
+        0
+      ),
+    [plantaId, traspasosEnTransito]
   );
   const movimientosTrazabilidad = useMemo(
     () => movimientos.filter(
@@ -203,6 +285,34 @@ function AlmacenV2({
     [movimientoVista, stockSeleccionado]
   );
 
+  const traspasoVista = useMemo(
+    () => prepararTraspasoAlmacen({
+      empresaId: perfil.empresa_id,
+      plantaOrigenId: plantaId,
+      plantaDestinoId:
+        formularioTraspaso.planta_destino_id,
+      material: materialTraspasoSeleccionado,
+      cantidad: formularioTraspaso.cantidad,
+      referencia: formularioTraspaso.referencia,
+      observacion: formularioTraspaso.observacion,
+      usuario: perfil
+    }),
+    [
+      formularioTraspaso,
+      materialTraspasoSeleccionado,
+      perfil,
+      plantaId
+    ]
+  );
+
+  const erroresTraspaso = useMemo(
+    () => validarTraspasoSalida(
+      traspasoVista,
+      stockTraspasoSeleccionado
+    ),
+    [stockTraspasoSeleccionado, traspasoVista]
+  );
+
   const cargar = useCallback(async () => {
     try {
       setCargando(true);
@@ -211,7 +321,8 @@ function AlmacenV2({
         materialesData,
         stocksData,
         movimientosData,
-        ordenesData
+        ordenesData,
+        traspasosData
       ] = await Promise.all([
         listarMateriales(
           db,
@@ -231,6 +342,11 @@ function AlmacenV2({
           db,
           perfil.empresa_id,
           plantaId
+        ),
+        listarTraspasosAlmacen(
+          db,
+          perfil.empresa_id,
+          plantaId
         )
       ]);
       setMateriales(
@@ -240,6 +356,7 @@ function AlmacenV2({
       );
       setStocks(stocksData);
       setMovimientos(movimientosData);
+      setTraspasos(traspasosData);
       setOrdenes(
         ordenesData.filter(
           orden =>
@@ -354,6 +471,18 @@ function AlmacenV2({
     setMensaje("");
   };
 
+  const actualizarTraspaso = (
+    campoNombre,
+    valor
+  ) => {
+    setFormularioTraspaso(actual => ({
+      ...actual,
+      [campoNombre]: valor
+    }));
+    setError("");
+    setMensaje("");
+  };
+
   const usarRequerimiento = requerimiento => {
     setFormulario(actual => ({
       ...actual,
@@ -406,6 +535,66 @@ function AlmacenV2({
     }
   };
 
+  const guardarTraspaso = async evento => {
+    evento.preventDefault();
+
+    if (erroresTraspaso.length > 0) {
+      setError(erroresTraspaso.join(" "));
+      return;
+    }
+
+    try {
+      setGuardandoTraspaso(true);
+      setError("");
+      await registrarTraspasoSalida({
+        db,
+        perfil,
+        plantaOrigenId: plantaId,
+        plantaDestinoId:
+          formularioTraspaso.planta_destino_id,
+        material: materialTraspasoSeleccionado,
+        cantidad: formularioTraspaso.cantidad,
+        referencia: formularioTraspaso.referencia,
+        observacion: formularioTraspaso.observacion
+      });
+      setFormularioTraspaso(traspasoInicial);
+      setMensaje(
+        "Salida de traspaso registrada. El stock quedó en tránsito hasta confirmar recepción."
+      );
+      await cargar();
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo registrar el traspaso."
+      );
+    } finally {
+      setGuardandoTraspaso(false);
+    }
+  };
+
+  const recibirTraspaso = async traspaso => {
+    try {
+      setRecibiendoTraspasoId(traspaso.id);
+      setError("");
+      await registrarTraspasoRecepcion({
+        db,
+        perfil,
+        traspaso
+      });
+      setMensaje(
+        "Recepción de traspaso confirmada y stock actualizado en planta destino."
+      );
+      await cargar();
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo confirmar la recepción."
+      );
+    } finally {
+      setRecibiendoTraspasoId("");
+    }
+  };
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -455,6 +644,7 @@ function AlmacenV2({
               onChange={evento => {
                 setPlantaId(evento.target.value);
                 setFormulario(estadoInicial);
+                setFormularioTraspaso(traspasoInicial);
                 setOtTrazabilidad("");
               }}
               style={{
@@ -481,6 +671,10 @@ function AlmacenV2({
           gap: 22,
           alignItems: "start"
         }}>
+          <div style={{
+            display: "grid",
+            gap: 18
+          }}>
           <form
             onSubmit={guardar}
             style={{
@@ -557,7 +751,7 @@ function AlmacenV2({
                   marginBottom: 14
                 }}
               >
-                {MOVIMIENTOS_ALMACEN.map(
+                {movimientosManuales.map(
                   movimiento => (
                     <option
                       key={movimiento.tipo}
@@ -931,10 +1125,434 @@ function AlmacenV2({
             </button>
           </form>
 
+          <form
+            onSubmit={guardarTraspaso}
+            style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)",
+              border: "1px solid #BFDBFE"
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>
+              Traspaso entre plantas
+            </h2>
+            <p style={{
+              color: "#475569",
+              marginTop: -4,
+              fontSize: 14
+            }}>
+              La planta actual registra la salida y
+              el stock queda en tránsito hasta que la
+              planta destino confirme recepción.
+            </p>
+
+            <label>
+              Planta origen
+              <input
+                value={plantaId.toUpperCase()}
+                disabled
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14,
+                  background: "#F8FAFC"
+                }}
+              />
+            </label>
+
+            <label>
+              Planta destino
+              <select
+                value={
+                  formularioTraspaso.planta_destino_id
+                }
+                onChange={evento =>
+                  actualizarTraspaso(
+                    "planta_destino_id",
+                    evento.target.value
+                  )
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              >
+                <option value="">
+                  Seleccionar destino
+                </option>
+                {plantas
+                  .filter(planta => planta !== plantaId)
+                  .map(planta => (
+                    <option
+                      key={planta}
+                      value={planta}
+                    >
+                      {planta.toUpperCase()}
+                    </option>
+                  ))}
+              </select>
+            </label>
+
+            <label>
+              Material
+              <select
+                value={
+                  formularioTraspaso.material_id
+                }
+                onChange={evento =>
+                  actualizarTraspaso(
+                    "material_id",
+                    evento.target.value
+                  )
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              >
+                <option value="">
+                  Seleccionar material
+                </option>
+                {materiales.map(material => (
+                  <option
+                    key={material.id}
+                    value={material.id}
+                  >
+                    {material.codigo}
+                    {" - "}
+                    {material.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Cantidad a traspasar
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formularioTraspaso.cantidad}
+                onChange={evento =>
+                  actualizarTraspaso(
+                    "cantidad",
+                    evento.target.value
+                  )
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              />
+            </label>
+
+            {materialTraspasoSeleccionado && (
+              <div style={{
+                background: "#EFF6FF",
+                border: "1px solid #BFDBFE",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 14,
+                color: "#1E3A8A"
+              }}>
+                <strong>Saldo en origen</strong>
+                <div>
+                  Stock:{" "}
+                  {formatearNumero(
+                    stockTraspasoSeleccionado
+                      .stock_actual
+                  )}
+                  {" · Reservado: "}
+                  {formatearNumero(
+                    stockTraspasoSeleccionado
+                      .stock_reservado
+                  )}
+                  {" · Disponible: "}
+                  {formatearNumero(
+                    calcularStockDisponible(
+                      stockTraspasoSeleccionado
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            <label>
+              Referencia
+              <input
+                value={
+                  formularioTraspaso.referencia
+                }
+                onChange={evento =>
+                  actualizarTraspaso(
+                    "referencia",
+                    evento.target.value
+                  )
+                }
+                placeholder="Guía, solicitud, traslado..."
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              />
+            </label>
+
+            <label>
+              Observación
+              <textarea
+                value={
+                  formularioTraspaso.observacion
+                }
+                onChange={evento =>
+                  actualizarTraspaso(
+                    "observacion",
+                    evento.target.value
+                  )
+                }
+                rows={3}
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={
+                guardandoTraspaso || cargando
+              }
+              style={{
+                width: "100%",
+                padding: 12,
+                border: "none",
+                borderRadius: 9,
+                background: "#1D4ED8",
+                color: "white",
+                fontWeight: "bold",
+                cursor: guardandoTraspaso
+                  ? "wait"
+                  : "pointer"
+              }}
+            >
+              {guardandoTraspaso
+                ? "Registrando traspaso..."
+                : "Registrar salida de traspaso"}
+            </button>
+          </form>
+          </div>
+
           <div style={{
             display: "grid",
             gap: 18
           }}>
+            <section style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)"
+            }}>
+              <h2 style={{ marginTop: 0 }}>
+                Traspasos y stock en tránsito
+              </h2>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: 10,
+                marginBottom: 14
+              }}>
+                <div style={{
+                  background: "#EFF6FF",
+                  border: "1px solid #BFDBFE",
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  <strong>
+                    En tránsito hacia esta planta
+                  </strong>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#1D4ED8",
+                    marginTop: 4
+                  }}>
+                    {formatearNumero(
+                      stockEnTransitoEntrada
+                    )}
+                  </div>
+                </div>
+                <div style={{
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  <strong>
+                    Traspasos abiertos
+                  </strong>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#334155",
+                    marginTop: 4
+                  }}>
+                    {traspasosEnTransito.length}
+                  </div>
+                </div>
+              </div>
+
+              {traspasos.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  Aún no hay traspasos relacionados con
+                  esta planta.
+                </p>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gap: 10
+                }}>
+                  {traspasos.slice(0, 12).map(
+                    traspaso => {
+                      const esDestino =
+                        traspaso.planta_destino_id ===
+                        plantaId;
+                      const pendiente =
+                        traspaso.estado ===
+                        ESTADOS_TRASPASO_ALMACEN
+                          .EN_TRANSITO;
+
+                      return (
+                        <article
+                          key={traspaso.id}
+                          style={{
+                            border:
+                              "1px solid #E2E8F0",
+                            borderRadius: 10,
+                            padding: 12,
+                            background: pendiente
+                              ? "#FFFBEB"
+                              : "#F0FDF4"
+                          }}
+                        >
+                          <div style={{
+                            display: "flex",
+                            justifyContent:
+                              "space-between",
+                            gap: 8,
+                            alignItems: "center"
+                          }}>
+                            <strong>
+                              {
+                                traspaso
+                                  .material_codigo
+                              }
+                              {" - "}
+                              {
+                                traspaso
+                                  .material_nombre
+                              }
+                            </strong>
+                            <span style={{
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: "bold",
+                              color: pendiente
+                                ? "#92400E"
+                                : "#166534",
+                              background: pendiente
+                                ? "#FEF3C7"
+                                : "#DCFCE7"
+                            }}>
+                              {pendiente
+                                ? "En tránsito"
+                                : "Recibido"}
+                            </span>
+                          </div>
+                          <div style={{
+                            color: "#475569",
+                            fontSize: 13,
+                            marginTop: 5
+                          }}>
+                            {traspaso
+                              .planta_origen_id
+                              .toUpperCase()}
+                            {" → "}
+                            {traspaso
+                              .planta_destino_id
+                              .toUpperCase()}
+                            {" · Cantidad "}
+                            {formatearNumero(
+                              traspaso.cantidad
+                            )}
+                            {" · Creado "}
+                            {formatearFecha(
+                              traspaso.creado_en
+                            )}
+                          </div>
+                          <div style={{
+                            color: "#64748B",
+                            fontSize: 13,
+                            marginTop: 4
+                          }}>
+                            {traspaso.referencia
+                              ? `Referencia: ${traspaso.referencia}`
+                              : "Sin referencia"}
+                            {" · Usuario: "}
+                            {traspaso.creado_por_nombre ||
+                              "-"}
+                          </div>
+                          {pendiente && esDestino && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                recibirTraspaso(
+                                  traspaso
+                                )
+                              }
+                              disabled={
+                                recibiendoTraspasoId ===
+                                traspaso.id
+                              }
+                              style={{
+                                marginTop: 10,
+                                padding: "9px 12px",
+                                border: "none",
+                                borderRadius: 8,
+                                background: "#166534",
+                                color: "white",
+                                fontWeight: "bold",
+                                cursor:
+                                  recibiendoTraspasoId ===
+                                  traspaso.id
+                                    ? "wait"
+                                    : "pointer"
+                              }}
+                            >
+                              {recibiendoTraspasoId ===
+                              traspaso.id
+                                ? "Recepcionando..."
+                                : "Confirmar recepción"}
+                            </button>
+                          )}
+                        </article>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+            </section>
+
             <section style={{
               background: "white",
               padding: 22,
@@ -1352,6 +1970,9 @@ function AlmacenV2({
                             {movimiento.origen ===
                             "produccion"
                               ? "Producción"
+                              : movimiento.origen ===
+                                "traspaso"
+                                ? "Traspaso"
                               : "Manual"}
                           </div>
                           {movimiento.operacion_codigo && (
@@ -1430,16 +2051,25 @@ function AlmacenV2({
                             movimiento.origen ===
                             "produccion"
                               ? "#7C2D12"
+                              : movimiento.origen ===
+                                "traspaso"
+                                ? "#1D4ED8"
                               : "#334155",
                           background:
                             movimiento.origen ===
                             "produccion"
                               ? "#FFEDD5"
+                              : movimiento.origen ===
+                                "traspaso"
+                                ? "#DBEAFE"
                               : "#E2E8F0"
                         }}>
                           {movimiento.origen ===
                           "produccion"
                             ? "Producción"
+                            : movimiento.origen ===
+                              "traspaso"
+                              ? "Traspaso"
                             : "Manual"}
                         </span>
                       </div>

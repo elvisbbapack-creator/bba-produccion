@@ -14,7 +14,15 @@ export const TIPOS_MOVIMIENTO_ALMACEN = {
   AJUSTE_NEGATIVO: "ajuste_negativo",
   RESERVA_OT: "reserva_ot",
   LIBERACION_RESERVA: "liberacion_reserva",
-  CONSUMO_OT: "consumo_ot"
+  CONSUMO_OT: "consumo_ot",
+  TRASPASO_SALIDA: "traspaso_salida",
+  TRASPASO_RECEPCION: "traspaso_recepcion"
+};
+
+export const ESTADOS_TRASPASO_ALMACEN = {
+  EN_TRANSITO: "en_transito",
+  RECIBIDO: "recibido",
+  ANULADO: "anulado"
 };
 
 export const MOVIMIENTOS_ALMACEN = [
@@ -52,6 +60,18 @@ export const MOVIMIENTOS_ALMACEN = [
     tipo: TIPOS_MOVIMIENTO_ALMACEN.CONSUMO_OT,
     nombre: "Consumo por OT",
     signo_stock: -1,
+    signo_reserva: 0
+  },
+  {
+    tipo: TIPOS_MOVIMIENTO_ALMACEN.TRASPASO_SALIDA,
+    nombre: "Traspaso salida",
+    signo_stock: -1,
+    signo_reserva: 0
+  },
+  {
+    tipo: TIPOS_MOVIMIENTO_ALMACEN.TRASPASO_RECEPCION,
+    nombre: "Traspaso recepción",
+    signo_stock: 1,
     signo_reserva: 0
   }
 ];
@@ -230,6 +250,91 @@ export const validarMovimientoAlmacen = (
   ) {
     errores.push(
       "El stock actual no puede ser negativo."
+    );
+  }
+
+  return errores;
+};
+
+export const prepararTraspasoAlmacen = ({
+  empresaId,
+  plantaOrigenId,
+  plantaDestinoId,
+  material,
+  cantidad,
+  referencia = "",
+  observacion = "",
+  usuario
+}) => {
+  const cantidadNumero = Number(cantidad);
+
+  return {
+    empresa_id: limpiarTexto(empresaId),
+    planta_id: limpiarTexto(plantaOrigenId),
+    planta_origen_id: limpiarTexto(plantaOrigenId),
+    planta_destino_id: limpiarTexto(plantaDestinoId),
+    material_id: limpiarTexto(material?.id),
+    material_codigo: limpiarTexto(material?.codigo),
+    material_nombre: limpiarTexto(material?.nombre),
+    material_tipo: limpiarTexto(material?.tipo),
+    unidad_medida: limpiarTexto(material?.unidad_medida),
+    cantidad: Number.isFinite(cantidadNumero)
+      ? cantidadNumero
+      : 0,
+    cantidad_recibida: 0,
+    estado: ESTADOS_TRASPASO_ALMACEN.EN_TRANSITO,
+    referencia: limpiarTexto(referencia),
+    observacion: limpiarTexto(observacion),
+    creado_por_id: limpiarTexto(usuario?.uid),
+    creado_por_nombre: limpiarTexto(usuario?.nombre),
+    modelo_version: 2
+  };
+};
+
+export const validarTraspasoSalida = (
+  traspaso,
+  stockOrigen = {}
+) => {
+  const errores = [];
+  const cantidad = Number(traspaso?.cantidad || 0);
+  const disponible =
+    calcularStockDisponible(stockOrigen);
+
+  if (!traspaso?.planta_origen_id) {
+    errores.push("Selecciona la planta origen.");
+  }
+
+  if (!traspaso?.planta_destino_id) {
+    errores.push("Selecciona la planta destino.");
+  }
+
+  if (
+    traspaso?.planta_origen_id &&
+    traspaso?.planta_destino_id &&
+    traspaso.planta_origen_id ===
+      traspaso.planta_destino_id
+  ) {
+    errores.push(
+      "La planta destino debe ser distinta a la planta origen."
+    );
+  }
+
+  if (!traspaso?.material_id) {
+    errores.push("Selecciona un material.");
+  }
+
+  if (
+    !Number.isFinite(cantidad) ||
+    cantidad <= 0
+  ) {
+    errores.push(
+      "La cantidad del traspaso debe ser mayor que cero."
+    );
+  }
+
+  if (cantidad > disponible) {
+    errores.push(
+      `Stock disponible insuficiente para traspasar. Disponible: ${disponible}.`
     );
   }
 
@@ -793,6 +898,56 @@ export const listarMovimientosAlmacenOT = async (
     });
 };
 
+export const listarTraspasosAlmacen = async (
+  db,
+  empresaId,
+  plantaId
+) => {
+  const [salidasSnapshot, recepcionesSnapshot] =
+    await Promise.all([
+      getDocs(
+        query(
+          collection(db, "traspasos_almacen"),
+          where("empresa_id", "==", empresaId),
+          where("planta_origen_id", "==", plantaId)
+        )
+      ),
+      getDocs(
+        query(
+          collection(db, "traspasos_almacen"),
+          where("empresa_id", "==", empresaId),
+          where("planta_destino_id", "==", plantaId)
+        )
+      )
+    ]);
+
+  const registros = new Map();
+
+  [
+    ...salidasSnapshot.docs,
+    ...recepcionesSnapshot.docs
+  ].forEach(documento => {
+    registros.set(documento.id, {
+      id: documento.id,
+      ...documento.data()
+    });
+  });
+
+  return Array.from(registros.values()).sort(
+    (a, b) => {
+      const fechaB =
+        b.recibido_en?.toMillis?.() ||
+        b.creado_en?.toMillis?.() ||
+        0;
+      const fechaA =
+        a.recibido_en?.toMillis?.() ||
+        a.creado_en?.toMillis?.() ||
+        0;
+      return fechaB - fechaA;
+    }
+  );
+};
+
 export const registrarMovimientoAlmacen =
   async ({
     db,
@@ -892,5 +1047,292 @@ export const registrarMovimientoAlmacen =
     return {
       id: movimientoRef.id,
       ...movimiento
+    };
+  };
+
+export const registrarTraspasoSalida =
+  async ({
+    db,
+    perfil,
+    plantaOrigenId,
+    plantaDestinoId,
+    material,
+    cantidad,
+    referencia,
+    observacion
+  }) => {
+    const traspasoRef = doc(
+      collection(db, "traspasos_almacen")
+    );
+    const stockOrigenRef = doc(
+      db,
+      "inventario_materiales",
+      idStockMaterial({
+        empresaId: perfil.empresa_id,
+        plantaId: plantaOrigenId,
+        materialId: material?.id
+      })
+    );
+    const movimientoRef = doc(
+      collection(db, "movimientos_almacen")
+    );
+    const traspaso = prepararTraspasoAlmacen({
+      empresaId: perfil.empresa_id,
+      plantaOrigenId,
+      plantaDestinoId,
+      material,
+      cantidad,
+      referencia,
+      observacion,
+      usuario: perfil
+    });
+    const movimiento =
+      prepararMovimientoAlmacen({
+        empresaId: perfil.empresa_id,
+        plantaId: plantaOrigenId,
+        material,
+        tipo: TIPOS_MOVIMIENTO_ALMACEN
+          .TRASPASO_SALIDA,
+        cantidad,
+        referencia:
+          traspaso.referencia ||
+          `traspaso:${traspasoRef.id}`,
+        observacion,
+        usuario: perfil
+      });
+
+    await runTransaction(db, async transaccion => {
+      const stockSnapshot =
+        await transaccion.get(stockOrigenRef);
+      const stockActual = stockSnapshot.exists()
+        ? stockSnapshot.data()
+        : {
+          stock_actual: 0,
+          stock_reservado: 0
+        };
+      const errores = Array.from(new Set([
+        ...validarTraspasoSalida(
+          traspaso,
+          stockActual
+        ),
+        ...validarMovimientoAlmacen(
+          movimiento,
+          stockActual
+        )
+      ]));
+
+      if (errores.length > 0) {
+        throw new Error(errores.join(" "));
+      }
+
+      const siguiente =
+        calcularStockTrasMovimiento(
+          stockActual,
+          movimiento
+        );
+
+      transaccion.set(stockOrigenRef, {
+        empresa_id: perfil.empresa_id,
+        planta_id: plantaOrigenId,
+        material_id: material.id,
+        material_codigo: material.codigo,
+        material_nombre: material.nombre,
+        material_tipo: material.tipo,
+        unidad_medida: material.unidad_medida,
+        ...siguiente,
+        actualizado_por_id: perfil.uid,
+        actualizado_por_nombre:
+          perfil.nombre || "",
+        actualizado_en: serverTimestamp(),
+        modelo_version: 2
+      });
+      transaccion.set(movimientoRef, {
+        ...movimiento,
+        origen: "traspaso",
+        traspaso_id: traspasoRef.id,
+        planta_destino_id: plantaDestinoId,
+        stock_anterior:
+          Number(
+            stockActual.stock_actual || 0
+          ),
+        stock_reservado_anterior:
+          Number(
+            stockActual.stock_reservado || 0
+          ),
+        stock_nuevo: siguiente.stock_actual,
+        stock_reservado_nuevo:
+          siguiente.stock_reservado,
+        stock_disponible_nuevo:
+          siguiente.stock_disponible,
+        fecha: serverTimestamp()
+      });
+      transaccion.set(traspasoRef, {
+        ...traspaso,
+        movimiento_salida_id:
+          movimientoRef.id,
+        creado_en: serverTimestamp(),
+        actualizado_en: serverTimestamp()
+      });
+    });
+
+    return {
+      id: traspasoRef.id,
+      ...traspaso
+    };
+  };
+
+export const registrarTraspasoRecepcion =
+  async ({
+    db,
+    perfil,
+    traspaso
+  }) => {
+    const traspasoRef = doc(
+      db,
+      "traspasos_almacen",
+      traspaso.id
+    );
+    const stockDestinoRef = doc(
+      db,
+      "inventario_materiales",
+      idStockMaterial({
+        empresaId: perfil.empresa_id,
+        plantaId: traspaso.planta_destino_id,
+        materialId: traspaso.material_id
+      })
+    );
+    const movimientoRef = doc(
+      collection(db, "movimientos_almacen")
+    );
+    const material = {
+      id: traspaso.material_id,
+      codigo: traspaso.material_codigo,
+      nombre: traspaso.material_nombre,
+      tipo: traspaso.material_tipo,
+      unidad_medida: traspaso.unidad_medida
+    };
+    const movimiento =
+      prepararMovimientoAlmacen({
+        empresaId: perfil.empresa_id,
+        plantaId: traspaso.planta_destino_id,
+        material,
+        tipo: TIPOS_MOVIMIENTO_ALMACEN
+          .TRASPASO_RECEPCION,
+        cantidad: traspaso.cantidad,
+        referencia:
+          traspaso.referencia ||
+          `traspaso:${traspaso.id}`,
+        observacion:
+          traspaso.observacion ||
+          "Recepción de traspaso",
+        usuario: perfil
+      });
+
+    await runTransaction(db, async transaccion => {
+      const traspasoSnapshot =
+        await transaccion.get(traspasoRef);
+
+      if (!traspasoSnapshot.exists()) {
+        throw new Error(
+          "El traspaso ya no existe."
+        );
+      }
+
+      const traspasoActual =
+        traspasoSnapshot.data();
+
+      if (
+        traspasoActual.estado !==
+        ESTADOS_TRASPASO_ALMACEN.EN_TRANSITO
+      ) {
+        throw new Error(
+          "Este traspaso ya fue recibido o cerrado."
+        );
+      }
+
+      const stockSnapshot =
+        await transaccion.get(stockDestinoRef);
+      const stockActual = stockSnapshot.exists()
+        ? stockSnapshot.data()
+        : {
+          stock_actual: 0,
+          stock_reservado: 0
+        };
+      const errores = validarMovimientoAlmacen(
+        movimiento,
+        stockActual
+      );
+
+      if (errores.length > 0) {
+        throw new Error(errores.join(" "));
+      }
+
+      const siguiente =
+        calcularStockTrasMovimiento(
+          stockActual,
+          movimiento
+        );
+
+      transaccion.set(stockDestinoRef, {
+        empresa_id: perfil.empresa_id,
+        planta_id:
+          traspasoActual.planta_destino_id,
+        material_id:
+          traspasoActual.material_id,
+        material_codigo:
+          traspasoActual.material_codigo,
+        material_nombre:
+          traspasoActual.material_nombre,
+        material_tipo:
+          traspasoActual.material_tipo,
+        unidad_medida:
+          traspasoActual.unidad_medida,
+        ...siguiente,
+        actualizado_por_id: perfil.uid,
+        actualizado_por_nombre:
+          perfil.nombre || "",
+        actualizado_en: serverTimestamp(),
+        modelo_version: 2
+      });
+      transaccion.set(movimientoRef, {
+        ...movimiento,
+        origen: "traspaso",
+        traspaso_id: traspaso.id,
+        planta_origen_id:
+          traspasoActual.planta_origen_id,
+        stock_anterior:
+          Number(
+            stockActual.stock_actual || 0
+          ),
+        stock_reservado_anterior:
+          Number(
+            stockActual.stock_reservado || 0
+          ),
+        stock_nuevo: siguiente.stock_actual,
+        stock_reservado_nuevo:
+          siguiente.stock_reservado,
+        stock_disponible_nuevo:
+          siguiente.stock_disponible,
+        fecha: serverTimestamp()
+      });
+      transaccion.update(traspasoRef, {
+        estado:
+          ESTADOS_TRASPASO_ALMACEN.RECIBIDO,
+        cantidad_recibida:
+          Number(traspasoActual.cantidad || 0),
+        recibido_por_id: perfil.uid,
+        recibido_por_nombre:
+          perfil.nombre || "",
+        recibido_en: serverTimestamp(),
+        movimiento_recepcion_id:
+          movimientoRef.id,
+        actualizado_en: serverTimestamp()
+      });
+    });
+
+    return {
+      id: traspaso.id,
+      estado:
+        ESTADOS_TRASPASO_ALMACEN.RECIBIDO
     };
   };

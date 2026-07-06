@@ -1,4 +1,5 @@
 import {
+  ESTADOS_TRASPASO_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
   calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
@@ -6,6 +7,8 @@ import {
   calcularRequerimientosMaterialesOT,
   calcularStockTrasMovimiento,
   prepararMovimientoAlmacen,
+  prepararTraspasoAlmacen,
+  validarTraspasoSalida,
   validarMovimientoAlmacen
 } from "./almacenRepository";
 
@@ -204,6 +207,119 @@ test("consumo OT descuenta stock físico y libera reserva existente", () => {
     stock_actual: 70,
     stock_reservado: 50,
     stock_disponible: 20
+  });
+});
+
+test("prepara traspaso entre plantas en estado en transito", () => {
+  const traspaso = prepararTraspasoAlmacen({
+    empresaId: "bba",
+    plantaOrigenId: "chile",
+    plantaDestinoId: "peru",
+    material,
+    cantidad: 25,
+    referencia: "Guia 123",
+    usuario
+  });
+
+  expect(traspaso).toMatchObject({
+    empresa_id: "bba",
+    planta_id: "chile",
+    planta_origen_id: "chile",
+    planta_destino_id: "peru",
+    material_id: material.id,
+    cantidad: 25,
+    cantidad_recibida: 0,
+    estado:
+      ESTADOS_TRASPASO_ALMACEN.EN_TRANSITO,
+    creado_por_id: "user-1"
+  });
+});
+
+test("valida salida de traspaso contra stock disponible", () => {
+  const traspaso = prepararTraspasoAlmacen({
+    empresaId: "bba",
+    plantaOrigenId: "chile",
+    plantaDestinoId: "peru",
+    material,
+    cantidad: 90,
+    usuario
+  });
+
+  expect(
+    validarTraspasoSalida(traspaso, {
+      stock_actual: 100,
+      stock_reservado: 20
+    })
+  ).toContain(
+    "Stock disponible insuficiente para traspasar. Disponible: 80."
+  );
+});
+
+test("bloquea traspasos hacia la misma planta", () => {
+  const traspaso = prepararTraspasoAlmacen({
+    empresaId: "bba",
+    plantaOrigenId: "chile",
+    plantaDestinoId: "chile",
+    material,
+    cantidad: 10,
+    usuario
+  });
+
+  expect(
+    validarTraspasoSalida(traspaso, {
+      stock_actual: 100,
+      stock_reservado: 0
+    })
+  ).toContain(
+    "La planta destino debe ser distinta a la planta origen."
+  );
+});
+
+test("movimientos de traspaso descuentan origen y suman destino", () => {
+  const salida = prepararMovimientoAlmacen({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    tipo: TIPOS_MOVIMIENTO_ALMACEN
+      .TRASPASO_SALIDA,
+    cantidad: 30,
+    usuario
+  });
+  const recepcion = prepararMovimientoAlmacen({
+    empresaId: "bba",
+    plantaId: "peru",
+    material,
+    tipo: TIPOS_MOVIMIENTO_ALMACEN
+      .TRASPASO_RECEPCION,
+    cantidad: 30,
+    usuario
+  });
+
+  expect(
+    calcularStockTrasMovimiento(
+      {
+        stock_actual: 100,
+        stock_reservado: 20
+      },
+      salida
+    )
+  ).toEqual({
+    stock_actual: 70,
+    stock_reservado: 20,
+    stock_disponible: 50
+  });
+  expect(
+    calcularStockTrasMovimiento(
+      {
+        stock_actual: 5,
+        stock_reservado: 0
+      },
+      recepcion
+    )
+  ).toEqual({
+    stock_actual: 35,
+    stock_reservado: 0,
+    stock_disponible: 35
   });
 });
 
