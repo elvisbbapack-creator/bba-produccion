@@ -29,6 +29,7 @@ import {
   listarTraspasosAlmacen,
   listarMovimientosAlmacen,
   listarStockMateriales,
+  priorizarOrdenesPorMaterial,
   prepararMovimientoAlmacen,
   prepararConteoFisico,
   prepararTraspasoAlmacen,
@@ -400,6 +401,27 @@ function AlmacenV2({
       item => item.brecha > 0
     ),
     [necesidadesOTs]
+  );
+  const priorizacionOTs = useMemo(
+    () => priorizarOrdenesPorMaterial({
+      ordenes,
+      operacionesPorOrden:
+        operacionesOrdenesAbiertas,
+      stocks
+    }),
+    [operacionesOrdenesAbiertas, ordenes, stocks]
+  );
+  const otsQueAvanzan = useMemo(
+    () => priorizacionOTs.filter(
+      item => item.estado === "puede_avanzar"
+    ),
+    [priorizacionOTs]
+  );
+  const otsBloqueadas = useMemo(
+    () => priorizacionOTs.filter(
+      item => item.estado === "bloqueada"
+    ),
+    [priorizacionOTs]
   );
   const solicitudesAbiertasPorMaterial = useMemo(
     () => new Set(
@@ -2377,6 +2399,184 @@ function AlmacenV2({
                             )}
                             {" días · "}
                             {alerta.recomendacion}
+                          </div>
+                        </article>
+                      );
+                    })}
+                </div>
+              )}
+            </section>
+
+            <section style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)"
+            }}>
+              <h2 style={{ marginTop: 0 }}>
+                Priorización de OTs por material
+              </h2>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(150px, 1fr))",
+                gap: 10,
+                marginBottom: 14
+              }}>
+                <div style={{
+                  background: "#F0FDF4",
+                  border: "1px solid #BBF7D0",
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  <strong>Pueden avanzar</strong>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#166534",
+                    marginTop: 4
+                  }}>
+                    {otsQueAvanzan.length}
+                  </div>
+                </div>
+                <div style={{
+                  background: "#FEF2F2",
+                  border: "1px solid #FECACA",
+                  borderRadius: 10,
+                  padding: 12
+                }}>
+                  <strong>Bloqueadas</strong>
+                  <div style={{
+                    fontSize: 22,
+                    fontWeight: "bold",
+                    color: "#B91C1C",
+                    marginTop: 4
+                  }}>
+                    {otsBloqueadas.length}
+                  </div>
+                </div>
+              </div>
+
+              {priorizacionOTs.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  No hay OTs abiertas con materiales
+                  para priorizar.
+                </p>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gap: 10
+                }}>
+                  {priorizacionOTs
+                    .slice(0, 12)
+                    .map(item => {
+                      const puede =
+                        item.estado ===
+                        "puede_avanzar";
+                      const parcial =
+                        item.estado ===
+                        "avance_parcial";
+
+                      return (
+                        <article
+                          key={item.ot_id}
+                          style={{
+                            border: puede
+                              ? "1px solid #BBF7D0"
+                              : parcial
+                                ? "1px solid #FDE68A"
+                                : "1px solid #FECACA",
+                            borderRadius: 10,
+                            padding: 12,
+                            background: puede
+                              ? "#F0FDF4"
+                              : parcial
+                                ? "#FFFBEB"
+                                : "#FEF2F2"
+                          }}
+                        >
+                          <div style={{
+                            display: "flex",
+                            justifyContent:
+                              "space-between",
+                            gap: 8,
+                            alignItems: "center"
+                          }}>
+                            <strong>
+                              #{item.prioridad_sugerida}
+                              {" · "}
+                              {item.ot_codigo || "-"}
+                              {item.producto_nombre
+                                ? ` - ${item.producto_nombre}`
+                                : ""}
+                            </strong>
+                            <span style={{
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              fontSize: 12,
+                              fontWeight: "bold",
+                              color: puede
+                                ? "#166534"
+                                : parcial
+                                  ? "#92400E"
+                                  : "#991B1B",
+                              background: puede
+                                ? "#DCFCE7"
+                                : parcial
+                                  ? "#FEF3C7"
+                                  : "#FEE2E2"
+                            }}>
+                              {puede
+                                ? "Puede avanzar"
+                                : parcial
+                                  ? "Parcial"
+                                  : "Bloqueada"}
+                            </span>
+                          </div>
+                          <div style={{
+                            color: "#475569",
+                            fontSize: 13,
+                            marginTop: 4
+                          }}>
+                            Materiales requeridos:{" "}
+                            {
+                              item.materiales_requeridos
+                                .length
+                            }
+                            {" · Faltantes: "}
+                            {
+                              item.materiales_faltantes
+                                .length
+                            }
+                          </div>
+                          {item.materiales_faltantes
+                            .length > 0 && (
+                            <div style={{
+                              color: "#7F1D1D",
+                              fontSize: 13,
+                              marginTop: 4
+                            }}>
+                              Falta:{" "}
+                              {item.materiales_faltantes
+                                .slice(0, 3)
+                                .map(material =>
+                                  `${material.material_codigo} (${formatearNumero(material.faltante)})`
+                                )
+                                .join(", ")}
+                              {item.materiales_faltantes
+                                .length > 3
+                                ? ` y ${item.materiales_faltantes.length - 3} más`
+                                : ""}
+                            </div>
+                          )}
+                          <div style={{
+                            color: "#334155",
+                            fontSize: 13,
+                            marginTop: 4,
+                            fontWeight: "bold"
+                          }}>
+                            {item.recomendacion}
                           </div>
                         </article>
                       );

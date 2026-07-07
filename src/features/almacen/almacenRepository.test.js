@@ -12,6 +12,7 @@ import {
   calcularStockTrasMovimiento,
   esMovimientoAjusteAutorizado,
   obtenerOrigenMovimientoAlmacen,
+  priorizarOrdenesPorMaterial,
   prepararConteoFisico,
   prepararMovimientoAlmacen,
   prepararPoliticaStock,
@@ -468,6 +469,72 @@ test("calcula brechas de materiales para OTs abiertas", () => {
     ot_codigo: "OT-001",
     operacion_codigo: "DT0001",
     cantidad_requerida: 40
+  });
+});
+
+test("prioriza OTs segun stock disponible de materiales", () => {
+  const resultado = priorizarOrdenesPorMaterial({
+    ordenes: [
+      {
+        id: "ot-1",
+        codigo: "OT-001",
+        producto_nombre: "Exhibidor A"
+      },
+      {
+        id: "ot-2",
+        codigo: "OT-002",
+        producto_nombre: "Exhibidor B"
+      }
+    ],
+    operacionesPorOrden: [
+      {
+        orden_id: "ot-1",
+        operaciones: [{
+          id: "op-1",
+          cantidad_pendiente: 5,
+          materiales_entrada: [{
+            material_id: material.id,
+            material_codigo: material.codigo,
+            material_nombre: material.nombre,
+            cantidad: 4
+          }]
+        }]
+      },
+      {
+        orden_id: "ot-2",
+        operaciones: [{
+          id: "op-2",
+          cantidad_pendiente: 5,
+          materiales_entrada: [{
+            material_id: material.id,
+            material_codigo: material.codigo,
+            material_nombre: material.nombre,
+            cantidad: 4
+          }]
+        }]
+      }
+    ],
+    stocks: [{
+      material_id: material.id,
+      stock_actual: 25,
+      stock_reservado: 0
+    }]
+  });
+
+  expect(resultado).toHaveLength(2);
+  expect(resultado[0]).toMatchObject({
+    ot_codigo: "OT-001",
+    estado: "puede_avanzar"
+  });
+  expect(resultado[1]).toMatchObject({
+    ot_codigo: "OT-002",
+    estado: "bloqueada"
+  });
+  expect(
+    resultado[1].materiales_faltantes[0]
+  ).toMatchObject({
+    material_codigo: "MP0001",
+    faltante: 15
   });
 });
 
