@@ -173,6 +173,8 @@ service cloud.firestore {
         belongsToPlant(
           request.resource.data
         ) &&
+        request.resource.data.tipo_operacion ==
+          'traspaso_interno' &&
         request.resource.data.planta_id ==
           request.resource.data.planta_origen_id &&
         request.resource.data.estado ==
@@ -186,6 +188,8 @@ service cloud.firestore {
         ) &&
         request.resource.data.empresa_id ==
           resource.data.empresa_id &&
+        request.resource.data.tipo_operacion ==
+          resource.data.tipo_operacion &&
         request.resource.data.planta_origen_id ==
           resource.data.planta_origen_id &&
         request.resource.data.planta_destino_id ==

@@ -467,7 +467,7 @@ test("calcula brechas de materiales para OTs abiertas", () => {
   });
 });
 
-test("prepara traspaso entre plantas en estado en transito", () => {
+test("prepara traspaso interno entre almacenes en estado en transito", () => {
   const traspaso = prepararTraspasoAlmacen({
     empresaId: "bba",
     plantaOrigenId: "chile",
@@ -480,6 +480,7 @@ test("prepara traspaso entre plantas en estado en transito", () => {
 
   expect(traspaso).toMatchObject({
     empresa_id: "bba",
+    tipo_operacion: "traspaso_interno",
     planta_id: "chile",
     planta_origen_id: "chile",
     planta_destino_id: "peru",
@@ -508,7 +509,7 @@ test("valida salida de traspaso contra stock disponible", () => {
       stock_reservado: 20
     })
   ).toContain(
-    "Stock disponible insuficiente para traspasar. Disponible: 80."
+    "Stock disponible insuficiente para traspaso interno. Disponible: 80."
   );
 });
 
@@ -528,7 +529,7 @@ test("bloquea traspasos hacia la misma planta", () => {
       stock_reservado: 0
     })
   ).toContain(
-    "La planta destino debe ser distinta a la planta origen."
+    "El almacén destino debe ser distinto al almacén origen."
   );
 });
 

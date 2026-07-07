@@ -313,6 +313,7 @@ export const prepararTraspasoAlmacen = ({
 
   return {
     empresa_id: limpiarTexto(empresaId),
+    tipo_operacion: "traspaso_interno",
     planta_id: limpiarTexto(plantaOrigenId),
     planta_origen_id: limpiarTexto(plantaOrigenId),
     planta_destino_id: limpiarTexto(plantaDestinoId),
@@ -344,11 +345,11 @@ export const validarTraspasoSalida = (
     calcularStockDisponible(stockOrigen);
 
   if (!traspaso?.planta_origen_id) {
-    errores.push("Selecciona la planta origen.");
+    errores.push("Selecciona el almacén origen.");
   }
 
   if (!traspaso?.planta_destino_id) {
-    errores.push("Selecciona la planta destino.");
+    errores.push("Selecciona el almacén destino.");
   }
 
   if (
@@ -358,7 +359,7 @@ export const validarTraspasoSalida = (
       traspaso.planta_destino_id
   ) {
     errores.push(
-      "La planta destino debe ser distinta a la planta origen."
+      "El almacén destino debe ser distinto al almacén origen."
     );
   }
 
@@ -377,7 +378,7 @@ export const validarTraspasoSalida = (
 
   if (cantidad > disponible) {
     errores.push(
-      `Stock disponible insuficiente para traspasar. Disponible: ${disponible}.`
+      `Stock disponible insuficiente para traspaso interno. Disponible: ${disponible}.`
     );
   }
 
@@ -618,11 +619,11 @@ export const calcularAlertasStock = ({
                 : 5;
       const recomendacion =
         estado === "sin_stock"
-          ? "Sin stock disponible: comprar, recibir o traspasar antes de producir."
+          ? "Sin stock disponible: comprar, recibir o solicitar traspaso interno antes de producir."
           : estado === "bajo_minimo"
-            ? "Bajo mínimo: priorizar reposición o traspaso."
+            ? "Bajo mínimo: priorizar reposición o traspaso interno."
             : estado === "reponer"
-              ? "Llegó al punto de reposición: planificar compra o traslado."
+              ? "Llegó al punto de reposición: planificar compra o movimiento interno."
               : estado === "sin_politica"
                 ? "Configura mínimo y punto de reposición para activar alertas."
                 : "Stock dentro de política.";
@@ -779,7 +780,7 @@ export const calcularNecesidadesMaterialesOTs = ({
         prioridad: brecha > 0 ? 1 : 2,
         recomendacion:
           brecha > 0
-            ? "No alcanza para las OTs abiertas: comprar, recibir, traspasar o reprogramar."
+            ? "No alcanza para las OTs abiertas: comprar, recibir, solicitar traspaso interno o reprogramar."
             : "Stock disponible cubre las OTs abiertas revisadas."
       };
     })

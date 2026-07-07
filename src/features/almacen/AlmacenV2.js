@@ -855,13 +855,13 @@ function AlmacenV2({
       });
       setFormularioTraspaso(traspasoInicial);
       setMensaje(
-        "Salida de traspaso registrada. El stock quedó en tránsito hasta confirmar recepción."
+        "Salida de traspaso interno registrada. El stock quedó en tránsito hasta confirmar recepción."
       );
       await cargar();
     } catch (fallo) {
       setError(
         fallo?.message ||
-        "No se pudo registrar el traspaso."
+        "No se pudo registrar el traspaso interno."
       );
     } finally {
       setGuardandoTraspaso(false);
@@ -950,7 +950,7 @@ function AlmacenV2({
         traspaso
       });
       setMensaje(
-        "Recepción de traspaso confirmada y stock actualizado en planta destino."
+        "Recepción de traspaso interno confirmada y stock actualizado en el almacén destino."
       );
       await cargar();
     } catch (fallo) {
@@ -1930,20 +1930,21 @@ function AlmacenV2({
             }}
           >
             <h2 style={{ marginTop: 0 }}>
-              Traspaso entre plantas
+              Traspaso interno entre almacenes
             </h2>
             <p style={{
               color: "#475569",
               marginTop: -4,
               fontSize: 14
             }}>
-              La planta actual registra la salida y
-              el stock queda en tránsito hasta que la
-              planta destino confirme recepción.
+              Solo aplica entre almacenes de la misma
+              empresa. Entre empresas hermanas del
+              grupo corresponde venta/compra, no
+              traspaso.
             </p>
 
             <label>
-              Planta origen
+              Almacén origen
               <input
                 value={plantaId.toUpperCase()}
                 disabled
@@ -1957,7 +1958,7 @@ function AlmacenV2({
             </label>
 
             <label>
-              Planta destino
+              Almacén destino
               <select
                 value={
                   formularioTraspaso.planta_destino_id
@@ -1975,7 +1976,7 @@ function AlmacenV2({
                 }}
               >
                 <option value="">
-                  Seleccionar destino
+                  Seleccionar almacén destino
                 </option>
                 {plantas
                   .filter(planta => planta !== plantaId)
@@ -2025,7 +2026,7 @@ function AlmacenV2({
             </label>
 
             <label>
-              Cantidad a traspasar
+              Cantidad a mover internamente
               <input
                 type="number"
                 min="0"
@@ -2088,7 +2089,7 @@ function AlmacenV2({
                     evento.target.value
                   )
                 }
-                placeholder="Guía, solicitud, traslado..."
+                placeholder="Guía interna, solicitud, traslado interno..."
                 style={{
                   ...campo,
                   marginTop: 6,
@@ -2137,8 +2138,8 @@ function AlmacenV2({
               }}
             >
               {guardandoTraspaso
-                ? "Registrando traspaso..."
-                : "Registrar salida de traspaso"}
+                ? "Registrando traspaso interno..."
+                : "Registrar salida de traspaso interno"}
             </button>
           </form>
           </div>
@@ -2471,7 +2472,7 @@ function AlmacenV2({
                 "0 2px 10px rgba(15,23,42,0.08)"
             }}>
               <h2 style={{ marginTop: 0 }}>
-                Traspasos y stock en tránsito
+                Traspasos internos y stock en tránsito
               </h2>
               <div style={{
                 display: "grid",
@@ -2523,7 +2524,7 @@ function AlmacenV2({
               {traspasos.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
                   Aún no hay traspasos relacionados con
-                  esta planta.
+                  este almacén.
                 </p>
               ) : (
                 <div style={{
