@@ -9541,6 +9541,7 @@ if (pantalla === "operacionesMaestras") {
   const top1 = ranking[0];
 
   const alertas = [];
+  const limiteRegistrosPorSupervisor = 14;
 
   const fechaRegistroMs = registro => {
     if (registro?.fecha?.toDate) {
@@ -10166,7 +10167,7 @@ produccionActiva.forEach(p => {
                   </div>
 
                   {grupo.registros
-                    .slice(0, 25)
+                    .slice(0, limiteRegistrosPorSupervisor)
                     .map((r, i) => (
                       <div key={`${grupo.supervisor}-${r.id || i}`} style={{
                         display: "grid",
@@ -10237,7 +10238,7 @@ produccionActiva.forEach(p => {
                 Supervisor: {grupo.supervisor}
               </div>
 
-              {grupo.registros.slice(0, 10).map((r, i) => (
+              {grupo.registros.slice(0, limiteRegistrosPorSupervisor).map((r, i) => (
                 <div key={`${grupo.supervisor}-${r.id || i}`} style={{
                   background: "white",
                   padding: 15,
