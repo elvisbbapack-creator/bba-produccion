@@ -7547,6 +7547,25 @@ const avanceProceso =
           {r.cantidad_ok || 0}
         </div>
 
+        <div style={{
+          marginTop: 4,
+          fontWeight: "bold",
+          color:
+            Number(r.eficiencia || 0) >= 90
+              ? "#2E7D32"
+              : Number(r.eficiencia || 0) >= 70
+              ? "#F9A825"
+              : "#C62828"
+        }}>
+          📈 Eficiencia:
+          {" "}
+          {r.estado_eficiencia || calcularEstadoEficiencia(
+            Number(r.eficiencia || 0)
+          )}
+          {" "}
+          {Number(r.eficiencia || 0)}%
+        </div>
+
         <button
 
           style={{
