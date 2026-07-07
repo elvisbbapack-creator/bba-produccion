@@ -38,6 +38,7 @@ import {
   registrarSolicitudReposicion,
   registrarTraspasoRecepcion,
   registrarTraspasoSalida,
+  resolverSolicitudReposicion,
   validarConteoFisico,
   validarTraspasoSalida,
   validarMovimientoAlmacen
@@ -198,6 +199,10 @@ function AlmacenV2({
   const [
     guardandoSolicitudId,
     setGuardandoSolicitudId
+  ] = useState("");
+  const [
+    resolviendoSolicitudId,
+    setResolviendoSolicitudId
   ] = useState("");
   const [
     recibiendoTraspasoId,
@@ -1040,6 +1045,42 @@ function AlmacenV2({
         setGuardandoSolicitudId("");
       }
     };
+
+  const resolverSolicitud = async (
+    solicitud,
+    nuevoEstado
+  ) => {
+    const observacion = window.prompt(
+      "Observación para resolver la solicitud"
+    );
+
+    if (observacion === null) {
+      return;
+    }
+
+    try {
+      setResolviendoSolicitudId(solicitud.id);
+      setError("");
+      await resolverSolicitudReposicion({
+        db,
+        perfil,
+        solicitud,
+        nuevoEstado,
+        observacion
+      });
+      setMensaje(
+        "Solicitud de reposición actualizada."
+      );
+      await cargar();
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo resolver la solicitud."
+      );
+    } finally {
+      setResolviendoSolicitudId("");
+    }
+  };
 
   const recibirTraspaso = async traspaso => {
     try {
@@ -2882,6 +2923,153 @@ function AlmacenV2({
                             ).length
                           }
                         </div>
+                        {solicitud.observacion_resolucion && (
+                          <div style={{
+                            color: "#475569",
+                            fontSize: 13,
+                            marginTop: 4
+                          }}>
+                            Resolución:{" "}
+                            {
+                              solicitud
+                                .observacion_resolucion
+                            }
+                            {solicitud.resuelto_por_nombre
+                              ? ` · ${solicitud.resuelto_por_nombre}`
+                              : ""}
+                          </div>
+                        )}
+                        {![
+                          ESTADOS_SOLICITUD_REPOSICION
+                            .CERRADA,
+                          ESTADOS_SOLICITUD_REPOSICION
+                            .ANULADA
+                        ].includes(solicitud.estado) && (
+                          <div style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 8,
+                            marginTop: 10
+                          }}>
+                            {solicitud.estado ===
+                              ESTADOS_SOLICITUD_REPOSICION
+                                .PENDIENTE && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  resolverSolicitud(
+                                    solicitud,
+                                    ESTADOS_SOLICITUD_REPOSICION
+                                      .EN_REVISION
+                                  )
+                                }
+                                disabled={
+                                  resolviendoSolicitudId ===
+                                  solicitud.id
+                                }
+                                style={{
+                                  padding: "8px 10px",
+                                  border: "none",
+                                  borderRadius: 8,
+                                  background: "#0369A1",
+                                  color: "white",
+                                  fontWeight: "bold",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Revisar
+                              </button>
+                            )}
+                            {[
+                              ESTADOS_SOLICITUD_REPOSICION
+                                .PENDIENTE,
+                              ESTADOS_SOLICITUD_REPOSICION
+                                .EN_REVISION
+                            ].includes(
+                              solicitud.estado
+                            ) && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  resolverSolicitud(
+                                    solicitud,
+                                    ESTADOS_SOLICITUD_REPOSICION
+                                      .APROBADA
+                                  )
+                                }
+                                disabled={
+                                  resolviendoSolicitudId ===
+                                  solicitud.id
+                                }
+                                style={{
+                                  padding: "8px 10px",
+                                  border: "none",
+                                  borderRadius: 8,
+                                  background: "#15803D",
+                                  color: "white",
+                                  fontWeight: "bold",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Aprobar
+                              </button>
+                            )}
+                            {solicitud.estado ===
+                              ESTADOS_SOLICITUD_REPOSICION
+                                .APROBADA && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  resolverSolicitud(
+                                    solicitud,
+                                    ESTADOS_SOLICITUD_REPOSICION
+                                      .CERRADA
+                                  )
+                                }
+                                disabled={
+                                  resolviendoSolicitudId ===
+                                  solicitud.id
+                                }
+                                style={{
+                                  padding: "8px 10px",
+                                  border: "none",
+                                  borderRadius: 8,
+                                  background: "#0F766E",
+                                  color: "white",
+                                  fontWeight: "bold",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Marcar atendida
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                resolverSolicitud(
+                                  solicitud,
+                                  ESTADOS_SOLICITUD_REPOSICION
+                                    .ANULADA
+                                )
+                              }
+                              disabled={
+                                resolviendoSolicitudId ===
+                                solicitud.id
+                              }
+                              style={{
+                                padding: "8px 10px",
+                                border: "none",
+                                borderRadius: 8,
+                                background: "#B91C1C",
+                                color: "white",
+                                fontWeight: "bold",
+                                cursor: "pointer"
+                              }}
+                            >
+                              Anular
+                            </button>
+                          </div>
+                        )}
                       </article>
                     )
                   )}

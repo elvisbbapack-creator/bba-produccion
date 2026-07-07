@@ -18,6 +18,7 @@ import {
   prepararPoliticaStock,
   prepararSolicitudReposicion,
   prepararTraspasoAlmacen,
+  resolverSolicitudReposicion,
   validarConteoFisico,
   validarPoliticaStock,
   validarSolicitudReposicion,
@@ -592,6 +593,45 @@ test("rechaza solicitud de reposicion sin cantidad positiva", () => {
     validarSolicitudReposicion(solicitud)
   ).toContain(
     "La cantidad sugerida debe ser mayor que cero."
+  );
+});
+
+test("resolver solicitud exige estado valido y observacion", async () => {
+  await expect(
+    resolverSolicitudReposicion({
+      db: {},
+      perfil: {
+        ...usuario,
+        empresa_id: "bba"
+      },
+      solicitud: {
+        id: "sol-1",
+        planta_id: "chile"
+      },
+      nuevoEstado: "desconocido",
+      observacion: "Revisada"
+    })
+  ).rejects.toThrow(
+    "Selecciona un estado válido para la solicitud."
+  );
+
+  await expect(
+    resolverSolicitudReposicion({
+      db: {},
+      perfil: {
+        ...usuario,
+        empresa_id: "bba"
+      },
+      solicitud: {
+        id: "sol-1",
+        planta_id: "chile"
+      },
+      nuevoEstado:
+        ESTADOS_SOLICITUD_REPOSICION.APROBADA,
+      observacion: ""
+    })
+  ).rejects.toThrow(
+    "Indica una observación para resolver la solicitud."
   );
 });
 

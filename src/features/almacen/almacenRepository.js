@@ -2128,6 +2128,86 @@ export const registrarSolicitudReposicion =
     };
   };
 
+export const resolverSolicitudReposicion =
+  async ({
+    db,
+    perfil,
+    solicitud,
+    nuevoEstado,
+    observacion = ""
+  }) => {
+    const estado = limpiarTexto(nuevoEstado);
+    const comentario = limpiarTexto(observacion);
+
+    if (!Object.values(
+      ESTADOS_SOLICITUD_REPOSICION
+    ).includes(estado)) {
+      throw new Error(
+        "Selecciona un estado válido para la solicitud."
+      );
+    }
+
+    if (!comentario) {
+      throw new Error(
+        "Indica una observación para resolver la solicitud."
+      );
+    }
+
+    const solicitudRef = doc(
+      db,
+      "solicitudes_reposicion",
+      solicitud.id
+    );
+
+    await runTransaction(db, async transaccion => {
+      const snapshot =
+        await transaccion.get(solicitudRef);
+
+      if (!snapshot.exists()) {
+        throw new Error(
+          "La solicitud ya no existe."
+        );
+      }
+
+      const actual = snapshot.data();
+
+      if (
+        actual.empresa_id !== perfil.empresa_id ||
+        actual.planta_id !== solicitud.planta_id
+      ) {
+        throw new Error(
+          "La solicitud no pertenece a este almacén."
+        );
+      }
+
+      if (
+        [
+          ESTADOS_SOLICITUD_REPOSICION.CERRADA,
+          ESTADOS_SOLICITUD_REPOSICION.ANULADA
+        ].includes(actual.estado)
+      ) {
+        throw new Error(
+          "La solicitud ya está cerrada o anulada."
+        );
+      }
+
+      transaccion.update(solicitudRef, {
+        estado,
+        observacion_resolucion: comentario,
+        resuelto_por_id: perfil.uid,
+        resuelto_por_nombre:
+          perfil.nombre || "",
+        resuelto_en: serverTimestamp(),
+        actualizado_en: serverTimestamp()
+      });
+    });
+
+    return {
+      id: solicitud.id,
+      estado
+    };
+  };
+
 export const registrarTraspasoSalida =
   async ({
     db,

@@ -248,7 +248,38 @@ service cloud.firestore {
           'compra',
           'reposicion_interna'
         ];
-      allow update, delete: if false;
+      allow update: if canManage() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.estado in [
+          'en_revision',
+          'aprobada',
+          'cerrada',
+          'anulada'
+        ] &&
+        request.resource.data.resuelto_por_id ==
+          request.auth.uid &&
+        request.resource.data.observacion_resolucion is string &&
+        request.resource.data.observacion_resolucion.size() > 0 &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'observacion_resolucion',
+            'resuelto_por_id',
+            'resuelto_por_nombre',
+            'resuelto_en',
+            'actualizado_en'
+          ]);
+      allow delete: if false;
     }
 
     match /catalogo_piezas/{piezaId} {
