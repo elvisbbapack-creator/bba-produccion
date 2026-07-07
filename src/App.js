@@ -9554,6 +9554,18 @@ if (pantalla === "operacionesMaestras") {
       : fecha.getTime();
   };
 
+  const fechaRegistroDia = registro => {
+    const fecha = registro?.fecha?.toDate
+      ? registro.fecha.toDate()
+      : new Date(registro?.fecha);
+
+    if (Number.isNaN(fecha.getTime())) {
+      return "";
+    }
+
+    return fecha.toLocaleDateString("sv-SE");
+  };
+
   const supervisorRegistro = registro =>
     (
       registro?.finalizado_por ||
@@ -9563,8 +9575,28 @@ if (pantalla === "operacionesMaestras") {
       "Sin supervisor"
     ).toString().trim() || "Sin supervisor";
 
+  const diaMasRecienteDashboard =
+    dashboard
+      .slice()
+      .sort(
+        (a, b) =>
+          fechaRegistroMs(b) -
+          fechaRegistroMs(a)
+      )
+      .map(fechaRegistroDia)
+      .find(Boolean) || "";
+
+  const registrosDashboardDiaMasReciente =
+    diaMasRecienteDashboard
+      ? dashboard.filter(
+          registro =>
+            fechaRegistroDia(registro) ===
+            diaMasRecienteDashboard
+        )
+      : dashboard;
+
   const gruposDashboardSupervisor = Object.values(
-    dashboard.reduce((acc, registro) => {
+    registrosDashboardDiaMasReciente.reduce((acc, registro) => {
       const supervisor =
         supervisorRegistro(registro);
 
