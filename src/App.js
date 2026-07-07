@@ -3108,7 +3108,12 @@ return (
 
               fecha: new Date(),
 
-              iniciado_por: p.iniciado_por
+              iniciado_por: p.iniciado_por,
+
+              finalizado_por:
+                usuarioSeleccionado?.nombre ||
+                p.iniciado_por ||
+                "SIN USUARIO"
             }
           );
 
@@ -9537,6 +9542,74 @@ if (pantalla === "operacionesMaestras") {
 
   const alertas = [];
 
+  const fechaRegistroMs = registro => {
+    if (registro?.fecha?.toDate) {
+      return registro.fecha.toDate().getTime();
+    }
+
+    const fecha = new Date(registro?.fecha);
+    return Number.isNaN(fecha.getTime())
+      ? 0
+      : fecha.getTime();
+  };
+
+  const supervisorRegistro = registro =>
+    (
+      registro?.finalizado_por ||
+      registro?.registrado_por ||
+      registro?.iniciado_por ||
+      registro?.supervisor ||
+      "Sin supervisor"
+    ).toString().trim() || "Sin supervisor";
+
+  const gruposDashboardSupervisor = Object.values(
+    dashboard.reduce((acc, registro) => {
+      const supervisor =
+        supervisorRegistro(registro);
+
+      if (!acc[supervisor]) {
+        acc[supervisor] = {
+          supervisor,
+          ultimoRegistroMs: 0,
+          registros: []
+        };
+      }
+
+      const fechaMs =
+        fechaRegistroMs(registro);
+      acc[supervisor].ultimoRegistroMs =
+        Math.max(
+          acc[supervisor].ultimoRegistroMs,
+          fechaMs
+        );
+      acc[supervisor].registros.push(registro);
+
+      return acc;
+    }, {})
+  )
+    .map(grupo => ({
+      ...grupo,
+      registros: grupo.registros
+        .slice()
+        .sort((a, b) => {
+          const eficiencia =
+            Number(b.eficiencia || 0) -
+            Number(a.eficiencia || 0);
+
+          if (eficiencia !== 0) {
+            return eficiencia;
+          }
+
+          return fechaRegistroMs(b) -
+            fechaRegistroMs(a);
+        })
+    }))
+    .sort(
+      (a, b) =>
+        b.ultimoRegistroMs -
+        a.ultimoRegistroMs
+    );
+
 if (parosActivos.length > 0) {
 
   alertas.push({
@@ -10071,97 +10144,137 @@ produccionActiva.forEach(p => {
                 <div>%</div>
               </div>
 
-              {dashboard.slice(0, 25).map((r, i) => (
-                <div key={i} style={{
-                  display: "grid",
-                  gridTemplateColumns:
-  esTV
-    ? "120px 65px 80px 150px 110px 170px 130px 85px 55px"
-    : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
-                  padding: 
-                    esTV
-                      ? "2px 4px"
-                      : "3px 6px",
-                  fontSize: esTV ? 11 : 12,
-                  background: "white",
-                  borderRadius: 8,
-                  marginBottom: esTV ? 2 : 6
-                }}>
-                  <div>
-                    {r.fecha?.toDate
-                      ? r.fecha.toDate().toLocaleString()
-                      : "-"}
+              {gruposDashboardSupervisor.map(grupo => (
+                <div
+                  key={grupo.supervisor}
+                  style={{
+                    marginBottom: esTV ? 8 : 14
+                  }}
+                >
+                  <div style={{
+                    background: "#111827",
+                    color: "white",
+                    borderRadius: 8,
+                    padding: esTV
+                      ? "3px 8px"
+                      : "6px 10px",
+                    fontSize: esTV ? 11 : 13,
+                    fontWeight: "bold",
+                    marginBottom: esTV ? 3 : 6
+                  }}>
+                    Supervisor: {grupo.supervisor}
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center"
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: "50%",
-                        background:
-                          r.eficiencia >= 90
-                            ? "#4CAF50"
-                            : r.eficiencia >= 70
-                            ? "#FFC107"
-                            : "#F44336"
-                      }}
-                    />
-                  </div>
-                  <div><b>{r.operario}</b></div>
-                  <div>{r.ot || "-"}</div>
-                  <div>{r.proceso}</div>
-                  <div>{r.subproceso}</div>
-                  <div>{r.detalle || "-"}</div>
-                  <div>{r.cantidad_ok} un</div>
-                  <div>{r.eficiencia}%</div>
+
+                  {grupo.registros
+                    .slice(0, 25)
+                    .map((r, i) => (
+                      <div key={`${grupo.supervisor}-${r.id || i}`} style={{
+                        display: "grid",
+                        gridTemplateColumns:
+        esTV
+          ? "120px 65px 80px 150px 110px 170px 130px 85px 55px"
+          : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
+                        padding: 
+                          esTV
+                            ? "2px 4px"
+                            : "3px 6px",
+                        fontSize: esTV ? 11 : 12,
+                        background: "white",
+                        borderRadius: 8,
+                        marginBottom: esTV ? 2 : 6
+                      }}>
+                        <div>
+                          {r.fecha?.toDate
+                            ? r.fecha.toDate().toLocaleString()
+                            : "-"}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center"
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: "50%",
+                              background:
+                                r.eficiencia >= 90
+                                  ? "#4CAF50"
+                                  : r.eficiencia >= 70
+                                  ? "#FFC107"
+                                  : "#F44336"
+                            }}
+                          />
+                        </div>
+                        <div><b>{r.operario}</b></div>
+                        <div>{r.ot || "-"}</div>
+                        <div>{r.proceso}</div>
+                        <div>{r.subproceso}</div>
+                        <div>{r.detalle || "-"}</div>
+                        <div>{r.cantidad_ok} un</div>
+                        <div>{r.eficiencia}%</div>
+                      </div>
+                    ))}
                 </div>
               ))}
             </>
           )}
 
           {/* MOBILE */}
-          {esMobile && dashboard.slice(0, 10).map((r, i) => (
-            <div key={i} style={{
-              background: "white",
-              padding: 15,
-              borderRadius: 12,
-              marginBottom: 12
-            }}>
+          {esMobile && gruposDashboardSupervisor.map(grupo => (
+            <div key={grupo.supervisor}>
               <div style={{
-                fontSize: 12,
-                color: "#777",
-                marginBottom: 5
+                background: "#111827",
+                color: "white",
+                borderRadius: 10,
+                padding: "8px 10px",
+                fontWeight: "bold",
+                marginBottom: 10
               }}>
-                {r.fecha?.toDate
-                  ? r.fecha.toDate().toLocaleString()
-                  : "-"}
-              </div>
-              <b>{r.estado_eficiencia} {r.operario}</b>
-              <div>
-                {r.proceso}
-                {" → "}
-                {r.subproceso}
+                Supervisor: {grupo.supervisor}
               </div>
 
-              <div style={{
-                fontSize: 13,
-                marginTop: 3
-              }}>
-                📋 OT:
-                {" "}
-                {r.ot || "-"}
-              </div>
-              <div style={{ fontSize: 13 }}>{r.detalle}</div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>{r.cantidad_ok} un</span>
-                <b>{r.eficiencia}%</b>
-              </div>
+              {grupo.registros.slice(0, 10).map((r, i) => (
+                <div key={`${grupo.supervisor}-${r.id || i}`} style={{
+                  background: "white",
+                  padding: 15,
+                  borderRadius: 12,
+                  marginBottom: 12
+                }}>
+                  <div style={{
+                    fontSize: 12,
+                    color: "#777",
+                    marginBottom: 5
+                  }}>
+                    {r.fecha?.toDate
+                      ? r.fecha.toDate().toLocaleString()
+                      : "-"}
+                  </div>
+                  <b>{r.estado_eficiencia} {r.operario}</b>
+                  <div>
+                    {r.proceso}
+                    {" → "}
+                    {r.subproceso}
+                  </div>
+
+                  <div style={{
+                    fontSize: 13,
+                    marginTop: 3
+                  }}>
+                    📋 OT:
+                    {" "}
+                    {r.ot || "-"}
+                  </div>
+                  <div style={{ fontSize: 13 }}>{r.detalle}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>{r.cantidad_ok} un</span>
+                    <b>{r.eficiencia}%</b>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
 
