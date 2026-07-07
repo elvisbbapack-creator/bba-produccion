@@ -13,8 +13,10 @@ import {
 } from "../ordenes/ordenesRepository";
 import {
   ESTADOS_TRASPASO_ALMACEN,
+  ESTADOS_SOLICITUD_REPOSICION,
   MOVIMIENTOS_ALMACEN,
   TIPOS_MOVIMIENTO_ALMACEN,
+  TIPOS_SOLICITUD_REPOSICION,
   actualizarPoliticaStock,
   calcularAlertasStock,
   calcularCuadraturaAlmacenOT,
@@ -23,6 +25,7 @@ import {
   calcularStockDisponible,
   esMovimientoAjusteAutorizado,
   listarConteosFisicos,
+  listarSolicitudesReposicion,
   listarTraspasosAlmacen,
   listarMovimientosAlmacen,
   listarStockMateriales,
@@ -31,6 +34,7 @@ import {
   prepararTraspasoAlmacen,
   registrarConteoFisico,
   registrarMovimientoAlmacen,
+  registrarSolicitudReposicion,
   registrarTraspasoRecepcion,
   registrarTraspasoSalida,
   validarConteoFisico,
@@ -156,6 +160,10 @@ function AlmacenV2({
   const [traspasos, setTraspasos] =
     useState([]);
   const [conteos, setConteos] = useState([]);
+  const [
+    solicitudesReposicion,
+    setSolicitudesReposicion
+  ] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
   const [operacionesOrden, setOperacionesOrden] =
     useState([]);
@@ -186,6 +194,10 @@ function AlmacenV2({
     useState(false);
   const [guardandoPolitica, setGuardandoPolitica] =
     useState(false);
+  const [
+    guardandoSolicitudId,
+    setGuardandoSolicitudId
+  ] = useState("");
   const [
     recibiendoTraspasoId,
     setRecibiendoTraspasoId
@@ -389,6 +401,22 @@ function AlmacenV2({
     ),
     [necesidadesOTs]
   );
+  const solicitudesAbiertasPorMaterial = useMemo(
+    () => new Set(
+      solicitudesReposicion
+        .filter(solicitud => [
+          ESTADOS_SOLICITUD_REPOSICION.PENDIENTE,
+          ESTADOS_SOLICITUD_REPOSICION.EN_REVISION,
+          ESTADOS_SOLICITUD_REPOSICION.APROBADA
+        ].includes(solicitud.estado))
+        .map(solicitud => solicitud.material_id)
+    ),
+    [solicitudesReposicion]
+  );
+  const solicitudesRecientes = useMemo(
+    () => solicitudesReposicion.slice(0, 10),
+    [solicitudesReposicion]
+  );
   const esAjusteAutorizadoSeleccionado =
     esMovimientoAjusteAutorizado(
       formulario.tipo
@@ -545,7 +573,8 @@ function AlmacenV2({
         movimientosData,
         ordenesData,
         traspasosData,
-        conteosData
+        conteosData,
+        solicitudesData
       ] = await Promise.all([
         listarMateriales(
           db,
@@ -575,6 +604,11 @@ function AlmacenV2({
           db,
           perfil.empresa_id,
           plantaId
+        ),
+        listarSolicitudesReposicion(
+          db,
+          perfil.empresa_id,
+          plantaId
         )
       ]);
       setMateriales(
@@ -586,6 +620,7 @@ function AlmacenV2({
       setMovimientos(movimientosData);
       setTraspasos(traspasosData);
       setConteos(conteosData);
+      setSolicitudesReposicion(solicitudesData);
       const ordenesAbiertas =
         ordenesData.filter(
           orden =>
@@ -939,6 +974,50 @@ function AlmacenV2({
       setGuardandoPolitica(false);
     }
   };
+
+  const generarSolicitudReposicion =
+    async item => {
+      try {
+        setGuardandoSolicitudId(item.material_id);
+        setError("");
+        await registrarSolicitudReposicion({
+          db,
+          perfil,
+          plantaId,
+          material: {
+            id: item.material_id,
+            codigo: item.material_codigo,
+            nombre: item.material_nombre,
+            tipo: item.material_tipo,
+            unidad_medida: item.unidad_medida
+          },
+          cantidadSugerida: item.brecha,
+          prioridad: "alta",
+          tipoSugerido:
+            TIPOS_SOLICITUD_REPOSICION.COMPRA,
+          origen: "brecha_ot",
+          otsAfectadas: item.ots,
+          stockDisponible:
+            item.stock_disponible,
+          cantidadRequerida:
+            item.cantidad_requerida,
+          brecha: item.brecha,
+          observacion:
+            "Solicitud generada desde cobertura de OTs abiertas."
+        });
+        setMensaje(
+          "Solicitud de compra o reposición creada desde la brecha de material."
+        );
+        await cargar();
+      } catch (fallo) {
+        setError(
+          fallo?.message ||
+          "No se pudo generar la solicitud de reposición."
+        );
+      } finally {
+        setGuardandoSolicitudId("");
+      }
+    };
 
   const recibirTraspaso = async traspaso => {
     try {
@@ -2458,8 +2537,154 @@ function AlmacenV2({
                         }}>
                           {item.recomendacion}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            generarSolicitudReposicion(
+                              item
+                            )
+                          }
+                          disabled={
+                            guardandoSolicitudId ===
+                              item.material_id ||
+                            solicitudesAbiertasPorMaterial
+                              .has(item.material_id)
+                          }
+                          style={{
+                            marginTop: 10,
+                            padding: "9px 12px",
+                            border: "none",
+                            borderRadius: 8,
+                            background:
+                              solicitudesAbiertasPorMaterial
+                                .has(item.material_id)
+                                ? "#94A3B8"
+                                : "#B91C1C",
+                            color: "white",
+                            fontWeight: "bold",
+                            cursor:
+                              guardandoSolicitudId ===
+                              item.material_id
+                                ? "wait"
+                                : "pointer"
+                          }}
+                        >
+                          {guardandoSolicitudId ===
+                          item.material_id
+                            ? "Generando solicitud..."
+                            : solicitudesAbiertasPorMaterial
+                              .has(item.material_id)
+                              ? "Solicitud abierta"
+                              : "Generar solicitud"}
+                        </button>
                       </article>
                     ))}
+                </div>
+              )}
+            </section>
+
+            <section style={{
+              background: "white",
+              padding: 22,
+              borderRadius: 14,
+              boxShadow:
+                "0 2px 10px rgba(15,23,42,0.08)"
+            }}>
+              <h2 style={{ marginTop: 0 }}>
+                Solicitudes de reposición
+              </h2>
+
+              {solicitudesRecientes.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  Aún no hay solicitudes generadas
+                  desde brechas de material.
+                </p>
+              ) : (
+                <div style={{
+                  display: "grid",
+                  gap: 10
+                }}>
+                  {solicitudesRecientes.map(
+                    solicitud => (
+                      <article
+                        key={solicitud.id}
+                        style={{
+                          border:
+                            "1px solid #E2E8F0",
+                          borderRadius: 10,
+                          padding: 12,
+                          background: "#F8FAFC"
+                        }}
+                      >
+                        <div style={{
+                          display: "flex",
+                          justifyContent:
+                            "space-between",
+                          gap: 8,
+                          alignItems: "center"
+                        }}>
+                          <strong>
+                            {
+                              solicitud.material_codigo
+                            }
+                            {" - "}
+                            {
+                              solicitud.material_nombre
+                            }
+                          </strong>
+                          <span style={{
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: "bold",
+                            color: "#1D4ED8",
+                            background: "#DBEAFE"
+                          }}>
+                            {solicitud.estado}
+                          </span>
+                        </div>
+                        <div style={{
+                          color: "#334155",
+                          marginTop: 4
+                        }}>
+                          Tipo sugerido:{" "}
+                          {solicitud.tipo_sugerido ===
+                          TIPOS_SOLICITUD_REPOSICION
+                            .REPOSICION_INTERNA
+                            ? "Reposición interna"
+                            : "Compra"}
+                          {" · Cantidad: "}
+                          {formatearNumero(
+                            solicitud.cantidad_sugerida
+                          )}
+                          {" · Brecha: "}
+                          {formatearNumero(
+                            solicitud.brecha
+                          )}
+                        </div>
+                        <div style={{
+                          color: "#64748B",
+                          fontSize: 13,
+                          marginTop: 4
+                        }}>
+                          {formatearFecha(
+                            solicitud.solicitado_en
+                          )}
+                          {" · Solicitó: "}
+                          {solicitud
+                            .solicitado_por_nombre ||
+                            "-"}
+                          {" · OTs: "}
+                          {
+                            (
+                              solicitud.ots_afectadas ||
+                              []
+                            ).length
+                          }
+                        </div>
+                      </article>
+                    )
+                  )}
                 </div>
               )}
             </section>

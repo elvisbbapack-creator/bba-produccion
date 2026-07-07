@@ -1,6 +1,8 @@
 import {
   ESTADOS_TRASPASO_ALMACEN,
+  ESTADOS_SOLICITUD_REPOSICION,
   TIPOS_MOVIMIENTO_ALMACEN,
+  TIPOS_SOLICITUD_REPOSICION,
   calcularAlertasStock,
   calcularCuadraturaAlmacenOT,
   calcularDisponibilidadOT,
@@ -13,9 +15,11 @@ import {
   prepararConteoFisico,
   prepararMovimientoAlmacen,
   prepararPoliticaStock,
+  prepararSolicitudReposicion,
   prepararTraspasoAlmacen,
   validarConteoFisico,
   validarPoliticaStock,
+  validarSolicitudReposicion,
   validarTraspasoSalida,
   validarMovimientoAlmacen
 } from "./almacenRepository";
@@ -465,6 +469,63 @@ test("calcula brechas de materiales para OTs abiertas", () => {
     operacion_codigo: "DT0001",
     cantidad_requerida: 40
   });
+});
+
+test("prepara solicitud de reposicion desde brecha de material", () => {
+  const solicitud = prepararSolicitudReposicion({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    cantidadSugerida: 15,
+    prioridad: "alta",
+    tipoSugerido:
+      TIPOS_SOLICITUD_REPOSICION.COMPRA,
+    origen: "brecha_ot",
+    stockDisponible: 25,
+    cantidadRequerida: 40,
+    brecha: 15,
+    otsAfectadas: [{
+      ot_id: "ot-1",
+      ot_codigo: "OT-001",
+      producto_nombre: "Exhibidor",
+      operacion_codigo: "DT0001",
+      operacion_nombre: "Corte tubo",
+      cantidad_requerida: 40
+    }],
+    usuario
+  });
+
+  expect(solicitud).toMatchObject({
+    empresa_id: "bba",
+    planta_id: "chile",
+    material_id: material.id,
+    cantidad_sugerida: 15,
+    tipo_sugerido:
+      TIPOS_SOLICITUD_REPOSICION.COMPRA,
+    estado:
+      ESTADOS_SOLICITUD_REPOSICION.PENDIENTE,
+    solicitado_por_id: "user-1",
+    brecha: 15
+  });
+  expect(solicitud.ots_afectadas).toHaveLength(1);
+  expect(validarSolicitudReposicion(solicitud))
+    .toEqual([]);
+});
+
+test("rechaza solicitud de reposicion sin cantidad positiva", () => {
+  const solicitud = prepararSolicitudReposicion({
+    empresaId: "bba",
+    plantaId: "chile",
+    material,
+    cantidadSugerida: 0,
+    usuario
+  });
+
+  expect(
+    validarSolicitudReposicion(solicitud)
+  ).toContain(
+    "La cantidad sugerida debe ser mayor que cero."
+  );
 });
 
 test("prepara traspaso interno entre almacenes en estado en transito", () => {

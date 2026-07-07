@@ -233,6 +233,24 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /solicitudes_reposicion/{solicitudId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if canManage() &&
+        belongsToPlant(
+          request.resource.data
+        ) &&
+        request.resource.data.solicitado_por_id ==
+          request.auth.uid &&
+        request.resource.data.estado ==
+          'pendiente' &&
+        request.resource.data.cantidad_sugerida > 0 &&
+        request.resource.data.tipo_sugerido in [
+          'compra',
+          'reposicion_interna'
+        ];
+      allow update, delete: if false;
+    }
+
     match /catalogo_piezas/{piezaId} {
       allow read: if belongsToCompany(resource.data);
       allow create: if canManage() &&

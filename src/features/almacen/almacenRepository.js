@@ -26,6 +26,19 @@ export const ESTADOS_TRASPASO_ALMACEN = {
   ANULADO: "anulado"
 };
 
+export const ESTADOS_SOLICITUD_REPOSICION = {
+  PENDIENTE: "pendiente",
+  EN_REVISION: "en_revision",
+  APROBADA: "aprobada",
+  CERRADA: "cerrada",
+  ANULADA: "anulada"
+};
+
+export const TIPOS_SOLICITUD_REPOSICION = {
+  COMPRA: "compra",
+  REPOSICION_INTERNA: "reposicion_interna"
+};
+
 export const MOVIMIENTOS_ALMACEN = [
   {
     tipo: TIPOS_MOVIMIENTO_ALMACEN.RECEPCION,
@@ -796,6 +809,115 @@ export const calcularNecesidadesMaterialesOTs = ({
     });
 };
 
+export const prepararSolicitudReposicion = ({
+  empresaId,
+  plantaId,
+  material,
+  cantidadSugerida,
+  prioridad = "alta",
+  tipoSugerido =
+    TIPOS_SOLICITUD_REPOSICION.COMPRA,
+  origen = "brecha_ot",
+  otsAfectadas = [],
+  stockDisponible = 0,
+  cantidadRequerida = 0,
+  brecha = 0,
+  observacion = "",
+  usuario
+}) => {
+  const cantidad = Number(cantidadSugerida || 0);
+
+  return {
+    empresa_id: limpiarTexto(empresaId),
+    planta_id: limpiarTexto(plantaId),
+    material_id: limpiarTexto(material?.id),
+    material_codigo: limpiarTexto(material?.codigo),
+    material_nombre: limpiarTexto(material?.nombre),
+    material_tipo: limpiarTexto(material?.tipo),
+    unidad_medida: limpiarTexto(material?.unidad_medida),
+    cantidad_sugerida: Number.isFinite(cantidad)
+      ? cantidad
+      : 0,
+    prioridad: limpiarTexto(prioridad) || "alta",
+    tipo_sugerido:
+      limpiarTexto(tipoSugerido) ||
+      TIPOS_SOLICITUD_REPOSICION.COMPRA,
+    origen: limpiarTexto(origen) || "brecha_ot",
+    estado:
+      ESTADOS_SOLICITUD_REPOSICION.PENDIENTE,
+    stock_disponible: Number(stockDisponible || 0),
+    cantidad_requerida: Number(
+      cantidadRequerida || 0
+    ),
+    brecha: Number(brecha || 0),
+    ots_afectadas: (otsAfectadas || [])
+      .slice(0, 20)
+      .map(ot => ({
+        ot_id: limpiarTexto(ot.ot_id),
+        ot_codigo: limpiarTexto(ot.ot_codigo),
+        producto_nombre: limpiarTexto(
+          ot.producto_nombre
+        ),
+        operacion_codigo: limpiarTexto(
+          ot.operacion_codigo
+        ),
+        operacion_nombre: limpiarTexto(
+          ot.operacion_nombre
+        ),
+        cantidad_requerida: Number(
+          ot.cantidad_requerida || 0
+        )
+      })),
+    observacion: limpiarTexto(observacion),
+    solicitado_por_id: limpiarTexto(usuario?.uid),
+    solicitado_por_nombre: limpiarTexto(
+      usuario?.nombre
+    ),
+    modelo_version: 2
+  };
+};
+
+export const validarSolicitudReposicion =
+  solicitud => {
+    const errores = [];
+    const cantidad = Number(
+      solicitud?.cantidad_sugerida || 0
+    );
+
+    if (!solicitud?.material_id) {
+      errores.push("Selecciona un material.");
+    }
+
+    if (
+      !Number.isFinite(cantidad) ||
+      cantidad <= 0
+    ) {
+      errores.push(
+        "La cantidad sugerida debe ser mayor que cero."
+      );
+    }
+
+    if (
+      ![
+        TIPOS_SOLICITUD_REPOSICION.COMPRA,
+        TIPOS_SOLICITUD_REPOSICION
+          .REPOSICION_INTERNA
+      ].includes(solicitud?.tipo_sugerido)
+    ) {
+      errores.push(
+        "Selecciona compra o reposición interna."
+      );
+    }
+
+    if (!solicitud?.solicitado_por_id) {
+      errores.push(
+        "La solicitud debe tener usuario solicitante."
+      );
+    }
+
+    return errores;
+  };
+
 export const calcularStockTrasMovimiento = (
   stockActual,
   movimiento
@@ -1430,6 +1552,33 @@ export const listarConteosFisicos = async (
     });
 };
 
+export const listarSolicitudesReposicion = async (
+  db,
+  empresaId,
+  plantaId
+) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, "solicitudes_reposicion"),
+      where("empresa_id", "==", empresaId),
+      where("planta_id", "==", plantaId)
+    )
+  );
+
+  return snapshot.docs
+    .map(documento => ({
+      id: documento.id,
+      ...documento.data()
+    }))
+    .sort((a, b) => {
+      const derecha =
+        b.solicitado_en?.toMillis?.() || 0;
+      const izquierda =
+        a.solicitado_en?.toMillis?.() || 0;
+      return derecha - izquierda;
+    });
+};
+
 export const registrarMovimientoAlmacen =
   async ({
     db,
@@ -1756,6 +1905,89 @@ export const actualizarPoliticaStock =
     });
 
     return politica;
+  };
+
+export const registrarSolicitudReposicion =
+  async ({
+    db,
+    perfil,
+    plantaId,
+    material,
+    cantidadSugerida,
+    prioridad,
+    tipoSugerido,
+    origen,
+    otsAfectadas,
+    stockDisponible,
+    cantidadRequerida,
+    brecha,
+    observacion
+  }) => {
+    const solicitud = prepararSolicitudReposicion({
+      empresaId: perfil.empresa_id,
+      plantaId,
+      material,
+      cantidadSugerida,
+      prioridad,
+      tipoSugerido,
+      origen,
+      otsAfectadas,
+      stockDisponible,
+      cantidadRequerida,
+      brecha,
+      observacion,
+      usuario: perfil
+    });
+    const errores =
+      validarSolicitudReposicion(solicitud);
+
+    if (errores.length > 0) {
+      throw new Error(errores.join(" "));
+    }
+
+    const solicitudRef = doc(
+      collection(db, "solicitudes_reposicion")
+    );
+
+    const abiertasSnapshot = await getDocs(
+      query(
+        collection(
+          db,
+          "solicitudes_reposicion"
+        ),
+        where("empresa_id", "==", perfil.empresa_id),
+        where("planta_id", "==", plantaId)
+      )
+    );
+    const tieneSolicitudAbierta =
+      abiertasSnapshot.docs.some(documento => {
+        const data = documento.data();
+        return data.material_id === material?.id &&
+          [
+            ESTADOS_SOLICITUD_REPOSICION.PENDIENTE,
+            ESTADOS_SOLICITUD_REPOSICION.EN_REVISION,
+            ESTADOS_SOLICITUD_REPOSICION.APROBADA
+          ].includes(data.estado);
+      });
+
+    if (tieneSolicitudAbierta) {
+      throw new Error(
+        "Ya existe una solicitud abierta para este material en este almacén."
+      );
+    }
+
+    await runTransaction(db, async transaccion => {
+      transaccion.set(solicitudRef, {
+        ...solicitud,
+        solicitado_en: serverTimestamp(),
+        actualizado_en: serverTimestamp()
+      });
+    });
+
+    return {
+      id: solicitudRef.id,
+      ...solicitud
+    };
   };
 
 export const registrarTraspasoSalida =
