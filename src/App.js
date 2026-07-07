@@ -207,6 +207,18 @@ function App() {
 
   const [estandares, setEstandares] = useState([]);
   const [dashboard, setDashboard] = useState([]);
+  const [
+    registrosEvolucionOperario,
+    setRegistrosEvolucionOperario
+  ] = useState([]);
+  const [
+    operarioEvolucionSeleccionado,
+    setOperarioEvolucionSeleccionado
+  ] = useState("");
+  const [
+    cargandoEvolucionOperario,
+    setCargandoEvolucionOperario
+  ] = useState(false);
 
   const [clienteOT, setClienteOT] = useState("");
   const [productoOT, setProductoOT] = useState("");
@@ -621,6 +633,46 @@ const cargarRegistrosAjustePorFecha = useCallback(async (
 
 }, [fechaAjusteGerencial]);
 
+const cargarEvolucionOperarios = useCallback(async () => {
+
+  const inicio =
+    new Date();
+
+  inicio.setHours(0, 0, 0, 0);
+  inicio.setDate(
+    inicio.getDate() - 29
+  );
+
+  setCargandoEvolucionOperario(true);
+
+  try {
+    const registrosQuery = query(
+      collection(db, "registros_produccion"),
+      where("fecha", ">=", inicio),
+      orderBy("fecha", "desc"),
+      limit(2500)
+    );
+
+    const registrosSnap =
+      await getDocs(registrosQuery);
+
+    setRegistrosEvolucionOperario(
+      registrosSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    );
+  } catch (error) {
+    console.error(error);
+    alert(
+      "Error cargando evolución de eficiencia"
+    );
+  } finally {
+    setCargandoEvolucionOperario(false);
+  }
+
+}, []);
+
 useEffect(() => {
 
   if (!autenticacionFirebaseActiva) {
@@ -727,6 +779,40 @@ useEffect(() => {
 }, [
   pantalla,
   cargarRegistrosAjustePorFecha
+]);
+
+useEffect(() => {
+
+  if (pantalla !== "evolucionOperario") {
+    return;
+  }
+
+  cargarEvolucionOperarios();
+
+}, [
+  pantalla,
+  cargarEvolucionOperarios
+]);
+
+useEffect(() => {
+
+  if (pantalla !== "evolucionOperario") {
+    return;
+  }
+
+  if (
+    !operarioEvolucionSeleccionado &&
+    operarios.length > 0
+  ) {
+    setOperarioEvolucionSeleccionado(
+      operarios[0].nombre || ""
+    );
+  }
+
+}, [
+  pantalla,
+  operarioEvolucionSeleccionado,
+  operarios
 ]);
   
 useEffect(() => {
@@ -1535,6 +1621,11 @@ const cargarTodosLosParos = async () => {
           titulo: "Historial de Paros",
           visible: true,
           accion: () => setPantalla("historialParos")
+        },
+        {
+          titulo: "Evolución Eficiencia Operario",
+          visible: true,
+          accion: () => setPantalla("evolucionOperario")
         },
         {
           titulo: "Ajuste Gerencial",
@@ -6129,6 +6220,477 @@ const avanceProceso =
 
           ← Volver
 
+        </button>
+
+      </div>
+
+    );
+
+  }
+  
+  if (pantalla === "evolucionOperario") {
+
+    const colorEficiencia = eficiencia => {
+      if (eficiencia === null) return "#E0E0E0";
+      if (eficiencia >= 90) return "#2E7D32";
+      if (eficiencia >= 70) return "#F9A825";
+      return "#C62828";
+    };
+
+    const diasEvolucion = Array.from(
+      { length: 30 },
+      (_, index) => {
+        const fecha = new Date();
+        fecha.setHours(0, 0, 0, 0);
+        fecha.setDate(
+          fecha.getDate() - 29 + index
+        );
+
+        return {
+          fecha,
+          key: fechaParaInputLocal(fecha),
+          label: fecha.toLocaleDateString(
+            "es-CL",
+            {
+              day: "2-digit",
+              month: "2-digit"
+            }
+          )
+        };
+      }
+    );
+
+    const registrosOperario =
+      registrosEvolucionOperario
+        .filter(r => !r.anulado)
+        .filter(r =>
+          normalizar(r.operario) ===
+          normalizar(
+            operarioEvolucionSeleccionado
+          )
+        )
+        .filter(r =>
+          r.tipo !== "ajuste_gerencial"
+        )
+        .filter(r =>
+          Number.isFinite(
+            Number(r.eficiencia)
+          )
+        );
+
+    const registrosPorDia =
+      registrosOperario.reduce((acc, r) => {
+        const fecha =
+          fechaDesdeValor(r.fecha);
+
+        if (!fecha) return acc;
+
+        const key =
+          fechaParaInputLocal(fecha);
+
+        if (!acc[key]) {
+          acc[key] = {
+            suma: 0,
+            cantidad: 0
+          };
+        }
+
+        acc[key].suma +=
+          Number(r.eficiencia || 0);
+        acc[key].cantidad += 1;
+
+        return acc;
+      }, {});
+
+    const datosEvolucion =
+      diasEvolucion.map(dia => {
+        const dataDia =
+          registrosPorDia[dia.key];
+
+        const promedio =
+          dataDia?.cantidad
+            ? Number(
+                (
+                  dataDia.suma /
+                  dataDia.cantidad
+                ).toFixed(1)
+              )
+            : null;
+
+        return {
+          fecha: dia.label,
+          fechaCompleta: dia.key,
+          eficiencia:
+            promedio === null ? 0 : promedio,
+          promedio,
+          registros:
+            dataDia?.cantidad || 0,
+          color:
+            colorEficiencia(promedio)
+        };
+      });
+
+    const diasConDatos =
+      datosEvolucion.filter(d =>
+        d.promedio !== null
+      );
+
+    const promedioLista = lista => {
+      const validos =
+        lista.filter(d =>
+          d.promedio !== null
+        );
+
+      if (validos.length === 0) {
+        return null;
+      }
+
+      return Number(
+        (
+          validos.reduce(
+            (acc, d) =>
+              acc + d.promedio,
+            0
+          ) / validos.length
+        ).toFixed(1)
+      );
+    };
+
+    const promedio30 =
+      promedioLista(datosEvolucion);
+    const promedioUltimos7 =
+      promedioLista(
+        datosEvolucion.slice(-7)
+      );
+    const promedioPrevios7 =
+      promedioLista(
+        datosEvolucion.slice(-14, -7)
+      );
+
+    const tendencia =
+      promedioUltimos7 !== null &&
+      promedioPrevios7 !== null
+        ? Number(
+            (
+              promedioUltimos7 -
+              promedioPrevios7
+            ).toFixed(1)
+          )
+        : null;
+
+    const mejorDia =
+      diasConDatos
+        .slice()
+        .sort(
+          (a, b) =>
+            b.promedio - a.promedio
+        )[0];
+
+    const peorDia =
+      diasConDatos
+        .slice()
+        .sort(
+          (a, b) =>
+            a.promedio - b.promedio
+        )[0];
+
+    const mensajeTendencia =
+      tendencia === null
+        ? "Aun no hay suficientes datos comparables."
+        : tendencia >= 5
+        ? `Mejora clara: +${tendencia}% vs los 7 dias anteriores.`
+        : tendencia <= -5
+        ? `Atencion: baja ${Math.abs(tendencia)}% vs los 7 dias anteriores.`
+        : "Estable: variacion pequena vs los 7 dias anteriores.";
+
+    return (
+
+      <div style={{
+        padding: 20,
+        maxWidth: 1100,
+        margin: "0 auto"
+      }}>
+
+        <h2>
+          📈 Evolución Eficiencia Operario
+        </h2>
+
+        <p style={{
+          color: "#555",
+          lineHeight: 1.5
+        }}>
+          Vista para reuniones personales:
+          muestra los últimos 30 días, con barras
+          por fecha y color semáforo según la
+          eficiencia promedio diaria.
+        </p>
+
+        <select
+          style={estiloInput}
+          value={operarioEvolucionSeleccionado}
+          onChange={(e) =>
+            setOperarioEvolucionSeleccionado(
+              e.target.value
+            )
+          }
+        >
+
+          <option value="">
+            Seleccionar operario
+          </option>
+
+          {operarios.map((o, i) => (
+            <option
+              key={i}
+              value={o.nombre}
+            >
+              {o.nombre}
+            </option>
+          ))}
+
+        </select>
+
+        {cargandoEvolucionOperario && (
+          <div style={{
+            background: "#E3F2FD",
+            color: "#0D47A1",
+            padding: 14,
+            borderRadius: 12,
+            marginBottom: 16,
+            fontWeight: "bold"
+          }}>
+            Cargando evolución...
+          </div>
+        )}
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            esMobile
+              ? "1fr"
+              : "repeat(4, 1fr)",
+          gap: 12,
+          marginBottom: 20
+        }}>
+
+          <div style={{
+            background: "white",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Promedio 30 días</b>
+            <h2 style={{
+              color:
+                colorEficiencia(promedio30),
+              marginBottom: 0
+            }}>
+              {promedio30 ?? "-"}%
+            </h2>
+          </div>
+
+          <div style={{
+            background: "white",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Últimos 7 días</b>
+            <h2 style={{
+              color:
+                colorEficiencia(
+                  promedioUltimos7
+                ),
+              marginBottom: 0
+            }}>
+              {promedioUltimos7 ?? "-"}%
+            </h2>
+          </div>
+
+          <div style={{
+            background: "white",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Tendencia</b>
+            <h2 style={{
+              color:
+                tendencia === null
+                  ? "#555"
+                  : tendencia >= 0
+                  ? "#2E7D32"
+                  : "#C62828",
+              marginBottom: 0
+            }}>
+              {tendencia === null
+                ? "-"
+                : `${tendencia > 0 ? "+" : ""}${tendencia}%`}
+            </h2>
+          </div>
+
+          <div style={{
+            background: "white",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Registros evaluados</b>
+            <h2 style={{
+              color: "#1976D2",
+              marginBottom: 0
+            }}>
+              {registrosOperario.length}
+            </h2>
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "white",
+          padding: 18,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,0.08)",
+          marginBottom: 18
+        }}>
+
+          <h3>
+            Línea de tiempo últimos 30 días
+          </h3>
+
+          <div style={{
+            width: "100%",
+            height: esMobile ? 280 : 360
+          }}>
+
+            <ResponsiveContainer>
+
+              <BarChart
+                data={datosEvolucion}
+              >
+
+                <XAxis
+                  dataKey="fecha"
+                />
+
+                <YAxis
+                  domain={[0, 150]}
+                />
+
+                <Tooltip
+                  formatter={(value, name, item) => {
+                    const payload =
+                      item?.payload || {};
+
+                    if (
+                      payload.promedio === null
+                    ) {
+                      return [
+                        "Sin registros",
+                        "Eficiencia"
+                      ];
+                    }
+
+                    return [
+                      `${payload.promedio}% (${payload.registros} reg.)`,
+                      "Eficiencia"
+                    ];
+                  }}
+                />
+
+                <Bar dataKey="eficiencia">
+                  {datosEvolucion.map(
+                    (entry, index) => (
+                      <Cell
+                        key={`eficiencia-${index}`}
+                        fill={entry.color}
+                      />
+                    )
+                  )}
+                </Bar>
+
+              </BarChart>
+
+            </ResponsiveContainer>
+
+          </div>
+
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            esMobile
+              ? "1fr"
+              : "1fr 1fr",
+          gap: 12
+        }}>
+
+          <div style={{
+            background: "#E8F5E9",
+            color: "#1B5E20",
+            padding: 16,
+            borderRadius: 14
+          }}>
+            <b>Mejor día</b>
+            <div>
+              {mejorDia
+                ? `${mejorDia.fecha}: ${mejorDia.promedio}%`
+                : "-"}
+            </div>
+          </div>
+
+          <div style={{
+            background: "#FFEBEE",
+            color: "#B71C1C",
+            padding: 16,
+            borderRadius: 14
+          }}>
+            <b>Día más bajo</b>
+            <div>
+              {peorDia
+                ? `${peorDia.fecha}: ${peorDia.promedio}%`
+                : "-"}
+            </div>
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "#FFF8E1",
+          color: "#5D4037",
+          padding: 16,
+          borderRadius: 14,
+          marginTop: 14,
+          fontWeight: "bold"
+        }}>
+          {mensajeTendencia}
+        </div>
+
+        <button
+          onClick={() =>
+            cargarEvolucionOperarios()
+          }
+          style={{
+            ...botonVerde,
+            marginTop: 18
+          }}
+        >
+          🔄 Actualizar datos
+        </button>
+
+        <button
+          onClick={() =>
+            setPantalla("home")
+          }
+          style={botonAzul}
+        >
+          ← Volver
         </button>
 
       </div>
