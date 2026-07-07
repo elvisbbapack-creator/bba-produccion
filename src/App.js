@@ -120,6 +120,23 @@ function App() {
       ? null
       : fecha;
   };
+  const fechaParaInputLocal = fecha => {
+    const fechaValida =
+      fecha instanceof Date
+        ? fecha
+        : new Date(fecha);
+
+    if (Number.isNaN(fechaValida.getTime())) {
+      return "";
+    }
+
+    const offsetMs =
+      fechaValida.getTimezoneOffset() * 60000;
+
+    return new Date(
+      fechaValida.getTime() - offsetMs
+    ).toISOString().slice(0, 10);
+  };
   const calcularEstadoEficiencia = eficiencia => {
     if (eficiencia < 70) return "🔴";
     if (eficiencia < 90) return "🟡";
@@ -269,6 +286,12 @@ const [unidadesHoraOperacionProducto,
   const [responsableAjuste, setResponsableAjuste] = useState("");
 
   const [registroAjuste, setRegistroAjuste] = useState(null);
+  const [fechaAjusteGerencial, setFechaAjusteGerencial] =
+    useState(() => fechaParaInputLocal(new Date()));
+  const [
+    cargandoRegistrosAjuste,
+    setCargandoRegistrosAjuste
+  ] = useState(false);
   const [nuevaHoraInicio, setNuevaHoraInicio] = useState("");
   const [nuevaHoraFin, setNuevaHoraFin] = useState("");
   const [nuevaCantidad, setNuevaCantidad] = useState("");
@@ -541,6 +564,63 @@ setDashboard(
 
 }, [cargarOrdenesTrabajo]);
 
+const cargarRegistrosAjustePorFecha = useCallback(async (
+  fechaSeleccionada = fechaAjusteGerencial
+) => {
+
+  if (!fechaSeleccionada) {
+    setRegistros([]);
+    return;
+  }
+
+  const inicioDia =
+    new Date(`${fechaSeleccionada}T00:00:00`);
+
+  const finDia =
+    new Date(inicioDia);
+
+  finDia.setDate(
+    finDia.getDate() + 1
+  );
+
+  if (
+    Number.isNaN(inicioDia.getTime()) ||
+    Number.isNaN(finDia.getTime())
+  ) {
+    setRegistros([]);
+    return;
+  }
+
+  setCargandoRegistrosAjuste(true);
+
+  try {
+    const registrosQuery = query(
+      collection(db, "registros_produccion"),
+      where("fecha", ">=", inicioDia),
+      where("fecha", "<", finDia),
+      orderBy("fecha", "desc")
+    );
+
+    const registrosSnap =
+      await getDocs(registrosQuery);
+
+    setRegistros(
+      registrosSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    );
+  } catch (error) {
+    console.error(error);
+    alert(
+      "Error cargando registros de la fecha seleccionada"
+    );
+  } finally {
+    setCargandoRegistrosAjuste(false);
+  }
+
+}, [fechaAjusteGerencial]);
+
 useEffect(() => {
 
   if (!autenticacionFirebaseActiva) {
@@ -634,6 +714,19 @@ useEffect(() => {
   autenticacionLista,
   cargarDatos,
   sesionCargaId
+]);
+
+useEffect(() => {
+
+  if (pantalla !== "ajusteGerencial") {
+    return;
+  }
+
+  cargarRegistrosAjustePorFecha();
+
+}, [
+  pantalla,
+  cargarRegistrosAjustePorFecha
 ]);
   
 useEffect(() => {
@@ -1446,7 +1539,12 @@ const cargarTodosLosParos = async () => {
         {
           titulo: "Ajuste Gerencial",
           visible: true,
-          accion: () => setPantalla("ajusteGerencial")
+          accion: () => {
+            setFechaAjusteGerencial(
+              fechaParaInputLocal(new Date())
+            );
+            setPantalla("ajusteGerencial");
+          }
         }
       ]
     }
@@ -7225,6 +7323,79 @@ const avanceProceso =
   ✏️ Corrección Registros
 </h3>
 
+<label style={{
+  display: "block",
+  fontWeight: "bold",
+  marginBottom: 6
+}}>
+  Fecha de registros a corregir
+</label>
+
+<input
+  type="date"
+  style={estiloInput}
+  value={fechaAjusteGerencial}
+  onChange={(e) => {
+    setRegistroAjuste(null);
+    setFechaAjusteGerencial(
+      e.target.value
+    );
+  }}
+/>
+
+{cargandoRegistrosAjuste && (
+  <div style={{
+    background: "#E3F2FD",
+    color: "#0D47A1",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontWeight: "bold"
+  }}>
+    Cargando registros...
+  </div>
+)}
+
+{!cargandoRegistrosAjuste && (
+  <div style={{
+    background: "#F5F5F5",
+    color: "#333",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12
+  }}>
+    Registros encontrados:
+    {" "}
+    {
+      registros
+        .filter(r => !r.anulado)
+        .filter(r =>
+
+          (!otSeleccionada ||
+
+            normalizar(r.ot)
+            ===
+            normalizar(
+              otSeleccionada
+            )
+          )
+
+          &&
+
+          (!operarioSeleccionado ||
+
+            normalizar(r.operario)
+            ===
+            normalizar(
+              operarioSeleccionado
+            )
+          )
+
+        ).length
+    }
+  </div>
+)}
+
 <div style={{
   marginTop: 20
 }}>
@@ -7264,8 +7435,6 @@ const avanceProceso =
   a.fecha?.seconds
 
 )
-
-.slice(0, 30)
 
 .map((r, i) => (
 
@@ -7462,26 +7631,7 @@ setNuevaHoraFin(
         "Registro anulado ✅"
       );
 
-      const registrosQuery = query(
-        collection(
-          db,
-          "registros_produccion"
-        ),
-        orderBy("fecha", "desc"),
-        limit(100)
-      );
-
-      const registrosSnap =
-        await getDocs(
-          registrosQuery
-        );
-
-      setRegistros(
-        registrosSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-      );
+      await cargarRegistrosAjustePorFecha();
 
       await cargarDashboard();
 
@@ -7775,21 +7925,7 @@ let nuevoSemaforo =
   }
 );
 
-const registrosQuery = query(
-  collection(db, "registros_produccion"),
-  orderBy("fecha", "desc"),
-  limit(100)
-);
-
-const registrosSnap =
-  await getDocs(registrosQuery);
-
-setRegistros(
-  registrosSnap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }))
-);
+await cargarRegistrosAjustePorFecha();
 
 await cargarDashboard();
 
