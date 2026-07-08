@@ -119,6 +119,29 @@ permisos finos como `usuarios.gestionar`, `almacen.gestionar`,
 Firebase Auth y la asignacion de custom claims deben ejecutarse desde
 backend/Admin SDK; el navegador solo prepara y administra el perfil operativo.
 
+Para activar una ficha pendiente en el entorno de pruebas se puede usar el
+script administrativo:
+
+```bash
+npm run firebase:activar-usuario -- --email usuario@empresa.cl
+```
+
+El script usa la sesion activa de Firebase CLI, crea la cuenta Auth si no
+existe, asigna custom claims desde la ficha `usuarios`, crea/actualiza
+`usuarios/{uid}`, marca la ficha pendiente anterior como reemplazada y envia
+correo de restablecimiento de contrasena cuando corresponde. Para revisar el
+plan sin escribir datos:
+
+```bash
+npm run firebase:activar-usuario -- --email usuario@empresa.cl --dry-run
+```
+
+Si existen fichas duplicadas por email, usar el id del documento:
+
+```bash
+npm run firebase:activar-usuario -- --doc idDocumentoUsuarios
+```
+
 Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 
 ## Verificacion
