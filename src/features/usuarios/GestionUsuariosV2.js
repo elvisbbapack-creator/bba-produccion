@@ -64,6 +64,9 @@ const permisosOrdenados = PERMISOS_V2.slice()
     )
   );
 
+const esFichaReemplazada = usuario =>
+  usuario.estado_auth === "reemplazado_por_uid";
+
 export default function GestionUsuariosV2({
   db,
   perfil,
@@ -87,6 +90,8 @@ export default function GestionUsuariosV2({
     useState("activos");
   const [filtroPermiso, setFiltroPermiso] =
     useState("");
+  const [filtroHistorial, setFiltroHistorial] =
+    useState("operativos");
 
   const cargar = async () => {
     setCargando(true);
@@ -198,6 +203,19 @@ export default function GestionUsuariosV2({
   const usuariosFiltrados = useMemo(() => {
     return usuarios.filter(usuario => {
       const activo = usuario.activo !== false;
+      const reemplazada =
+        esFichaReemplazada(usuario);
+
+      const pasaHistorial =
+        (
+          filtroHistorial === "operativos" &&
+          !reemplazada
+        ) ||
+        (
+          filtroHistorial === "reemplazados" &&
+          reemplazada
+        ) ||
+        filtroHistorial === "todos";
 
       const pasaActivo =
         filtroActivo === "todos" ||
@@ -227,6 +245,7 @@ export default function GestionUsuariosV2({
         );
 
       return (
+        pasaHistorial &&
         pasaActivo &&
         pasaRol &&
         pasaPlanta &&
@@ -236,22 +255,28 @@ export default function GestionUsuariosV2({
   }, [
     usuarios,
     filtroActivo,
+    filtroHistorial,
     filtroRol,
     filtroPlanta,
     filtroPermiso
   ]);
 
+  const usuariosOperativos = usuarios.filter(
+    usuario => !esFichaReemplazada(usuario)
+  );
+  const usuariosHistoricos = usuarios.filter(
+    esFichaReemplazada
+  );
+
   const resumen = {
-    total: usuarios.length,
-    activos: usuarios.filter(u =>
+    total: usuariosOperativos.length,
+    activos: usuariosOperativos.filter(u =>
       u.activo !== false
     ).length,
-    pendientesAuth: usuarios.filter(u =>
+    pendientesAuth: usuariosOperativos.filter(u =>
       u.estado_auth === "pendiente_auth"
     ).length,
-    gerencia: usuarios.filter(u =>
-      u.rol === "gerencia"
-    ).length
+    historicos: usuariosHistoricos.length
   };
 
   return (
@@ -296,10 +321,10 @@ export default function GestionUsuariosV2({
         marginBottom: 18
       }}>
         {[
-          ["Total usuarios", resumen.total],
+          ["Usuarios operativos", resumen.total],
           ["Activos", resumen.activos],
           ["Pendientes Auth", resumen.pendientesAuth],
-          ["Gerencia", resumen.gerencia]
+          ["Históricos ocultos", resumen.historicos]
         ].map(([titulo, valor]) => (
           <div key={titulo} style={{
             background: "white",
@@ -620,6 +645,24 @@ export default function GestionUsuariosV2({
 
           <select
             style={estiloInput}
+            value={filtroHistorial}
+            onChange={e =>
+              setFiltroHistorial(e.target.value)
+            }
+          >
+            <option value="operativos">
+              Solo usuarios operativos
+            </option>
+            <option value="reemplazados">
+              Solo fichas reemplazadas
+            </option>
+            <option value="todos">
+              Incluir históricos
+            </option>
+          </select>
+
+          <select
+            style={estiloInput}
             value={filtroRol}
             onChange={e =>
               setFiltroRol(e.target.value)
@@ -678,6 +721,18 @@ export default function GestionUsuariosV2({
           Usuarios encontrados:{" "}
           {usuariosFiltrados.length}
         </b>
+        {filtroHistorial === "operativos" &&
+          resumen.historicos > 0 && (
+            <div style={{
+              marginTop: 8,
+              color: "#64748B",
+              fontSize: 13
+            }}>
+              {resumen.historicos} ficha(s)
+              reemplazada(s) se mantienen ocultas
+              para trazabilidad.
+            </div>
+          )}
       </div>
 
       {cargando && (
