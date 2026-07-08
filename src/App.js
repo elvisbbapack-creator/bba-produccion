@@ -148,6 +148,26 @@ function App() {
       estandar?.unidades_hora ??
       0
     );
+  const normalizarListaHabilidades = valor => {
+    const base = Array.isArray(valor)
+      ? valor
+      : (valor || "")
+          .toString()
+          .split(/[,;\n]/);
+
+    return [
+      ...new Set(
+        base
+          .map(item =>
+            item.toString().trim()
+          )
+          .filter(Boolean)
+      )
+    ];
+  };
+  const textoHabilidades = valor =>
+    normalizarListaHabilidades(valor)
+      .join(", ");
   const registroFueAjustado = (
     registroId
   ) => {
@@ -175,6 +195,32 @@ function App() {
   const [usuarios, setUsuarios] = useState([]);
   const [operarios, setOperarios] = useState([]);
   const [operarioSeleccionado, setOperarioSeleccionado] = useState("");
+  const [nuevoOperarioNombre, setNuevoOperarioNombre] =
+    useState("");
+  const [nuevoOperarioEquipo, setNuevoOperarioEquipo] =
+    useState("");
+  const [nuevoOperarioActivo, setNuevoOperarioActivo] =
+    useState(true);
+  const [
+    nuevoOperarioHabilidades,
+    setNuevoOperarioHabilidades
+  ] = useState("");
+  const [
+    filtroEquipoOperarios,
+    setFiltroEquipoOperarios
+  ] = useState("");
+  const [
+    filtroHabilidadOperarios,
+    setFiltroHabilidadOperarios
+  ] = useState("");
+  const [
+    filtroActivoOperarios,
+    setFiltroActivoOperarios
+  ] = useState("activos");
+  const [
+    edicionesOperarios,
+    setEdicionesOperarios
+  ] = useState({});
 
   const [otSeleccionada, setOtSeleccionada] = useState("");
   const [procesoSeleccionado, setProcesoSeleccionado] = useState("");
@@ -481,7 +527,13 @@ const cargarDatos = useCallback(async () => {
     const operSnap = await getDocs(collection(db, "operarios"));
 
     setOperarios(
-      operSnap.docs.map(doc => doc.data())
+      operSnap.docs.map(doc => ({
+        id: doc.id,
+        activo: true,
+        equipo: "",
+        habilidades: [],
+        ...doc.data()
+      }))
     );
 
     const subSnap = await getDocs(collection(db, "subprocesos"));
@@ -1582,6 +1634,12 @@ const cargarTodosLosParos = async () => {
             setPantalla(
               "historialDecisionesPlanificadorV2"
             )
+        },
+        {
+          titulo: "Gestión de Operarios",
+          visible: true,
+          accion: () =>
+            setPantalla("gestionOperarios")
         }
       ]
     },
@@ -6228,6 +6286,757 @@ const avanceProceso =
 
   }
   
+  if (pantalla === "gestionOperarios") {
+
+    const equiposBase = [
+      "Alexis",
+      "Pablo"
+    ];
+
+    const habilidadesDisponibles = [
+      ...new Set(
+        operarios.flatMap(o =>
+          normalizarListaHabilidades(
+            o.habilidades
+          )
+        )
+      )
+    ].sort((a, b) =>
+      a.localeCompare(b)
+    );
+
+    const operariosGestion =
+      operarios
+        .slice()
+        .sort((a, b) =>
+          (a.nombre || "")
+            .localeCompare(b.nombre || "")
+        );
+
+    const operariosFiltrados =
+      operariosGestion.filter(o => {
+        const activo =
+          o.activo !== false;
+
+        const pasaActivo =
+          filtroActivoOperarios === "todos" ||
+          (
+            filtroActivoOperarios === "activos" &&
+            activo
+          ) ||
+          (
+            filtroActivoOperarios === "inactivos" &&
+            !activo
+          );
+
+        const pasaEquipo =
+          !filtroEquipoOperarios ||
+          normalizar(o.equipo) ===
+            normalizar(
+              filtroEquipoOperarios
+            );
+
+        const habilidades =
+          normalizarListaHabilidades(
+            o.habilidades
+          );
+
+        const pasaHabilidad =
+          !filtroHabilidadOperarios ||
+          habilidades.some(h =>
+            normalizar(h) ===
+            normalizar(
+              filtroHabilidadOperarios
+            )
+          );
+
+        return (
+          pasaActivo &&
+          pasaEquipo &&
+          pasaHabilidad
+        );
+      });
+
+    const resumenEquipo = equipo => {
+      const miembros =
+        operariosGestion.filter(o =>
+          normalizar(o.equipo) ===
+          normalizar(equipo)
+        );
+
+      const activos =
+        miembros.filter(o =>
+          o.activo !== false
+        );
+
+      const habilidades =
+        new Set(
+          activos.flatMap(o =>
+            normalizarListaHabilidades(
+              o.habilidades
+            )
+          )
+        );
+
+      return {
+        equipo,
+        total: miembros.length,
+        activos: activos.length,
+        inactivos:
+          miembros.length - activos.length,
+        habilidades:
+          habilidades.size
+      };
+    };
+
+    const resumenEquipos =
+      equiposBase.map(resumenEquipo);
+
+    const sinEquipo =
+      operariosGestion.filter(o =>
+        !o.equipo
+      );
+
+    const brechasHabilidades =
+      habilidadesDisponibles
+        .map(habilidad => {
+          const alexis =
+            operariosGestion.filter(o =>
+              o.activo !== false &&
+              normalizar(o.equipo) ===
+                "alexis" &&
+              normalizarListaHabilidades(
+                o.habilidades
+              ).some(h =>
+                normalizar(h) ===
+                normalizar(habilidad)
+              )
+            ).length;
+
+          const pablo =
+            operariosGestion.filter(o =>
+              o.activo !== false &&
+              normalizar(o.equipo) ===
+                "pablo" &&
+              normalizarListaHabilidades(
+                o.habilidades
+              ).some(h =>
+                normalizar(h) ===
+                normalizar(habilidad)
+              )
+            ).length;
+
+          return {
+            habilidad,
+            Alexis: alexis,
+            Pablo: pablo,
+            diferencia:
+              Math.abs(alexis - pablo)
+          };
+        })
+        .filter(item =>
+          item.diferencia > 0 ||
+          item.Alexis === 0 ||
+          item.Pablo === 0
+        )
+        .sort((a, b) =>
+          b.diferencia - a.diferencia
+        );
+
+    const guardarOperario = async operario => {
+      const borrador =
+        edicionesOperarios[operario.id] || {};
+
+      const nombre =
+        (
+          borrador.nombre ??
+          operario.nombre ??
+          ""
+        ).toString().trim();
+
+      if (!nombre) {
+        alert("Ingresa nombre del operario.");
+        return;
+      }
+
+      try {
+        await updateDoc(
+          doc(db, "operarios", operario.id),
+          {
+            nombre,
+            activo:
+              borrador.activo ??
+              (operario.activo !== false),
+            equipo:
+              borrador.equipo ??
+              operario.equipo ??
+              "",
+            habilidades:
+              normalizarListaHabilidades(
+                borrador.habilidades ??
+                operario.habilidades
+              ),
+            actualizado_por:
+              usuarioSeleccionado?.nombre ||
+              "SISTEMA",
+            actualizado_en:
+              new Date()
+          }
+        );
+
+        setEdicionesOperarios(prev => {
+          const siguiente = { ...prev };
+          delete siguiente[operario.id];
+          return siguiente;
+        });
+
+        await cargarDatos();
+
+        alert("Operario actualizado ✅");
+      } catch (error) {
+        console.error(error);
+        alert("Error actualizando operario");
+      }
+    };
+
+    const agregarOperario = async () => {
+      const nombre =
+        nuevoOperarioNombre.trim();
+
+      if (!nombre) {
+        alert("Ingresa nombre del operario.");
+        return;
+      }
+
+      try {
+        await addDoc(
+          collection(db, "operarios"),
+          {
+            nombre,
+            activo: nuevoOperarioActivo,
+            equipo: nuevoOperarioEquipo,
+            habilidades:
+              normalizarListaHabilidades(
+                nuevoOperarioHabilidades
+              ),
+            creado_por:
+              usuarioSeleccionado?.nombre ||
+              "SISTEMA",
+            creado_en:
+              new Date()
+          }
+        );
+
+        setNuevoOperarioNombre("");
+        setNuevoOperarioEquipo("");
+        setNuevoOperarioActivo(true);
+        setNuevoOperarioHabilidades("");
+
+        await cargarDatos();
+
+        alert("Operario agregado ✅");
+      } catch (error) {
+        console.error(error);
+        alert("Error agregando operario");
+      }
+    };
+
+    return (
+
+      <div style={{
+        padding: 20,
+        maxWidth: 1150,
+        margin: "0 auto"
+      }}>
+
+        <h2>
+          👥 Gestión de Operarios
+        </h2>
+
+        <p style={{
+          color: "#555",
+          lineHeight: 1.5
+        }}>
+          Administra estado activo, equipo y
+          habilidades para balancear los grupos
+          de Alexis y Pablo. Esta base queda lista
+          para futuras sugerencias de IA sobre
+          dotación y habilidades faltantes.
+        </p>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            esMobile ? "1fr" : "repeat(3, 1fr)",
+          gap: 12,
+          marginBottom: 18
+        }}>
+
+          {resumenEquipos.map(resumen => (
+            <div
+              key={resumen.equipo}
+              style={{
+                background: "white",
+                padding: 16,
+                borderRadius: 14,
+                boxShadow:
+                  "0 2px 8px rgba(0,0,0,0.08)"
+              }}
+            >
+              <b>Equipo {resumen.equipo}</b>
+              <h2 style={{
+                color: "#1976D2",
+                marginBottom: 4
+              }}>
+                {resumen.activos}
+                {" "}
+                activos
+              </h2>
+              <div>
+                Total: {resumen.total}
+              </div>
+              <div>
+                Inactivos: {resumen.inactivos}
+              </div>
+              <div>
+                Habilidades cubiertas:
+                {" "}
+                {resumen.habilidades}
+              </div>
+            </div>
+          ))}
+
+          <div style={{
+            background: "#FFF8E1",
+            color: "#5D4037",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Sin equipo asignado</b>
+            <h2 style={{
+              marginBottom: 4
+            }}>
+              {sinEquipo.length}
+            </h2>
+            <div>
+              Conviene asignarlos para que el
+              balance sea real.
+            </div>
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "white",
+          padding: 18,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,0.08)",
+          marginBottom: 18
+        }}>
+
+          <h3>
+            ➕ Agregar Operario
+          </h3>
+
+          <input
+            style={estiloInput}
+            placeholder="Nombre del operario"
+            value={nuevoOperarioNombre}
+            onChange={(e) =>
+              setNuevoOperarioNombre(
+                e.target.value
+              )
+            }
+          />
+
+          <select
+            style={estiloInput}
+            value={nuevoOperarioEquipo}
+            onChange={(e) =>
+              setNuevoOperarioEquipo(
+                e.target.value
+              )
+            }
+          >
+            <option value="">
+              Sin equipo
+            </option>
+            {equiposBase.map(equipo => (
+              <option
+                key={equipo}
+                value={equipo}
+              >
+                Equipo {equipo}
+              </option>
+            ))}
+          </select>
+
+          <select
+            style={estiloInput}
+            value={
+              nuevoOperarioActivo
+                ? "true"
+                : "false"
+            }
+            onChange={(e) =>
+              setNuevoOperarioActivo(
+                e.target.value === "true"
+              )
+            }
+          >
+            <option value="true">
+              Activo
+            </option>
+            <option value="false">
+              Inactivo
+            </option>
+          </select>
+
+          <textarea
+            style={{
+              ...estiloInput,
+              minHeight: 80
+            }}
+            placeholder="Habilidades separadas por coma. Ej: Soldadura Mig, Doblez, Corte"
+            value={nuevoOperarioHabilidades}
+            onChange={(e) =>
+              setNuevoOperarioHabilidades(
+                e.target.value
+              )
+            }
+          />
+
+          <button
+            style={botonVerde}
+            onClick={agregarOperario}
+          >
+            ✅ Agregar Operario
+          </button>
+
+        </div>
+
+        <div style={{
+          background: "white",
+          padding: 18,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,0.08)",
+          marginBottom: 18
+        }}>
+
+          <h3>
+            🔎 Filtros
+          </h3>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              esMobile
+                ? "1fr"
+                : "repeat(3, 1fr)",
+            gap: 12
+          }}>
+
+            <select
+              style={estiloInput}
+              value={filtroEquipoOperarios}
+              onChange={(e) =>
+                setFiltroEquipoOperarios(
+                  e.target.value
+                )
+              }
+            >
+              <option value="">
+                Todos los equipos
+              </option>
+              {equiposBase.map(equipo => (
+                <option
+                  key={equipo}
+                  value={equipo}
+                >
+                  Equipo {equipo}
+                </option>
+              ))}
+            </select>
+
+            <select
+              style={estiloInput}
+              value={filtroHabilidadOperarios}
+              onChange={(e) =>
+                setFiltroHabilidadOperarios(
+                  e.target.value
+                )
+              }
+            >
+              <option value="">
+                Todas las habilidades
+              </option>
+              {habilidadesDisponibles.map(h => (
+                <option
+                  key={h}
+                  value={h}
+                >
+                  {h}
+                </option>
+              ))}
+            </select>
+
+            <select
+              style={estiloInput}
+              value={filtroActivoOperarios}
+              onChange={(e) =>
+                setFiltroActivoOperarios(
+                  e.target.value
+                )
+              }
+            >
+              <option value="activos">
+                Solo activos
+              </option>
+              <option value="inactivos">
+                Solo inactivos
+              </option>
+              <option value="todos">
+                Todos
+              </option>
+            </select>
+
+          </div>
+
+          <div style={{
+            color: "#555",
+            fontWeight: "bold"
+          }}>
+            Operarios encontrados:
+            {" "}
+            {operariosFiltrados.length}
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "#E3F2FD",
+          color: "#0D47A1",
+          padding: 16,
+          borderRadius: 14,
+          marginBottom: 18
+        }}>
+          <b>Lectura para IA y balance:</b>
+          {" "}
+          {brechasHabilidades.length === 0
+            ? "Los equipos se ven balanceados por habilidades registradas."
+            : "Hay habilidades con cobertura desigual entre Alexis y Pablo."}
+          {brechasHabilidades
+            .slice(0, 6)
+            .map(item => (
+              <div key={item.habilidad}>
+                {item.habilidad}
+                {": Alexis "}
+                {item.Alexis}
+                {" / Pablo "}
+                {item.Pablo}
+              </div>
+            ))}
+        </div>
+
+        {operariosFiltrados.map(operario => {
+          const borrador =
+            edicionesOperarios[operario.id] || {};
+
+          const nombre =
+            borrador.nombre ??
+            operario.nombre ??
+            "";
+
+          const activo =
+            borrador.activo ??
+            (operario.activo !== false);
+
+          const equipo =
+            borrador.equipo ??
+            operario.equipo ??
+            "";
+
+          const habilidades =
+            borrador.habilidades ??
+            textoHabilidades(
+              operario.habilidades
+            );
+
+          return (
+            <div
+              key={operario.id || operario.nombre}
+              style={{
+                background: "white",
+                padding: 16,
+                borderRadius: 14,
+                boxShadow:
+                  "0 2px 8px rgba(0,0,0,0.08)",
+                marginBottom: 14,
+                borderLeft:
+                  activo
+                    ? "6px solid #2E7D32"
+                    : "6px solid #C62828"
+              }}
+            >
+
+              <input
+                style={estiloInput}
+                value={nombre}
+                onChange={(e) =>
+                  setEdicionesOperarios(prev => ({
+                    ...prev,
+                    [operario.id]: {
+                      ...prev[operario.id],
+                      nombre: e.target.value
+                    }
+                  }))
+                }
+              />
+
+              <div style={{
+                display: "grid",
+                gridTemplateColumns:
+                  esMobile
+                    ? "1fr"
+                    : "1fr 1fr",
+                gap: 12
+              }}>
+
+                <select
+                  style={estiloInput}
+                  value={activo ? "true" : "false"}
+                  onChange={(e) =>
+                    setEdicionesOperarios(prev => ({
+                      ...prev,
+                      [operario.id]: {
+                        ...prev[operario.id],
+                        activo:
+                          e.target.value === "true"
+                      }
+                    }))
+                  }
+                >
+                  <option value="true">
+                    Activo
+                  </option>
+                  <option value="false">
+                    Inactivo
+                  </option>
+                </select>
+
+                <select
+                  style={estiloInput}
+                  value={equipo}
+                  onChange={(e) =>
+                    setEdicionesOperarios(prev => ({
+                      ...prev,
+                      [operario.id]: {
+                        ...prev[operario.id],
+                        equipo: e.target.value
+                      }
+                    }))
+                  }
+                >
+                  <option value="">
+                    Sin equipo
+                  </option>
+                  {equiposBase.map(item => (
+                    <option
+                      key={item}
+                      value={item}
+                    >
+                      Equipo {item}
+                    </option>
+                  ))}
+                </select>
+
+              </div>
+
+              <textarea
+                style={{
+                  ...estiloInput,
+                  minHeight: 80
+                }}
+                value={habilidades}
+                onChange={(e) =>
+                  setEdicionesOperarios(prev => ({
+                    ...prev,
+                    [operario.id]: {
+                      ...prev[operario.id],
+                      habilidades: e.target.value
+                    }
+                  }))
+                }
+                placeholder="Habilidades separadas por coma"
+              />
+
+              <div style={{
+                marginBottom: 10
+              }}>
+                {normalizarListaHabilidades(
+                  habilidades
+                ).map(h => (
+                  <span
+                    key={h}
+                    style={{
+                      display: "inline-block",
+                      background: "#F1F8E9",
+                      color: "#33691E",
+                      padding: "4px 8px",
+                      borderRadius: 20,
+                      marginRight: 6,
+                      marginBottom: 6,
+                      fontSize: 12,
+                      fontWeight: "bold"
+                    }}
+                  >
+                    {h}
+                  </span>
+                ))}
+              </div>
+
+              <button
+                style={botonAzul}
+                onClick={() =>
+                  guardarOperario(operario)
+                }
+              >
+                💾 Guardar Cambios
+              </button>
+
+            </div>
+          );
+        })}
+
+        <button
+          style={{
+            ...botonVerde,
+            marginTop: 8
+          }}
+          onClick={cargarDatos}
+        >
+          🔄 Recargar Operarios
+        </button>
+
+        <button
+          onClick={() =>
+            setPantalla("home")
+          }
+          style={botonAzul}
+        >
+          ← Volver
+        </button>
+
+      </div>
+
+    );
+
+  }
+
   if (pantalla === "evolucionOperario") {
 
     const colorEficiencia = eficiencia => {
