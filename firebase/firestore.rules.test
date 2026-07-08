@@ -12,12 +12,19 @@ service cloud.firestore {
         : null;
     }
 
+    function hasPermission(permission) {
+      return authenticated() &&
+        request.auth.token.permisos is map &&
+        request.auth.token.permisos[permission] == true;
+    }
+
     function canOperate() {
-      return role() in [
-        'supervisor',
-        'jefe',
-        'gerencia'
-      ];
+      return hasPermission('produccion.operar') ||
+        role() in [
+          'supervisor',
+          'jefe',
+          'gerencia'
+        ];
     }
 
     function canManage() {
@@ -25,6 +32,73 @@ service cloud.firestore {
         'jefe',
         'gerencia'
       ];
+    }
+
+    function canManageUsers() {
+      return canManage() ||
+        hasPermission('usuarios.gestionar');
+    }
+
+    function canManageWarehouse() {
+      return canManage() ||
+        hasPermission('almacen.gestionar');
+    }
+
+    function canManageEngineering() {
+      return canManage() ||
+        hasPermission('ingenieria.gestionar');
+    }
+
+    function canManagePlanning() {
+      return canManage() ||
+        hasPermission('planificacion.gestionar') ||
+        hasPermission('turnos.gestionar');
+    }
+
+    function canManageStandards() {
+      return canManage() ||
+        hasPermission('estandares.gestionar');
+    }
+
+    function canManageQuality() {
+      return canManage() ||
+        hasPermission('calidad.gestionar');
+    }
+
+    function canManageStops() {
+      return canManage() ||
+        hasPermission('paros.gestionar');
+    }
+
+    function canManageOrders() {
+      return canManage() ||
+        hasPermission('ots.gestionar');
+    }
+
+    function canManageCorrections() {
+      return canManage() ||
+        hasPermission('ajustes.gerenciales');
+    }
+
+    function canConfigureProduction() {
+      return canManage() ||
+        hasPermission('produccion.configurar');
+    }
+
+    function canManageCatalog(catalogo) {
+      return canManage() ||
+        (
+          catalogo == 'catalogo_defectos' &&
+          canManageQuality()
+        ) ||
+        (
+          catalogo == 'catalogo_motivos_paro' &&
+          canManageStops()
+        ) ||
+        (
+          catalogo == 'catalogo_causas' &&
+          canConfigureProduction()
+        );
     }
 
     function belongsToCompany(data) {
@@ -90,20 +164,83 @@ service cloud.firestore {
         'procesos',
         'produccion_activa',
         'registros_produccion',
-        'subprocesos',
-        'usuarios'
+        'subprocesos'
       ];
+    }
+
+    function canWriteLegacy(collectionName) {
+      return canManage() ||
+        (
+          collectionName == 'ajustes_produccion' &&
+          canManageCorrections()
+        ) ||
+        (
+          collectionName in [
+            'config_procesos',
+            'config_productos',
+            'operaciones_maestras',
+            'procesos',
+            'subprocesos'
+          ] &&
+          (
+            canConfigureProduction() ||
+            canManageEngineering()
+          )
+        ) ||
+        (
+          collectionName == 'estandares' &&
+          canManageStandards()
+        ) ||
+        (
+          collectionName == 'operarios' &&
+          canManagePlanning()
+        ) ||
+        (
+          collectionName == 'paros_produccion' &&
+          canManageStops()
+        ) ||
+        (
+          collectionName in [
+            'produccion_activa',
+            'registros_produccion'
+          ] &&
+          canOperate()
+        );
+    }
+
+    match /usuarios/{userId} {
+      allow read: if authenticated() &&
+        (
+          request.auth.uid == userId ||
+          belongsToCompany(resource.data)
+        );
+      allow create: if canManageUsers() &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if canManageUsers() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
     }
 
     match /materiales/{materialId} {
       allow read: if belongsToCompany(
         resource.data
       );
-      allow create: if canManage() &&
+      allow create: if canManageWarehouse() &&
         belongsToCompany(
           request.resource.data
         );
-      allow update: if canManage() &&
+      allow update: if canManageWarehouse() &&
         belongsToCompany(resource.data) &&
         belongsToCompany(
           request.resource.data
@@ -123,7 +260,7 @@ service cloud.firestore {
     }
 
     match /inventario_materiales/{stockId} {
-      allow get: if canManage() &&
+      allow get: if canManageWarehouse() &&
         (
           !exists(
             /databases/$(database)/documents/inventario_materiales/$(stockId)
@@ -131,13 +268,13 @@ service cloud.firestore {
           belongsToPlant(resource.data)
         );
       allow list: if belongsToPlant(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageWarehouse() &&
         belongsToPlant(
           request.resource.data
         ) &&
         request.resource.data.actualizado_por_id ==
           request.auth.uid;
-      allow update: if canManage() &&
+      allow update: if canManageWarehouse() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(
           request.resource.data
@@ -155,7 +292,7 @@ service cloud.firestore {
 
     match /movimientos_almacen/{movimientoId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageWarehouse() &&
         belongsToPlant(
           request.resource.data
         ) &&
@@ -169,7 +306,7 @@ service cloud.firestore {
 
     match /traspasos_almacen/{traspasoId} {
       allow read: if belongsToTransferPlant(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageWarehouse() &&
         belongsToPlant(
           request.resource.data
         ) &&
@@ -181,7 +318,7 @@ service cloud.firestore {
           'en_transito' &&
         request.resource.data.creado_por_id ==
           request.auth.uid;
-      allow update: if canManage() &&
+      allow update: if canManageWarehouse() &&
         belongsToTransferPlant(resource.data) &&
         belongsToTransferPlant(
           request.resource.data
@@ -216,7 +353,7 @@ service cloud.firestore {
 
     match /conteos_fisicos/{conteoId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageWarehouse() &&
         belongsToPlant(
           request.resource.data
         ) &&
@@ -235,7 +372,7 @@ service cloud.firestore {
 
     match /solicitudes_reposicion/{solicitudId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageWarehouse() &&
         belongsToPlant(
           request.resource.data
         ) &&
@@ -248,7 +385,7 @@ service cloud.firestore {
           'compra',
           'reposicion_interna'
         ];
-      allow update: if canManage() &&
+      allow update: if canManageWarehouse() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(
           request.resource.data
@@ -284,11 +421,11 @@ service cloud.firestore {
 
     match /catalogo_piezas/{piezaId} {
       allow read: if belongsToCompany(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageEngineering() &&
         belongsToCompany(
           request.resource.data
         );
-      allow update: if canManage() &&
+      allow update: if canManageEngineering() &&
         belongsToCompany(resource.data) &&
         belongsToCompany(
           request.resource.data
@@ -312,11 +449,11 @@ service cloud.firestore {
 
     match /catalogo_procesos_estaciones/{procesoId} {
       allow read: if belongsToCompany(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageEngineering() &&
         belongsToCompany(
           request.resource.data
         );
-      allow update: if canManage() &&
+      allow update: if canManageEngineering() &&
         belongsToCompany(resource.data) &&
         belongsToCompany(
           request.resource.data
@@ -338,11 +475,11 @@ service cloud.firestore {
 
     match /catalogo_operaciones/{operacionId} {
       allow read: if belongsToCompany(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageEngineering() &&
         belongsToCompany(
           request.resource.data
         );
-      allow update: if canManage() &&
+      allow update: if canManageEngineering() &&
         belongsToCompany(resource.data) &&
         belongsToCompany(
           request.resource.data
@@ -370,11 +507,11 @@ service cloud.firestore {
 
     match /catalogo_subproductos/{subproductoId} {
       allow read: if belongsToCompany(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManageEngineering() &&
         belongsToCompany(
           request.resource.data
         );
-      allow update: if canManage() &&
+      allow update: if canManageEngineering() &&
         belongsToCompany(resource.data) &&
         belongsToCompany(
           request.resource.data
@@ -412,7 +549,7 @@ service cloud.firestore {
           'catalogo_causas',
           'catalogo_motivos_paro'
         ] &&
-        canManage() &&
+        canManageCatalog(catalogo) &&
         belongsToCompany(
           request.resource.data
         );
@@ -421,7 +558,7 @@ service cloud.firestore {
           'catalogo_causas',
           'catalogo_motivos_paro'
         ] &&
-        canManage() &&
+        canManageCatalog(catalogo) &&
         belongsToCompany(resource.data) &&
         belongsToCompany(
           request.resource.data
@@ -432,18 +569,18 @@ service cloud.firestore {
     }
 
     match /configuracion_capacidad/{configId} {
-      allow get: if canManage() &&
+      allow get: if canManagePlanning() &&
         (
           !exists(
             /databases/$(database)/documents/configuracion_capacidad/$(configId)
           ) ||
           belongsToPlant(resource.data)
         );
-      allow create: if canManage() &&
+      allow create: if canManagePlanning() &&
         belongsToPlant(
           request.resource.data
         );
-      allow update: if canManage() &&
+      allow update: if canManagePlanning() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(
           request.resource.data
@@ -457,20 +594,20 @@ service cloud.firestore {
 
     match /capacidad_procesos/{capacidadId} {
       allow get: if (
-          canManage() &&
+          canManagePlanning() &&
           !exists(
             /databases/$(database)/documents/capacidad_procesos/$(capacidadId)
           )
         ) ||
         belongsToPlant(resource.data);
       allow list: if belongsToPlant(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManagePlanning() &&
         belongsToPlant(
           request.resource.data
         ) &&
         request.resource.data.actualizado_por_id ==
           request.auth.uid;
-      allow update: if canManage() &&
+      allow update: if canManagePlanning() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(
           request.resource.data
@@ -487,7 +624,7 @@ service cloud.firestore {
 
       match /historial/{historialId} {
         allow read: if belongsToPlant(resource.data);
-        allow create: if canManage() &&
+        allow create: if canManagePlanning() &&
           belongsToPlant(
             request.resource.data
           ) &&
@@ -501,13 +638,13 @@ service cloud.firestore {
 
     match /programacion_turnos/{programacionId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManagePlanning() &&
         belongsToPlant(
           request.resource.data
         ) &&
         request.resource.data.actualizado_por_id ==
           request.auth.uid;
-      allow update: if canManage() &&
+      allow update: if canManagePlanning() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(
           request.resource.data
@@ -551,9 +688,9 @@ service cloud.firestore {
     }
 
     match /decisiones_planificador/{decisionId} {
-      allow read: if canManage() &&
+      allow read: if canManagePlanning() &&
         belongsToPlant(resource.data);
-      allow create: if canManage() &&
+      allow create: if canManagePlanning() &&
         belongsToPlant(
           request.resource.data
         ) &&
@@ -566,11 +703,11 @@ service cloud.firestore {
       allow read: if belongsToCompany(
         resource.data
       );
-      allow create: if canManage() &&
+      allow create: if canManageEngineering() &&
         belongsToCompany(
           request.resource.data
         );
-      allow update: if canManage() &&
+      allow update: if canManageEngineering() &&
         belongsToCompany(resource.data) &&
         belongsToCompany(
           request.resource.data
@@ -590,11 +727,11 @@ service cloud.firestore {
         allow read: if belongsToCompany(
           resource.data
         );
-        allow create: if canManage() &&
+        allow create: if canManageEngineering() &&
           belongsToCompany(
             request.resource.data
           );
-        allow update: if canManage() &&
+        allow update: if canManageEngineering() &&
           belongsToCompany(resource.data) &&
           belongsToCompany(
             request.resource.data
@@ -609,7 +746,7 @@ service cloud.firestore {
             'anulada_en',
             'fecha_actualizacion'
           ]);
-        allow delete: if canManage() &&
+        allow delete: if canManageEngineering() &&
           belongsToCompany(resource.data) &&
           resource.data.estado == 'borrador';
 
@@ -617,12 +754,12 @@ service cloud.firestore {
           allow read: if belongsToCompany(
             resource.data
           );
-          allow create: if canManage() &&
+          allow create: if canManageEngineering() &&
             belongsToCompany(
               request.resource.data
             );
           allow update: if false;
-          allow delete: if canManage() &&
+          allow delete: if canManageEngineering() &&
             belongsToCompany(resource.data) &&
             get(
               /databases/$(database)/documents/productos/$(productoId)/rutas/$(rutaId)
@@ -632,12 +769,12 @@ service cloud.firestore {
     }
 
     match /correlativos/{correlativoId} {
-      allow read: if canManage();
-      allow create: if canManage() &&
+      allow read: if canManageOrders();
+      allow create: if canManageOrders() &&
         belongsToPlant(
           request.resource.data
         );
-      allow update: if canManage() &&
+      allow update: if canManageOrders() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(
           request.resource.data
@@ -664,7 +801,7 @@ service cloud.firestore {
         canOperate();
       allow create: if
         request.resource.data.modelo_version == 2 &&
-        canManage() &&
+        canManageOrders() &&
         belongsToPlant(
           request.resource.data
         );
@@ -702,7 +839,7 @@ service cloud.firestore {
         ]);
       allow update: if
         resource.data.modelo_version == 2 &&
-        canManage() &&
+        canManageOrders() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(
           request.resource.data
@@ -728,13 +865,13 @@ service cloud.firestore {
         ]);
       allow delete: if
         resource.data.modelo_version != 2 &&
-        canManage();
+        canManageOrders();
 
       match /operaciones/{operacionId} {
         allow read: if belongsToPlant(
           resource.data
         );
-        allow create: if canManage() &&
+        allow create: if canManageOrders() &&
           belongsToPlant(
             request.resource.data
           );
@@ -763,7 +900,7 @@ service cloud.firestore {
             'fecha_fin',
             'fecha_actualizacion'
           ]);
-        allow update: if canManage() &&
+        allow update: if canManageStandards() &&
           belongsToPlant(resource.data) &&
           belongsToPlant(
             request.resource.data
@@ -842,7 +979,7 @@ service cloud.firestore {
         ) &&
         request.resource.data.registrado_por_id ==
           request.auth.uid;
-      allow update: if canManage() &&
+      allow update: if canManageQuality() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(
           request.resource.data
@@ -930,9 +1067,9 @@ service cloud.firestore {
     match /{collectionName}/{documentId} {
       allow read: if authenticated() &&
         legacyCollection(collectionName);
-      allow create, update: if canOperate() &&
+      allow create, update: if canWriteLegacy(collectionName) &&
         legacyCollection(collectionName);
-      allow delete: if canManage() &&
+      allow delete: if canWriteLegacy(collectionName) &&
         legacyCollection(collectionName);
     }
 
