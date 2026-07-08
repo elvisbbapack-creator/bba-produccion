@@ -8,6 +8,7 @@ import {
   setDoc,
   updateDoc
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 
 export const ROLES_USUARIO_BBA = [
   "supervisor",
@@ -200,4 +201,26 @@ export const guardarUsuarioPermisos = async (
   );
 
   return creado.id;
+};
+
+export const activarUsuarioAuthPendiente = async (
+  functions,
+  usuarioDocId,
+  opciones = {}
+) => {
+  if (!usuarioDocId) {
+    throw new Error("Falta el documento del usuario.");
+  }
+
+  const activar = httpsCallable(
+    functions,
+    "activarUsuarioPendiente"
+  );
+  const respuesta = await activar({
+    usuarioDocId,
+    enviarCorreo:
+      opciones.enviarCorreo !== false
+  });
+
+  return respuesta.data;
 };

@@ -11,10 +11,14 @@ import {
   EMPRESAS_BBA,
   PLANTAS_BBA,
   ROLES_USUARIO_BBA,
+  activarUsuarioAuthPendiente,
   guardarUsuarioPermisos,
   listarUsuariosPermisos,
   normalizarUsuario
 } from "./usuariosRepository";
+import {
+  functions as firebaseFunctions
+} from "../../firebase";
 
 const estadoInicial = {
   uid: "",
@@ -81,7 +85,10 @@ export default function GestionUsuariosV2({
     useState(false);
   const [guardando, setGuardando] =
     useState(false);
+  const [activandoId, setActivandoId] =
+    useState("");
   const [error, setError] = useState("");
+  const [mensaje, setMensaje] = useState("");
   const [filtroRol, setFiltroRol] =
     useState("");
   const [filtroPlanta, setFiltroPlanta] =
@@ -96,6 +103,7 @@ export default function GestionUsuariosV2({
   const cargar = async () => {
     setCargando(true);
     setError("");
+    setMensaje("");
 
     try {
       setUsuarios(
@@ -161,6 +169,7 @@ export default function GestionUsuariosV2({
     setFormulario(estadoInicial);
     setEditandoId("");
     setError("");
+    setMensaje("");
   };
 
   const editar = usuario => {
@@ -177,6 +186,7 @@ export default function GestionUsuariosV2({
   const guardar = async () => {
     setGuardando(true);
     setError("");
+    setMensaje("");
 
     try {
       await guardarUsuarioPermisos(
@@ -189,6 +199,7 @@ export default function GestionUsuariosV2({
       );
       await cargar();
       limpiarFormulario();
+      setMensaje("Usuario guardado correctamente.");
     } catch (err) {
       console.error(err);
       setError(
@@ -197,6 +208,47 @@ export default function GestionUsuariosV2({
       );
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const activarAuth = async usuario => {
+    if (
+      !window.confirm(
+        `¿Activar Firebase Auth para ${usuario.nombre}? ` +
+          "Se creará/vinculará la cuenta, se asignarán claims " +
+          "y se enviará correo para definir contraseña."
+      )
+    ) {
+      return;
+    }
+
+    setActivandoId(usuario.id);
+    setError("");
+    setMensaje("");
+
+    try {
+      const resultado =
+        await activarUsuarioAuthPendiente(
+          firebaseFunctions,
+          usuario.id
+        );
+      await cargar();
+      setMensaje(
+        `Auth activado para ${usuario.nombre}. ` +
+          (
+            resultado?.correo_reset_enviado
+              ? "Correo de contraseña enviado."
+              : "Correo de contraseña no enviado."
+          )
+      );
+    } catch (err) {
+      console.error(err);
+      setError(
+        err.message ||
+        "No se pudo activar Firebase Auth."
+      );
+    } finally {
+      setActivandoId("");
     }
   };
 
@@ -310,6 +362,19 @@ export default function GestionUsuariosV2({
           fontWeight: "bold"
         }}>
           {error}
+        </div>
+      )}
+
+      {mensaje && (
+        <div role="status" style={{
+          background: "#E8F5E9",
+          color: "#1B5E20",
+          padding: 12,
+          borderRadius: 10,
+          marginBottom: 14,
+          fontWeight: "bold"
+        }}>
+          {mensaje}
         </div>
       )}
 
@@ -867,20 +932,40 @@ export default function GestionUsuariosV2({
                 padding: 10,
                 borderRadius: 10
               }}>
-                Pendiente: crear cuenta en Firebase Auth y
-                asignar custom claims con backend/Admin SDK.
+                Pendiente: activar Firebase Auth y
+                asignar custom claims desde Cloud Function.
               </div>
             )}
 
-            <button
-              style={{
-                ...botonPrimario,
-                marginTop: 12
-              }}
-              onClick={() => editar(usuario)}
-            >
-              Editar permisos
-            </button>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 10,
+              marginTop: 12
+            }}>
+              {usuario.estado_auth === "pendiente_auth" && (
+                <button
+                  style={{
+                    ...botonPrimario,
+                    background: "#2E7D32"
+                  }}
+                  disabled={Boolean(activandoId)}
+                  onClick={() => activarAuth(usuario)}
+                >
+                  {activandoId === usuario.id
+                    ? "Activando Auth..."
+                    : "Activar Auth"}
+                </button>
+              )}
+
+              <button
+                style={botonPrimario}
+                onClick={() => editar(usuario)}
+              >
+                Editar permisos
+              </button>
+            </div>
           </div>
         ))}
       </div>

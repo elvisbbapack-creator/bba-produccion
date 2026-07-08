@@ -142,6 +142,14 @@ Si existen fichas duplicadas por email, usar el id del documento:
 npm run firebase:activar-usuario -- --doc idDocumentoUsuarios
 ```
 
+La siguiente etapa deja este flujo disponible desde la pantalla mediante la
+Cloud Function callable `activarUsuarioPendiente`, que valida
+`usuarios.gestionar`, crea/vincula Auth, asigna custom claims, actualiza
+`usuarios/{uid}`, reemplaza la ficha pendiente y registra auditoria en
+`auditoria_usuarios`. Para desplegar Functions, el proyecto Firebase debe estar
+en plan Blaze porque Firebase necesita habilitar Cloud Functions, Cloud Build y
+Artifact Registry.
+
 Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 
 ## Verificacion
