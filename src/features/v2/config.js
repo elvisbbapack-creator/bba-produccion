@@ -50,6 +50,11 @@ export const PERMISOS_V2 = [
     nombre: "Gestionar turnos y dotación"
   },
   {
+    clave: "rrhh.gestionar",
+    modulo: "RRHH",
+    nombre: "Gestionar personas, equipos y habilidades"
+  },
+  {
     clave: "estandares.gestionar",
     modulo: "Estándares",
     nombre: "Gestionar estándares"
@@ -100,6 +105,7 @@ export const permisosPorRol = rol => {
       "ingenieria.gestionar": true,
       "planificacion.gestionar": true,
       "turnos.gestionar": true,
+      "rrhh.gestionar": true,
       "estandares.gestionar": true,
       "calidad.gestionar": true,
       "paros.gestionar": true,
@@ -216,3 +222,18 @@ export const puedeGestionarUsuariosV2 =
         )
       )
     );
+
+export const puedeGestionarRRHHV2 = perfil =>
+  Boolean(
+    perfil?.autenticado &&
+    perfil?.empresa_id &&
+    (
+      ROLES_ADMINISTRACION_V2.includes(
+        perfil?.rol
+      ) ||
+      tienePermisoV2(
+        perfil,
+        "rrhh.gestionar"
+      )
+    )
+  );

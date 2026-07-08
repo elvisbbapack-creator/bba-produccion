@@ -1,6 +1,7 @@
 import {
   obtenerInterfazV2Activa,
   puedeAdministrarV2,
+  puedeGestionarRRHHV2,
   puedeGestionarUsuariosV2,
   puedeOperarV2,
   puedeVerDashboardV2,
@@ -109,6 +110,38 @@ test("gerencia puede gestionar usuarios sin permiso manual", () => {
       permisos: {}
     })
   ).toBe(true);
+});
+
+test("jefatura y permiso fino gestionan RRHH", () => {
+  const base = {
+    autenticado: true,
+    empresa_id: "bba"
+  };
+
+  expect(
+    puedeGestionarRRHHV2({
+      ...base,
+      rol: "jefe"
+    })
+  ).toBe(true);
+
+  expect(
+    puedeGestionarRRHHV2({
+      ...base,
+      rol: "supervisor",
+      permisos: {
+        "rrhh.gestionar": true
+      }
+    })
+  ).toBe(true);
+
+  expect(
+    puedeGestionarRRHHV2({
+      ...base,
+      rol: "supervisor",
+      permisos: {}
+    })
+  ).toBe(false);
 });
 
 test("no gestiona usuarios sin autenticacion ni empresa", () => {

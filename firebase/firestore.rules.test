@@ -55,6 +55,11 @@ service cloud.firestore {
         hasPermission('turnos.gestionar');
     }
 
+    function canManageRRHH() {
+      return canManage() ||
+        hasPermission('rrhh.gestionar');
+    }
+
     function canManageStandards() {
       return canManage() ||
         hasPermission('estandares.gestionar');
@@ -193,7 +198,10 @@ service cloud.firestore {
         ) ||
         (
           collectionName == 'operarios' &&
-          canManagePlanning()
+          (
+            canManageRRHH() ||
+            canManagePlanning()
+          )
         ) ||
         (
           collectionName == 'paros_produccion' &&

@@ -39,6 +39,7 @@ import {
 import {
   interfazV2Activa,
   puedeAdministrarV2,
+  puedeGestionarRRHHV2,
   puedeGestionarUsuariosV2,
   puedeOperarV2,
   puedeVerDashboardV2
@@ -81,6 +82,8 @@ import ImportadorIngenieriaV2 from
   "./features/importacion/ImportadorIngenieriaV2";
 import GestionUsuariosV2 from
   "./features/usuarios/GestionUsuariosV2";
+import GestionPersonasRRHHV2 from
+  "./features/rrhh/GestionPersonasRRHHV2";
 
 function App() {
   const esMobile =
@@ -1639,10 +1642,25 @@ const cargarTodosLosParos = async () => {
             )
         },
         {
-          titulo: "Gestión de Operarios",
+          titulo: "Gestión de Operarios clásica",
           visible: true,
           accion: () =>
             setPantalla("gestionOperarios")
+        }
+      ]
+    },
+    {
+      titulo: "RRHH",
+      descripcion:
+        "Personas de planta, equipos y habilidades.",
+      items: [
+        {
+          titulo: "Personas y Operarios (V2)",
+          visible:
+            puedeGestionarRRHHV2(
+              usuarioSeleccionado
+            ),
+          accion: () => setPantalla("rrhhPersonasV2")
         }
       ]
     },
@@ -2042,6 +2060,21 @@ if (
 ) {
   return (
     <AlmacenV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "rrhhPersonasV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarRRHHV2(usuarioSeleccionado)
+) {
+  return (
+    <GestionPersonasRRHHV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
