@@ -1641,12 +1641,6 @@ const cargarTodosLosParos = async () => {
               "historialDecisionesPlanificadorV2"
             )
         },
-        {
-          titulo: "Gestión de Operarios clásica",
-          visible: true,
-          accion: () =>
-            setPantalla("gestionOperarios")
-        }
       ]
     },
     {
