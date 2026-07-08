@@ -5,7 +5,12 @@ import {
   signInWithEmailAndPassword,
   signOut
 } from "firebase/auth";
+import {
+  doc,
+  getDoc
+} from "firebase/firestore";
 import { app } from "../firebase";
+import { db } from "../firebase";
 import {
   crearPerfilAutenticado,
   validarPerfilAutenticado
@@ -34,10 +39,48 @@ export const obtenerPerfilFirebase = async (
     usuario,
     true
   );
-  const perfil = crearPerfilAutenticado(
+  const perfilBase = crearPerfilAutenticado(
     usuario,
     token.claims
   );
+
+  const perfilSnap = await getDoc(
+    doc(db, "usuarios", usuario.uid)
+  );
+
+  const datosPerfil =
+    perfilSnap.exists()
+      ? perfilSnap.data()
+      : {};
+
+  const perfil = {
+    ...perfilBase,
+    ...datosPerfil,
+    id: usuario.uid,
+    uid: usuario.uid,
+    email:
+      datosPerfil.email ||
+      perfilBase.email,
+    nombre:
+      datosPerfil.nombre ||
+      perfilBase.nombre,
+    rol:
+      datosPerfil.rol ||
+      perfilBase.rol,
+    empresa_id:
+      datosPerfil.empresa_id ||
+      perfilBase.empresa_id,
+    planta_ids:
+      Array.isArray(datosPerfil.planta_ids)
+        ? datosPerfil.planta_ids
+        : perfilBase.planta_ids,
+    permisos: {
+      ...(perfilBase.permisos || {}),
+      ...(datosPerfil.permisos || {})
+    },
+    autenticado: true
+  };
+
   const error = validarPerfilAutenticado(perfil);
 
   if (error) {

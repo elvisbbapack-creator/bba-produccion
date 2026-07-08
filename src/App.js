@@ -39,6 +39,7 @@ import {
 import {
   interfazV2Activa,
   puedeAdministrarV2,
+  puedeGestionarUsuariosV2,
   puedeOperarV2,
   puedeVerDashboardV2
 } from "./features/v2/config";
@@ -78,6 +79,8 @@ import CatalogoSubproductosV2 from
   "./features/subproductos/CatalogoSubproductosV2";
 import ImportadorIngenieriaV2 from
   "./features/importacion/ImportadorIngenieriaV2";
+import GestionUsuariosV2 from
+  "./features/usuarios/GestionUsuariosV2";
 
 function App() {
   const esMobile =
@@ -1676,6 +1679,15 @@ const cargarTodosLosParos = async () => {
           accion: () => setPantalla("parosV2")
         },
         {
+          titulo: "Usuarios y Permisos (V2)",
+          visible:
+            puedeGestionarUsuariosV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("usuariosV2")
+        },
+        {
           titulo: "Historial de Paros",
           visible: true,
           accion: () => setPantalla("historialParos")
@@ -2342,6 +2354,21 @@ if (
 ) {
   return (
     <ParosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "usuariosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarUsuariosV2(usuarioSeleccionado)
+) {
+  return (
+    <GestionUsuariosV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

@@ -110,6 +110,15 @@ El rol `tv` ingresa directamente al Dashboard V2. El ranking y los indicadores
 diarios se obtienen desde un unico documento `resumenes_planta_turno`, evitando
 leer sesiones y eventos historicos en cada actualizacion del televisor.
 
+La pantalla `Usuarios y Permisos (V2)` administra documentos de perfil en
+`usuarios/{uid}` cuando la cuenta ya existe en Firebase Auth. Si aun no existe
+UID, guarda una ficha pendiente con `estado_auth = pendiente_auth`.
+La ficha controla `activo`, `rol`, `empresa_id`, `planta_ids` y un mapa de
+permisos finos como `usuarios.gestionar`, `almacen.gestionar`,
+`ajustes.gerenciales` o `importacion.gestionar`. La creacion real de la cuenta
+Firebase Auth y la asignacion de custom claims deben ejecutarse desde
+backend/Admin SDK; el navegador solo prepara y administra el perfil operativo.
+
 Las reglas V2 propuestas siguen separadas y no se han desplegado en produccion.
 
 ## Verificacion

@@ -1,8 +1,10 @@
 import {
   obtenerInterfazV2Activa,
   puedeAdministrarV2,
+  puedeGestionarUsuariosV2,
   puedeOperarV2,
-  puedeVerDashboardV2
+  puedeVerDashboardV2,
+  tienePermisoV2
 } from "./config";
 
 test("activa la interfaz V2 solo con true explicito", () => {
@@ -72,6 +74,56 @@ test("permite administrar V2 a jefatura y gerencia autenticadas", () => {
     puedeAdministrarV2({
       rol: "jefe",
       empresa_id: "bba"
+    })
+  ).toBe(false);
+});
+
+test("habilita permisos finos desde el perfil", () => {
+  const perfil = {
+    autenticado: true,
+    empresa_id: "bba",
+    planta_ids: ["chile"],
+    rol: "supervisor",
+    permisos: {
+      "usuarios.gestionar": true
+    }
+  };
+
+  expect(
+    tienePermisoV2(
+      perfil,
+      "usuarios.gestionar"
+    )
+  ).toBe(true);
+  expect(
+    puedeGestionarUsuariosV2(perfil)
+  ).toBe(true);
+});
+
+test("gerencia puede gestionar usuarios sin permiso manual", () => {
+  expect(
+    puedeGestionarUsuariosV2({
+      autenticado: true,
+      empresa_id: "bba",
+      rol: "gerencia",
+      permisos: {}
+    })
+  ).toBe(true);
+});
+
+test("no gestiona usuarios sin autenticacion ni empresa", () => {
+  expect(
+    puedeGestionarUsuariosV2({
+      autenticado: false,
+      empresa_id: "bba",
+      rol: "gerencia"
+    })
+  ).toBe(false);
+
+  expect(
+    puedeGestionarUsuariosV2({
+      autenticado: true,
+      rol: "gerencia"
     })
   ).toBe(false);
 });
