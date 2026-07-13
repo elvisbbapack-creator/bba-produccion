@@ -75,6 +75,11 @@ export const PERMISOS_V2 = [
     nombre: "Gestionar almacén"
   },
   {
+    clave: "costeo.gestionar",
+    modulo: "Costeo",
+    nombre: "Gestionar costeos y cotizaciones técnicas"
+  },
+  {
     clave: "ajustes.gerenciales",
     modulo: "Ajustes",
     nombre: "Realizar ajustes gerenciales"
@@ -110,6 +115,7 @@ export const permisosPorRol = rol => {
       "calidad.gestionar": true,
       "paros.gestionar": true,
       "almacen.gestionar": true,
+      "costeo.gestionar": true,
       "ajustes.gerenciales": true,
       "importacion.gestionar": true
     };
@@ -234,6 +240,21 @@ export const puedeGestionarRRHHV2 = perfil =>
       tienePermisoV2(
         perfil,
         "rrhh.gestionar"
+      )
+    )
+  );
+
+export const puedeGestionarCosteoV2 = perfil =>
+  Boolean(
+    perfil?.autenticado &&
+    perfil?.empresa_id &&
+    (
+      ROLES_ADMINISTRACION_V2.includes(
+        perfil?.rol
+      ) ||
+      tienePermisoV2(
+        perfil,
+        "costeo.gestionar"
       )
     )
   );

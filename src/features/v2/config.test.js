@@ -1,6 +1,7 @@
 import {
   obtenerInterfazV2Activa,
   puedeAdministrarV2,
+  puedeGestionarCosteoV2,
   puedeGestionarRRHHV2,
   puedeGestionarUsuariosV2,
   puedeOperarV2,
@@ -137,6 +138,38 @@ test("jefatura y permiso fino gestionan RRHH", () => {
 
   expect(
     puedeGestionarRRHHV2({
+      ...base,
+      rol: "supervisor",
+      permisos: {}
+    })
+  ).toBe(false);
+});
+
+test("jefatura y permiso fino gestionan costeo", () => {
+  const base = {
+    autenticado: true,
+    empresa_id: "bba"
+  };
+
+  expect(
+    puedeGestionarCosteoV2({
+      ...base,
+      rol: "jefe"
+    })
+  ).toBe(true);
+
+  expect(
+    puedeGestionarCosteoV2({
+      ...base,
+      rol: "supervisor",
+      permisos: {
+        "costeo.gestionar": true
+      }
+    })
+  ).toBe(true);
+
+  expect(
+    puedeGestionarCosteoV2({
       ...base,
       rol: "supervisor",
       permisos: {}

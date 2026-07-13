@@ -44,6 +44,11 @@ service cloud.firestore {
         hasPermission('almacen.gestionar');
     }
 
+    function canManageCosting() {
+      return canManage() ||
+        hasPermission('costeo.gestionar');
+    }
+
     function canManageEngineering() {
       return canManage() ||
         hasPermission('ingenieria.gestionar');
@@ -424,6 +429,28 @@ service cloud.firestore {
             'resuelto_en',
             'actualizado_en'
           ]);
+      allow delete: if false;
+    }
+
+    match /cotizaciones_tecnicas/{cotizacionId} {
+      allow read: if belongsToCompany(resource.data);
+      allow create: if canManageCosting() &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.creado_por_id ==
+          request.auth.uid &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if canManageCosting() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
       allow delete: if false;
     }
 

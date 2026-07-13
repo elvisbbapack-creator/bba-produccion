@@ -39,6 +39,7 @@ import {
 import {
   interfazV2Activa,
   puedeAdministrarV2,
+  puedeGestionarCosteoV2,
   puedeGestionarRRHHV2,
   puedeGestionarUsuariosV2,
   puedeOperarV2,
@@ -84,6 +85,8 @@ import GestionUsuariosV2 from
   "./features/usuarios/GestionUsuariosV2";
 import GestionPersonasRRHHV2 from
   "./features/rrhh/GestionPersonasRRHHV2";
+import CotizadorTecnicoV2 from
+  "./features/costeo/CotizadorTecnicoV2";
 
 function App() {
   const esMobile =
@@ -1676,6 +1679,22 @@ const cargarTodosLosParos = async () => {
       ]
     },
     {
+      titulo: "Comercial Técnico",
+      descripcion:
+        "Costeo, cotización y lead time de productos nuevos.",
+      items: [
+        {
+          titulo: "Costeo y Cotización Técnica (V2)",
+          visible:
+            puedeGestionarCosteoV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("cotizadorTecnicoV2")
+        }
+      ]
+    },
+    {
       titulo: "Control",
       descripcion:
         "Calidad, paros y ajustes.",
@@ -2069,6 +2088,21 @@ if (
 ) {
   return (
     <GestionPersonasRRHHV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "cotizadorTecnicoV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarCosteoV2(usuarioSeleccionado)
+) {
+  return (
+    <CotizadorTecnicoV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
