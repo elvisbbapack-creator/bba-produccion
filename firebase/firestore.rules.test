@@ -462,6 +462,30 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /costos_base_estacion/{costoId} {
+      allow read: if belongsToCompany(resource.data);
+      allow create: if canManageCosting() &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if canManageCosting() &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.proceso_codigo ==
+          resource.data.proceso_codigo &&
+        request.resource.data.estacion_codigo ==
+          resource.data.estacion_codigo &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
+    }
+
     match /{collectionName}/{thirdPartyId} {
       allow read: if collectionName in [
           'clientes',

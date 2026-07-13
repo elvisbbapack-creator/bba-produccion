@@ -16,6 +16,9 @@ import {
   listarTerceros
 } from "../terceros/tercerosRepository";
 import {
+  listarCostosBaseEstacion
+} from "../costosBase/costosBaseRepository";
+import {
   calcularCotizacionTecnica
 } from "./costeoCalculos";
 import {
@@ -282,6 +285,8 @@ export default function CotizadorTecnicoV2({
     useState([]);
   const [proveedoresCatalogo, setProveedoresCatalogo] =
     useState([]);
+  const [costosBaseEstacion, setCostosBaseEstacion] =
+    useState([]);
   const [historial, setHistorial] = useState([]);
   const [editandoId, setEditandoId] = useState("");
   const [cargando, setCargando] = useState(true);
@@ -297,7 +302,8 @@ export default function CotizadorTecnicoV2({
         procesos,
         cotizaciones,
         clientes,
-        proveedores
+        proveedores,
+        costosBase
       ] = await Promise.all([
         listarMateriales(db, perfil.empresa_id),
         listarProcesosEstaciones(
@@ -317,6 +323,10 @@ export default function CotizadorTecnicoV2({
           db,
           perfil.empresa_id,
           TIPOS_TERCERO.PROVEEDOR
+        ),
+        listarCostosBaseEstacion(
+          db,
+          perfil.empresa_id
         )
       ]);
 
@@ -332,6 +342,9 @@ export default function CotizadorTecnicoV2({
       );
       setProveedoresCatalogo(
         proveedores.filter(p => p.activo !== false)
+      );
+      setCostosBaseEstacion(
+        costosBase.filter(c => c.activo !== false)
       );
     } catch (fallo) {
       setError(
@@ -444,6 +457,11 @@ export default function CotizadorTecnicoV2({
         `${item.proceso_codigo}__${item.estacion_codigo}` ===
         clave
     );
+    const costoBase = costosBaseEstacion.find(
+      item =>
+        item.proceso_codigo === estacion?.proceso_codigo &&
+        item.estacion_codigo === estacion?.estacion_codigo
+    );
 
     actualizar({
       procesos: actualizarItem(
@@ -457,7 +475,30 @@ export default function CotizadorTecnicoV2({
           estacion_codigo:
             estacion?.estacion_codigo || "",
           estacion_nombre:
-            estacion?.estacion_nombre || ""
+            estacion?.estacion_nombre || "",
+          ...(costoBase
+            ? {
+                costo_hora: costoBase.costo_hora_total,
+                costo_base_estacion_id: costoBase.id,
+                costo_hora_origen: "costos_base_estacion",
+                costo_hora_detalle: {
+                  maquinista:
+                    costoBase.costo_laboral_principal,
+                  ayudantes:
+                    costoBase.costo_ayudantes,
+                  depreciacion:
+                    costoBase.depreciacion_hora,
+                  energia: costoBase.energia_hora,
+                  mantencion:
+                    costoBase.mantencion_hora
+                }
+              }
+            : {
+                costo_hora: 0,
+                costo_base_estacion_id: "",
+                costo_hora_origen: "manual",
+                costo_hora_detalle: null
+              })
         }
       )
     });
@@ -978,7 +1019,16 @@ export default function CotizadorTecnicoV2({
                           indice,
                           {
                             [campoConfig.clave]:
-                              e.target.value
+                              e.target.value,
+                            ...(campoConfig.clave === "costo_hora"
+                              ? {
+                                  costo_hora_origen:
+                                    "manual",
+                                  costo_base_estacion_id:
+                                    "",
+                                  costo_hora_detalle: null
+                                }
+                              : {})
                           }
                         )
                       })

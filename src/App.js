@@ -89,6 +89,8 @@ import CotizadorTecnicoV2 from
   "./features/costeo/CotizadorTecnicoV2";
 import TercerosV2 from
   "./features/terceros/TercerosV2";
+import CostosBaseProduccionV2 from
+  "./features/costosBase/CostosBaseProduccionV2";
 
 function App() {
   const esMobile =
@@ -1702,6 +1704,15 @@ const cargarTodosLosParos = async () => {
             ),
           accion: () =>
             setPantalla("tercerosV2")
+        },
+        {
+          titulo: "Costos Base Producción (V2)",
+          visible:
+            puedeGestionarCosteoV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("costosBaseProduccionV2")
         }
       ]
     },
@@ -2129,6 +2140,21 @@ if (
 ) {
   return (
     <TercerosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "costosBaseProduccionV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarCosteoV2(usuarioSeleccionado)
+) {
+  return (
+    <CostosBaseProduccionV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

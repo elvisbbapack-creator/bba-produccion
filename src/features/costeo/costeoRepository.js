@@ -86,6 +86,11 @@ export const prepararCotizacionTecnica = (
       estacion_nombre: limpiarTexto(
         proceso.estacion_nombre
       ),
+      costo_base_estacion_id:
+        proceso.costo_base_estacion_id || "",
+      costo_hora_origen: limpiarTexto(
+        proceso.costo_hora_origen
+      ),
       unidades_por_hora: numero(
         proceso.unidades_por_hora
       ),
@@ -93,6 +98,8 @@ export const prepararCotizacionTecnica = (
         proceso.eficiencia_esperada
       ),
       costo_hora: numero(proceso.costo_hora),
+      costo_hora_detalle:
+        proceso.costo_hora_detalle || null,
       horas_setup: numero(proceso.horas_setup),
       observacion: limpiarTexto(proceso.observacion)
     }))
