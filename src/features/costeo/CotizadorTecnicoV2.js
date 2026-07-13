@@ -229,6 +229,44 @@ const CAMPOS_MATERIAL_ESTIMADO = [
   }
 ];
 
+const CAMPOS_PROCESO_ESTIMADO = [
+  {
+    clave: "proceso_nombre",
+    etiqueta: "Proceso",
+    ayuda: "Proceso productivo estimado. Ej: Corte."
+  },
+  {
+    clave: "estacion_nombre",
+    etiqueta: "Estación",
+    ayuda: "Estación o máquina donde se produciría."
+  },
+  {
+    clave: "unidades_por_hora",
+    etiqueta: "Unid/hora",
+    ayuda: "Cantidad estimada que se fabrica por hora."
+  },
+  {
+    clave: "eficiencia_esperada",
+    etiqueta: "Eficiencia esperada %",
+    ayuda: "Rendimiento esperado por ser producto nuevo. Ej: 75."
+  },
+  {
+    clave: "costo_hora",
+    etiqueta: "Costo hora",
+    ayuda: "Costo estimado por hora del proceso o estación."
+  },
+  {
+    clave: "horas_setup",
+    etiqueta: "Horas setup",
+    ayuda: "Horas de preparación, regulación o prueba inicial."
+  },
+  {
+    clave: "observacion",
+    etiqueta: "Observación",
+    ayuda: "Nota técnica o supuesto usado para este proceso."
+  }
+];
+
 export default function CotizadorTecnicoV2({
   db,
   perfil,
@@ -887,66 +925,66 @@ export default function CotizadorTecnicoV2({
                 marginBottom: 10
               }}
             >
-              <select
-                style={campo}
-                value={claveEstacion}
-                onChange={e =>
-                  seleccionarEstacion(
-                    indice,
-                    e.target.value
-                  )
-                }
+              <CampoConAyuda
+                etiqueta="Proceso / estación"
+                ayuda="Selecciona una estación del catálogo o deja libre."
               >
-                <option value="">Proceso libre</option>
-                {estacionesCatalogo.map(estacion => (
-                  <option
-                    key={`${estacion.proceso_codigo}__${estacion.estacion_codigo}`}
-                    value={`${estacion.proceso_codigo}__${estacion.estacion_codigo}`}
-                  >
-                    {estacion.proceso_nombre} /{" "}
-                    {estacion.estacion_nombre}
-                  </option>
-                ))}
-              </select>
-              {[
-                ["Proceso", "proceso_nombre"],
-                ["Estación", "estacion_nombre"],
-                ["Unid/hora", "unidades_por_hora"],
-                [
-                  "Eficiencia esperada %",
-                  "eficiencia_esperada"
-                ],
-                ["Costo hora", "costo_hora"],
-                ["Horas setup", "horas_setup"],
-                ["Observación", "observacion"]
-              ].map(([placeholder, clave]) => (
-                <input
-                  key={clave}
+                <select
                   style={campo}
-                  type={
-                    [
-                      "unidades_por_hora",
-                      "eficiencia_esperada",
-                      "costo_hora",
-                      "horas_setup"
-                    ].includes(clave)
-                      ? "number"
-                      : "text"
-                  }
-                  placeholder={placeholder}
-                  value={proceso[clave] || ""}
+                  value={claveEstacion}
                   onChange={e =>
-                    actualizar({
-                      procesos: actualizarItem(
-                        formulario.procesos,
-                        indice,
-                        {
-                          [clave]: e.target.value
-                        }
-                      )
-                    })
+                    seleccionarEstacion(
+                      indice,
+                      e.target.value
+                    )
                   }
-                />
+                >
+                  <option value="">Proceso libre</option>
+                  {estacionesCatalogo.map(estacion => (
+                    <option
+                      key={`${estacion.proceso_codigo}__${estacion.estacion_codigo}`}
+                      value={`${estacion.proceso_codigo}__${estacion.estacion_codigo}`}
+                    >
+                      {estacion.proceso_nombre} /{" "}
+                      {estacion.estacion_nombre}
+                    </option>
+                  ))}
+                </select>
+              </CampoConAyuda>
+              {CAMPOS_PROCESO_ESTIMADO.map(campoConfig => (
+                <CampoConAyuda
+                  key={campoConfig.clave}
+                  etiqueta={campoConfig.etiqueta}
+                  ayuda={campoConfig.ayuda}
+                >
+                  <input
+                    style={campo}
+                    type={
+                      [
+                        "unidades_por_hora",
+                        "eficiencia_esperada",
+                        "costo_hora",
+                        "horas_setup"
+                      ].includes(campoConfig.clave)
+                        ? "number"
+                        : "text"
+                    }
+                    placeholder={campoConfig.etiqueta}
+                    value={proceso[campoConfig.clave] || ""}
+                    onChange={e =>
+                      actualizar({
+                        procesos: actualizarItem(
+                          formulario.procesos,
+                          indice,
+                          {
+                            [campoConfig.clave]:
+                              e.target.value
+                          }
+                        )
+                      })
+                    }
+                  />
+                </CampoConAyuda>
               ))}
             </div>
           );
