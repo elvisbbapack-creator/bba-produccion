@@ -17,6 +17,8 @@ import {
 import {
   ESTADOS_COTIZACION,
   NIVELES_CONFIANZA,
+  aFormularioCotizacionTecnica,
+  actualizarCotizacionTecnica,
   guardarCotizacionTecnica,
   listarCotizacionesTecnicas
 } from "./costeoRepository";
@@ -123,6 +125,7 @@ export default function CotizadorTecnicoV2({
   const [estacionesCatalogo, setEstacionesCatalogo] =
     useState([]);
   const [historial, setHistorial] = useState([]);
+  const [editandoId, setEditandoId] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
@@ -251,18 +254,72 @@ export default function CotizadorTecnicoV2({
     });
   };
 
+  const limpiarFormulario = () => {
+    setFormulario(estadoInicial);
+    setEditandoId("");
+    setMensaje("");
+    setError("");
+  };
+
+  const cargarParaEditar = cotizacion => {
+    setFormulario(
+      aFormularioCotizacionTecnica(cotizacion)
+    );
+    setEditandoId(cotizacion.id);
+    setMensaje(
+      "Cotización cargada para editar. Al guardar se actualizará el mismo registro."
+    );
+    setError("");
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
+  const cargarComoNuevaVersion = cotizacion => {
+    const base =
+      aFormularioCotizacionTecnica(cotizacion);
+    setFormulario({
+      ...base,
+      version: `${base.version || "V1"} copia`,
+      estado: "borrador"
+    });
+    setEditandoId("");
+    setMensaje(
+      "Cotización cargada como nueva versión. Al guardar se creará un registro nuevo."
+    );
+    setError("");
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
   const guardar = async () => {
     try {
       setGuardando(true);
       setError("");
       setMensaje("");
-      await guardarCotizacionTecnica(
-        db,
-        perfil,
-        formulario
-      );
-      setMensaje("Cotización técnica guardada.");
+      if (editandoId) {
+        await actualizarCotizacionTecnica(
+          db,
+          perfil,
+          editandoId,
+          formulario
+        );
+        setMensaje(
+          "Cotización técnica actualizada."
+        );
+      } else {
+        await guardarCotizacionTecnica(
+          db,
+          perfil,
+          formulario
+        );
+        setMensaje("Cotización técnica guardada.");
+      }
       setFormulario(estadoInicial);
+      setEditandoId("");
       await cargar();
     } catch (fallo) {
       setError(
@@ -325,7 +382,10 @@ export default function CotizadorTecnicoV2({
           "0 2px 8px rgba(15,23,42,0.08)",
         marginBottom: 18
       }}>
-        <h3>Producto prototipo</h3>
+        <h3>
+          Producto prototipo{" "}
+          {editandoId ? "(editando)" : ""}
+        </h3>
         <div style={{
           display: "grid",
           gridTemplateColumns:
@@ -776,7 +836,15 @@ export default function CotizadorTecnicoV2({
         >
           {guardando
             ? "Guardando..."
-            : "Guardar cotización"}
+            : editandoId
+              ? "Actualizar cotización"
+              : "Guardar cotización"}
+        </button>
+        <button
+          style={botonSecundario}
+          onClick={limpiarFormulario}
+        >
+          Nueva cotización
         </button>
         <button
           style={botonSecundario}
@@ -824,6 +892,37 @@ export default function CotizadorTecnicoV2({
                   {primeraEscala.lead_time_dias} días
                 </div>
               )}
+              <div style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                marginTop: 8
+              }}>
+                <button
+                  type="button"
+                  style={{
+                    ...boton,
+                    padding: "8px 10px"
+                  }}
+                  onClick={() =>
+                    cargarParaEditar(item)
+                  }
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...botonSecundario,
+                    padding: "8px 10px"
+                  }}
+                  onClick={() =>
+                    cargarComoNuevaVersion(item)
+                  }
+                >
+                  Nueva versión
+                </button>
+              </div>
             </div>
           );
         })}
@@ -831,4 +930,3 @@ export default function CotizadorTecnicoV2({
     </div>
   );
 }
-

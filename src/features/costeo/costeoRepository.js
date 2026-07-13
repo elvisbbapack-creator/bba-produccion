@@ -1,10 +1,12 @@
 import {
   addDoc,
   collection,
+  doc,
   getDocs,
   limit,
   query,
   serverTimestamp,
+  updateDoc,
   where
 } from "firebase/firestore";
 import {
@@ -186,6 +188,68 @@ export const guardarCotizacionTecnica = async (
 
   return creado.id;
 };
+
+export const actualizarCotizacionTecnica = async (
+  db,
+  perfil,
+  cotizacionId,
+  datos
+) => {
+  const cotizacion = prepararCotizacionTecnica(
+    datos,
+    perfil
+  );
+
+  await updateDoc(
+    doc(db, COLECCION, cotizacionId),
+    {
+      ...cotizacion,
+      actualizado_por_id: perfil.uid || "",
+      actualizado_por_nombre:
+        perfil.nombre || "",
+      actualizado_en: serverTimestamp()
+    }
+  );
+
+  return cotizacionId;
+};
+
+export const aFormularioCotizacionTecnica = (
+  cotizacion = {}
+) => ({
+  cliente: cotizacion.cliente || "",
+  nombre_producto:
+    cotizacion.nombre_producto || "",
+  version: cotizacion.version || "V1",
+  planta_id: cotizacion.planta_id || "chile",
+  estado: cotizacion.estado || "borrador",
+  nivel_confianza:
+    cotizacion.nivel_confianza || "media",
+  moneda: cotizacion.moneda || "CLP",
+  descripcion: cotizacion.descripcion || "",
+  riesgos: cotizacion.riesgos || "",
+  escalas: Array.isArray(cotizacion.escalas)
+    ? cotizacion.escalas.join(", ")
+    : cotizacion.escalas || "50, 100, 500",
+  indirectos_porcentaje:
+    cotizacion.supuestos?.indirectos_porcentaje ?? 18,
+  margen_porcentaje:
+    cotizacion.supuestos?.margen_porcentaje ?? 35,
+  factor_riesgo_porcentaje:
+    cotizacion.supuestos?.factor_riesgo_porcentaje ?? 8,
+  dias_compra:
+    cotizacion.supuestos?.dias_compra ?? 5,
+  dias_ingenieria:
+    cotizacion.supuestos?.dias_ingenieria ?? 2,
+  horas_disponibles_dia:
+    cotizacion.supuestos?.horas_disponibles_dia ?? 14,
+  materiales: Array.isArray(cotizacion.materiales)
+    ? cotizacion.materiales
+    : [],
+  procesos: Array.isArray(cotizacion.procesos)
+    ? cotizacion.procesos
+    : []
+});
 
 export const listarCotizacionesTecnicas = async (
   db,
