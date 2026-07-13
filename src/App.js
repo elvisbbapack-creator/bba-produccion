@@ -87,6 +87,8 @@ import GestionPersonasRRHHV2 from
   "./features/rrhh/GestionPersonasRRHHV2";
 import CotizadorTecnicoV2 from
   "./features/costeo/CotizadorTecnicoV2";
+import TercerosV2 from
+  "./features/terceros/TercerosV2";
 
 function App() {
   const esMobile =
@@ -1691,6 +1693,15 @@ const cargarTodosLosParos = async () => {
             ),
           accion: () =>
             setPantalla("cotizadorTecnicoV2")
+        },
+        {
+          titulo: "Clientes y Proveedores (V2)",
+          visible:
+            puedeGestionarCosteoV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("tercerosV2")
         }
       ]
     },
@@ -2103,6 +2114,21 @@ if (
 ) {
   return (
     <CotizadorTecnicoV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "tercerosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarCosteoV2(usuarioSeleccionado)
+) {
+  return (
+    <TercerosV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}

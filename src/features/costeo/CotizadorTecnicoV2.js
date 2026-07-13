@@ -12,6 +12,10 @@ import {
   listarProcesosEstaciones
 } from "../procesos/procesosRepository";
 import {
+  TIPOS_TERCERO,
+  listarTerceros
+} from "../terceros/tercerosRepository";
+import {
   calcularCotizacionTecnica
 } from "./costeoCalculos";
 import {
@@ -47,6 +51,8 @@ const botonSecundario = {
 };
 
 const estadoInicial = {
+  cliente_id: "",
+  cliente_codigo: "",
   cliente: "",
   nombre_producto: "",
   version: "V1",
@@ -76,6 +82,8 @@ const materialVacio = {
   merma_porcentaje: 5,
   costo_unitario: 0,
   minimo_compra: 0,
+  proveedor_id: "",
+  proveedor_codigo: "",
   proveedor: "",
   moneda: "CLP"
 };
@@ -124,6 +132,10 @@ export default function CotizadorTecnicoV2({
     useState([]);
   const [estacionesCatalogo, setEstacionesCatalogo] =
     useState([]);
+  const [clientesCatalogo, setClientesCatalogo] =
+    useState([]);
+  const [proveedoresCatalogo, setProveedoresCatalogo] =
+    useState([]);
   const [historial, setHistorial] = useState([]);
   const [editandoId, setEditandoId] = useState("");
   const [cargando, setCargando] = useState(true);
@@ -137,7 +149,9 @@ export default function CotizadorTecnicoV2({
       const [
         materiales,
         procesos,
-        cotizaciones
+        cotizaciones,
+        clientes,
+        proveedores
       ] = await Promise.all([
         listarMateriales(db, perfil.empresa_id),
         listarProcesosEstaciones(
@@ -147,6 +161,16 @@ export default function CotizadorTecnicoV2({
         listarCotizacionesTecnicas(
           db,
           perfil.empresa_id
+        ),
+        listarTerceros(
+          db,
+          perfil.empresa_id,
+          TIPOS_TERCERO.CLIENTE
+        ),
+        listarTerceros(
+          db,
+          perfil.empresa_id,
+          TIPOS_TERCERO.PROVEEDOR
         )
       ]);
 
@@ -157,6 +181,12 @@ export default function CotizadorTecnicoV2({
         aCatalogoProcesosRuta(procesos)
       );
       setHistorial(cotizaciones);
+      setClientesCatalogo(
+        clientes.filter(c => c.activo !== false)
+      );
+      setProveedoresCatalogo(
+        proveedores.filter(p => p.activo !== false)
+      );
     } catch (fallo) {
       setError(
         fallo?.message ||
@@ -221,6 +251,39 @@ export default function CotizadorTecnicoV2({
             material?.unidad_medida ||
             formulario.materiales[indice]?.unidad ||
             "un"
+        }
+      )
+    });
+  };
+
+  const seleccionarCliente = clienteId => {
+    const cliente = clientesCatalogo.find(
+      item => item.id === clienteId
+    );
+
+    actualizar({
+      cliente_id: clienteId,
+      cliente_codigo: cliente?.codigo || "",
+      cliente: cliente?.nombre || ""
+    });
+  };
+
+  const seleccionarProveedor = (
+    indice,
+    proveedorId
+  ) => {
+    const proveedor = proveedoresCatalogo.find(
+      item => item.id === proveedorId
+    );
+
+    actualizar({
+      materiales: actualizarItem(
+        formulario.materiales,
+        indice,
+        {
+          proveedor_id: proveedorId,
+          proveedor_codigo: proveedor?.codigo || "",
+          proveedor: proveedor?.nombre || ""
         }
       )
     });
@@ -392,12 +455,35 @@ export default function CotizadorTecnicoV2({
             "repeat(auto-fit, minmax(210px, 1fr))",
           gap: 12
         }}>
+          <select
+            style={campo}
+            value={formulario.cliente_id}
+            onChange={e =>
+              seleccionarCliente(e.target.value)
+            }
+          >
+            <option value="">
+              Seleccionar cliente
+            </option>
+            {clientesCatalogo.map(cliente => (
+              <option
+                key={cliente.id}
+                value={cliente.id}
+              >
+                {cliente.codigo} - {cliente.nombre}
+              </option>
+            ))}
+          </select>
           <input
             style={campo}
-            placeholder="Cliente"
+            placeholder="Cliente temporal"
             value={formulario.cliente}
             onChange={e =>
-              actualizar({ cliente: e.target.value })
+              actualizar({
+                cliente: e.target.value,
+                cliente_id: "",
+                cliente_codigo: ""
+              })
             }
           />
           <input
@@ -579,6 +665,29 @@ export default function CotizadorTecnicoV2({
                 </option>
               ))}
             </select>
+            <select
+              style={campo}
+              value={material.proveedor_id || ""}
+              onChange={e =>
+                seleccionarProveedor(
+                  indice,
+                  e.target.value
+                )
+              }
+            >
+              <option value="">
+                Seleccionar proveedor
+              </option>
+              {proveedoresCatalogo.map(proveedor => (
+                <option
+                  key={proveedor.id}
+                  value={proveedor.id}
+                >
+                  {proveedor.codigo} -{" "}
+                  {proveedor.nombre}
+                </option>
+              ))}
+            </select>
             {[
               ["Código", "codigo"],
               ["Nombre", "nombre"],
@@ -587,7 +696,7 @@ export default function CotizadorTecnicoV2({
               ["Merma %", "merma_porcentaje"],
               ["Costo unit.", "costo_unitario"],
               ["Mínimo compra", "minimo_compra"],
-              ["Proveedor", "proveedor"]
+              ["Proveedor temporal", "proveedor"]
             ].map(([placeholder, clave]) => (
               <input
                 key={clave}
@@ -610,7 +719,13 @@ export default function CotizadorTecnicoV2({
                       formulario.materiales,
                       indice,
                       {
-                        [clave]: e.target.value
+                        [clave]: e.target.value,
+                        ...(clave === "proveedor"
+                          ? {
+                              proveedor_id: "",
+                              proveedor_codigo: ""
+                            }
+                          : {})
                       }
                     )
                   })

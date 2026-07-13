@@ -66,6 +66,10 @@ export const prepararCotizacionTecnica = (
     costo_unitario: numero(material.costo_unitario),
     minimo_compra: numero(material.minimo_compra),
     proveedor: limpiarTexto(material.proveedor),
+    proveedor_id: material.proveedor_id || "",
+    proveedor_codigo: limpiarTexto(
+      material.proveedor_codigo
+    ),
     moneda: limpiarTexto(material.moneda) || "CLP"
   }));
   const procesos = normalizarLista(datos.procesos)
@@ -138,6 +142,8 @@ export const prepararCotizacionTecnica = (
       datos.planta_id ||
       perfil.planta_ids?.[0] ||
       "chile",
+    cliente_id: datos.cliente_id || "",
+    cliente_codigo: limpiarTexto(datos.cliente_codigo),
     cliente: limpiarTexto(datos.cliente),
     nombre_producto: nombre,
     version: limpiarTexto(datos.version) || "V1",
@@ -218,6 +224,8 @@ export const aFormularioCotizacionTecnica = (
   cotizacion = {}
 ) => ({
   cliente: cotizacion.cliente || "",
+  cliente_id: cotizacion.cliente_id || "",
+  cliente_codigo: cotizacion.cliente_codigo || "",
   nombre_producto:
     cotizacion.nombre_producto || "",
   version: cotizacion.version || "V1",

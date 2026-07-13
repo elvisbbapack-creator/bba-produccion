@@ -49,6 +49,14 @@ service cloud.firestore {
         hasPermission('costeo.gestionar');
     }
 
+    function canManageThirdParties(collectionName) {
+      return canManageCosting() ||
+        (
+          collectionName == 'proveedores' &&
+          canManageWarehouse()
+        );
+    }
+
     function canManageEngineering() {
       return canManage() ||
         hasPermission('ingenieria.gestionar');
@@ -449,6 +457,48 @@ service cloud.firestore {
         ) &&
         request.resource.data.empresa_id ==
           resource.data.empresa_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /{collectionName}/{thirdPartyId} {
+      allow read: if collectionName in [
+          'clientes',
+          'proveedores'
+        ] &&
+        belongsToCompany(resource.data);
+      allow create: if collectionName in [
+          'clientes',
+          'proveedores'
+        ] &&
+        canManageThirdParties(collectionName) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.tipo in [
+          'cliente',
+          'proveedor'
+        ] &&
+        request.resource.data.creado_por_id ==
+          request.auth.uid &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if collectionName in [
+          'clientes',
+          'proveedores'
+        ] &&
+        canManageThirdParties(collectionName) &&
+        belongsToCompany(resource.data) &&
+        belongsToCompany(
+          request.resource.data
+        ) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.codigo ==
+          resource.data.codigo &&
+        request.resource.data.tipo ==
+          resource.data.tipo &&
         request.resource.data.actualizado_por_id ==
           request.auth.uid;
       allow delete: if false;
