@@ -50,6 +50,32 @@ const botonSecundario = {
   background: "#455A64"
 };
 
+const ayudaCampo = {
+  color: "#64748B",
+  fontSize: 12,
+  lineHeight: 1.35,
+  marginTop: 4
+};
+
+const etiquetaCampo = {
+  display: "block",
+  fontWeight: "bold",
+  color: "#334155",
+  marginBottom: 5
+};
+
+const CampoConAyuda = ({
+  etiqueta,
+  ayuda,
+  children
+}) => (
+  <label>
+    <span style={etiquetaCampo}>{etiqueta}</span>
+    {children}
+    <div style={ayudaCampo}>{ayuda}</div>
+  </label>
+);
+
 const estadoInicial = {
   cliente_id: "",
   cliente_codigo: "",
@@ -120,6 +146,45 @@ const actualizarItem = (
         }
       : item
   );
+
+const SUPUESTOS_COTIZACION = [
+  {
+    clave: "indirectos_porcentaje",
+    etiqueta: "Indirectos %",
+    ayuda:
+      "Costos de planta no directos: energía, supervisión, mantención, administración. Ej: 18."
+  },
+  {
+    clave: "margen_porcentaje",
+    etiqueta: "Margen %",
+    ayuda:
+      "Margen comercial esperado sobre precio de venta. Ej: 35."
+  },
+  {
+    clave: "factor_riesgo_porcentaje",
+    etiqueta: "Riesgo producto nuevo %",
+    ayuda:
+      "Reserva por incertidumbre, curva de aprendizaje o reprocesos. Ej: 8 a 15."
+  },
+  {
+    clave: "dias_compra",
+    etiqueta: "Días compra MP",
+    ayuda:
+      "Tiempo estimado para conseguir materias primas o accesorios. Ej: 5."
+  },
+  {
+    clave: "dias_ingenieria",
+    etiqueta: "Días ingeniería",
+    ayuda:
+      "Tiempo para planos, muestra, ajustes y validación técnica. Ej: 2 a 7."
+  },
+  {
+    clave: "horas_disponibles_dia",
+    etiqueta: "Horas disponibles día",
+    ayuda:
+      "Horas productivas diarias usadas para estimar plazo. En 2 turnos Chile usar aprox. 14."
+  }
+];
 
 export default function CotizadorTecnicoV2({
   db,
@@ -572,43 +637,38 @@ export default function CotizadorTecnicoV2({
             "repeat(auto-fit, minmax(190px, 1fr))",
           gap: 12
         }}>
-          <input
-            style={campo}
-            placeholder="Escalas: 50,100,500"
-            value={formulario.escalas}
-            onChange={e =>
-              actualizar({ escalas: e.target.value })
-            }
-          />
-          {[
-            [
-              "Indirectos %",
-              "indirectos_porcentaje"
-            ],
-            ["Margen %", "margen_porcentaje"],
-            [
-              "Riesgo producto nuevo %",
-              "factor_riesgo_porcentaje"
-            ],
-            ["Días compra MP", "dias_compra"],
-            ["Días ingeniería", "dias_ingenieria"],
-            [
-              "Horas disponibles día",
-              "horas_disponibles_dia"
-            ]
-          ].map(([placeholder, clave]) => (
+          <CampoConAyuda
+            etiqueta="Escalas"
+            ayuda="Cantidades a cotizar separadas por coma. Ej: 50, 100, 500."
+          >
             <input
-              key={clave}
               style={campo}
-              type="number"
-              placeholder={placeholder}
-              value={formulario[clave]}
+              placeholder="50, 100, 500"
+              value={formulario.escalas}
               onChange={e =>
-                actualizar({
-                  [clave]: e.target.value
-                })
+                actualizar({ escalas: e.target.value })
               }
             />
+          </CampoConAyuda>
+          {SUPUESTOS_COTIZACION.map(campoConfig => (
+            <CampoConAyuda
+              key={campoConfig.clave}
+              etiqueta={campoConfig.etiqueta}
+              ayuda={campoConfig.ayuda}
+            >
+              <input
+                style={campo}
+                type="number"
+                placeholder={campoConfig.etiqueta}
+                value={formulario[campoConfig.clave]}
+                onChange={e =>
+                  actualizar({
+                    [campoConfig.clave]:
+                      e.target.value
+                  })
+                }
+              />
+            </CampoConAyuda>
           ))}
         </div>
         <textarea
