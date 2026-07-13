@@ -186,6 +186,49 @@ const SUPUESTOS_COTIZACION = [
   }
 ];
 
+const CAMPOS_MATERIAL_ESTIMADO = [
+  {
+    clave: "codigo",
+    etiqueta: "Código",
+    ayuda: "Código MP/RF o código temporal."
+  },
+  {
+    clave: "nombre",
+    etiqueta: "Nombre",
+    ayuda: "Nombre del material o insumo."
+  },
+  {
+    clave: "unidad",
+    etiqueta: "Unidad",
+    ayuda: "Unidad de compra o consumo. Ej: un, kg, m."
+  },
+  {
+    clave: "consumo_unitario",
+    etiqueta: "Consumo unit.",
+    ayuda: "Cantidad de material que consume 1 producto."
+  },
+  {
+    clave: "merma_porcentaje",
+    etiqueta: "Merma %",
+    ayuda: "Pérdida estimada de material. Ej: 5."
+  },
+  {
+    clave: "costo_unitario",
+    etiqueta: "Costo unit.",
+    ayuda: "Costo por unidad de compra."
+  },
+  {
+    clave: "minimo_compra",
+    etiqueta: "Mínimo compra",
+    ayuda: "Cantidad mínima que exige comprar el proveedor."
+  },
+  {
+    clave: "proveedor",
+    etiqueta: "Proveedor temporal",
+    ayuda: "Usar solo si aún no está creado en catálogo."
+  }
+];
+
 export default function CotizadorTecnicoV2({
   db,
   perfil,
@@ -708,89 +751,96 @@ export default function CotizadorTecnicoV2({
               marginBottom: 10
             }}
           >
-            <select
-              style={campo}
-              value={material.material_id}
-              onChange={e =>
-                seleccionarMaterial(
-                  indice,
-                  e.target.value
-                )
-              }
+            <CampoConAyuda
+              etiqueta="Material"
+              ayuda="Selecciona MP/RF del catálogo o deja libre."
             >
-              <option value="">Material libre</option>
-              {materialesCatalogo.map(item => (
-                <option key={item.id} value={item.id}>
-                  {item.codigo} - {item.nombre}
-                </option>
-              ))}
-            </select>
-            <select
-              style={campo}
-              value={material.proveedor_id || ""}
-              onChange={e =>
-                seleccionarProveedor(
-                  indice,
-                  e.target.value
-                )
-              }
-            >
-              <option value="">
-                Seleccionar proveedor
-              </option>
-              {proveedoresCatalogo.map(proveedor => (
-                <option
-                  key={proveedor.id}
-                  value={proveedor.id}
-                >
-                  {proveedor.codigo} -{" "}
-                  {proveedor.nombre}
-                </option>
-              ))}
-            </select>
-            {[
-              ["Código", "codigo"],
-              ["Nombre", "nombre"],
-              ["Unidad", "unidad"],
-              ["Consumo unit.", "consumo_unitario"],
-              ["Merma %", "merma_porcentaje"],
-              ["Costo unit.", "costo_unitario"],
-              ["Mínimo compra", "minimo_compra"],
-              ["Proveedor temporal", "proveedor"]
-            ].map(([placeholder, clave]) => (
-              <input
-                key={clave}
+              <select
                 style={campo}
-                type={
-                  [
-                    "consumo_unitario",
-                    "merma_porcentaje",
-                    "costo_unitario",
-                    "minimo_compra"
-                  ].includes(clave)
-                    ? "number"
-                    : "text"
-                }
-                placeholder={placeholder}
-                value={material[clave] || ""}
+                value={material.material_id}
                 onChange={e =>
-                  actualizar({
-                    materiales: actualizarItem(
-                      formulario.materiales,
-                      indice,
-                      {
-                        [clave]: e.target.value,
-                        ...(clave === "proveedor"
-                          ? {
-                              proveedor_id: "",
-                              proveedor_codigo: ""
-                            }
-                          : {})
-                      }
-                    )
-                  })
+                  seleccionarMaterial(
+                    indice,
+                    e.target.value
+                  )
                 }
-              />
+              >
+                <option value="">Material libre</option>
+                {materialesCatalogo.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.codigo} - {item.nombre}
+                  </option>
+                ))}
+              </select>
+            </CampoConAyuda>
+            <CampoConAyuda
+              etiqueta="Proveedor"
+              ayuda="Selecciona proveedor del catálogo."
+            >
+              <select
+                style={campo}
+                value={material.proveedor_id || ""}
+                onChange={e =>
+                  seleccionarProveedor(
+                    indice,
+                    e.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Seleccionar proveedor
+                </option>
+                {proveedoresCatalogo.map(proveedor => (
+                  <option
+                    key={proveedor.id}
+                    value={proveedor.id}
+                  >
+                    {proveedor.codigo} -{" "}
+                    {proveedor.nombre}
+                  </option>
+                ))}
+              </select>
+            </CampoConAyuda>
+            {CAMPOS_MATERIAL_ESTIMADO.map(campoConfig => (
+              <CampoConAyuda
+                key={campoConfig.clave}
+                etiqueta={campoConfig.etiqueta}
+                ayuda={campoConfig.ayuda}
+              >
+                <input
+                  style={campo}
+                  type={
+                    [
+                      "consumo_unitario",
+                      "merma_porcentaje",
+                      "costo_unitario",
+                      "minimo_compra"
+                    ].includes(campoConfig.clave)
+                      ? "number"
+                      : "text"
+                  }
+                  placeholder={campoConfig.etiqueta}
+                  value={material[campoConfig.clave] || ""}
+                  onChange={e =>
+                    actualizar({
+                      materiales: actualizarItem(
+                        formulario.materiales,
+                        indice,
+                        {
+                          [campoConfig.clave]:
+                            e.target.value,
+                          ...(campoConfig.clave === "proveedor"
+                            ? {
+                                proveedor_id: "",
+                                proveedor_codigo: ""
+                              }
+                            : {})
+                        }
+                      )
+                    })
+                  }
+                />
+              </CampoConAyuda>
             ))}
           </div>
         ))}
