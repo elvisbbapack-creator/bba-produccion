@@ -273,6 +273,13 @@ service cloud.firestore {
         ).affectedKeys().hasOnly([
           'nombre',
           'unidad_medida',
+          'costo_unitario_referencial',
+          'moneda',
+          'minimo_compra',
+          'proveedor_preferente_id',
+          'proveedor_preferente_codigo',
+          'proveedor_preferente_nombre',
+          'costo_origen',
           'es_comprado',
           'activo',
           'actualizado_en'

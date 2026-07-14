@@ -64,6 +64,7 @@ export const prepararCotizacionTecnica = (
       material.merma_porcentaje
     ),
     costo_unitario: numero(material.costo_unitario),
+    costo_origen: limpiarTexto(material.costo_origen),
     minimo_compra: numero(material.minimo_compra),
     proveedor: limpiarTexto(material.proveedor),
     proveedor_id: material.proveedor_id || "",

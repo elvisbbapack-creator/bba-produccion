@@ -120,6 +120,7 @@ const materialVacio = {
   proveedor_id: "",
   proveedor_codigo: "",
   proveedor: "",
+  costo_origen: "",
   moneda: "CLP"
 };
 
@@ -488,7 +489,36 @@ export default function CotizadorTecnicoV2({
           unidad:
             material?.unidad_medida ||
             formulario.materiales[indice]?.unidad ||
-            "un"
+            "un",
+          costo_unitario:
+            material?.costo_unitario_referencial ||
+            formulario.materiales[indice]?.costo_unitario ||
+            0,
+          minimo_compra:
+            material?.minimo_compra ||
+            formulario.materiales[indice]?.minimo_compra ||
+            0,
+          proveedor_id:
+            material?.proveedor_preferente_id ||
+            formulario.materiales[indice]?.proveedor_id ||
+            "",
+          proveedor_codigo:
+            material?.proveedor_preferente_codigo ||
+            formulario.materiales[indice]
+              ?.proveedor_codigo ||
+            "",
+          proveedor:
+            material?.proveedor_preferente_nombre ||
+            formulario.materiales[indice]?.proveedor ||
+            "",
+          moneda:
+            material?.moneda ||
+            formulario.materiales[indice]?.moneda ||
+            "CLP",
+          costo_origen:
+            material?.costo_unitario_referencial > 0
+              ? "catalogo_material"
+              : "manual"
         }
       )
     });
@@ -1058,14 +1088,20 @@ export default function CotizadorTecnicoV2({
                         {
                           [campoConfig.clave]:
                             e.target.value,
-                          ...(campoConfig.clave === "proveedor"
-                            ? {
-                                proveedor_id: "",
-                                proveedor_codigo: ""
-                              }
-                            : {})
-                        }
-                      )
+                            ...(campoConfig.clave === "proveedor"
+                              ? {
+                                  proveedor_id: "",
+                                  proveedor_codigo: ""
+                                }
+                              : {}),
+                            ...(campoConfig.clave ===
+                            "costo_unitario"
+                              ? {
+                                  costo_origen: "manual"
+                                }
+                              : {})
+                          }
+                        )
                     })
                   }
                 />

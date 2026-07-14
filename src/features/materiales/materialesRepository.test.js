@@ -17,7 +17,13 @@ test("normaliza el codigo y los textos del material", () => {
         tipo: TIPOS_MATERIAL.MATERIA_PRIMA,
         nombre: " Tubo 15x15 ",
         unidad_medida: " metro ",
-        es_comprado: true
+        es_comprado: true,
+        costo_unitario_referencial: "1250.5",
+        moneda: "CLP",
+        minimo_compra: "6",
+        proveedor_preferente_id: "prov-1",
+        proveedor_preferente_codigo: "PRV001",
+        proveedor_preferente_nombre: "Acero Centro"
       },
       "bba",
       "material-1"
@@ -29,6 +35,13 @@ test("normaliza el codigo y los textos del material", () => {
     tipo: TIPOS_MATERIAL.MATERIA_PRIMA,
     nombre: "Tubo 15x15",
     unidad_medida: "metro",
+    costo_unitario_referencial: 1250.5,
+    moneda: "CLP",
+    minimo_compra: 6,
+    proveedor_preferente_id: "prov-1",
+    proveedor_preferente_codigo: "PRV001",
+    proveedor_preferente_nombre: "Acero Centro",
+    costo_origen: "catalogo_material",
     es_comprado: true,
     activo: true
   });

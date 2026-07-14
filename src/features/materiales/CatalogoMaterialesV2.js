@@ -8,6 +8,10 @@ import {
   TIPOS_MATERIAL
 } from "../../domain/produccionV2";
 import {
+  TIPOS_TERCERO,
+  listarTerceros
+} from "../terceros/tercerosRepository";
+import {
   actualizarMaterial,
   cambiarEstadoMaterial,
   crearMaterial,
@@ -21,6 +25,13 @@ const estadoInicial = {
   codigo: "",
   nombre: "",
   unidad_medida: "unidad",
+  costo_unitario_referencial: 0,
+  moneda: "CLP",
+  minimo_compra: 0,
+  proveedor_preferente_id: "",
+  proveedor_preferente_codigo: "",
+  proveedor_preferente_nombre: "",
+  costo_origen: "catalogo_material",
   es_comprado: true
 };
 
@@ -39,6 +50,7 @@ function CatalogoMaterialesV2({
   onVolver
 }) {
   const [materiales, setMateriales] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
   const [editandoId, setEditandoId] =
@@ -52,10 +64,24 @@ function CatalogoMaterialesV2({
     try {
       setCargando(true);
       setError("");
-      setMateriales(
-        await listarMateriales(
+      const [
+        materialesCargados,
+        proveedoresCargados
+      ] = await Promise.all([
+        listarMateriales(
           db,
           perfil.empresa_id
+        ),
+        listarTerceros(
+          db,
+          perfil.empresa_id,
+          TIPOS_TERCERO.PROVEEDOR
+        )
+      ]);
+      setMateriales(materialesCargados);
+      setProveedores(
+        proveedoresCargados.filter(
+          proveedor => proveedor.activo !== false
         )
       );
     } catch (fallo) {
@@ -111,6 +137,18 @@ function CatalogoMaterialesV2({
       codigo: material.codigo,
       nombre: material.nombre,
       unidad_medida: material.unidad_medida,
+      costo_unitario_referencial:
+        material.costo_unitario_referencial || 0,
+      moneda: material.moneda || "CLP",
+      minimo_compra: material.minimo_compra || 0,
+      proveedor_preferente_id:
+        material.proveedor_preferente_id || "",
+      proveedor_preferente_codigo:
+        material.proveedor_preferente_codigo || "",
+      proveedor_preferente_nombre:
+        material.proveedor_preferente_nombre || "",
+      costo_origen:
+        material.costo_origen || "catalogo_material",
       es_comprado: Boolean(material.es_comprado),
       activo: material.activo !== false
     });
@@ -160,6 +198,23 @@ function CatalogoMaterialesV2({
     } finally {
       setGuardando(false);
     }
+  };
+
+  const seleccionarProveedor = proveedorId => {
+    const proveedor = proveedores.find(
+      item => item.id === proveedorId
+    );
+
+    setFormulario(actual => ({
+      ...actual,
+      proveedor_preferente_id: proveedorId,
+      proveedor_preferente_codigo:
+        proveedor?.codigo || "",
+      proveedor_preferente_nombre:
+        proveedor?.nombre || ""
+    }));
+    setError("");
+    setMensaje("");
   };
 
   const cambiarEstado = async (material) => {
@@ -346,6 +401,117 @@ function CatalogoMaterialesV2({
               />
             </label>
 
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 10
+            }}>
+              <label>
+                Costo unitario referencial
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  inputMode="decimal"
+                  value={
+                    formulario.costo_unitario_referencial ||
+                    ""
+                  }
+                  onChange={evento =>
+                    actualizarCampo(
+                      "costo_unitario_referencial",
+                      evento.target.value
+                    )
+                  }
+                  placeholder="Ej. 1250"
+                  style={{
+                    ...estiloCampo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                />
+              </label>
+
+              <label>
+                Moneda
+                <select
+                  value={formulario.moneda}
+                  onChange={evento =>
+                    actualizarCampo(
+                      "moneda",
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...estiloCampo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                >
+                  <option value="CLP">CLP</option>
+                  <option value="PEN">PEN</option>
+                  <option value="USD">USD</option>
+                </select>
+              </label>
+            </div>
+
+            <label>
+              Mínimo de compra
+              <input
+                type="number"
+                step="0.0001"
+                min="0"
+                inputMode="decimal"
+                value={formulario.minimo_compra || ""}
+                onChange={evento =>
+                  actualizarCampo(
+                    "minimo_compra",
+                    evento.target.value
+                  )
+                }
+                placeholder="Ej. 1 plancha, 6 metros, 25 kg"
+                style={{
+                  ...estiloCampo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              />
+            </label>
+
+            <label>
+              Proveedor preferente
+              <select
+                value={
+                  formulario.proveedor_preferente_id ||
+                  ""
+                }
+                onChange={evento =>
+                  seleccionarProveedor(
+                    evento.target.value
+                  )
+                }
+                style={{
+                  ...estiloCampo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              >
+                <option value="">
+                  Sin proveedor preferente
+                </option>
+                {proveedores.map(proveedor => (
+                  <option
+                    key={proveedor.id}
+                    value={proveedor.id}
+                  >
+                    {proveedor.codigo} -{" "}
+                    {proveedor.nombre}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             {formulario.tipo === "MP" && (
               <label style={{
                 display: "flex",
@@ -485,6 +651,19 @@ function CatalogoMaterialesV2({
                           {material.unidad_medida}
                           {material.es_comprado
                             ? " · comprado"
+                            : ""}
+                          {material.costo_unitario_referencial
+                            ? ` · costo ref. ${Number(
+                                material.costo_unitario_referencial
+                              ).toLocaleString("es-CL", {
+                                style: "currency",
+                                currency:
+                                  material.moneda || "CLP",
+                                maximumFractionDigits: 0
+                              })}`
+                            : ""}
+                          {material.proveedor_preferente_nombre
+                            ? ` · prov. ${material.proveedor_preferente_nombre}`
                             : ""}
                         </div>
                       </div>

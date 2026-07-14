@@ -18,6 +18,13 @@ const COLECCION = "materiales";
 const limpiarTexto = (valor) =>
   (valor || "").toString().trim();
 
+const numero = valor => {
+  const convertido = Number(valor);
+  return Number.isFinite(convertido)
+    ? convertido
+    : 0;
+};
+
 export const normalizarCodigoMaterial = (valor) =>
   limpiarTexto(valor)
     .toUpperCase()
@@ -41,6 +48,22 @@ export const prepararMaterial = (
     unidad_medida: limpiarTexto(
       datos.unidad_medida
     ),
+    costo_unitario_referencial: numero(
+      datos.costo_unitario_referencial
+    ),
+    moneda: limpiarTexto(datos.moneda) || "CLP",
+    minimo_compra: numero(datos.minimo_compra),
+    proveedor_preferente_id:
+      datos.proveedor_preferente_id || "",
+    proveedor_preferente_codigo: limpiarTexto(
+      datos.proveedor_preferente_codigo
+    ),
+    proveedor_preferente_nombre: limpiarTexto(
+      datos.proveedor_preferente_nombre
+    ),
+    costo_origen:
+      limpiarTexto(datos.costo_origen) ||
+      "catalogo_material",
     es_comprado:
       tipo === TIPOS_MATERIAL.MATERIA_PRIMA
         ? Boolean(datos.es_comprado)
@@ -153,6 +176,17 @@ export const actualizarMaterial = async (
     {
       nombre: material.nombre,
       unidad_medida: material.unidad_medida,
+      costo_unitario_referencial:
+        material.costo_unitario_referencial,
+      moneda: material.moneda,
+      minimo_compra: material.minimo_compra,
+      proveedor_preferente_id:
+        material.proveedor_preferente_id,
+      proveedor_preferente_codigo:
+        material.proveedor_preferente_codigo,
+      proveedor_preferente_nombre:
+        material.proveedor_preferente_nombre,
+      costo_origen: material.costo_origen,
       es_comprado: material.es_comprado,
       activo: material.activo,
       actualizado_en: serverTimestamp()
