@@ -176,6 +176,15 @@ const primerTexto = (origen, campos = []) =>
     .find(valor => (valor || "").toString().trim()) ||
   "";
 
+const normalizarComparacion = valor =>
+  (valor || "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 const SUPUESTOS_COTIZACION = [
   {
     clave: "indirectos_porcentaje",
@@ -494,38 +503,82 @@ export default function CotizadorTecnicoV2({
     const material = materialesCatalogo.find(
       item => item.id === materialId
     );
+    const camposCostoMaterial = [
+      "costo_unitario_referencial",
+      "costo_unitario",
+      "precio_unitario",
+      "precio_unitario_referencial",
+      "precio_referencial",
+      "ultimo_costo",
+      "costo_promedio",
+      "costo_promedio_ponderado",
+      "costo"
+    ];
+    const costoMaterialSeleccionado =
+      primerNumeroPositivo(
+        material,
+        camposCostoMaterial
+      );
+    const nombreMaterial =
+      normalizarComparacion(material?.nombre);
+    const unidadMaterial =
+      normalizarComparacion(material?.unidad_medida);
+    const materialEquivalente =
+      costoMaterialSeleccionado > 0
+        ? null
+        : materialesCatalogo.find(item => {
+            if (item.id === material?.id) {
+              return false;
+            }
+
+            const mismoNombre =
+              normalizarComparacion(item.nombre) ===
+              nombreMaterial;
+            const mismaUnidad =
+              !unidadMaterial ||
+              normalizarComparacion(
+                item.unidad_medida
+              ) === unidadMaterial;
+            const tieneCosto =
+              primerNumeroPositivo(
+                item,
+                camposCostoMaterial
+              ) > 0;
+
+            return (
+              mismoNombre &&
+              mismaUnidad &&
+              tieneCosto
+            );
+          });
+    const materialCosto =
+      costoMaterialSeleccionado > 0
+        ? material
+        : materialEquivalente || material;
     const costoCatalogo = primerNumeroPositivo(
-      material,
-      [
-        "costo_unitario_referencial",
-        "costo_unitario",
-        "precio_unitario",
-        "precio_unitario_referencial",
-        "precio_referencial",
-        "ultimo_costo",
-        "costo_promedio",
-        "costo_promedio_ponderado",
-        "costo"
-      ]
+      materialCosto,
+      camposCostoMaterial
     );
+    const mismoMaterialActual =
+      materialActual?.material_id === materialId;
     const minimoCompra = primerNumeroPositivo(
-      material,
+      materialCosto,
       [
         "minimo_compra",
         "compra_minima",
         "cantidad_minima_compra"
       ]
     );
-    const proveedorCodigo = primerTexto(material, [
+    const proveedorCodigo = primerTexto(materialCosto, [
       "proveedor_preferente_codigo",
       "proveedor_codigo"
     ]);
-    const proveedorNombre = primerTexto(material, [
+    const proveedorNombre = primerTexto(materialCosto, [
       "proveedor_preferente_nombre",
       "proveedor_nombre",
       "proveedor"
     ]);
-    const proveedorId = primerTexto(material, [
+    const proveedorId = primerTexto(materialCosto, [
       "proveedor_preferente_id",
       "proveedor_id"
     ]);
@@ -546,35 +599,52 @@ export default function CotizadorTecnicoV2({
         "un",
       costo_unitario:
         costoCatalogo ||
-        materialActual?.costo_unitario ||
+        (mismoMaterialActual
+          ? materialActual?.costo_unitario
+          : 0) ||
         0,
       minimo_compra:
         minimoCompra ||
-        materialActual?.minimo_compra ||
+        (mismoMaterialActual
+          ? materialActual?.minimo_compra
+          : 0) ||
         0,
       proveedor_id:
         proveedorCatalogo?.id ||
         proveedorId ||
-        materialActual?.proveedor_id ||
+        (mismoMaterialActual
+          ? materialActual?.proveedor_id
+          : "") ||
         "",
       proveedor_codigo:
         proveedorCatalogo?.codigo ||
         proveedorCodigo ||
-        materialActual?.proveedor_codigo ||
+        (mismoMaterialActual
+          ? materialActual?.proveedor_codigo
+          : "") ||
         "",
       proveedor:
         proveedorCatalogo?.nombre ||
         proveedorNombre ||
-        materialActual?.proveedor ||
+        (mismoMaterialActual
+          ? materialActual?.proveedor
+          : "") ||
         "",
       moneda:
+        materialCosto?.moneda ||
         material?.moneda ||
-        materialActual?.moneda ||
+        (mismoMaterialActual
+          ? materialActual?.moneda
+          : "") ||
         "CLP",
       costo_origen:
         costoCatalogo > 0
-          ? "catalogo_material"
-          : materialActual?.costo_origen || "manual"
+          ? materialCosto?.id === material?.id
+            ? "catalogo_material"
+            : "catalogo_material_equivalente"
+          : (mismoMaterialActual
+              ? materialActual?.costo_origen
+              : "") || "manual"
     };
   };
 
@@ -1127,7 +1197,13 @@ export default function CotizadorTecnicoV2({
                 ))}
               </select>
             </CampoConAyuda>
-            {CAMPOS_MATERIAL_ESTIMADO.map(campoConfig => (
+            {CAMPOS_MATERIAL_ESTIMADO.filter(
+              campoConfig =>
+                !(
+                  campoConfig.clave === "proveedor" &&
+                  material.proveedor_id
+                )
+            ).map(campoConfig => (
               <CampoConAyuda
                 key={campoConfig.clave}
                 etiqueta={campoConfig.etiqueta}
