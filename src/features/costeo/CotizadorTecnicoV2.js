@@ -159,6 +159,23 @@ const actualizarItem = (
       : item
   );
 
+const primerNumeroPositivo = (
+  origen,
+  campos = []
+) => {
+  const encontrado = campos
+    .map(campo => Number(origen?.[campo]))
+    .find(valor => Number.isFinite(valor) && valor > 0);
+
+  return encontrado || 0;
+};
+
+const primerTexto = (origen, campos = []) =>
+  campos
+    .map(campo => origen?.[campo])
+    .find(valor => (valor || "").toString().trim()) ||
+  "";
+
 const SUPUESTOS_COTIZACION = [
   {
     clave: "indirectos_porcentaje",
@@ -470,56 +487,109 @@ export default function CotizadorTecnicoV2({
     formulario.planta_id
   ]);
 
-  const seleccionarMaterial = (
-    indice,
+  const enriquecerMaterialDesdeCatalogo = (
+    materialActual,
     materialId
   ) => {
     const material = materialesCatalogo.find(
       item => item.id === materialId
     );
+    const costoCatalogo = primerNumeroPositivo(
+      material,
+      [
+        "costo_unitario_referencial",
+        "costo_unitario",
+        "precio_unitario",
+        "precio_unitario_referencial",
+        "precio_referencial",
+        "ultimo_costo",
+        "costo_promedio",
+        "costo_promedio_ponderado",
+        "costo"
+      ]
+    );
+    const minimoCompra = primerNumeroPositivo(
+      material,
+      [
+        "minimo_compra",
+        "compra_minima",
+        "cantidad_minima_compra"
+      ]
+    );
+    const proveedorCodigo = primerTexto(material, [
+      "proveedor_preferente_codigo",
+      "proveedor_codigo"
+    ]);
+    const proveedorNombre = primerTexto(material, [
+      "proveedor_preferente_nombre",
+      "proveedor_nombre",
+      "proveedor"
+    ]);
+    const proveedorId = primerTexto(material, [
+      "proveedor_preferente_id",
+      "proveedor_id"
+    ]);
+    const proveedorCatalogo = proveedoresCatalogo.find(
+      proveedor =>
+        proveedor.id === proveedorId ||
+        proveedor.codigo === proveedorCodigo ||
+        proveedor.nombre === proveedorNombre
+    );
 
+    return {
+      material_id: materialId,
+      codigo: material?.codigo || "",
+      nombre: material?.nombre || "",
+      unidad:
+        material?.unidad_medida ||
+        materialActual?.unidad ||
+        "un",
+      costo_unitario:
+        costoCatalogo ||
+        materialActual?.costo_unitario ||
+        0,
+      minimo_compra:
+        minimoCompra ||
+        materialActual?.minimo_compra ||
+        0,
+      proveedor_id:
+        proveedorCatalogo?.id ||
+        proveedorId ||
+        materialActual?.proveedor_id ||
+        "",
+      proveedor_codigo:
+        proveedorCatalogo?.codigo ||
+        proveedorCodigo ||
+        materialActual?.proveedor_codigo ||
+        "",
+      proveedor:
+        proveedorCatalogo?.nombre ||
+        proveedorNombre ||
+        materialActual?.proveedor ||
+        "",
+      moneda:
+        material?.moneda ||
+        materialActual?.moneda ||
+        "CLP",
+      costo_origen:
+        costoCatalogo > 0
+          ? "catalogo_material"
+          : materialActual?.costo_origen || "manual"
+    };
+  };
+
+  const seleccionarMaterial = (
+    indice,
+    materialId
+  ) => {
     actualizar({
       materiales: actualizarItem(
         formulario.materiales,
         indice,
-        {
-          material_id: materialId,
-          codigo: material?.codigo || "",
-          nombre: material?.nombre || "",
-          unidad:
-            material?.unidad_medida ||
-            formulario.materiales[indice]?.unidad ||
-            "un",
-          costo_unitario:
-            material?.costo_unitario_referencial ||
-            formulario.materiales[indice]?.costo_unitario ||
-            0,
-          minimo_compra:
-            material?.minimo_compra ||
-            formulario.materiales[indice]?.minimo_compra ||
-            0,
-          proveedor_id:
-            material?.proveedor_preferente_id ||
-            formulario.materiales[indice]?.proveedor_id ||
-            "",
-          proveedor_codigo:
-            material?.proveedor_preferente_codigo ||
-            formulario.materiales[indice]
-              ?.proveedor_codigo ||
-            "",
-          proveedor:
-            material?.proveedor_preferente_nombre ||
-            formulario.materiales[indice]?.proveedor ||
-            "",
-          moneda:
-            material?.moneda ||
-            formulario.materiales[indice]?.moneda ||
-            "CLP",
-          costo_origen:
-            material?.costo_unitario_referencial > 0
-              ? "catalogo_material"
-              : "manual"
-        }
+        enriquecerMaterialDesdeCatalogo(
+          formulario.materiales[indice],
+          materialId
+        )
       )
     });
   };
@@ -649,9 +719,25 @@ export default function CotizadorTecnicoV2({
   };
 
   const cargarParaEditar = cotizacion => {
-    setFormulario(
-      aFormularioCotizacionTecnica(cotizacion)
-    );
+    const formularioCotizacion =
+      aFormularioCotizacionTecnica(cotizacion);
+    const materialesEnriquecidos =
+      formularioCotizacion.materiales.map(material =>
+        material.material_id
+          ? {
+              ...material,
+              ...enriquecerMaterialDesdeCatalogo(
+                material,
+                material.material_id
+              )
+            }
+          : material
+      );
+
+    setFormulario({
+      ...formularioCotizacion,
+      materiales: materialesEnriquecidos
+    });
     setEditandoId(cotizacion.id);
     setMensaje(
       "Cotización cargada para editar. Al guardar se actualizará el mismo registro."
