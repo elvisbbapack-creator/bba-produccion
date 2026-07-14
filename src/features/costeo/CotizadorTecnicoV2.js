@@ -246,6 +246,13 @@ const CAMPOS_MATERIAL_ESTIMADO = [
   }
 ];
 
+const PASOS_MATERIAL_ESTIMADO = {
+  consumo_unitario: "0.0001",
+  merma_porcentaje: "0.01",
+  costo_unitario: "0.01",
+  minimo_compra: "0.0001"
+};
+
 const CAMPOS_PROCESO_ESTIMADO = [
   {
     clave: "proceso_nombre",
@@ -1021,6 +1028,25 @@ export default function CotizadorTecnicoV2({
                     ].includes(campoConfig.clave)
                       ? "number"
                       : "text"
+                  }
+                  inputMode={
+                    PASOS_MATERIAL_ESTIMADO[
+                      campoConfig.clave
+                    ]
+                      ? "decimal"
+                      : undefined
+                  }
+                  step={
+                    PASOS_MATERIAL_ESTIMADO[
+                      campoConfig.clave
+                    ]
+                  }
+                  min={
+                    PASOS_MATERIAL_ESTIMADO[
+                      campoConfig.clave
+                    ]
+                      ? "0"
+                      : undefined
                   }
                   placeholder={campoConfig.etiqueta}
                   value={material[campoConfig.clave] || ""}

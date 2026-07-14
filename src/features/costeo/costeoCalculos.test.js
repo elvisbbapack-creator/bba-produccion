@@ -67,6 +67,26 @@ test("respeta minimo de compra de material", () => {
   expect(resultado[0].costo_materiales).toBe(50000);
 });
 
+test("calcula materiales con consumo unitario decimal", () => {
+  const resultado = calcularCotizacionTecnica({
+    escalas: [8],
+    materiales: [
+      {
+        consumo_unitario: 0.125,
+        costo_unitario: 24000,
+        merma_porcentaje: 5,
+        minimo_compra: 0
+      }
+    ],
+    indirectos_porcentaje: 0,
+    margen_porcentaje: 0,
+    factor_riesgo_porcentaje: 0
+  });
+
+  expect(resultado[0].costo_materiales).toBe(25200);
+  expect(resultado[0].costo_unitario).toBe(3150);
+});
+
 test("absorbe costos operativos fijos según porcentaje de estación", () => {
   const resultado = calcularCotizacionTecnica({
     escalas: [100],
