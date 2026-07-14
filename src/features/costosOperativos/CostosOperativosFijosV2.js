@@ -5,7 +5,12 @@ import {
   useState
 } from "react";
 import {
+  aCatalogoProcesosRuta,
+  listarProcesosEstaciones
+} from "../procesos/procesosRepository";
+import {
   ITEMS_OPERATIVOS_BASE,
+  absorcionEstacionVacia,
   calcularCostosOperativos,
   guardarCostosOperativos,
   itemOperativoVacio,
@@ -68,6 +73,7 @@ const estadoInicial = {
   periodo: "mensual",
   horas_productivas_mes: 520,
   activo: true,
+  estaciones_absorcion: [],
   items: ITEMS_OPERATIVOS_BASE.map(item => ({
     ...item,
     costo_mensual_unitario: 0,
@@ -108,6 +114,7 @@ export default function CostosOperativosFijosV2({
 }) {
   const [formulario, setFormulario] =
     useState(estadoInicial);
+  const [estaciones, setEstaciones] = useState([]);
   const [costos, setCostos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -118,10 +125,14 @@ export default function CostosOperativosFijosV2({
     try {
       setCargando(true);
       setError("");
-      const cargados = await listarCostosOperativos(
-        db,
-        perfil.empresa_id
-      );
+      const [
+        cargados,
+        procesos
+      ] = await Promise.all([
+        listarCostosOperativos(db, perfil.empresa_id),
+        listarProcesosEstaciones(db, perfil.empresa_id)
+      ]);
+      setEstaciones(aCatalogoProcesosRuta(procesos));
       setCostos(cargados);
       const actual = cargados.find(
         costo =>
@@ -180,6 +191,34 @@ export default function CostosOperativosFijosV2({
     setFormulario(estadoInicial);
     setMensaje("");
     setError("");
+  };
+
+  const seleccionarEstacionAbsorcion = (
+    indice,
+    clave
+  ) => {
+    const estacion = estaciones.find(
+      item =>
+        `${item.proceso_codigo}__${item.estacion_codigo}` ===
+        clave
+    );
+
+    actualizar({
+      estaciones_absorcion: actualizarItem(
+        formulario.estaciones_absorcion,
+        indice,
+        {
+          proceso_codigo:
+            estacion?.proceso_codigo || "",
+          proceso_nombre:
+            estacion?.proceso_nombre || "",
+          estacion_codigo:
+            estacion?.estacion_codigo || "",
+          estacion_nombre:
+            estacion?.estacion_nombre || ""
+        }
+      )
+    });
   };
 
   const guardar = async () => {
@@ -496,6 +535,138 @@ export default function CostosOperativosFijosV2({
       </section>
 
       <section style={{
+        background: "white",
+        padding: 18,
+        borderRadius: 14,
+        boxShadow:
+          "0 2px 8px rgba(15,23,42,0.08)",
+        marginBottom: 18
+      }}>
+        <h3>Distribución por estación</h3>
+        <p style={{
+          color: "#475569",
+          lineHeight: 1.45
+        }}>
+          Asigna a cada estación el porcentaje de costo
+          operativo fijo que debe absorber según el área que
+          ocupa. En cotización, solo se carga el porcentaje de
+          las estaciones usadas.
+        </p>
+        {formulario.estaciones_absorcion.map(
+          (estacion, indice) => {
+            const clave =
+              `${estacion.proceso_codigo}__${estacion.estacion_codigo}`;
+
+            return (
+              <div
+                key={indice}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(170px, 1fr))",
+                  gap: 10,
+                  padding: 12,
+                  background: "#F8FAFC",
+                  borderRadius: 12,
+                  marginBottom: 10
+                }}
+              >
+                <CampoConAyuda
+                  etiqueta="Proceso / estación"
+                  ayuda="Selecciona la estación del catálogo productivo."
+                >
+                  <select
+                    style={campo}
+                    value={clave}
+                    onChange={e =>
+                      seleccionarEstacionAbsorcion(
+                        indice,
+                        e.target.value
+                      )
+                    }
+                  >
+                    <option value="">
+                      Seleccionar estación
+                    </option>
+                    {estaciones.map(item => (
+                      <option
+                        key={`${item.proceso_codigo}__${item.estacion_codigo}`}
+                        value={`${item.proceso_codigo}__${item.estacion_codigo}`}
+                      >
+                        {item.proceso_nombre} /{" "}
+                        {item.estacion_nombre}
+                      </option>
+                    ))}
+                  </select>
+                </CampoConAyuda>
+                <CampoConAyuda
+                  etiqueta="% absorción"
+                  ayuda="Porcentaje del costo fijo mensual asignado a esta estación."
+                >
+                  <input
+                    style={campo}
+                    type="number"
+                    value={
+                      estacion.porcentaje_absorcion ||
+                      ""
+                    }
+                    onChange={e =>
+                      actualizar({
+                        estaciones_absorcion:
+                          actualizarItem(
+                            formulario.estaciones_absorcion,
+                            indice,
+                            {
+                              porcentaje_absorcion:
+                                e.target.value
+                            }
+                          )
+                      })
+                    }
+                  />
+                </CampoConAyuda>
+                <CampoConAyuda
+                  etiqueta="Observación"
+                  ayuda="Ej: área ocupada, criterio o ajuste aplicado."
+                >
+                  <input
+                    style={campo}
+                    value={estacion.observacion || ""}
+                    onChange={e =>
+                      actualizar({
+                        estaciones_absorcion:
+                          actualizarItem(
+                            formulario.estaciones_absorcion,
+                            indice,
+                            {
+                              observacion: e.target.value
+                            }
+                          )
+                      })
+                    }
+                  />
+                </CampoConAyuda>
+              </div>
+            );
+          }
+        )}
+        <button
+          type="button"
+          style={botonSecundario}
+          onClick={() =>
+            actualizar({
+              estaciones_absorcion: [
+                ...formulario.estaciones_absorcion,
+                absorcionEstacionVacia()
+              ]
+            })
+          }
+        >
+          + Agregar estación
+        </button>
+      </section>
+
+      <section style={{
         display: "grid",
         gridTemplateColumns:
           "repeat(auto-fit, minmax(210px, 1fr))",
@@ -522,6 +693,12 @@ export default function CostosOperativosFijosV2({
               calculos.costo_operativo_hora,
               formulario.moneda
             )
+          ],
+          [
+            "% asignado a estaciones",
+            `${formatoNumero(
+              calculos.porcentaje_absorcion_total
+            )}%`
           ]
         ].map(([titulo, valor]) => (
           <div

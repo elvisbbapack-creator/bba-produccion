@@ -25,11 +25,12 @@ describe("costosOperativosRepository", () => {
     expect(resultado).toEqual({
       costo_mensual_total: 5400000,
       horas_productivas_mes: 520,
-      costo_operativo_hora: 10384.62
+      costo_operativo_hora: 10384.62,
+      porcentaje_absorcion_total: 0
     });
   });
 
-  it("prepara costos operativos con empresa y planta", () => {
+  it("prepara costos operativos con absorción por estación", () => {
     const resultado = prepararCostosOperativos(
       {
         planta_id: "chile",
@@ -41,6 +42,15 @@ describe("costosOperativosRepository", () => {
             nombre: "Administrador",
             cantidad: 1,
             costo_mensual_unitario: 1000000
+          }
+        ],
+        estaciones_absorcion: [
+          {
+            proceso_codigo: "PR001",
+            proceso_nombre: "Corte",
+            estacion_codigo: "EST001",
+            estacion_nombre: "Sierra",
+            porcentaje_absorcion: 12.5
           }
         ]
       },
@@ -55,6 +65,8 @@ describe("costosOperativosRepository", () => {
     expect(resultado.planta_id).toBe("chile");
     expect(resultado.costo_operativo_hora).toBe(10000);
     expect(resultado.items).toHaveLength(1);
+    expect(resultado.estaciones_absorcion).toHaveLength(1);
+    expect(resultado.porcentaje_absorcion_total).toBe(12.5);
   });
 
   it("valida datos mínimos", () => {
@@ -68,6 +80,19 @@ describe("costosOperativosRepository", () => {
       "Selecciona una planta.",
       "Ingresa al menos un costo operativo mensual.",
       "Ingresa las horas productivas mensuales."
+    ]);
+  });
+
+  it("rechaza absorción sobre 100%", () => {
+    expect(
+      validarCostosOperativos({
+        planta_id: "chile",
+        costo_mensual_total: 1000,
+        horas_productivas_mes: 10,
+        porcentaje_absorcion_total: 120
+      })
+    ).toEqual([
+      "La suma de porcentajes por estación no puede superar 100%."
     ]);
   });
 });

@@ -25,6 +25,7 @@ test("calcula costo, precio y lead time por escala", () => {
         unidades_por_hora: 20,
         eficiencia_esperada: 80,
         costo_hora: 5000,
+        porcentaje_costo_operativo: 100,
         horas_setup: 1
       }
     ],
@@ -66,7 +67,7 @@ test("respeta minimo de compra de material", () => {
   expect(resultado[0].costo_materiales).toBe(50000);
 });
 
-test("absorbe costos operativos fijos por hora productiva", () => {
+test("absorbe costos operativos fijos según porcentaje de estación", () => {
   const resultado = calcularCotizacionTecnica({
     escalas: [100],
     materiales: [
@@ -78,9 +79,21 @@ test("absorbe costos operativos fijos por hora productiva", () => {
     ],
     procesos: [
       {
+        proceso_nombre: "Corte",
+        estacion_nombre: "Estación pequeña",
         unidades_por_hora: 20,
         eficiencia_esperada: 80,
         costo_hora: 5000,
+        porcentaje_costo_operativo: 5,
+        horas_setup: 1
+      },
+      {
+        proceso_nombre: "Pintura",
+        estacion_nombre: "Cabina grande",
+        unidades_por_hora: 20,
+        eficiencia_esperada: 80,
+        costo_hora: 5000,
+        porcentaje_costo_operativo: 20,
         horas_setup: 1
       }
     ],
@@ -92,10 +105,22 @@ test("absorbe costos operativos fijos por hora productiva", () => {
 
   expect(resultado[0]).toMatchObject({
     costo_materiales: 22000,
-    costo_procesos: 36250,
-    costo_operativo: 7250,
-    costo_indirecto: 6550,
-    costo_riesgo: 3602.5,
-    costo_total: 75652.5
+    costo_procesos: 72500,
+    costo_operativo: 1812.5,
+    costo_indirecto: 9631.25,
+    costo_riesgo: 5297.19,
+    costo_total: 111240.94
   });
+  expect(resultado[0].detalle_procesos).toMatchObject([
+    {
+      estacion_nombre: "Estación pequeña",
+      porcentaje_costo_operativo: 5,
+      costo_operativo: 362.5
+    },
+    {
+      estacion_nombre: "Cabina grande",
+      porcentaje_costo_operativo: 20,
+      costo_operativo: 1450
+    }
+  ]);
 });

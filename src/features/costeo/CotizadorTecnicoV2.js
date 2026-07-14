@@ -131,6 +131,8 @@ const procesoVacio = {
   unidades_por_hora: 10,
   eficiencia_esperada: 75,
   costo_hora: 0,
+  porcentaje_costo_operativo: 0,
+  costo_operativo_origen: "",
   horas_setup: 0,
   observacion: ""
 };
@@ -269,6 +271,12 @@ const CAMPOS_PROCESO_ESTIMADO = [
     clave: "costo_hora",
     etiqueta: "Costo hora",
     ayuda: "Costo estimado por hora del proceso o estación."
+  },
+  {
+    clave: "porcentaje_costo_operativo",
+    etiqueta: "% costo fijo",
+    ayuda:
+      "Porcentaje de costos operativos fijos que absorbe esta estación según área ocupada."
   },
   {
     clave: "horas_setup",
@@ -512,6 +520,26 @@ export default function CotizadorTecnicoV2({
     });
   };
 
+  const obtenerAbsorcionOperativa = estacion => {
+    const costoOperativo = costosOperativos.find(
+      item =>
+        item.planta_id === formulario.planta_id &&
+        item.id === formulario.costo_operativo_config_id
+    ) || costosOperativos.find(
+      item => item.planta_id === formulario.planta_id
+    );
+    const absorcion =
+      costoOperativo?.estaciones_absorcion?.find(
+        item =>
+          item.proceso_codigo ===
+            estacion?.proceso_codigo &&
+          item.estacion_codigo ===
+            estacion?.estacion_codigo
+      );
+
+    return absorcion?.porcentaje_absorcion || 0;
+  };
+
   const seleccionarEstacion = (
     indice,
     clave
@@ -526,6 +554,8 @@ export default function CotizadorTecnicoV2({
         item.proceso_codigo === estacion?.proceso_codigo &&
         item.estacion_codigo === estacion?.estacion_codigo
     );
+    const porcentajeCostoOperativo =
+      obtenerAbsorcionOperativa(estacion);
 
     actualizar({
       procesos: actualizarItem(
@@ -540,6 +570,12 @@ export default function CotizadorTecnicoV2({
             estacion?.estacion_codigo || "",
           estacion_nombre:
             estacion?.estacion_nombre || "",
+          porcentaje_costo_operativo:
+            porcentajeCostoOperativo,
+          costo_operativo_origen:
+            porcentajeCostoOperativo > 0
+              ? "costos_operativos_planta"
+              : "manual",
           ...(costoBase
             ? {
                 costo_hora: costoBase.costo_hora_total,
@@ -1093,6 +1129,7 @@ export default function CotizadorTecnicoV2({
                         "unidades_por_hora",
                         "eficiencia_esperada",
                         "costo_hora",
+                        "porcentaje_costo_operativo",
                         "horas_setup"
                       ].includes(campoConfig.clave)
                         ? "number"
@@ -1115,6 +1152,13 @@ export default function CotizadorTecnicoV2({
                                   costo_base_estacion_id:
                                     "",
                                   costo_hora_detalle: null
+                                }
+                              : {}),
+                            ...(campoConfig.clave ===
+                            "porcentaje_costo_operativo"
+                              ? {
+                                  costo_operativo_origen:
+                                    "manual"
                                 }
                               : {})
                           }
@@ -1228,6 +1272,78 @@ export default function CotizadorTecnicoV2({
             </tbody>
           </table>
         </div>
+        {resultados[0]?.detalle_procesos?.length > 0 && (
+          <div style={{
+            marginTop: 16,
+            background: "white",
+            borderRadius: 12,
+            padding: 12
+          }}>
+            <h4 style={{ marginTop: 0 }}>
+              Detalle costo operativo por proceso ·{" "}
+              {resultados[0].cantidad} unidades
+            </h4>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{
+                width: "100%",
+                borderCollapse: "collapse"
+              }}>
+                <thead>
+                  <tr>
+                    {[
+                      "Proceso",
+                      "Estación",
+                      "Horas",
+                      "% fijo",
+                      "Costo operativo"
+                    ].map(titulo => (
+                      <th
+                        key={titulo}
+                        style={{
+                          textAlign: "left",
+                          padding: 8
+                        }}
+                      >
+                        {titulo}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {resultados[0].detalle_procesos.map(
+                    (detalle, indice) => (
+                      <tr
+                        key={`${detalle.proceso_codigo}_${detalle.estacion_codigo}_${indice}`}
+                      >
+                        <td style={{ padding: 8 }}>
+                          {detalle.proceso_nombre || "-"}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {detalle.estacion_nombre || "-"}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {detalle.horas}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {
+                            detalle.porcentaje_costo_operativo
+                          }
+                          %
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {formatoNumero(
+                            detalle.costo_operativo,
+                            formulario.moneda
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
 
       <div style={{

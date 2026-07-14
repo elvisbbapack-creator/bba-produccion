@@ -101,6 +101,15 @@ export const itemOperativoVacio = () => ({
   observacion: ""
 });
 
+export const absorcionEstacionVacia = () => ({
+  proceso_codigo: "",
+  proceso_nombre: "",
+  estacion_codigo: "",
+  estacion_nombre: "",
+  porcentaje_absorcion: 0,
+  observacion: ""
+});
+
 const normalizarItems = items =>
   (Array.isArray(items) && items.length > 0
     ? items
@@ -115,10 +124,39 @@ const normalizarItems = items =>
     observacion: limpiarTexto(item.observacion)
   }));
 
+export const claveEstacionAbsorcion = estacion =>
+  `${estacion.proceso_codigo || ""}__${estacion.estacion_codigo || ""}`;
+
+const normalizarEstacionesAbsorcion = estaciones =>
+  (Array.isArray(estaciones) ? estaciones : []).map(
+    estacion => ({
+      proceso_codigo: limpiarTexto(
+        estacion.proceso_codigo
+      ),
+      proceso_nombre: limpiarTexto(
+        estacion.proceso_nombre
+      ),
+      estacion_codigo: limpiarTexto(
+        estacion.estacion_codigo
+      ),
+      estacion_nombre: limpiarTexto(
+        estacion.estacion_nombre
+      ),
+      porcentaje_absorcion: numero(
+        estacion.porcentaje_absorcion
+      ),
+      observacion: limpiarTexto(estacion.observacion)
+    })
+  );
+
 export const calcularCostosOperativos = (
   datos = {}
 ) => {
   const items = normalizarItems(datos.items);
+  const estacionesAbsorcion =
+    normalizarEstacionesAbsorcion(
+      datos.estaciones_absorcion
+    );
   const costoMensualTotal = items.reduce(
     (total, item) =>
       total +
@@ -132,6 +170,12 @@ export const calcularCostosOperativos = (
   );
   const costoOperativoHora =
     costoMensualTotal / horasProductivasMes;
+  const porcentajeAbsorcionTotal =
+    estacionesAbsorcion.reduce(
+      (total, estacion) =>
+        total + numero(estacion.porcentaje_absorcion),
+      0
+    );
 
   return {
     costo_mensual_total: redondear(costoMensualTotal),
@@ -141,6 +185,9 @@ export const calcularCostosOperativos = (
     ),
     costo_operativo_hora: redondear(
       costoOperativoHora
+    ),
+    porcentaje_absorcion_total: redondear(
+      porcentajeAbsorcionTotal
     )
   };
 };
@@ -151,9 +198,14 @@ export const prepararCostosOperativos = (
   id
 ) => {
   const items = normalizarItems(datos.items);
+  const estacionesAbsorcion =
+    normalizarEstacionesAbsorcion(
+      datos.estaciones_absorcion
+    );
   const calculos = calcularCostosOperativos({
     ...datos,
-    items
+    items,
+    estaciones_absorcion: estacionesAbsorcion
   });
 
   return {
@@ -170,6 +222,7 @@ export const prepararCostosOperativos = (
     periodo: limpiarTexto(datos.periodo) || "mensual",
     activo: datos.activo !== false,
     items,
+    estaciones_absorcion: estacionesAbsorcion,
     ...calculos
   };
 };
@@ -190,6 +243,12 @@ export const validarCostosOperativos = costo => {
   if (costo.horas_productivas_mes <= 0) {
     errores.push(
       "Ingresa las horas productivas mensuales."
+    );
+  }
+
+  if (costo.porcentaje_absorcion_total > 100) {
+    errores.push(
+      "La suma de porcentajes por estación no puede superar 100%."
     );
   }
 

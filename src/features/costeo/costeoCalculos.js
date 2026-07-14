@@ -59,24 +59,59 @@ export const calcularCostoProcesos = (
     return total + (horas + horasSetup) * costoHora;
   }, 0);
 
+const calcularHorasProceso = (proceso, cantidad) => {
+  const unidadesHora =
+    numero(proceso.unidades_por_hora) || 1;
+  const eficiencia =
+    Math.max(numero(proceso.eficiencia_esperada), 1) /
+    100;
+  const horasSetup = numero(proceso.horas_setup);
+
+  return (
+    cantidad / Math.max(unidadesHora * eficiencia, 0.01) +
+    horasSetup
+  );
+};
+
 export const calcularHorasProcesos = (
   procesos = [],
   cantidad = 1
 ) =>
-  procesos.reduce((total, proceso) => {
-    const unidadesHora =
-      numero(proceso.unidades_por_hora) || 1;
-    const eficiencia =
-      Math.max(numero(proceso.eficiencia_esperada), 1) /
-      100;
-    const horasSetup = numero(proceso.horas_setup);
+  procesos.reduce(
+    (total, proceso) =>
+      total + calcularHorasProceso(proceso, cantidad),
+    0
+  );
 
-    return (
-      total +
-      cantidad / Math.max(unidadesHora * eficiencia, 0.01) +
-      horasSetup
-    );
-  }, 0);
+export const calcularDetalleProcesosCotizacion = (
+  procesos = [],
+  cantidad = 1,
+  costoOperativoHora = 0
+) =>
+  procesos.map(proceso => {
+    const horas = calcularHorasProceso(proceso, cantidad);
+    const costoProceso =
+      horas * numero(proceso.costo_hora);
+    const porcentajeAbsorcion =
+      numero(proceso.porcentaje_costo_operativo) / 100;
+    const costoOperativo =
+      horas *
+      numero(costoOperativoHora) *
+      porcentajeAbsorcion;
+
+    return {
+      proceso_codigo: proceso.proceso_codigo || "",
+      proceso_nombre: proceso.proceso_nombre || "",
+      estacion_codigo: proceso.estacion_codigo || "",
+      estacion_nombre: proceso.estacion_nombre || "",
+      horas: redondear(horas, 2),
+      costo_proceso: redondear(costoProceso),
+      porcentaje_costo_operativo: redondear(
+        numero(proceso.porcentaje_costo_operativo)
+      ),
+      costo_operativo: redondear(costoOperativo)
+    };
+  });
 
 export const calcularCotizacionTecnica = ({
   escalas = [],
@@ -106,12 +141,21 @@ export const calcularCotizacionTecnica = ({
       procesos,
       cantidad
     );
+    const detalleProcesos =
+      calcularDetalleProcesosCotizacion(
+        procesos,
+        cantidad,
+        costo_operativo_hora
+      );
     const horasProduccion = calcularHorasProcesos(
       procesos,
       cantidad
     );
-    const costoOperativo =
-      horasProduccion * numero(costo_operativo_hora);
+    const costoOperativo = detalleProcesos.reduce(
+      (total, proceso) =>
+        total + numero(proceso.costo_operativo),
+      0
+    );
     const costoDirecto =
       costoMateriales + costoProcesos;
     const baseIndirectos =
@@ -147,6 +191,7 @@ export const calcularCotizacionTecnica = ({
         precioUnitario * cantidad
       ),
       horas_produccion: redondear(horasProduccion, 1),
+      detalle_procesos: detalleProcesos,
       lead_time_dias: leadTimeDias
     };
   });

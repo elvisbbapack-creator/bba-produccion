@@ -98,6 +98,11 @@ export const prepararCotizacionTecnica = (
         proceso.eficiencia_esperada
       ),
       costo_hora: numero(proceso.costo_hora),
+      porcentaje_costo_operativo: numero(
+        proceso.porcentaje_costo_operativo
+      ),
+      costo_operativo_origen:
+        limpiarTexto(proceso.costo_operativo_origen),
       costo_hora_detalle:
         proceso.costo_hora_detalle || null,
       horas_setup: numero(proceso.horas_setup),
