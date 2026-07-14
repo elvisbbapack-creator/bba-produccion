@@ -91,6 +91,8 @@ import TercerosV2 from
   "./features/terceros/TercerosV2";
 import CostosBaseProduccionV2 from
   "./features/costosBase/CostosBaseProduccionV2";
+import CostosOperativosFijosV2 from
+  "./features/costosOperativos/CostosOperativosFijosV2";
 
 function App() {
   const esMobile =
@@ -1713,6 +1715,15 @@ const cargarTodosLosParos = async () => {
             ),
           accion: () =>
             setPantalla("costosBaseProduccionV2")
+        },
+        {
+          titulo: "Costos Operativos Fijos (V2)",
+          visible:
+            puedeGestionarCosteoV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("costosOperativosFijosV2")
         }
       ]
     },
@@ -2147,8 +2158,8 @@ if (
   );
 }
 
-if (
-  pantalla === "costosBaseProduccionV2" &&
+  if (
+    pantalla === "costosBaseProduccionV2" &&
   interfazV2Activa &&
   autenticacionFirebaseActiva &&
   puedeGestionarCosteoV2(usuarioSeleccionado)
@@ -5805,6 +5816,21 @@ const avanceProceso =
 
       </div>
 
+    );
+  }
+
+  if (
+    pantalla === "costosOperativosFijosV2" &&
+    interfazV2Activa &&
+    autenticacionFirebaseActiva &&
+    puedeGestionarCosteoV2(usuarioSeleccionado)
+  ) {
+    return (
+      <CostosOperativosFijosV2
+        db={db}
+        perfil={usuarioSeleccionado}
+        onVolver={() => setPantalla("home")}
+      />
     );
   }
 

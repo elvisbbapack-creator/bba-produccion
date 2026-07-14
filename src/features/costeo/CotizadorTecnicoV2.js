@@ -19,6 +19,9 @@ import {
   listarCostosBaseEstacion
 } from "../costosBase/costosBaseRepository";
 import {
+  listarCostosOperativos
+} from "../costosOperativos/costosOperativosRepository";
+import {
   calcularCotizacionTecnica
 } from "./costeoCalculos";
 import {
@@ -93,6 +96,9 @@ const estadoInicial = {
   riesgos: "",
   escalas: "50, 100, 500",
   indirectos_porcentaje: 18,
+  costo_operativo_hora: 0,
+  costo_operativo_origen: "",
+  costo_operativo_config_id: "",
   margen_porcentaje: 35,
   factor_riesgo_porcentaje: 8,
   dias_compra: 5,
@@ -153,9 +159,15 @@ const actualizarItem = (
 const SUPUESTOS_COTIZACION = [
   {
     clave: "indirectos_porcentaje",
-    etiqueta: "Indirectos %",
+    etiqueta: "Indirectos adicionales %",
     ayuda:
-      "Costos de planta no directos: energía, supervisión, mantención, administración. Ej: 18."
+      "Reserva adicional para costos no modelados todavía. Los costos operativos fijos van separados. Ej: 5 a 12."
+  },
+  {
+    clave: "costo_operativo_hora",
+    etiqueta: "Costo operativo fijo hora",
+    ayuda:
+      "Se carga desde Costos Operativos Fijos de Planta. Puedes editarlo manualmente si la cotización requiere otro supuesto."
   },
   {
     clave: "margen_porcentaje",
@@ -287,6 +299,8 @@ export default function CotizadorTecnicoV2({
     useState([]);
   const [costosBaseEstacion, setCostosBaseEstacion] =
     useState([]);
+  const [costosOperativos, setCostosOperativos] =
+    useState([]);
   const [historial, setHistorial] = useState([]);
   const [editandoId, setEditandoId] = useState("");
   const [cargando, setCargando] = useState(true);
@@ -303,7 +317,8 @@ export default function CotizadorTecnicoV2({
         cotizaciones,
         clientes,
         proveedores,
-        costosBase
+        costosBase,
+        costosOperativosCargados
       ] = await Promise.all([
         listarMateriales(db, perfil.empresa_id),
         listarProcesosEstaciones(
@@ -327,6 +342,10 @@ export default function CotizadorTecnicoV2({
         listarCostosBaseEstacion(
           db,
           perfil.empresa_id
+        ),
+        listarCostosOperativos(
+          db,
+          perfil.empresa_id
         )
       ]);
 
@@ -345,6 +364,11 @@ export default function CotizadorTecnicoV2({
       );
       setCostosBaseEstacion(
         costosBase.filter(c => c.activo !== false)
+      );
+      setCostosOperativos(
+        costosOperativosCargados.filter(
+          c => c.activo !== false
+        )
       );
     } catch (fallo) {
       setError(
@@ -377,6 +401,8 @@ export default function CotizadorTecnicoV2({
         procesos: formulario.procesos,
         indirectos_porcentaje:
           formulario.indirectos_porcentaje,
+        costo_operativo_hora:
+          formulario.costo_operativo_hora,
         margen_porcentaje:
           formulario.margen_porcentaje,
         factor_riesgo_porcentaje:
@@ -389,6 +415,44 @@ export default function CotizadorTecnicoV2({
       }),
     [formulario]
   );
+
+  const aplicarCostoOperativoPlanta = useCallback(
+    plantaId => {
+      const costo = costosOperativos.find(
+        item => item.planta_id === plantaId
+      );
+
+      setFormulario(actual => ({
+        ...actual,
+        planta_id: plantaId,
+        costo_operativo_hora:
+          costo?.costo_operativo_hora || 0,
+        costo_operativo_origen: costo
+          ? "costos_operativos_planta"
+          : "manual",
+        costo_operativo_config_id: costo?.id || ""
+      }));
+    },
+    [costosOperativos]
+  );
+
+  useEffect(() => {
+    if (
+      costosOperativos.length > 0 &&
+      !formulario.costo_operativo_config_id &&
+      formulario.costo_operativo_origen !== "manual"
+    ) {
+      aplicarCostoOperativoPlanta(
+        formulario.planta_id
+      );
+    }
+  }, [
+    aplicarCostoOperativoPlanta,
+    costosOperativos.length,
+    formulario.costo_operativo_config_id,
+    formulario.costo_operativo_origen,
+    formulario.planta_id
+  ]);
 
   const seleccionarMaterial = (
     indice,
@@ -723,7 +787,9 @@ export default function CotizadorTecnicoV2({
             style={campo}
             value={formulario.planta_id}
             onChange={e =>
-              actualizar({ planta_id: e.target.value })
+              aplicarCostoOperativoPlanta(
+                e.target.value
+              )
             }
           >
             <option value="chile">BBA Chile</option>
@@ -786,13 +852,35 @@ export default function CotizadorTecnicoV2({
                 onChange={e =>
                   actualizar({
                     [campoConfig.clave]:
-                      e.target.value
+                      e.target.value,
+                    ...(campoConfig.clave ===
+                    "costo_operativo_hora"
+                      ? {
+                          costo_operativo_origen:
+                            "manual",
+                          costo_operativo_config_id:
+                            ""
+                        }
+                      : {})
                   })
                 }
               />
             </CampoConAyuda>
           ))}
         </div>
+        <p style={{
+          color: "#64748B",
+          fontSize: 13,
+          marginTop: 10
+        }}>
+          Costo operativo fijo aplicado:{" "}
+          <strong>
+            {formulario.costo_operativo_origen ===
+            "costos_operativos_planta"
+              ? "desde maestro de planta"
+              : "manual o pendiente de configurar"}
+          </strong>
+        </p>
         <textarea
           style={{
             ...campo,
@@ -1073,6 +1161,7 @@ export default function CotizadorTecnicoV2({
                   "Cant.",
                   "Costo unit.",
                   "Precio sugerido",
+                  "Costo operativo",
                   "Costo total",
                   "Precio total",
                   "Horas",
@@ -1109,6 +1198,12 @@ export default function CotizadorTecnicoV2({
                         formulario.moneda
                       )}
                     </b>
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    {formatoNumero(
+                      resultado.costo_operativo,
+                      formulario.moneda
+                    )}
                   </td>
                   <td style={{ padding: 8 }}>
                     {formatoNumero(

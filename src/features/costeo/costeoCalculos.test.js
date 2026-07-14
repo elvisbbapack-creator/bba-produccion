@@ -66,3 +66,36 @@ test("respeta minimo de compra de material", () => {
   expect(resultado[0].costo_materiales).toBe(50000);
 });
 
+test("absorbe costos operativos fijos por hora productiva", () => {
+  const resultado = calcularCotizacionTecnica({
+    escalas: [100],
+    materiales: [
+      {
+        consumo_unitario: 2,
+        costo_unitario: 100,
+        merma_porcentaje: 10
+      }
+    ],
+    procesos: [
+      {
+        unidades_por_hora: 20,
+        eficiencia_esperada: 80,
+        costo_hora: 5000,
+        horas_setup: 1
+      }
+    ],
+    costo_operativo_hora: 1000,
+    indirectos_porcentaje: 10,
+    factor_riesgo_porcentaje: 5,
+    margen_porcentaje: 30
+  });
+
+  expect(resultado[0]).toMatchObject({
+    costo_materiales: 22000,
+    costo_procesos: 36250,
+    costo_operativo: 7250,
+    costo_indirecto: 6550,
+    costo_riesgo: 3602.5,
+    costo_total: 75652.5
+  });
+});

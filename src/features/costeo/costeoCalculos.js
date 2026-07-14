@@ -83,6 +83,7 @@ export const calcularCotizacionTecnica = ({
   materiales = [],
   procesos = [],
   indirectos_porcentaje = 18,
+  costo_operativo_hora = 0,
   margen_porcentaje = 35,
   dias_compra = 0,
   dias_ingenieria = 0,
@@ -109,13 +110,20 @@ export const calcularCotizacionTecnica = ({
       procesos,
       cantidad
     );
+    const costoOperativo =
+      horasProduccion * numero(costo_operativo_hora);
     const costoDirecto =
       costoMateriales + costoProcesos;
-    const costoIndirecto = costoDirecto * indirectos;
+    const baseIndirectos =
+      costoDirecto + costoOperativo;
+    const costoIndirecto = baseIndirectos * indirectos;
     const costoRiesgo =
-      (costoDirecto + costoIndirecto) * riesgo;
+      (baseIndirectos + costoIndirecto) * riesgo;
     const costoTotal =
-      costoDirecto + costoIndirecto + costoRiesgo;
+      costoDirecto +
+      costoOperativo +
+      costoIndirecto +
+      costoRiesgo;
     const costoUnitario = costoTotal / cantidad;
     const precioUnitario = margen >= 1
       ? costoUnitario
@@ -129,6 +137,7 @@ export const calcularCotizacionTecnica = ({
       cantidad,
       costo_materiales: redondear(costoMateriales),
       costo_procesos: redondear(costoProcesos),
+      costo_operativo: redondear(costoOperativo),
       costo_indirecto: redondear(costoIndirecto),
       costo_riesgo: redondear(costoRiesgo),
       costo_total: redondear(costoTotal),
@@ -142,4 +151,3 @@ export const calcularCotizacionTecnica = ({
     };
   });
 };
-

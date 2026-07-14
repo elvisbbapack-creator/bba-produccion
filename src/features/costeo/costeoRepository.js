@@ -111,6 +111,13 @@ export const prepararCotizacionTecnica = (
     indirectos_porcentaje: numero(
       datos.indirectos_porcentaje
     ),
+    costo_operativo_hora: numero(
+      datos.costo_operativo_hora
+    ),
+    costo_operativo_origen:
+      limpiarTexto(datos.costo_operativo_origen),
+    costo_operativo_config_id:
+      datos.costo_operativo_config_id || "",
     margen_porcentaje: numero(
       datos.margen_porcentaje
     ),
@@ -248,6 +255,13 @@ export const aFormularioCotizacionTecnica = (
     : cotizacion.escalas || "50, 100, 500",
   indirectos_porcentaje:
     cotizacion.supuestos?.indirectos_porcentaje ?? 18,
+  costo_operativo_hora:
+    cotizacion.supuestos?.costo_operativo_hora ?? 0,
+  costo_operativo_origen:
+    cotizacion.supuestos?.costo_operativo_origen || "",
+  costo_operativo_config_id:
+    cotizacion.supuestos?.costo_operativo_config_id ||
+    "",
   margen_porcentaje:
     cotizacion.supuestos?.margen_porcentaje ?? 35,
   factor_riesgo_porcentaje:
