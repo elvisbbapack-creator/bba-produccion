@@ -53,6 +53,8 @@ export const prepararCotizacionTecnica = (
   const materiales = normalizarLista(
     datos.materiales
   ).map(material => ({
+    tipo_linea:
+      limpiarTexto(material.tipo_linea) || "material",
     material_id: material.material_id || "",
     codigo: limpiarTexto(material.codigo),
     nombre: limpiarTexto(material.nombre),

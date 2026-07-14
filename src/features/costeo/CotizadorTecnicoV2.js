@@ -109,6 +109,7 @@ const estadoInicial = {
 };
 
 const materialVacio = {
+  tipo_linea: "material",
   material_id: "",
   codigo: "",
   nombre: "",
@@ -123,6 +124,11 @@ const materialVacio = {
   costo_origen: "",
   moneda: "CLP"
 };
+
+const crearLineaMaterial = tipoLinea => ({
+  ...materialVacio,
+  tipo_linea: tipoLinea
+});
 
 const procesoVacio = {
   proceso_codigo: "",
@@ -590,6 +596,8 @@ export default function CotizadorTecnicoV2({
     );
 
     return {
+      tipo_linea:
+        materialActual?.tipo_linea || "material",
       material_id: materialId,
       codigo: material?.codigo || "",
       nombre: material?.nombre || "",
@@ -874,6 +882,209 @@ export default function CotizadorTecnicoV2({
     }
   };
 
+  const renderLineasMateriales = ({
+    tipoLinea,
+    titulo,
+    descripcion,
+    etiquetaSelector,
+    ayudaSelector,
+    textoBoton
+  }) => {
+    const lineas = formulario.materiales
+      .map((material, indice) => ({
+        material,
+        indice
+      }))
+      .filter(
+        item =>
+          (item.material.tipo_linea || "material") ===
+          tipoLinea
+      );
+
+    return (
+      <section style={{
+        background: "white",
+        padding: 18,
+        borderRadius: 14,
+        boxShadow:
+          "0 2px 8px rgba(15,23,42,0.08)",
+        marginBottom: 18
+      }}>
+        <h3>{titulo}</h3>
+        <p style={{
+          color: "#64748B",
+          marginTop: -4,
+          lineHeight: 1.4
+        }}>
+          {descripcion}
+        </p>
+        {lineas.length === 0 && (
+          <div style={{
+            background: "#F8FAFC",
+            borderRadius: 12,
+            padding: 12,
+            color: "#64748B",
+            marginBottom: 10
+          }}>
+            Todavía no hay líneas en esta sección.
+          </div>
+        )}
+        {lineas.map(({ material, indice }) => (
+          <div
+            key={indice}
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 10,
+              padding: 12,
+              background: "#F8FAFC",
+              borderRadius: 12,
+              marginBottom: 10
+            }}
+          >
+            <CampoConAyuda
+              etiqueta={etiquetaSelector}
+              ayuda={ayudaSelector}
+            >
+              <select
+                style={campo}
+                value={material.material_id}
+                onChange={e =>
+                  seleccionarMaterial(
+                    indice,
+                    e.target.value
+                  )
+                }
+              >
+                <option value="">Línea libre</option>
+                {materialesCatalogo.map(item => (
+                  <option key={item.id} value={item.id}>
+                    {item.codigo} - {item.nombre}
+                  </option>
+                ))}
+              </select>
+            </CampoConAyuda>
+            <CampoConAyuda
+              etiqueta="Proveedor"
+              ayuda="Selecciona proveedor del catálogo."
+            >
+              <select
+                style={campo}
+                value={material.proveedor_id || ""}
+                onChange={e =>
+                  seleccionarProveedor(
+                    indice,
+                    e.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Seleccionar proveedor
+                </option>
+                {proveedoresCatalogo.map(proveedor => (
+                  <option
+                    key={proveedor.id}
+                    value={proveedor.id}
+                  >
+                    {proveedor.codigo} -{" "}
+                    {proveedor.nombre}
+                  </option>
+                ))}
+              </select>
+            </CampoConAyuda>
+            {CAMPOS_MATERIAL_ESTIMADO.filter(
+              campoConfig =>
+                !(
+                  campoConfig.clave === "proveedor" &&
+                  material.proveedor_id
+                )
+            ).map(campoConfig => (
+              <CampoConAyuda
+                key={campoConfig.clave}
+                etiqueta={campoConfig.etiqueta}
+                ayuda={campoConfig.ayuda}
+              >
+                <input
+                  style={campo}
+                  type={
+                    [
+                      "consumo_unitario",
+                      "merma_porcentaje",
+                      "costo_unitario",
+                      "minimo_compra"
+                    ].includes(campoConfig.clave)
+                      ? "number"
+                      : "text"
+                  }
+                  inputMode={
+                    PASOS_MATERIAL_ESTIMADO[
+                      campoConfig.clave
+                    ]
+                      ? "decimal"
+                      : undefined
+                  }
+                  step={
+                    PASOS_MATERIAL_ESTIMADO[
+                      campoConfig.clave
+                    ]
+                  }
+                  min={
+                    PASOS_MATERIAL_ESTIMADO[
+                      campoConfig.clave
+                    ]
+                      ? "0"
+                      : undefined
+                  }
+                  placeholder={campoConfig.etiqueta}
+                  value={material[campoConfig.clave] || ""}
+                  onChange={e =>
+                    actualizar({
+                      materiales: actualizarItem(
+                        formulario.materiales,
+                        indice,
+                        {
+                          [campoConfig.clave]:
+                            e.target.value,
+                          ...(campoConfig.clave === "proveedor"
+                            ? {
+                                proveedor_id: "",
+                                proveedor_codigo: ""
+                              }
+                            : {}),
+                          ...(campoConfig.clave ===
+                          "costo_unitario"
+                            ? {
+                                costo_origen: "manual"
+                              }
+                            : {})
+                        }
+                      )
+                    })
+                  }
+                />
+              </CampoConAyuda>
+            ))}
+          </div>
+        ))}
+        <button
+          type="button"
+          style={botonSecundario}
+          onClick={() =>
+            actualizar({
+              materiales: [
+                ...formulario.materiales,
+                crearLineaMaterial(tipoLinea)
+              ]
+            })
+          }
+        >
+          {textoBoton}
+        </button>
+      </section>
+    );
+  };
+
   return (
     <div style={{
       padding: 20,
@@ -1124,168 +1335,27 @@ export default function CotizadorTecnicoV2({
         />
       </section>
 
-      <section style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 14,
-        boxShadow:
-          "0 2px 8px rgba(15,23,42,0.08)",
-        marginBottom: 18
-      }}>
-        <h3>Materiales estimados</h3>
-        {formulario.materiales.map((material, indice) => (
-          <div
-            key={indice}
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: 10,
-              padding: 12,
-              background: "#F8FAFC",
-              borderRadius: 12,
-              marginBottom: 10
-            }}
-          >
-            <CampoConAyuda
-              etiqueta="Material"
-              ayuda="Selecciona MP/RF del catálogo o deja libre."
-            >
-              <select
-                style={campo}
-                value={material.material_id}
-                onChange={e =>
-                  seleccionarMaterial(
-                    indice,
-                    e.target.value
-                  )
-                }
-              >
-                <option value="">Material libre</option>
-                {materialesCatalogo.map(item => (
-                  <option key={item.id} value={item.id}>
-                    {item.codigo} - {item.nombre}
-                  </option>
-                ))}
-              </select>
-            </CampoConAyuda>
-            <CampoConAyuda
-              etiqueta="Proveedor"
-              ayuda="Selecciona proveedor del catálogo."
-            >
-              <select
-                style={campo}
-                value={material.proveedor_id || ""}
-                onChange={e =>
-                  seleccionarProveedor(
-                    indice,
-                    e.target.value
-                  )
-                }
-              >
-                <option value="">
-                  Seleccionar proveedor
-                </option>
-                {proveedoresCatalogo.map(proveedor => (
-                  <option
-                    key={proveedor.id}
-                    value={proveedor.id}
-                  >
-                    {proveedor.codigo} -{" "}
-                    {proveedor.nombre}
-                  </option>
-                ))}
-              </select>
-            </CampoConAyuda>
-            {CAMPOS_MATERIAL_ESTIMADO.filter(
-              campoConfig =>
-                !(
-                  campoConfig.clave === "proveedor" &&
-                  material.proveedor_id
-                )
-            ).map(campoConfig => (
-              <CampoConAyuda
-                key={campoConfig.clave}
-                etiqueta={campoConfig.etiqueta}
-                ayuda={campoConfig.ayuda}
-              >
-                <input
-                  style={campo}
-                  type={
-                    [
-                      "consumo_unitario",
-                      "merma_porcentaje",
-                      "costo_unitario",
-                      "minimo_compra"
-                    ].includes(campoConfig.clave)
-                      ? "number"
-                      : "text"
-                  }
-                  inputMode={
-                    PASOS_MATERIAL_ESTIMADO[
-                      campoConfig.clave
-                    ]
-                      ? "decimal"
-                      : undefined
-                  }
-                  step={
-                    PASOS_MATERIAL_ESTIMADO[
-                      campoConfig.clave
-                    ]
-                  }
-                  min={
-                    PASOS_MATERIAL_ESTIMADO[
-                      campoConfig.clave
-                    ]
-                      ? "0"
-                      : undefined
-                  }
-                  placeholder={campoConfig.etiqueta}
-                  value={material[campoConfig.clave] || ""}
-                  onChange={e =>
-                    actualizar({
-                      materiales: actualizarItem(
-                        formulario.materiales,
-                        indice,
-                        {
-                          [campoConfig.clave]:
-                            e.target.value,
-                            ...(campoConfig.clave === "proveedor"
-                              ? {
-                                  proveedor_id: "",
-                                  proveedor_codigo: ""
-                                }
-                              : {}),
-                            ...(campoConfig.clave ===
-                            "costo_unitario"
-                              ? {
-                                  costo_origen: "manual"
-                                }
-                              : {})
-                          }
-                        )
-                    })
-                  }
-                />
-              </CampoConAyuda>
-            ))}
-          </div>
-        ))}
-        <button
-          type="button"
-          style={botonSecundario}
-          onClick={() =>
-            actualizar({
-              materiales: [
-                ...formulario.materiales,
-                materialVacio
-              ]
-            })
-          }
-        >
-          + Agregar material
-        </button>
-      </section>
+      {renderLineasMateriales({
+        tipoLinea: "material",
+        titulo: "Materiales principales estimados",
+        descripcion:
+          "Base física del producto: PAI, metal, MDF, perfiles, alambre, accesorios o RF. El costo se toma desde el catálogo cuando exista.",
+        etiquetaSelector: "Material",
+        ayudaSelector:
+          "Selecciona MP/RF del catálogo o deja libre.",
+        textoBoton: "+ Agregar material"
+      })}
+
+      {renderLineasMateriales({
+        tipoLinea: "suministro",
+        titulo: "Suministros e insumos productivos",
+        descripcion:
+          "Consumibles directos usados para fabricar: tintas UV, barnices, adhesivos, solventes, pintura u otros insumos medibles.",
+        etiquetaSelector: "Suministro",
+        ayudaSelector:
+          "Selecciona el insumo desde el catálogo. Ej: Tinta UV C/M/Y/K.",
+        textoBoton: "+ Agregar suministro"
+      })}
 
       <section style={{
         background: "white",
