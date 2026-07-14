@@ -64,6 +64,24 @@ test("RF nunca queda marcado como comprado", () => {
   expect(validarNuevoMaterial(material)).toEqual([]);
 });
 
+test("permite crear suministros productivos comprados", () => {
+  const material = prepararMaterial(
+    {
+      codigo: "SUM0001",
+      tipo: TIPOS_MATERIAL.SUMINISTRO,
+      nombre: "Tinta UV C",
+      unidad_medida: "ml",
+      es_comprado: true
+    },
+    "bba",
+    "material-sum"
+  );
+
+  expect(material.tipo).toBe("SUM");
+  expect(material.es_comprado).toBe(true);
+  expect(validarNuevoMaterial(material)).toEqual([]);
+});
+
 test("rechaza codigos duplicados", () => {
   const material = prepararMaterial(
     {

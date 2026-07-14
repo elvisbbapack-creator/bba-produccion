@@ -191,6 +191,17 @@ const normalizarComparacion = valor =>
     .replace(/\s+/g, " ")
     .trim();
 
+const materialCorrespondeATipoLinea = (
+  material,
+  tipoLinea
+) => {
+  if (tipoLinea === "suministro") {
+    return material.tipo === "SUM";
+  }
+
+  return material.tipo !== "SUM";
+};
+
 const SUPUESTOS_COTIZACION = [
   {
     clave: "indirectos_porcentaje",
@@ -240,7 +251,7 @@ const CAMPOS_MATERIAL_ESTIMADO = [
   {
     clave: "codigo",
     etiqueta: "Código",
-    ayuda: "Código MP/RF o código temporal."
+    ayuda: "Código MP/RF/SUM o código temporal."
   },
   {
     clave: "nombre",
@@ -958,7 +969,14 @@ export default function CotizadorTecnicoV2({
                 }
               >
                 <option value="">Línea libre</option>
-                {materialesCatalogo.map(item => (
+                {materialesCatalogo
+                  .filter(item =>
+                    materialCorrespondeATipoLinea(
+                      item,
+                      tipoLinea
+                    )
+                  )
+                  .map(item => (
                   <option key={item.id} value={item.id}>
                     {item.codigo} - {item.nombre}
                   </option>
@@ -1350,10 +1368,10 @@ export default function CotizadorTecnicoV2({
         tipoLinea: "suministro",
         titulo: "Suministros e insumos productivos",
         descripcion:
-          "Consumibles directos usados para fabricar: tintas UV, barnices, adhesivos, solventes, pintura u otros insumos medibles.",
+          "Consumibles directos usados para fabricar: tintas UV, barnices, adhesivos, solventes, pintura u otros insumos medibles. Deben estar creados como SUM en el catálogo.",
         etiquetaSelector: "Suministro",
         ayudaSelector:
-          "Selecciona el insumo desde el catálogo. Ej: Tinta UV C/M/Y/K.",
+          "Selecciona solo suministros SUM del catálogo. Ej: Tinta UV C/M/Y/K.",
         textoBoton: "+ Agregar suministro"
       })}
 

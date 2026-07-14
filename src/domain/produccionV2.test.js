@@ -11,9 +11,19 @@ import {
   rutaPcl0001
 } from "./fixtures/pcl0001";
 
-test("valida materiales MP y RF con codigos estables", () => {
+test("valida materiales MP, RF y SUM con codigos estables", () => {
   expect(
     materialesPcl0001.flatMap(validarMaterial)
+  ).toEqual([]);
+
+  expect(
+    validarMaterial({
+      id: "suministro",
+      codigo: "SUM0001",
+      tipo: "SUM",
+      nombre: "Tinta UV C",
+      unidad_medida: "ml"
+    })
   ).toEqual([]);
 
   expect(

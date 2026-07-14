@@ -278,7 +278,8 @@ function CatalogoMaterialesV2({
           marginTop: 0
         }}>
           Materias primas (MP) y recursos de
-          fabricación semielaborados (RF).
+          fabricación semielaborados (RF), más
+          suministros productivos (SUM).
         </p>
 
         <div style={{
@@ -315,8 +316,10 @@ function CatalogoMaterialesV2({
                     tipo,
                     codigo: tipo,
                     es_comprado:
-                      tipo ===
-                      TIPOS_MATERIAL.MATERIA_PRIMA
+                      [
+                        TIPOS_MATERIAL.MATERIA_PRIMA,
+                        TIPOS_MATERIAL.SUMINISTRO
+                      ].includes(tipo)
                   }));
                   setError("");
                   setMensaje("");
@@ -336,6 +339,9 @@ function CatalogoMaterialesV2({
                 </option>
                 <option value="RF">
                   RF - Recurso de fabricación
+                </option>
+                <option value="SUM">
+                  SUM - Suministro productivo
                 </option>
               </select>
             </label>
@@ -512,7 +518,9 @@ function CatalogoMaterialesV2({
               </select>
             </label>
 
-            {formulario.tipo === "MP" && (
+            {["MP", "SUM"].includes(
+              formulario.tipo
+            ) && (
               <label style={{
                 display: "flex",
                 gap: 9,

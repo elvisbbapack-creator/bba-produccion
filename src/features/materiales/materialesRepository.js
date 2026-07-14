@@ -65,7 +65,10 @@ export const prepararMaterial = (
       limpiarTexto(datos.costo_origen) ||
       "catalogo_material",
     es_comprado:
-      tipo === TIPOS_MATERIAL.MATERIA_PRIMA
+      [
+        TIPOS_MATERIAL.MATERIA_PRIMA,
+        TIPOS_MATERIAL.SUMINISTRO
+      ].includes(tipo)
         ? Boolean(datos.es_comprado)
         : false,
     activo: datos.activo !== false
