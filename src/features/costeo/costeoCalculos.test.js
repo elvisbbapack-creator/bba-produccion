@@ -67,6 +67,41 @@ test("respeta minimo de compra de material", () => {
   expect(resultado[0].costo_materiales).toBe(50000);
 });
 
+test("permite prorratear sobrante reutilizable sin cargar compra minima", () => {
+  const resultado = calcularCotizacionTecnica({
+    escalas: [10],
+    materiales: [
+      {
+        consumo_unitario: 1,
+        costo_unitario: 1000,
+        minimo_compra: 50,
+        politica_minimo_compra: "consumo_real"
+      }
+    ]
+  });
+
+  expect(resultado[0].costo_materiales).toBe(10000);
+});
+
+test("calcula precio con markup cuando no se quiere margen bruto", () => {
+  const resultado = calcularCotizacionTecnica({
+    escalas: [1],
+    materiales: [
+      {
+        consumo_unitario: 1,
+        costo_unitario: 100
+      }
+    ],
+    indirectos_porcentaje: 0,
+    margen_porcentaje: 35,
+    tipo_margen: "markup",
+    factor_riesgo_porcentaje: 0
+  });
+
+  expect(resultado[0].costo_unitario).toBe(100);
+  expect(resultado[0].precio_unitario_sugerido).toBe(135);
+});
+
 test("calcula materiales con consumo unitario decimal", () => {
   const resultado = calcularCotizacionTecnica({
     escalas: [8],

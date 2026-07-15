@@ -36,7 +36,10 @@ export const calcularCostoMateriales = (
     const precio = numero(material.costo_unitario);
     const minimoCompra = numero(material.minimo_compra);
     const requerido = consumo * cantidad * (1 + merma);
-    const compra = Math.max(requerido, minimoCompra);
+    const compra =
+      material.politica_minimo_compra === "consumo_real"
+        ? requerido
+        : Math.max(requerido, minimoCompra);
 
     return total + compra * precio;
   }, 0);
@@ -120,6 +123,7 @@ export const calcularCotizacionTecnica = ({
   indirectos_porcentaje = 18,
   costo_operativo_hora = 0,
   margen_porcentaje = 35,
+  tipo_margen = "margen_bruto",
   dias_compra = 0,
   dias_ingenieria = 0,
   horas_disponibles_dia = 14,
@@ -169,9 +173,12 @@ export const calcularCotizacionTecnica = ({
       costoIndirecto +
       costoRiesgo;
     const costoUnitario = costoTotal / cantidad;
-    const precioUnitario = margen >= 1
-      ? costoUnitario
-      : costoUnitario / (1 - margen);
+    const precioUnitario =
+      tipo_margen === "markup"
+        ? costoUnitario * (1 + margen)
+        : margen >= 1
+          ? costoUnitario
+          : costoUnitario / (1 - margen);
     const leadTimeDias =
       numero(dias_compra) +
       numero(dias_ingenieria) +

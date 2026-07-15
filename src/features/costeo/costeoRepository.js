@@ -68,6 +68,10 @@ export const prepararCotizacionTecnica = (
     costo_unitario: numero(material.costo_unitario),
     costo_origen: limpiarTexto(material.costo_origen),
     minimo_compra: numero(material.minimo_compra),
+    politica_minimo_compra:
+      material.politica_minimo_compra === "consumo_real"
+        ? "consumo_real"
+        : "cobrar_minimo",
     proveedor: limpiarTexto(material.proveedor),
     proveedor_id: material.proveedor_id || "",
     proveedor_codigo: limpiarTexto(
@@ -129,6 +133,10 @@ export const prepararCotizacionTecnica = (
     margen_porcentaje: numero(
       datos.margen_porcentaje
     ),
+    tipo_margen:
+      datos.tipo_margen === "markup"
+        ? "markup"
+        : "margen_bruto",
     factor_riesgo_porcentaje: numero(
       datos.factor_riesgo_porcentaje
     ),
@@ -272,6 +280,8 @@ export const aFormularioCotizacionTecnica = (
     "",
   margen_porcentaje:
     cotizacion.supuestos?.margen_porcentaje ?? 35,
+  tipo_margen:
+    cotizacion.supuestos?.tipo_margen || "margen_bruto",
   factor_riesgo_porcentaje:
     cotizacion.supuestos?.factor_riesgo_porcentaje ?? 8,
   dias_compra:

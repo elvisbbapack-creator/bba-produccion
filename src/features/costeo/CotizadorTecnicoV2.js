@@ -100,6 +100,7 @@ const estadoInicial = {
   costo_operativo_origen: "",
   costo_operativo_config_id: "",
   margen_porcentaje: 35,
+  tipo_margen: "margen_bruto",
   factor_riesgo_porcentaje: 8,
   dias_compra: 5,
   dias_ingenieria: 2,
@@ -118,6 +119,7 @@ const materialVacio = {
   merma_porcentaje: 5,
   costo_unitario: 0,
   minimo_compra: 0,
+  politica_minimo_compra: "cobrar_minimo",
   proveedor_id: "",
   proveedor_codigo: "",
   proveedor: "",
@@ -219,7 +221,7 @@ const SUPUESTOS_COTIZACION = [
     clave: "margen_porcentaje",
     etiqueta: "Margen %",
     ayuda:
-      "Margen comercial esperado sobre precio de venta. Ej: 35."
+      "Porcentaje comercial. La forma de cálculo se define en Tipo de margen."
   },
   {
     clave: "factor_riesgo_porcentaje",
@@ -464,6 +466,7 @@ export default function CotizadorTecnicoV2({
           formulario.costo_operativo_hora,
         margen_porcentaje:
           formulario.margen_porcentaje,
+        tipo_margen: formulario.tipo_margen,
         factor_riesgo_porcentaje:
           formulario.factor_riesgo_porcentaje,
         dias_compra: formulario.dias_compra,
@@ -628,6 +631,9 @@ export default function CotizadorTecnicoV2({
           ? materialActual?.minimo_compra
           : 0) ||
         0,
+      politica_minimo_compra:
+        materialActual?.politica_minimo_compra ||
+        "cobrar_minimo",
       proveedor_id:
         proveedorCatalogo?.id ||
         proveedorId ||
@@ -1011,6 +1017,37 @@ export default function CotizadorTecnicoV2({
                 ))}
               </select>
             </CampoConAyuda>
+            <CampoConAyuda
+              etiqueta="Compra mínima"
+              ayuda="Define si cargas toda la compra mínima o solo el consumo cuando el sobrante se reutiliza."
+            >
+              <select
+                style={campo}
+                value={
+                  material.politica_minimo_compra ||
+                  "cobrar_minimo"
+                }
+                onChange={e =>
+                  actualizar({
+                    materiales: actualizarItem(
+                      formulario.materiales,
+                      indice,
+                      {
+                        politica_minimo_compra:
+                          e.target.value
+                      }
+                    )
+                  })
+                }
+              >
+                <option value="cobrar_minimo">
+                  Cobrar compra mínima completa
+                </option>
+                <option value="consumo_real">
+                  Sobrante reutilizable: cobrar consumo real
+                </option>
+              </select>
+            </CampoConAyuda>
             {CAMPOS_MATERIAL_ESTIMADO.filter(
               campoConfig =>
                 !(
@@ -1325,6 +1362,43 @@ export default function CotizadorTecnicoV2({
               />
             </CampoConAyuda>
           ))}
+          <CampoConAyuda
+            etiqueta="Tipo de margen"
+            ayuda="Margen bruto divide el costo por (1 - margen). Markup suma el porcentaje sobre el costo."
+          >
+            <select
+              style={campo}
+              value={
+                formulario.tipo_margen || "margen_bruto"
+              }
+              onChange={e =>
+                actualizar({
+                  tipo_margen: e.target.value
+                })
+              }
+            >
+              <option value="margen_bruto">
+                Margen bruto sobre venta
+              </option>
+              <option value="markup">
+                Markup sobre costo
+              </option>
+            </select>
+          </CampoConAyuda>
+        </div>
+        <div style={{
+          background: "#FFF7ED",
+          color: "#9A3412",
+          border: "1px solid #FDBA74",
+          borderRadius: 12,
+          padding: 10,
+          marginTop: 12,
+          fontSize: 13,
+          lineHeight: 1.45
+        }}>
+          Con margen bruto 35%, un costo de $100 se vende a
+          $154. Con markup 35%, se vende a $135. Para competir,
+          revisa este selector antes de enviar precio.
         </div>
         <p style={{
           color: "#64748B",
