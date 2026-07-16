@@ -19,6 +19,11 @@ test("normaliza código y textos de operación", () => {
         producto_id: "producto-1",
         producto_codigo: "pcl0001",
         producto_nombre: " Modular ",
+        productos_asociados: [{
+          producto_id: "producto-2",
+          producto_codigo: "PCL0002",
+          producto_nombre: "Display alternativo"
+        }],
         pieza_id: "pieza-1",
         pieza_codigo: "PZ0001",
         pieza_nombre: "Lateral 290",
@@ -37,6 +42,18 @@ test("normaliza código y textos de operación", () => {
     producto_id: "producto-1",
     producto_codigo: "PCL0001",
     producto_nombre: "Modular",
+    productos_asociados: [
+      {
+        producto_id: "producto-1",
+        producto_codigo: "PCL0001",
+        producto_nombre: "Modular"
+      },
+      {
+        producto_id: "producto-2",
+        producto_codigo: "PCL0002",
+        producto_nombre: "Display alternativo"
+      }
+    ],
     pieza_id: "pieza-1",
     pieza_codigo: "PZ0001",
     pieza_nombre: "Lateral 290",
@@ -89,6 +106,11 @@ test("permite varios materiales de entrada", () => {
     producto_id: "producto-1",
     producto_codigo: "PCL0001",
     producto_nombre: "Modular",
+    productos_asociados: [{
+      producto_id: "producto-1",
+      producto_codigo: "PCL0001",
+      producto_nombre: "Modular"
+    }],
     material_entrada_id: "rf-1",
     materiales_entrada: [
       {

@@ -24,6 +24,7 @@ const estadoInicial = {
   producto_id: "",
   producto_codigo: "",
   producto_nombre: "",
+  productos_asociados: [],
   pieza_id: "",
   pieza_codigo: "",
   pieza_nombre: "",
@@ -256,6 +257,8 @@ function CatalogoDetallesV2({
         pieza?.producto_codigo || "",
       producto_nombre:
         pieza?.producto_nombre || "",
+      productos_asociados:
+        pieza?.productos_asociados || [],
       medida: pieza?.medida || actual.medida,
       material_entrada_id:
         materialesEntrada[0]?.material_id ||
@@ -286,6 +289,8 @@ function CatalogoDetallesV2({
         operacion.producto_codigo || "",
       producto_nombre:
         operacion.producto_nombre || "",
+      productos_asociados:
+        operacion.productos_asociados || [],
       pieza_id: operacion.pieza_id || "",
       pieza_codigo: operacion.pieza_codigo || "",
       pieza_nombre: operacion.pieza_nombre || "",

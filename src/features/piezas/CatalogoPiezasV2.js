@@ -23,6 +23,7 @@ const estadoInicial = {
   producto_id: "",
   producto_codigo: "",
   producto_nombre: "",
+  productos_asociados: [],
   nombre: "",
   medida: "",
   material_base_id: "",
@@ -33,6 +34,12 @@ const estadoInicial = {
 const materialBaseInicial = {
   material_id: "",
   cantidad: 1
+};
+
+const productoAsociadoInicial = {
+  producto_id: "",
+  producto_codigo: "",
+  producto_nombre: ""
 };
 
 const campo = {
@@ -137,7 +144,118 @@ function CatalogoPiezasV2({
       ...actual,
       producto_id: producto?.id || "",
       producto_codigo: producto?.codigo || "",
-      producto_nombre: producto?.nombre || ""
+      producto_nombre: producto?.nombre || "",
+      productos_asociados: producto
+        ? [
+            {
+              producto_id: producto.id,
+              producto_codigo: producto.codigo,
+              producto_nombre: producto.nombre
+            },
+            ...(actual.productos_asociados || [])
+              .filter(
+                item =>
+                  item.producto_id &&
+                  item.producto_id !== producto.id
+              )
+          ]
+        : (actual.productos_asociados || [])
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const productosAsociadosFormulario =
+    formulario.productos_asociados.length > 0
+      ? formulario.productos_asociados
+      : formulario.producto_id
+        ? [{
+            producto_id: formulario.producto_id,
+            producto_codigo:
+              formulario.producto_codigo,
+            producto_nombre:
+              formulario.producto_nombre
+          }]
+        : [productoAsociadoInicial];
+
+  const actualizarProductoAsociado = (
+    indice,
+    productoId
+  ) => {
+    const producto = productos.find(
+      item => item.id === productoId
+    );
+
+    setFormulario(actual => {
+      const lista =
+        actual.productos_asociados.length > 0
+          ? [...actual.productos_asociados]
+          : actual.producto_id
+            ? [{
+                producto_id: actual.producto_id,
+                producto_codigo:
+                  actual.producto_codigo,
+                producto_nombre:
+                  actual.producto_nombre
+              }]
+            : [productoAsociadoInicial];
+
+      lista[indice] = producto
+        ? {
+            producto_id: producto.id,
+            producto_codigo: producto.codigo,
+            producto_nombre: producto.nombre
+          }
+        : productoAsociadoInicial;
+
+      const sinDuplicados = lista.filter(
+        (item, posicion, arreglo) =>
+          item.producto_id &&
+          arreglo.findIndex(
+            repetido =>
+              repetido.producto_id === item.producto_id
+          ) === posicion
+      );
+
+      return {
+        ...actual,
+        productos_asociados: sinDuplicados
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const agregarProductoAsociado = () => {
+    setFormulario(actual => ({
+      ...actual,
+      productos_asociados: [
+        ...(actual.productos_asociados.length > 0
+          ? actual.productos_asociados
+          : actual.producto_id
+            ? [{
+                producto_id: actual.producto_id,
+                producto_codigo:
+                  actual.producto_codigo,
+                producto_nombre:
+                  actual.producto_nombre
+              }]
+            : []),
+        productoAsociadoInicial
+      ]
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const quitarProductoAsociado = indice => {
+    setFormulario(actual => ({
+      ...actual,
+      productos_asociados: (
+        actual.productos_asociados.length > 0
+          ? actual.productos_asociados
+          : []
+      ).filter((_, posicion) => posicion !== indice)
     }));
     setError("");
     setMensaje("");
@@ -248,6 +366,17 @@ function CatalogoPiezasV2({
         pieza.producto_codigo || "",
       producto_nombre:
         pieza.producto_nombre || "",
+      productos_asociados:
+        pieza.productos_asociados ||
+        (pieza.producto_id
+          ? [{
+              producto_id: pieza.producto_id,
+              producto_codigo:
+                pieza.producto_codigo || "",
+              producto_nombre:
+                pieza.producto_nombre || ""
+            }]
+          : []),
       nombre: pieza.nombre,
       medida: pieza.medida,
       material_base_id:
@@ -413,6 +542,115 @@ function CatalogoPiezasV2({
                   ))}
               </select>
             </label>
+
+            <div style={{
+              border: "1px solid #E2E8F0",
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 14
+            }}>
+              <strong>Productos donde se usa esta pieza</strong>
+              <p style={{
+                color: "#64748B",
+                fontSize: 13,
+                marginTop: 6
+              }}>
+                El producto principal queda incluido.
+                Agrega otros productos si esta pieza se
+                reutiliza en más de una ingeniería.
+              </p>
+
+              {productosAsociadosFormulario.map(
+                (productoAsociado, indice) => (
+                  <div
+                    key={`${indice}-${productoAsociado.producto_id}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 42px",
+                      gap: 8,
+                      marginBottom: 8
+                    }}
+                  >
+                    <select
+                      value={
+                        productoAsociado.producto_id ||
+                        ""
+                      }
+                      onChange={evento =>
+                        actualizarProductoAsociado(
+                          indice,
+                          evento.target.value
+                        )
+                      }
+                      style={campo}
+                    >
+                      <option value="">
+                        Seleccionar producto
+                      </option>
+                      {productos
+                        .filter(
+                          producto =>
+                            producto.activo !== false
+                        )
+                        .map(producto => (
+                          <option
+                            key={producto.id}
+                            value={producto.id}
+                          >
+                            {producto.codigo}
+                            {" - "}
+                            {producto.nombre}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        quitarProductoAsociado(indice)
+                      }
+                      disabled={
+                        productoAsociado.producto_id ===
+                          formulario.producto_id ||
+                        productosAsociadosFormulario
+                          .length === 1
+                      }
+                      style={{
+                        border:
+                          "1px solid #FCA5A5",
+                        borderRadius: 8,
+                        background: "#FEF2F2",
+                        color: "#B91C1C",
+                        cursor:
+                          productoAsociado.producto_id ===
+                            formulario.producto_id ||
+                          productosAsociadosFormulario
+                            .length === 1
+                            ? "not-allowed"
+                            : "pointer"
+                      }}
+                      title="Quitar producto asociado"
+                    >
+                      -
+                    </button>
+                  </div>
+                )
+              )}
+
+              <button
+                type="button"
+                onClick={agregarProductoAsociado}
+                style={{
+                  ...campo,
+                  background: "#EFF6FF",
+                  borderColor: "#BFDBFE",
+                  color: "#1D4ED8",
+                  cursor: "pointer",
+                  fontWeight: "bold"
+                }}
+              >
+                + Agregar producto asociado
+              </button>
+            </div>
 
             <label>
               Código pieza
@@ -717,6 +955,15 @@ function CatalogoPiezasV2({
                       })
                       .filter(Boolean)
                       .join(", ");
+                  const productosTexto =
+                    (pieza.productos_asociados || [])
+                      .map(producto =>
+                        producto.producto_codigo
+                          ? `${producto.producto_codigo} - ${producto.producto_nombre}`
+                          : ""
+                      )
+                      .filter(Boolean)
+                      .join(", ");
 
                   return (
                     <article
@@ -748,9 +995,11 @@ function CatalogoPiezasV2({
                             fontSize: 14,
                             marginTop: 5
                           }}>
-                            {pieza.producto_codigo
-                              ? `Producto: ${pieza.producto_codigo} - ${pieza.producto_nombre} · `
-                              : "Producto: sin asociar · "}
+                            {productosTexto
+                              ? `Productos: ${productosTexto} · `
+                              : pieza.producto_codigo
+                                ? `Producto: ${pieza.producto_codigo} - ${pieza.producto_nombre} · `
+                                : "Producto: sin asociar · "}
                             Medida: {pieza.medida}
                             {materialesTexto
                               ? ` · Materiales base: ${materialesTexto}`

@@ -69,6 +69,40 @@ export const prepararMaterialesBase = (
   return materialesNormalizados;
 };
 
+export const prepararProductosAsociados = (
+  productos = [],
+  principal = {}
+) => {
+  const mapa = new Map();
+
+  const agregar = producto => {
+    const productoId = limpiarTexto(
+      producto.producto_id || producto.id
+    );
+
+    if (!productoId) {
+      return;
+    }
+
+    mapa.set(productoId, {
+      producto_id: productoId,
+      producto_codigo: normalizarCodigoPieza(
+        producto.producto_codigo ||
+          producto.codigo
+      ),
+      producto_nombre: limpiarTexto(
+        producto.producto_nombre ||
+          producto.nombre
+      )
+    });
+  };
+
+  agregar(principal);
+  productos.forEach(agregar);
+
+  return [...mapa.values()];
+};
+
 export const prepararPieza = (
   datos,
   empresaId,
@@ -92,6 +126,14 @@ export const prepararPieza = (
     ),
     producto_nombre: limpiarTexto(
       datos.producto_nombre
+    ),
+    productos_asociados: prepararProductosAsociados(
+      datos.productos_asociados,
+      {
+        producto_id: datos.producto_id,
+        producto_codigo: datos.producto_codigo,
+        producto_nombre: datos.producto_nombre
+      }
     ),
     nombre: limpiarTexto(datos.nombre),
     medida: limpiarTexto(datos.medida),
@@ -256,6 +298,8 @@ export const actualizarPieza = async (
       producto_id: pieza.producto_id,
       producto_codigo: pieza.producto_codigo,
       producto_nombre: pieza.producto_nombre,
+      productos_asociados:
+        pieza.productos_asociados,
       medida: pieza.medida,
       material_base_id:
         pieza.material_base_id,

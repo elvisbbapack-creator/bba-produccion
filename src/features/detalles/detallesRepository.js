@@ -69,6 +69,41 @@ export const prepararMaterialesEntrada = (
   return materialesNormalizados;
 };
 
+const prepararProductosAsociados = (
+  productos = [],
+  principal = {}
+) => {
+  const mapa = new Map();
+
+  const agregar = producto => {
+    const productoId = limpiarTexto(
+      producto.producto_id || producto.id
+    );
+
+    if (!productoId) {
+      return;
+    }
+
+    mapa.set(productoId, {
+      producto_id: productoId,
+      producto_codigo:
+        normalizarCodigoOperacionCatalogo(
+          producto.producto_codigo ||
+            producto.codigo
+        ),
+      producto_nombre: limpiarTexto(
+        producto.producto_nombre ||
+          producto.nombre
+      )
+    });
+  };
+
+  agregar(principal);
+  productos.forEach(agregar);
+
+  return [...mapa.values()];
+};
+
 export const prepararOperacionCatalogo = (
   datos,
   empresaId,
@@ -94,6 +129,14 @@ export const prepararOperacionCatalogo = (
       ),
     producto_nombre: limpiarTexto(
       datos.producto_nombre
+    ),
+    productos_asociados: prepararProductosAsociados(
+      datos.productos_asociados,
+      {
+        producto_id: datos.producto_id,
+        producto_codigo: datos.producto_codigo,
+        producto_nombre: datos.producto_nombre
+      }
     ),
     pieza_id: limpiarTexto(datos.pieza_id),
     pieza_codigo: limpiarTexto(
@@ -306,6 +349,8 @@ export const actualizarOperacionCatalogo = async (
         operacionActualizada.producto_codigo,
       producto_nombre:
         operacionActualizada.producto_nombre,
+      productos_asociados:
+        operacionActualizada.productos_asociados,
       pieza_id: operacionActualizada.pieza_id,
       pieza_codigo:
         operacionActualizada.pieza_codigo,

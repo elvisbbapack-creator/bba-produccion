@@ -16,6 +16,11 @@ test("normaliza código y textos de pieza", () => {
         producto_id: "producto-1",
         producto_codigo: "pcl0001",
         producto_nombre: " Modular ",
+        productos_asociados: [{
+          producto_id: "producto-2",
+          producto_codigo: "pcl0002",
+          producto_nombre: "Modular Peru"
+        }],
         nombre: " Lateral 290 ",
         medida: " 290 mm ",
         material_base_id: "mp-tubo"
@@ -30,6 +35,18 @@ test("normaliza código y textos de pieza", () => {
     producto_id: "producto-1",
     producto_codigo: "PCL0001",
     producto_nombre: "Modular",
+    productos_asociados: [
+      {
+        producto_id: "producto-1",
+        producto_codigo: "PCL0001",
+        producto_nombre: "Modular"
+      },
+      {
+        producto_id: "producto-2",
+        producto_codigo: "PCL0002",
+        producto_nombre: "Modular Peru"
+      }
+    ],
     nombre: "Lateral 290",
     medida: "290 mm",
     material_base_id: "mp-tubo",
@@ -78,6 +95,11 @@ test("permite múltiples materiales base", () => {
     producto_id: "producto-1",
     producto_codigo: "PCL0001",
     producto_nombre: "Modular",
+    productos_asociados: [{
+      producto_id: "producto-1",
+      producto_codigo: "PCL0001",
+      producto_nombre: "Modular"
+    }],
     nombre: "Lateral Armado",
     medida: "Armado",
     material_base_id: "rf-1",
