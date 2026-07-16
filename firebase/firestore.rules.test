@@ -272,6 +272,10 @@ service cloud.firestore {
           resource.data
         ).affectedKeys().hasOnly([
           'nombre',
+          'producto_id',
+          'producto_codigo',
+          'producto_nombre',
+          'productos_asociados',
           'unidad_medida',
           'costo_unitario_referencial',
           'moneda',

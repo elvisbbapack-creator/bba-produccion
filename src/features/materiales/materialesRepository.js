@@ -30,6 +30,40 @@ export const normalizarCodigoMaterial = (valor) =>
     .toUpperCase()
     .replace(/\s+/g, "");
 
+export const prepararProductosAsociadosMaterial = (
+  productos = [],
+  principal = {}
+) => {
+  const mapa = new Map();
+
+  const agregar = producto => {
+    const productoId = limpiarTexto(
+      producto.producto_id || producto.id
+    );
+
+    if (!productoId) {
+      return;
+    }
+
+    mapa.set(productoId, {
+      producto_id: productoId,
+      producto_codigo: normalizarCodigoMaterial(
+        producto.producto_codigo ||
+          producto.codigo
+      ),
+      producto_nombre: limpiarTexto(
+        producto.producto_nombre ||
+          producto.nombre
+      )
+    });
+  };
+
+  agregar(principal);
+  productos.forEach(agregar);
+
+  return [...mapa.values()];
+};
+
 export const prepararMaterial = (
   datos,
   empresaId,
@@ -44,6 +78,33 @@ export const prepararMaterial = (
       datos.codigo
     ),
     tipo,
+    producto_id:
+      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+        ? limpiarTexto(datos.producto_id)
+        : "",
+    producto_codigo:
+      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+        ? normalizarCodigoMaterial(
+            datos.producto_codigo
+          )
+        : "",
+    producto_nombre:
+      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+        ? limpiarTexto(datos.producto_nombre)
+        : "",
+    productos_asociados:
+      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+        ? prepararProductosAsociadosMaterial(
+            datos.productos_asociados,
+            {
+              producto_id: datos.producto_id,
+              producto_codigo:
+                datos.producto_codigo,
+              producto_nombre:
+                datos.producto_nombre
+            }
+          )
+        : [],
     nombre: limpiarTexto(datos.nombre),
     unidad_medida: limpiarTexto(
       datos.unidad_medida
@@ -178,6 +239,11 @@ export const actualizarMaterial = async (
     doc(db, COLECCION, materialId),
     {
       nombre: material.nombre,
+      producto_id: material.producto_id,
+      producto_codigo: material.producto_codigo,
+      producto_nombre: material.producto_nombre,
+      productos_asociados:
+        material.productos_asociados,
       unidad_medida: material.unidad_medida,
       costo_unitario_referencial:
         material.costo_unitario_referencial,

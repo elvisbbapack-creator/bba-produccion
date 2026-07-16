@@ -164,7 +164,21 @@ function ConstructorRutasV2({
   const materialesActivos = materiales.filter(
     material => material.activo
   );
-  const salidasRf = materialesActivos.filter(
+  const materialDisponibleParaProducto = material =>
+    material.tipo !== "RF" ||
+    !productoId ||
+    !material.producto_id ||
+    material.producto_id === productoId ||
+    (material.productos_asociados || []).some(
+      producto =>
+        producto.producto_id === productoId
+    );
+  const materialesDisponiblesProducto =
+    materialesActivos.filter(
+      material =>
+        materialDisponibleParaProducto(material)
+    );
+  const salidasRf = materialesDisponiblesProducto.filter(
     material => material.tipo === "RF"
   );
   const piezaDisponibleParaProducto = pieza =>
@@ -221,7 +235,7 @@ function ConstructorRutasV2({
       ? subproductosProducto
       : itemComposicion.tipo === "PIEZA"
         ? piezasProducto
-        : materialesActivos;
+        : materialesDisponiblesProducto;
   const operacionCatalogoSeleccionadaId =
     operacionesCatalogoActivas.find(
       operacion =>
@@ -2180,7 +2194,7 @@ function ConstructorRutasV2({
                                   <option value="">
                                     Seleccionar
                                   </option>
-                                  {materialesActivos.map(
+                                  {materialesDisponiblesProducto.map(
                                     material => (
                                       <option
                                         key={

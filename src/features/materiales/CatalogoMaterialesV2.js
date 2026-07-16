@@ -12,6 +12,9 @@ import {
   listarTerceros
 } from "../terceros/tercerosRepository";
 import {
+  listarProductos
+} from "../productos/productosRepository";
+import {
   actualizarMaterial,
   cambiarEstadoMaterial,
   crearMaterial,
@@ -23,6 +26,10 @@ import {
 const estadoInicial = {
   tipo: TIPOS_MATERIAL.MATERIA_PRIMA,
   codigo: "",
+  producto_id: "",
+  producto_codigo: "",
+  producto_nombre: "",
+  productos_asociados: [],
   nombre: "",
   unidad_medida: "unidad",
   costo_unitario_referencial: 0,
@@ -33,6 +40,12 @@ const estadoInicial = {
   proveedor_preferente_nombre: "",
   costo_origen: "catalogo_material",
   es_comprado: true
+};
+
+const productoAsociadoInicial = {
+  producto_id: "",
+  producto_codigo: "",
+  producto_nombre: ""
 };
 
 const estiloCampo = {
@@ -50,6 +63,7 @@ function CatalogoMaterialesV2({
   onVolver
 }) {
   const [materiales, setMateriales] = useState([]);
+  const [productos, setProductos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
@@ -66,7 +80,8 @@ function CatalogoMaterialesV2({
       setError("");
       const [
         materialesCargados,
-        proveedoresCargados
+        proveedoresCargados,
+        productosCargados
       ] = await Promise.all([
         listarMateriales(
           db,
@@ -76,6 +91,10 @@ function CatalogoMaterialesV2({
           db,
           perfil.empresa_id,
           TIPOS_TERCERO.PROVEEDOR
+        ),
+        listarProductos(
+          db,
+          perfil.empresa_id
         )
       ]);
       setMateriales(materialesCargados);
@@ -84,6 +103,7 @@ function CatalogoMaterialesV2({
           proveedor => proveedor.activo !== false
         )
       );
+      setProductos(productosCargados);
     } catch (fallo) {
       setError(
         fallo?.message ||
@@ -124,6 +144,131 @@ function CatalogoMaterialesV2({
     setMensaje("");
   };
 
+  const seleccionarProductoPrincipal =
+  productoId => {
+    const producto = productos.find(
+      item => item.id === productoId
+    );
+
+    setFormulario(actual => ({
+      ...actual,
+      producto_id: producto?.id || "",
+      producto_codigo: producto?.codigo || "",
+      producto_nombre: producto?.nombre || "",
+      productos_asociados: producto
+        ? [
+            {
+              producto_id: producto.id,
+              producto_codigo: producto.codigo,
+              producto_nombre: producto.nombre
+            },
+            ...(actual.productos_asociados || [])
+              .filter(
+                item =>
+                  item.producto_id &&
+                  item.producto_id !== producto.id
+              )
+          ]
+        : (actual.productos_asociados || [])
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const productosAsociadosFormulario =
+    formulario.productos_asociados.length > 0
+      ? formulario.productos_asociados
+      : formulario.producto_id
+        ? [{
+            producto_id: formulario.producto_id,
+            producto_codigo:
+              formulario.producto_codigo,
+            producto_nombre:
+              formulario.producto_nombre
+          }]
+        : [productoAsociadoInicial];
+
+  const actualizarProductoAsociado = (
+    indice,
+    productoId
+  ) => {
+    const producto = productos.find(
+      item => item.id === productoId
+    );
+
+    setFormulario(actual => {
+      const lista =
+        actual.productos_asociados.length > 0
+          ? [...actual.productos_asociados]
+          : actual.producto_id
+            ? [{
+                producto_id: actual.producto_id,
+                producto_codigo:
+                  actual.producto_codigo,
+                producto_nombre:
+                  actual.producto_nombre
+              }]
+            : [productoAsociadoInicial];
+
+      lista[indice] = producto
+        ? {
+            producto_id: producto.id,
+            producto_codigo: producto.codigo,
+            producto_nombre: producto.nombre
+          }
+        : productoAsociadoInicial;
+
+      return {
+        ...actual,
+        productos_asociados: lista.filter(
+          (item, posicion, arreglo) =>
+            item.producto_id &&
+            arreglo.findIndex(
+              repetido =>
+                repetido.producto_id === item.producto_id
+            ) === posicion
+        )
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const agregarProductoAsociado = () => {
+    setFormulario(actual => ({
+      ...actual,
+      productos_asociados: [
+        ...(actual.productos_asociados.length > 0
+          ? actual.productos_asociados
+          : actual.producto_id
+            ? [{
+                producto_id: actual.producto_id,
+                producto_codigo:
+                  actual.producto_codigo,
+                producto_nombre:
+                  actual.producto_nombre
+              }]
+            : []),
+        productoAsociadoInicial
+      ]
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const quitarProductoAsociado = indice => {
+    setFormulario(actual => ({
+      ...actual,
+      productos_asociados: (
+        actual.productos_asociados.length > 0
+          ? actual.productos_asociados
+          : []
+      ).filter((_, posicion) => posicion !== indice)
+    }));
+    setError("");
+    setMensaje("");
+  };
+
   const limpiarFormulario = () => {
     setFormulario(estadoInicial);
     setEditandoId("");
@@ -135,6 +280,22 @@ function CatalogoMaterialesV2({
     setFormulario({
       tipo: material.tipo,
       codigo: material.codigo,
+      producto_id: material.producto_id || "",
+      producto_codigo:
+        material.producto_codigo || "",
+      producto_nombre:
+        material.producto_nombre || "",
+      productos_asociados:
+        material.productos_asociados ||
+        (material.producto_id
+          ? [{
+              producto_id: material.producto_id,
+              producto_codigo:
+                material.producto_codigo || "",
+              producto_nombre:
+                material.producto_nombre || ""
+            }]
+          : []),
       nombre: material.nombre,
       unidad_medida: material.unidad_medida,
       costo_unitario_referencial:
@@ -315,6 +476,22 @@ function CatalogoMaterialesV2({
                     ...actual,
                     tipo,
                     codigo: tipo,
+                    producto_id:
+                      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+                        ? actual.producto_id
+                        : "",
+                    producto_codigo:
+                      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+                        ? actual.producto_codigo
+                        : "",
+                    producto_nombre:
+                      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+                        ? actual.producto_nombre
+                        : "",
+                    productos_asociados:
+                      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+                        ? actual.productos_asociados
+                        : [],
                     es_comprado:
                       [
                         TIPOS_MATERIAL.MATERIA_PRIMA,
@@ -368,6 +545,154 @@ function CatalogoMaterialesV2({
                 }}
               />
             </label>
+
+            {formulario.tipo ===
+              TIPOS_MATERIAL.RECURSO_FABRICACION && (
+              <div style={{
+                border: "1px solid #E2E8F0",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 14
+              }}>
+                <strong>Productos asociados al RF</strong>
+                <p style={{
+                  color: "#64748B",
+                  fontSize: 13,
+                  marginTop: 6
+                }}>
+                  Usa un producto principal para ordenar
+                  dónde nació el RF y agrega otros si este
+                  recurso sirve para más ingenierías.
+                </p>
+
+                <label>
+                  Producto principal
+                  <select
+                    value={formulario.producto_id}
+                    onChange={evento =>
+                      seleccionarProductoPrincipal(
+                        evento.target.value
+                      )
+                    }
+                    style={{
+                      ...estiloCampo,
+                      marginTop: 6,
+                      marginBottom: 10
+                    }}
+                  >
+                    <option value="">
+                      Sin producto principal
+                    </option>
+                    {productos
+                      .filter(
+                        producto =>
+                          producto.activo !== false
+                      )
+                      .map(producto => (
+                        <option
+                          key={producto.id}
+                          value={producto.id}
+                        >
+                          {producto.codigo}
+                          {" - "}
+                          {producto.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+
+                {productosAsociadosFormulario.map(
+                  (productoAsociado, indice) => (
+                    <div
+                      key={`${indice}-${productoAsociado.producto_id}`}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 42px",
+                        gap: 8,
+                        marginBottom: 8
+                      }}
+                    >
+                      <select
+                        value={
+                          productoAsociado.producto_id ||
+                          ""
+                        }
+                        onChange={evento =>
+                          actualizarProductoAsociado(
+                            indice,
+                            evento.target.value
+                          )
+                        }
+                        style={estiloCampo}
+                      >
+                        <option value="">
+                          Seleccionar producto asociado
+                        </option>
+                        {productos
+                          .filter(
+                            producto =>
+                              producto.activo !== false
+                          )
+                          .map(producto => (
+                            <option
+                              key={producto.id}
+                              value={producto.id}
+                            >
+                              {producto.codigo}
+                              {" - "}
+                              {producto.nombre}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          quitarProductoAsociado(indice)
+                        }
+                        disabled={
+                          productoAsociado.producto_id ===
+                            formulario.producto_id ||
+                          productosAsociadosFormulario
+                            .length === 1
+                        }
+                        style={{
+                          border:
+                            "1px solid #FCA5A5",
+                          borderRadius: 8,
+                          background: "#FEF2F2",
+                          color: "#B91C1C",
+                          cursor:
+                            productoAsociado.producto_id ===
+                              formulario.producto_id ||
+                            productosAsociadosFormulario
+                              .length === 1
+                              ? "not-allowed"
+                              : "pointer"
+                        }}
+                        title="Quitar producto asociado"
+                      >
+                        -
+                      </button>
+                    </div>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={agregarProductoAsociado}
+                  style={{
+                    ...estiloCampo,
+                    background: "#EFF6FF",
+                    borderColor: "#BFDBFE",
+                    color: "#1D4ED8",
+                    cursor: "pointer",
+                    fontWeight: "bold"
+                  }}
+                >
+                  + Agregar producto asociado
+                </button>
+              </div>
+            )}
 
             <label>
               Nombre
@@ -626,98 +951,114 @@ function CatalogoMaterialesV2({
                 display: "grid",
                 gap: 10
               }}>
-                {materiales.map(material => (
-                  <article
-                    key={material.id}
-                    style={{
-                      border: "1px solid #E2E8F0",
-                      borderRadius: 10,
-                      padding: 13,
-                      opacity: material.activo
-                        ? 1
-                        : 0.58
-                    }}
-                  >
-                    <div style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12
-                    }}>
-                      <div>
-                        <strong>
-                          {material.codigo}
-                          {" - "}
-                          {material.nombre}
-                        </strong>
-                        <div style={{
-                          color: "#475569",
-                          fontSize: 14,
-                          marginTop: 5
-                        }}>
-                          {material.tipo}
-                          {" · "}
-                          {material.unidad_medida}
-                          {material.es_comprado
-                            ? " · comprado"
-                            : ""}
-                          {material.costo_unitario_referencial
-                            ? ` · costo ref. ${Number(
-                                material.costo_unitario_referencial
-                              ).toLocaleString("es-CL", {
-                                style: "currency",
-                                currency:
-                                  material.moneda || "CLP",
-                                maximumFractionDigits: 0
-                              })}`
-                            : ""}
-                          {material.proveedor_preferente_nombre
-                            ? ` · prov. ${material.proveedor_preferente_nombre}`
-                            : ""}
-                        </div>
-                      </div>
+                {materiales.map(material => {
+                  const productosTexto =
+                    (material.productos_asociados || [])
+                      .map(producto =>
+                        producto.producto_codigo
+                          ? `${producto.producto_codigo} - ${producto.producto_nombre}`
+                          : ""
+                      )
+                      .filter(Boolean)
+                      .join(", ");
+
+                  return (
+                    <article
+                      key={material.id}
+                      style={{
+                        border: "1px solid #E2E8F0",
+                        borderRadius: 10,
+                        padding: 13,
+                        opacity: material.activo
+                          ? 1
+                          : 0.58
+                      }}
+                    >
                       <div style={{
                         display: "flex",
-                        gap: 8,
-                        alignSelf: "start"
+                        justifyContent: "space-between",
+                        gap: 12
                       }}>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            editar(material)
-                          }
-                          style={{
-                            border:
-                              "1px solid #CBD5E1",
-                            borderRadius: 7,
-                            background: "white",
-                            padding: "7px 10px",
-                            cursor: "pointer"
-                          }}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            cambiarEstado(material)
-                          }
-                          style={{
-                            border:
-                              "1px solid #CBD5E1",
-                            borderRadius: 7,
-                            background: "white",
-                            padding: "7px 10px",
-                            cursor: "pointer"
-                          }}
-                        >
-                          {material.activo
-                            ? "Desactivar"
-                            : "Activar"}
-                        </button>
+                        <div>
+                          <strong>
+                            {material.codigo}
+                            {" - "}
+                            {material.nombre}
+                          </strong>
+                          <div style={{
+                            color: "#475569",
+                            fontSize: 14,
+                            marginTop: 5
+                          }}>
+                            {material.tipo}
+                            {" · "}
+                            {material.unidad_medida}
+                            {material.tipo === "RF" &&
+                              productosTexto
+                              ? ` · Productos: ${productosTexto}`
+                              : ""}
+                            {material.es_comprado
+                              ? " · comprado"
+                              : ""}
+                            {material.costo_unitario_referencial
+                              ? ` · costo ref. ${Number(
+                                  material.costo_unitario_referencial
+                                ).toLocaleString("es-CL", {
+                                  style: "currency",
+                                  currency:
+                                    material.moneda || "CLP",
+                                  maximumFractionDigits: 0
+                                })}`
+                              : ""}
+                            {material.proveedor_preferente_nombre
+                              ? ` · prov. ${material.proveedor_preferente_nombre}`
+                              : ""}
+                          </div>
+                        </div>
+                        <div style={{
+                          display: "flex",
+                          gap: 8,
+                          alignSelf: "start"
+                        }}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              editar(material)
+                            }
+                            style={{
+                              border:
+                                "1px solid #CBD5E1",
+                              borderRadius: 7,
+                              background: "white",
+                              padding: "7px 10px",
+                              cursor: "pointer"
+                            }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              cambiarEstado(material)
+                            }
+                            style={{
+                              border:
+                                "1px solid #CBD5E1",
+                              borderRadius: 7,
+                              background: "white",
+                              padding: "7px 10px",
+                              cursor: "pointer"
+                            }}
+                          >
+                            {material.activo
+                              ? "Desactivar"
+                              : "Activar"}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </div>
             )}
           </section>
