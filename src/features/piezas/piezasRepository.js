@@ -86,6 +86,13 @@ export const prepararPieza = (
     codigo: normalizarCodigoPieza(
       datos.codigo
     ),
+    producto_id: limpiarTexto(datos.producto_id),
+    producto_codigo: normalizarCodigoPieza(
+      datos.producto_codigo
+    ),
+    producto_nombre: limpiarTexto(
+      datos.producto_nombre
+    ),
     nombre: limpiarTexto(datos.nombre),
     medida: limpiarTexto(datos.medida),
     material_base_id:
@@ -246,6 +253,9 @@ export const actualizarPieza = async (
     doc(db, COLECCION, piezaId),
     {
       nombre: pieza.nombre,
+      producto_id: pieza.producto_id,
+      producto_codigo: pieza.producto_codigo,
+      producto_nombre: pieza.producto_nombre,
       medida: pieza.medida,
       material_base_id:
         pieza.material_base_id,

@@ -8,6 +8,9 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
+  listarProductos
+} from "../productos/productosRepository";
+import {
   actualizarPieza,
   guardarPieza,
   listarPiezas,
@@ -17,6 +20,9 @@ import {
 
 const estadoInicial = {
   codigo: "",
+  producto_id: "",
+  producto_codigo: "",
+  producto_nombre: "",
   nombre: "",
   medida: "",
   material_base_id: "",
@@ -44,6 +50,7 @@ function CatalogoPiezasV2({
   onVolver
 }) {
   const [piezas, setPiezas] = useState([]);
+  const [productos, setProductos] = useState([]);
   const [materiales, setMateriales] =
     useState([]);
   const [formulario, setFormulario] =
@@ -83,16 +90,21 @@ function CatalogoPiezasV2({
     try {
       setCargando(true);
       setError("");
-      const [piezasData, materialesData] =
+      const [piezasData, materialesData, productosData] =
         await Promise.all([
           listarPiezas(db, perfil.empresa_id),
           listarMateriales(
+            db,
+            perfil.empresa_id
+          ),
+          listarProductos(
             db,
             perfil.empresa_id
           )
         ]);
       setPiezas(piezasData);
       setMateriales(materialesData);
+      setProductos(productosData);
     } catch (fallo) {
       setError(
         fallo?.message ||
@@ -111,6 +123,21 @@ function CatalogoPiezasV2({
     setFormulario(actual => ({
       ...actual,
       [nombre]: valor
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const seleccionarProducto = productoId => {
+    const producto = productos.find(
+      item => item.id === productoId
+    );
+
+    setFormulario(actual => ({
+      ...actual,
+      producto_id: producto?.id || "",
+      producto_codigo: producto?.codigo || "",
+      producto_nombre: producto?.nombre || ""
     }));
     setError("");
     setMensaje("");
@@ -216,6 +243,11 @@ function CatalogoPiezasV2({
     setEditandoId(pieza.id);
     setFormulario({
       codigo: pieza.codigo,
+      producto_id: pieza.producto_id || "",
+      producto_codigo:
+        pieza.producto_codigo || "",
+      producto_nombre:
+        pieza.producto_nombre || "",
       nombre: pieza.nombre,
       medida: pieza.medida,
       material_base_id:
@@ -240,6 +272,13 @@ function CatalogoPiezasV2({
 
     if (erroresFormulario.length > 0) {
       setError(erroresFormulario.join(" "));
+      return;
+    }
+
+    if (!formulario.producto_id) {
+      setError(
+        "Selecciona el producto principal de esta pieza."
+      );
       return;
     }
 
@@ -341,6 +380,39 @@ function CatalogoPiezasV2({
                 ? "Editar pieza"
                 : "Nueva pieza"}
             </h2>
+
+            <label>
+              Producto principal
+              <select
+                value={formulario.producto_id}
+                onChange={evento =>
+                  seleccionarProducto(
+                    evento.target.value
+                  )
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              >
+                <option value="">
+                  Seleccionar producto
+                </option>
+                {productos
+                  .filter(producto => producto.activo !== false)
+                  .map(producto => (
+                    <option
+                      key={producto.id}
+                      value={producto.id}
+                    >
+                      {producto.codigo}
+                      {" - "}
+                      {producto.nombre}
+                    </option>
+                  ))}
+              </select>
+            </label>
 
             <label>
               Código pieza
@@ -676,6 +748,9 @@ function CatalogoPiezasV2({
                             fontSize: 14,
                             marginTop: 5
                           }}>
+                            {pieza.producto_codigo
+                              ? `Producto: ${pieza.producto_codigo} - ${pieza.producto_nombre} · `
+                              : "Producto: sin asociar · "}
                             Medida: {pieza.medida}
                             {materialesTexto
                               ? ` · Materiales base: ${materialesTexto}`

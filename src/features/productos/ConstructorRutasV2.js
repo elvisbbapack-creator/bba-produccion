@@ -167,9 +167,30 @@ function ConstructorRutasV2({
   const salidasRf = materialesActivos.filter(
     material => material.tipo === "RF"
   );
+  const piezasProducto = piezas.filter(
+    pieza =>
+      pieza.activo !== false &&
+      (!productoId ||
+        !pieza.producto_id ||
+        pieza.producto_id === productoId)
+  );
   const operacionesCatalogoActivas =
     operacionesCatalogo.filter(
-      operacion => operacion.activo
+      operacion => {
+        if (!operacion.activo) {
+          return false;
+        }
+
+        const piezaOperacion = piezas.find(
+          pieza => pieza.id === operacion.pieza_id
+        );
+
+        return (
+          !productoId ||
+          !piezaOperacion?.producto_id ||
+          piezaOperacion.producto_id === productoId
+        );
+      }
     );
   const subproductosProducto =
     subproductos.filter(
@@ -181,9 +202,7 @@ function ConstructorRutasV2({
     itemComposicion.tipo === "SUBPRODUCTO"
       ? subproductosProducto
       : itemComposicion.tipo === "PIEZA"
-        ? piezas.filter(
-            pieza => pieza.activo !== false
-          )
+        ? piezasProducto
         : materialesActivos;
   const operacionCatalogoSeleccionadaId =
     operacionesCatalogoActivas.find(

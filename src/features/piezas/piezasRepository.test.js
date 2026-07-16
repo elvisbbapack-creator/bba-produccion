@@ -13,6 +13,9 @@ test("normaliza código y textos de pieza", () => {
     prepararPieza(
       {
         codigo: "pz0001",
+        producto_id: "producto-1",
+        producto_codigo: "pcl0001",
+        producto_nombre: " Modular ",
         nombre: " Lateral 290 ",
         medida: " 290 mm ",
         material_base_id: "mp-tubo"
@@ -24,6 +27,9 @@ test("normaliza código y textos de pieza", () => {
     id: "pieza-1",
     empresa_id: "bba",
     codigo: "PZ0001",
+    producto_id: "producto-1",
+    producto_codigo: "PCL0001",
+    producto_nombre: "Modular",
     nombre: "Lateral 290",
     medida: "290 mm",
     material_base_id: "mp-tubo",
@@ -42,6 +48,9 @@ test("permite múltiples materiales base", () => {
     prepararPieza(
       {
         codigo: "pz0100",
+        producto_id: "producto-1",
+        producto_codigo: "PCL0001",
+        producto_nombre: "Modular",
         nombre: "Lateral Armado",
         medida: "Armado",
         materiales_base: [
@@ -66,6 +75,9 @@ test("permite múltiples materiales base", () => {
     id: "pieza-armado",
     empresa_id: "bba",
     codigo: "PZ0100",
+    producto_id: "producto-1",
+    producto_codigo: "PCL0001",
+    producto_nombre: "Modular",
     nombre: "Lateral Armado",
     medida: "Armado",
     material_base_id: "rf-1",
