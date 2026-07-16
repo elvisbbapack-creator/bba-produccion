@@ -576,6 +576,9 @@ service cloud.firestore {
           resource.data
         ).affectedKeys().hasOnly([
           'nombre',
+          'producto_id',
+          'producto_codigo',
+          'producto_nombre',
           'medida',
           'material_base_id',
           'materiales_base',
