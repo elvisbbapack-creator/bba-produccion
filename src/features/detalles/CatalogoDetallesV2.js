@@ -21,6 +21,9 @@ import {
 const estadoInicial = {
   codigo: "",
   nombre: "",
+  producto_id: "",
+  producto_codigo: "",
+  producto_nombre: "",
   pieza_id: "",
   pieza_codigo: "",
   pieza_nombre: "",
@@ -248,6 +251,11 @@ function CatalogoDetallesV2({
       pieza_id: pieza?.id || "",
       pieza_codigo: pieza?.codigo || "",
       pieza_nombre: pieza?.nombre || "",
+      producto_id: pieza?.producto_id || "",
+      producto_codigo:
+        pieza?.producto_codigo || "",
+      producto_nombre:
+        pieza?.producto_nombre || "",
       medida: pieza?.medida || actual.medida,
       material_entrada_id:
         materialesEntrada[0]?.material_id ||
@@ -273,6 +281,11 @@ function CatalogoDetallesV2({
     setFormulario({
       codigo: operacion.codigo,
       nombre: operacion.nombre,
+      producto_id: operacion.producto_id || "",
+      producto_codigo:
+        operacion.producto_codigo || "",
+      producto_nombre:
+        operacion.producto_nombre || "",
       pieza_id: operacion.pieza_id || "",
       pieza_codigo: operacion.pieza_codigo || "",
       pieza_nombre: operacion.pieza_nombre || "",
@@ -817,6 +830,9 @@ function CatalogoDetallesV2({
                           }}>
                             Medida:{" "}
                             {operacion.medida}
+                            {" · Producto: "}
+                            {operacion.producto_codigo ||
+                              "sin asociar"}
                             {" · Pieza: "}
                             {operacion.pieza_codigo ||
                               "-"}

@@ -87,6 +87,14 @@ export const prepararOperacionCatalogo = (
       datos.codigo
     ),
     nombre: limpiarTexto(datos.nombre),
+    producto_id: limpiarTexto(datos.producto_id),
+    producto_codigo:
+      normalizarCodigoOperacionCatalogo(
+        datos.producto_codigo
+      ),
+    producto_nombre: limpiarTexto(
+      datos.producto_nombre
+    ),
     pieza_id: limpiarTexto(datos.pieza_id),
     pieza_codigo: limpiarTexto(
       datos.pieza_codigo
@@ -292,6 +300,12 @@ export const actualizarOperacionCatalogo = async (
     doc(db, COLECCION, operacionId),
     {
       nombre: operacionActualizada.nombre,
+      producto_id:
+        operacionActualizada.producto_id,
+      producto_codigo:
+        operacionActualizada.producto_codigo,
+      producto_nombre:
+        operacionActualizada.producto_nombre,
       pieza_id: operacionActualizada.pieza_id,
       pieza_codigo:
         operacionActualizada.pieza_codigo,

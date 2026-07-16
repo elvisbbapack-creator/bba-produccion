@@ -16,6 +16,9 @@ test("normaliza código y textos de operación", () => {
       {
         codigo: "op0001",
         nombre: " Corte lateral 290 ",
+        producto_id: "producto-1",
+        producto_codigo: "pcl0001",
+        producto_nombre: " Modular ",
         pieza_id: "pieza-1",
         pieza_codigo: "PZ0001",
         pieza_nombre: "Lateral 290",
@@ -31,6 +34,9 @@ test("normaliza código y textos de operación", () => {
     empresa_id: "bba",
     codigo: "OP0001",
     nombre: "Corte lateral 290",
+    producto_id: "producto-1",
+    producto_codigo: "PCL0001",
+    producto_nombre: "Modular",
     pieza_id: "pieza-1",
     pieza_codigo: "PZ0001",
     pieza_nombre: "Lateral 290",
@@ -53,6 +59,9 @@ test("permite varios materiales de entrada", () => {
       {
         codigo: "op0002",
         nombre: "Soldadura lateral armado",
+        producto_id: "producto-1",
+        producto_codigo: "PCL0001",
+        producto_nombre: "Modular",
         pieza_id: "pieza-armado",
         pieza_codigo: "PZ0100",
         pieza_nombre: "Lateral Armado",
@@ -77,6 +86,9 @@ test("permite varios materiales de entrada", () => {
       "operacion-2"
     )
   ).toMatchObject({
+    producto_id: "producto-1",
+    producto_codigo: "PCL0001",
+    producto_nombre: "Modular",
     material_entrada_id: "rf-1",
     materiales_entrada: [
       {

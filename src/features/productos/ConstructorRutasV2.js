@@ -184,11 +184,15 @@ function ConstructorRutasV2({
         const piezaOperacion = piezas.find(
           pieza => pieza.id === operacion.pieza_id
         );
+        const productoOperacionId =
+          operacion.producto_id ||
+          piezaOperacion?.producto_id ||
+          "";
 
         return (
           !productoId ||
-          !piezaOperacion?.producto_id ||
-          piezaOperacion.producto_id === productoId
+          !productoOperacionId ||
+          productoOperacionId === productoId
         );
       }
     );
