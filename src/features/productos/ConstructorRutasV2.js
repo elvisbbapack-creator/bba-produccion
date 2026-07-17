@@ -2165,101 +2165,139 @@ function ConstructorRutasV2({
                             (
                               materialEntrada,
                               indice
-                            ) => (
-                              <div
-                                key={`${indice}-${materialEntrada.material_id}`}
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns:
-                                    "1fr 100px 42px",
-                                  gap: 8
-                                }}
-                              >
-                                <select
-                                  value={
-                                    materialEntrada
-                                      .material_id ||
-                                    ""
-                                  }
-                                  onChange={evento =>
-                                    actualizarMaterialEntrada(
-                                      indice,
-                                      "material_id",
-                                      evento.target
-                                        .value
-                                    )
-                                  }
-                                  style={campo}
-                                >
-                                  <option value="">
-                                    Seleccionar
-                                  </option>
-                                  {materialesDisponiblesProducto.map(
-                                    material => (
-                                      <option
-                                        key={
-                                          material.id
-                                        }
-                                        value={
-                                          material.id
-                                        }
-                                      >
-                                        {
-                                          material.codigo
-                                        }
-                                        {" - "}
-                                        {
-                                          material.nombre
-                                        }
-                                      </option>
-                                    )
-                                  )}
-                                </select>
-                                <input
-                                  type="number"
-                                  min="0.0001"
-                                  step="0.0001"
-                                  value={
-                                    materialEntrada
-                                      .cantidad || 1
-                                  }
-                                  onChange={evento =>
-                                    actualizarMaterialEntrada(
-                                      indice,
-                                      "cantidad",
-                                      evento.target
-                                        .value
-                                    )
-                                  }
-                                  style={campo}
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    quitarMaterialEntrada(
-                                      indice
-                                    )
-                                  }
-                                  disabled={
-                                    materialesEntradaFormulario
-                                      .length === 1 &&
-                                    !materialEntrada
-                                      .material_id
-                                  }
+                            ) => {
+                              const materialSeleccionado =
+                                materialesDisponiblesProducto.find(
+                                  material =>
+                                    material.id ===
+                                    materialEntrada.material_id
+                                );
+                              const unidadMaterial =
+                                materialSeleccionado
+                                  ?.unidad_medida ||
+                                "unidad";
+
+                              return (
+                                <div
+                                  key={`${indice}-${materialEntrada.material_id}`}
                                   style={{
-                                    border:
-                                      "1px solid #FCA5A5",
-                                    borderRadius: 8,
-                                    background:
-                                      "#FEF2F2",
-                                    color: "#B91C1C",
-                                    cursor: "pointer"
+                                    display: "grid",
+                                    gridTemplateColumns:
+                                      "1fr 170px 42px",
+                                    gap: 8,
+                                    alignItems:
+                                      "start"
                                   }}
                                 >
-                                  -
-                                </button>
-                              </div>
-                            )
+                                  <select
+                                    value={
+                                      materialEntrada
+                                        .material_id ||
+                                      ""
+                                    }
+                                    onChange={evento =>
+                                      actualizarMaterialEntrada(
+                                        indice,
+                                        "material_id",
+                                        evento.target
+                                          .value
+                                      )
+                                    }
+                                    style={campo}
+                                  >
+                                    <option value="">
+                                      Seleccionar
+                                    </option>
+                                    {materialesDisponiblesProducto.map(
+                                      material => (
+                                        <option
+                                          key={
+                                            material.id
+                                          }
+                                          value={
+                                            material.id
+                                          }
+                                        >
+                                          {
+                                            material.codigo
+                                          }
+                                          {" - "}
+                                          {
+                                            material.nombre
+                                          }
+                                        </option>
+                                      )
+                                    )}
+                                  </select>
+                                  <label style={{
+                                    display: "grid",
+                                    gap: 4,
+                                    color: "#475569",
+                                    fontSize: 12,
+                                    fontWeight:
+                                      "bold"
+                                  }}>
+                                    Cant. por unidad
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      placeholder="Ej: 0.29"
+                                      value={
+                                        materialEntrada
+                                          .cantidad || 1
+                                      }
+                                      onChange={evento =>
+                                        actualizarMaterialEntrada(
+                                          indice,
+                                          "cantidad",
+                                          evento.target
+                                            .value.replace(
+                                              ",",
+                                              "."
+                                            )
+                                        )
+                                      }
+                                      style={campo}
+                                    />
+                                    <span style={{
+                                      color: "#64748B",
+                                      fontWeight:
+                                        "normal"
+                                    }}>
+                                      Unidad stock:{" "}
+                                      {unidadMaterial}
+                                    </span>
+                                  </label>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      quitarMaterialEntrada(
+                                        indice
+                                      )
+                                    }
+                                    disabled={
+                                      materialesEntradaFormulario
+                                        .length === 1 &&
+                                      !materialEntrada
+                                        .material_id
+                                    }
+                                    style={{
+                                      border:
+                                        "1px solid #FCA5A5",
+                                      borderRadius: 8,
+                                      background:
+                                        "#FEF2F2",
+                                      color: "#B91C1C",
+                                      cursor:
+                                        "pointer",
+                                      minHeight: 42
+                                    }}
+                                  >
+                                    -
+                                  </button>
+                                </div>
+                              );
+                            }
                           )}
                         </div>
                         <button

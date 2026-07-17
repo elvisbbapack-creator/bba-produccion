@@ -88,7 +88,7 @@ test("permite varios materiales de entrada", () => {
             material_id: "rf-1",
             material_codigo: "RF0001",
             material_nombre: "Lateral cortado",
-            cantidad: "2"
+            cantidad: "0,58"
           },
           {
             material_id: "rf-2",
@@ -117,7 +117,7 @@ test("permite varios materiales de entrada", () => {
         material_id: "rf-1",
         material_codigo: "RF0001",
         material_nombre: "Lateral cortado",
-        cantidad: 2
+        cantidad: 0.58
       },
       {
         material_id: "rf-2",

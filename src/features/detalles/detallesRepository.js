@@ -14,6 +14,9 @@ const COLECCION = "catalogo_operaciones";
 const limpiarTexto = valor =>
   (valor || "").toString().trim();
 
+const numeroDecimal = valor =>
+  Number(limpiarTexto(valor).replace(",", "."));
+
 export const normalizarCodigoOperacionCatalogo = valor =>
   limpiarTexto(valor)
     .toUpperCase()
@@ -31,7 +34,9 @@ export const prepararMaterialesEntrada = (
 ) => {
   const materialesNormalizados = materiales
     .map(material => {
-      const cantidad = Number(material.cantidad);
+      const cantidad = numeroDecimal(
+        material.cantidad
+      );
 
       return {
         material_id: limpiarTexto(

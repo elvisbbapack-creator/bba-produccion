@@ -18,6 +18,9 @@ import {
 const limpiarTexto = (valor) =>
   (valor || "").toString().trim();
 
+const numeroDecimal = valor =>
+  Number(limpiarTexto(valor).replace(",", "."));
+
 const normalizarCodigo = (valor) =>
   limpiarTexto(valor)
     .toUpperCase()
@@ -69,7 +72,7 @@ export const prepararComposicionProducto = (
       item_nombre: limpiarTexto(
         item.item_nombre
       ),
-      cantidad: Number(item.cantidad)
+      cantidad: numeroDecimal(item.cantidad)
     }))
     .filter(item =>
       item.tipo ||
@@ -217,7 +220,9 @@ const prepararMaterialesEntrada = (
 ) => {
   const materialesNormalizados = materiales
     .map(material => {
-      const cantidad = Number(material.cantidad);
+      const cantidad = numeroDecimal(
+        material.cantidad
+      );
 
       return {
         material_id: limpiarTexto(

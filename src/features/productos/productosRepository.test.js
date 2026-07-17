@@ -63,7 +63,7 @@ test("prepara y valida composición del producto", () => {
       item_id: "mp-caja",
       item_codigo: "mp0009",
       item_nombre: "Caja empaque",
-      cantidad: "1"
+      cantidad: "0,5"
     }
   ]);
 
@@ -82,7 +82,7 @@ test("prepara y valida composición del producto", () => {
       item_id: "mp-caja",
       item_codigo: "MP0009",
       item_nombre: "Caja empaque",
-      cantidad: 1
+      cantidad: 0.5
     }
   ]);
   expect(
@@ -195,7 +195,7 @@ test("prepara una operacion con dependencia parcial", () => {
         material_id: "rf-1",
         material_codigo: "RF0001",
         material_nombre: "Tubo cortado",
-        cantidad: "1"
+        cantidad: "0,29"
       }],
       material_salida_id: "rf-2",
       unidades_por_producto: "4",
@@ -220,7 +220,7 @@ test("prepara una operacion con dependencia parcial", () => {
       material_id: "rf-1",
       material_codigo: "RF0001",
       material_nombre: "Tubo cortado",
-      cantidad: 1
+      cantidad: 0.29
     }],
     secuencia: 20,
     unidades_por_producto: 4,
