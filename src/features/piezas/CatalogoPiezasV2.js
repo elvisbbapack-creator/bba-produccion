@@ -15,6 +15,7 @@ import {
   guardarPieza,
   listarPiezas,
   prepararPieza,
+  siguienteCodigoPieza,
   validarPieza
 } from "./piezasRepository";
 
@@ -125,6 +126,24 @@ function CatalogoPiezasV2({
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    if (editandoId) {
+      return;
+    }
+
+    const siguienteCodigo =
+      siguienteCodigoPieza(piezas);
+
+    setFormulario(actual =>
+      actual.codigo === siguienteCodigo
+        ? actual
+        : {
+            ...actual,
+            codigo: siguienteCodigo
+          }
+    );
+  }, [editandoId, piezas]);
 
   const actualizar = (nombre, valor) => {
     setFormulario(actual => ({
@@ -352,7 +371,10 @@ function CatalogoPiezasV2({
   };
 
   const limpiarFormulario = () => {
-    setFormulario(estadoInicial);
+    setFormulario({
+      ...estadoInicial,
+      codigo: siguienteCodigoPieza(piezas)
+    });
     setEditandoId("");
     setError("");
   };
@@ -656,23 +678,23 @@ function CatalogoPiezasV2({
               Código pieza
               <input
                 value={formulario.codigo}
-                onChange={evento =>
-                  actualizar(
-                    "codigo",
-                    evento.target.value
-                  )
-                }
                 placeholder="PZ0001"
-                disabled={Boolean(editandoId)}
+                disabled
                 style={{
                   ...campo,
                   marginTop: 6,
-                  marginBottom: 14,
-                  background: editandoId
-                    ? "#F8FAFC"
-                    : "white"
+                  background: "#F8FAFC"
                 }}
               />
+              <small style={{
+                display: "block",
+                color: "#64748B",
+                marginTop: 5,
+                marginBottom: 14
+              }}>
+                Código asignado automáticamente según el
+                siguiente correlativo disponible.
+              </small>
             </label>
 
             <label>

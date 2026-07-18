@@ -22,6 +22,33 @@ const normalizarCodigo = valor =>
 export const normalizarCodigoSubproducto =
   normalizarCodigo;
 
+export const siguienteCodigoSubproducto = (
+  subproductos = []
+) => {
+  const usados = new Set(
+    subproductos
+      .map(subproducto =>
+        normalizarCodigoSubproducto(
+          subproducto.codigo
+        )
+      )
+      .filter(codigo =>
+        /^SUB\d{4,}$/.test(codigo)
+      )
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `SUB${String(correlativo).padStart(4, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `SUB${String(correlativo).padStart(4, "0")}`;
+};
+
 const codigoValido = codigo =>
   /^SUB\d{4,}$/.test(codigo);
 

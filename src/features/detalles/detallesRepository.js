@@ -25,6 +25,33 @@ export const normalizarCodigoOperacionCatalogo = valor =>
 const codigoValido = codigo =>
   /^OP\d{4,}$/.test(codigo);
 
+export const siguienteCodigoOperacionCatalogo = (
+  operaciones = []
+) => {
+  const usados = new Set(
+    operaciones
+      .map(operacion =>
+        normalizarCodigoOperacionCatalogo(
+          operacion.codigo
+        )
+      )
+      .filter(codigo =>
+        /^OP\d{4,}$/.test(codigo)
+      )
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `OP${String(correlativo).padStart(4, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `OP${String(correlativo).padStart(4, "0")}`;
+};
+
 const idOperacionCatalogo = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
 

@@ -32,6 +32,56 @@ export const normalizarCodigoProducto =
 export const normalizarCodigoOperacion =
   normalizarCodigo;
 
+export const siguienteCodigoDisponible = (
+  prefijo,
+  items = [],
+  selectorCodigo = item => item.codigo
+) => {
+  const prefijoNormalizado =
+    normalizarCodigo(prefijo);
+  const usados = new Set(
+    items
+      .map(item =>
+        normalizarCodigo(selectorCodigo(item))
+      )
+      .filter(codigo =>
+        new RegExp(
+          `^${prefijoNormalizado}\\d{4,}$`
+        ).test(codigo)
+      )
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `${prefijoNormalizado}${String(correlativo).padStart(4, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `${prefijoNormalizado}${String(correlativo).padStart(4, "0")}`;
+};
+
+export const siguienteCodigoProducto = (
+  productos = []
+) =>
+  siguienteCodigoDisponible(
+    "PCL",
+    productos
+  );
+
+export const siguienteCodigoOperacionRuta = (
+  operaciones = []
+) =>
+  siguienteCodigoDisponible(
+    "OP",
+    operaciones,
+    operacion =>
+      operacion.operacion_codigo ||
+      operacion.codigo
+  );
+
 const codigoValido = (codigo, prefijo) =>
   new RegExp(`^${prefijo}\\d{4,}$`).test(
     codigo

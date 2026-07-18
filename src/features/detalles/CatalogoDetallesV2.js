@@ -15,6 +15,7 @@ import {
   guardarOperacionCatalogo,
   listarOperacionesCatalogo,
   prepararOperacionCatalogo,
+  siguienteCodigoOperacionCatalogo,
   validarOperacionCatalogo
 } from "./detallesRepository";
 
@@ -134,6 +135,26 @@ function CatalogoDetallesV2({
   useEffect(() => {
     cargar();
   }, [cargar]);
+
+  useEffect(() => {
+    if (editandoId) {
+      return;
+    }
+
+    const siguienteCodigo =
+      siguienteCodigoOperacionCatalogo(
+        operaciones
+      );
+
+    setFormulario(actual =>
+      actual.codigo === siguienteCodigo
+        ? actual
+        : {
+            ...actual,
+            codigo: siguienteCodigo
+          }
+    );
+  }, [editandoId, operaciones]);
 
   const actualizar = (nombre, valor) => {
     setFormulario(actual => ({
@@ -273,7 +294,13 @@ function CatalogoDetallesV2({
   };
 
   const limpiarFormulario = () => {
-    setFormulario(estadoInicial);
+    setFormulario({
+      ...estadoInicial,
+      codigo:
+        siguienteCodigoOperacionCatalogo(
+          operaciones
+        )
+    });
     setEditandoId("");
     setError("");
     setMensaje("");
@@ -428,23 +455,23 @@ function CatalogoDetallesV2({
               Código operación
               <input
                 value={formulario.codigo}
-                onChange={evento =>
-                  actualizar(
-                    "codigo",
-                    evento.target.value
-                  )
-                }
                 placeholder="OP0001"
-                disabled={Boolean(editandoId)}
+                disabled
                 style={{
                   ...campo,
                   marginTop: 6,
-                  marginBottom: 14,
-                  background: editandoId
-                    ? "#F8FAFC"
-                    : "white"
+                  background: "#F8FAFC"
                 }}
               />
+              <small style={{
+                display: "block",
+                color: "#64748B",
+                marginTop: 5,
+                marginBottom: 14
+              }}>
+                Código asignado automáticamente según el
+                siguiente correlativo disponible.
+              </small>
             </label>
 
             <label>

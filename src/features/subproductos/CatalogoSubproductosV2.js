@@ -15,6 +15,7 @@ import {
   guardarSubproducto,
   listarSubproductos,
   prepararSubproducto,
+  siguienteCodigoSubproducto,
   validarSubproducto
 } from "./subproductosRepository";
 
@@ -129,6 +130,24 @@ function CatalogoSubproductosV2({
     cargar();
   }, [cargar]);
 
+  useEffect(() => {
+    if (editandoId) {
+      return;
+    }
+
+    const siguienteCodigo =
+      siguienteCodigoSubproducto(subproductos);
+
+    setFormulario(actual =>
+      actual.codigo === siguienteCodigo
+        ? actual
+        : {
+            ...actual,
+            codigo: siguienteCodigo
+          }
+    );
+  }, [editandoId, subproductos]);
+
   const actualizar = (nombre, valor) => {
     setFormulario(actual => ({
       ...actual,
@@ -236,7 +255,13 @@ function CatalogoSubproductosV2({
   };
 
   const limpiarFormulario = () => {
-    setFormulario(estadoInicial);
+    setFormulario({
+      ...estadoInicial,
+      codigo:
+        siguienteCodigoSubproducto(
+          subproductos
+        )
+    });
     setComponente(componenteInicial);
     setEditandoId("");
     setError("");
@@ -376,23 +401,23 @@ function CatalogoSubproductosV2({
               Código subproducto
               <input
                 value={formulario.codigo}
-                onChange={evento =>
-                  actualizar(
-                    "codigo",
-                    evento.target.value
-                  )
-                }
                 placeholder="SUB0001"
-                disabled={Boolean(editandoId)}
+                disabled
                 style={{
                   ...campo,
                   marginTop: 6,
-                  marginBottom: 14,
-                  background: editandoId
-                    ? "#F8FAFC"
-                    : "white"
+                  background: "#F8FAFC"
                 }}
               />
+              <small style={{
+                display: "block",
+                color: "#64748B",
+                marginTop: 5,
+                marginBottom: 14
+              }}>
+                Código asignado automáticamente según el
+                siguiente correlativo disponible.
+              </small>
             </label>
 
             <label>

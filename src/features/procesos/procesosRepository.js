@@ -25,6 +25,55 @@ const codigoProcesoValido = codigo =>
 const codigoEstacionValido = codigo =>
   /^ET\d{4,}$/.test(codigo);
 
+const siguienteCodigo = (
+  prefijo,
+  items = [],
+  selectorCodigo = item => item.codigo
+) => {
+  const usados = new Set(
+    items
+      .map(item =>
+        normalizarCodigoProceso(
+          selectorCodigo(item)
+        )
+      )
+      .filter(codigo =>
+        new RegExp(`^${prefijo}\\d{4,}$`).test(
+          codigo
+        )
+      )
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `${prefijo}${String(correlativo).padStart(4, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `${prefijo}${String(correlativo).padStart(4, "0")}`;
+};
+
+export const siguienteCodigoProceso = (
+  procesos = []
+) => siguienteCodigo("PR", procesos);
+
+export const siguienteCodigoEstacion = (
+  procesos = [],
+  estacionesExtra = []
+) => {
+  const estaciones = procesos.flatMap(
+    proceso => proceso.estaciones || []
+  );
+
+  return siguienteCodigo("ET", [
+    ...estaciones,
+    ...estacionesExtra
+  ]);
+};
+
 const idProceso = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
 

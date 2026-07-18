@@ -1,6 +1,7 @@
 import {
   normalizarCodigoSubproducto,
   prepararSubproducto,
+  siguienteCodigoSubproducto,
   validarSubproducto
 } from "./subproductosRepository";
 
@@ -21,6 +22,15 @@ const baseSubproducto = {
     cantidad: 2
   }]
 };
+
+test("calcula siguiente código de subproducto disponible", () => {
+  expect(
+    siguienteCodigoSubproducto([
+      { codigo: "SUB0001" },
+      { codigo: "SUB0003" }
+    ])
+  ).toBe("SUB0002");
+});
 
 test("normaliza codigo y componentes de subproducto", () => {
   expect(

@@ -3,11 +3,29 @@ import {
   prepararComposicionProducto,
   prepararOperacionRuta,
   prepararProducto,
+  siguienteCodigoOperacionRuta,
+  siguienteCodigoProducto,
   validarComposicionProducto,
   validarRecalibracionEstandar,
   validarOperacionBasica,
   validarProducto
 } from "./productosRepository";
+
+test("calcula siguientes códigos de producto y operación de ruta", () => {
+  expect(
+    siguienteCodigoProducto([
+      { codigo: "PCL0001" },
+      { codigo: "PCL0003" }
+    ])
+  ).toBe("PCL0002");
+
+  expect(
+    siguienteCodigoOperacionRuta([
+      { operacion_codigo: "OP0001" },
+      { codigo: "OP0002" }
+    ])
+  ).toBe("OP0003");
+});
 
 test("prepara y valida un producto PCL", () => {
   const producto = prepararProducto(

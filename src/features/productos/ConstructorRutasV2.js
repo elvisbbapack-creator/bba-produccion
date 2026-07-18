@@ -42,6 +42,7 @@ import {
   prepararProducto,
   publicarRuta,
   recalibrarEstandarRuta,
+  siguienteCodigoProducto,
   validarOperacionBasica,
   validarProducto
 } from "./productosRepository";
@@ -375,6 +376,20 @@ function ConstructorRutasV2({
   useEffect(() => {
     cargarCatalogos();
   }, [cargarCatalogos]);
+
+  useEffect(() => {
+    const siguienteCodigo =
+      siguienteCodigoProducto(productos);
+
+    setProductoForm(actual =>
+      actual.codigo === siguienteCodigo
+        ? actual
+        : {
+            ...actual,
+            codigo: siguienteCodigo
+          }
+    );
+  }, [productos]);
 
   const cargarRuta = useCallback(
     async (id, version = 1) => {
@@ -895,7 +910,10 @@ function ConstructorRutasV2({
         }
       );
       await cargarCatalogos();
-      setProductoForm(productoInicial);
+      setProductoForm({
+        ...productoInicial,
+        codigo: siguienteCodigoProducto(productos)
+      });
       setProductoId(creado.id);
       await cargarRuta(creado.id);
       setMensaje(
@@ -1453,15 +1471,20 @@ function ConstructorRutasV2({
                   Código
                   <input
                     value={productoForm.codigo}
-                    onChange={evento =>
-                      actualizarProducto(
-                        "codigo",
-                        evento.target.value
-                      )
-                    }
                     placeholder="PCL0001"
-                    style={campo}
+                    disabled
+                    style={{
+                      ...campo,
+                      background: "#F8FAFC"
+                    }}
                   />
+                  <small style={{
+                    color: "#64748B",
+                    fontWeight: "normal"
+                  }}>
+                    Código asignado automáticamente según
+                    el siguiente correlativo disponible.
+                  </small>
                 </label>
                 <label style={etiqueta}>
                   Nombre

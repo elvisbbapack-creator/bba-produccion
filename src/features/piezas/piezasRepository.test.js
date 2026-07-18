@@ -1,8 +1,18 @@
 import {
   normalizarCodigoPieza,
   prepararPieza,
+  siguienteCodigoPieza,
   validarPieza
 } from "./piezasRepository";
+
+test("calcula siguiente código de pieza disponible", () => {
+  expect(
+    siguienteCodigoPieza([
+      { codigo: "PZ0001" },
+      { codigo: "PZ0003" }
+    ])
+  ).toBe("PZ0002");
+});
 
 test("normaliza código y textos de pieza", () => {
   expect(

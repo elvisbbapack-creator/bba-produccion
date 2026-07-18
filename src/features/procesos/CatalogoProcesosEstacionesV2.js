@@ -9,6 +9,8 @@ import {
   guardarProceso,
   listarProcesosEstaciones,
   prepararProceso,
+  siguienteCodigoEstacion,
+  siguienteCodigoProceso,
   validarProceso
 } from "./procesosRepository";
 
@@ -97,6 +99,54 @@ function CatalogoProcesosEstacionesV2({
     cargar();
   }, [cargar]);
 
+  const crearEstacionInicial = useCallback(
+    (estacionesExtra = []) => ({
+      ...estacionInicial,
+      codigo: siguienteCodigoEstacion(
+        procesos,
+        estacionesExtra
+      )
+    }),
+    [procesos]
+  );
+
+  useEffect(() => {
+    if (editandoId) {
+      return;
+    }
+
+    const siguienteCodigo =
+      siguienteCodigoProceso(procesos);
+
+    setFormulario(actual => {
+      const estaciones =
+        actual.estaciones.length > 0
+          ? actual.estaciones
+          : [crearEstacionInicial()];
+
+      return {
+        ...actual,
+        codigo: siguienteCodigo,
+        estaciones: estaciones.map(
+          (estacion, indice) =>
+            estacion.codigo
+              ? estacion
+              : {
+                  ...estacion,
+                  codigo: siguienteCodigoEstacion(
+                    procesos,
+                    estaciones.slice(0, indice)
+                  )
+                }
+        )
+      };
+    });
+  }, [
+    crearEstacionInicial,
+    editandoId,
+    procesos
+  ]);
+
   const actualizar = (nombre, valor) => {
     setFormulario(actual => ({
       ...actual,
@@ -109,7 +159,7 @@ function CatalogoProcesosEstacionesV2({
   const estacionesFormulario =
     formulario.estaciones.length > 0
       ? formulario.estaciones
-      : [estacionInicial];
+      : [crearEstacionInicial()];
 
   const actualizarEstacion = (
     indice,
@@ -120,7 +170,7 @@ function CatalogoProcesosEstacionesV2({
       const lista =
         actual.estaciones.length > 0
           ? [...actual.estaciones]
-          : [estacionInicial];
+          : [crearEstacionInicial()];
 
       lista[indice] = {
         ...lista[indice],
@@ -144,8 +194,12 @@ function CatalogoProcesosEstacionesV2({
       estaciones: [
         ...(actual.estaciones.length > 0
           ? actual.estaciones
-          : [estacionInicial]),
-        estacionInicial
+          : [crearEstacionInicial()]),
+        crearEstacionInicial(
+          actual.estaciones.length > 0
+            ? actual.estaciones
+            : [crearEstacionInicial()]
+        )
       ]
     }));
     setError("");
@@ -158,7 +212,7 @@ function CatalogoProcesosEstacionesV2({
       estaciones: (
         actual.estaciones.length > 0
           ? actual.estaciones
-          : [estacionInicial]
+          : [crearEstacionInicial()]
       ).filter((_, posicion) =>
         posicion !== indice
       )
@@ -168,7 +222,11 @@ function CatalogoProcesosEstacionesV2({
   };
 
   const limpiarFormulario = () => {
-    setFormulario(estadoInicial);
+    setFormulario({
+      ...estadoInicial,
+      codigo: siguienteCodigoProceso(procesos),
+      estaciones: [crearEstacionInicial()]
+    });
     setEditandoId("");
     setError("");
     setMensaje("");
@@ -280,16 +338,21 @@ function CatalogoProcesosEstacionesV2({
                 Código proceso
                 <input
                   value={formulario.codigo}
-                  onChange={evento =>
-                    actualizar(
-                      "codigo",
-                      evento.target.value
-                    )
-                  }
-                  disabled={Boolean(editandoId)}
+                  disabled
                   placeholder="PR0001"
-                  style={campo}
+                  style={{
+                    ...campo,
+                    background: "#F8FAFC"
+                  }}
                 />
+                <small style={{
+                  display: "block",
+                  color: "#64748B",
+                  marginTop: 5
+                }}>
+                  Código automático según el siguiente
+                  correlativo disponible.
+                </small>
               </label>
               <label>
                 Nombre proceso
@@ -349,16 +412,20 @@ function CatalogoProcesosEstacionesV2({
                       Código
                       <input
                         value={estacion.codigo}
-                        onChange={evento =>
-                          actualizarEstacion(
-                            indice,
-                            "codigo",
-                            evento.target.value
-                          )
-                        }
                         placeholder="ET0001"
-                        style={campo}
+                        disabled
+                        style={{
+                          ...campo,
+                          background: "#F8FAFC"
+                        }}
                       />
+                      <small style={{
+                        display: "block",
+                        color: "#64748B",
+                        marginTop: 5
+                      }}>
+                        Automático
+                      </small>
                     </label>
                     <label>
                       Nombre estación

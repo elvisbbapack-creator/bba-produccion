@@ -1,8 +1,39 @@
 import {
   aCatalogoProcesosRuta,
   prepararProceso,
+  siguienteCodigoEstacion,
+  siguienteCodigoProceso,
   validarProceso
 } from "./procesosRepository";
+
+test("calcula siguientes códigos de proceso y estación", () => {
+  const procesos = [
+    {
+      codigo: "PR0001",
+      estaciones: [
+        { codigo: "ET0001" },
+        { codigo: "ET0003" }
+      ]
+    },
+    {
+      codigo: "PR0003",
+      estaciones: [{ codigo: "ET0004" }]
+    }
+  ];
+
+  expect(
+    siguienteCodigoProceso(procesos)
+  ).toBe("PR0002");
+  expect(
+    siguienteCodigoEstacion(procesos)
+  ).toBe("ET0002");
+  expect(
+    siguienteCodigoEstacion(
+      procesos,
+      [{ codigo: "ET0002" }]
+    )
+  ).toBe("ET0005");
+});
 
 test("prepara y valida proceso con estaciones", () => {
   const proceso = prepararProceso(

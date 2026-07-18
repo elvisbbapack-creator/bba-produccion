@@ -1,8 +1,18 @@
 import {
   normalizarCodigoOperacionCatalogo,
   prepararOperacionCatalogo,
+  siguienteCodigoOperacionCatalogo,
   validarOperacionCatalogo
 } from "./detallesRepository";
+
+test("calcula siguiente código de operación disponible", () => {
+  expect(
+    siguienteCodigoOperacionCatalogo([
+      { codigo: "OP0001" },
+      { codigo: "OP0003" }
+    ])
+  ).toBe("OP0002");
+});
 
 test("normaliza código y textos de operación", () => {
   expect(

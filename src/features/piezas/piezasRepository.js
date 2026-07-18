@@ -22,6 +22,31 @@ export const normalizarCodigoPieza = valor =>
     .toUpperCase()
     .replace(/\s+/g, "");
 
+export const siguienteCodigoPieza = (
+  piezas = []
+) => {
+  const usados = new Set(
+    piezas
+      .map(pieza =>
+        normalizarCodigoPieza(pieza.codigo)
+      )
+      .filter(codigo =>
+        /^PZ\d{4,}$/.test(codigo)
+      )
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `PZ${String(correlativo).padStart(4, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `PZ${String(correlativo).padStart(4, "0")}`;
+};
+
 const codigoValido = codigo =>
   /^PZ\d{4,}$/.test(codigo);
 
