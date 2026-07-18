@@ -259,6 +259,13 @@ service cloud.firestore {
     }
 
     match /materiales/{materialId} {
+      allow get: if canManageMaterials() &&
+        (
+          !exists(
+            /databases/$(database)/documents/materiales/$(materialId)
+          ) ||
+          belongsToCompany(resource.data)
+        );
       allow read: if belongsToCompany(
         resource.data
       );
