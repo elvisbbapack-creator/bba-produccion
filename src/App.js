@@ -1572,7 +1572,7 @@ const cargarTodosLosParos = async () => {
           accion: () => setPantalla("rutasV2")
         },
         {
-          titulo: "Procesos y Estaciones (V2)",
+          titulo: "Catálogo de Procesos y Estaciones (V2)",
           visible: puedeAdministrar,
           accion: () =>
             setPantalla("procesosEstacionesV2")
