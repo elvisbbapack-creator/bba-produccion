@@ -695,6 +695,112 @@ export const guardarOperacionRuta = async (
   return operacion;
 };
 
+export const actualizarOperacionRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  version,
+  operacionId,
+  datos,
+  existentes = [],
+  ruta
+}) => {
+  if (ruta?.estado !== "borrador") {
+    throw new Error(
+      "Solo se pueden editar operaciones de rutas en borrador."
+    );
+  }
+
+  const codigo = normalizarCodigoOperacion(
+    datos.codigo
+  );
+  const siguienteId = idOperacion(codigo);
+  const operacionAnterior = (
+    ruta?.operaciones || []
+  ).find(operacion =>
+    operacion.id === operacionId
+  );
+  const operacionRef = doc(
+    db,
+    "productos",
+    productoId,
+    "rutas",
+    idRuta(version),
+    "operaciones",
+    siguienteId
+  );
+  const operacion = prepararOperacionRuta(
+    {
+      ...datos,
+      empresa_id: empresaId
+    },
+    productoId,
+    siguienteId
+  );
+  const errores = validarOperacionBasica(
+    operacion,
+    existentes.filter(
+      existente => existente.id !== operacionId
+    )
+  );
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  if (siguienteId !== operacionId) {
+    const usadaComoDependencia = (
+      ruta?.operaciones || []
+    ).some(otraOperacion =>
+      otraOperacion.id !== operacionId &&
+      (otraOperacion.dependencias || []).some(
+        dependencia =>
+          dependencia.ruta_operacion_id ===
+          operacionId
+      )
+    );
+
+    if (usadaComoDependencia) {
+      throw new Error(
+        "No se puede cambiar el código: otra operación depende de esta."
+      );
+    }
+
+    const batch = writeBatch(db);
+    batch.set(operacionRef, {
+      ...operacion,
+      fecha_creacion:
+        operacionAnterior?.fecha_creacion ||
+        serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    });
+    batch.delete(
+      doc(
+        db,
+        "productos",
+        productoId,
+        "rutas",
+        idRuta(version),
+        "operaciones",
+        operacionId
+      )
+    );
+    await batch.commit();
+    return operacion;
+  }
+
+  await setDoc(
+    operacionRef,
+    {
+      ...operacion,
+      fecha_actualizacion: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  return operacion;
+};
+
 export const eliminarOperacionRuta = async ({
   db,
   productoId,

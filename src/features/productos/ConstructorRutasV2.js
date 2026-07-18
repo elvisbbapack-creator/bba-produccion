@@ -27,6 +27,7 @@ import {
   listarSubproductos
 } from "../subproductos/subproductosRepository";
 import {
+  actualizarOperacionRuta,
   actualizarComposicionProducto,
   anularRutaPublicada,
   crearVersionBorradorRuta,
@@ -136,6 +137,8 @@ function ConstructorRutasV2({
     useState(productoInicial);
   const [operacionForm, setOperacionForm] =
     useState(operacionInicial);
+  const [operacionEditandoId,
+    setOperacionEditandoId] = useState("");
   const [itemComposicion, setItemComposicion] =
     useState(itemComposicionInicial);
   const [composicionProducto,
@@ -345,6 +348,8 @@ function ConstructorRutasV2({
     async (id, version = 1) => {
       if (!id) {
         setRuta(null);
+        setOperacionEditandoId("");
+        setOperacionForm(operacionInicial);
         return;
       }
 
@@ -373,6 +378,8 @@ function ConstructorRutasV2({
       productoSeleccionado?.composicion || []
     );
     setItemComposicion(itemComposicionInicial);
+    setOperacionEditandoId("");
+    setOperacionForm(operacionInicial);
   }, [productoSeleccionado]);
 
   const actualizarProducto = (nombre, valor) => {
@@ -808,8 +815,11 @@ function ConstructorRutasV2({
         ...operacionForm,
         empresa_id: perfil.empresa_id,
         secuencia:
-          (ruta?.operaciones.length || 0) * 10 +
-          10
+          operacionEditandoId
+            ? operacionForm.secuencia
+            : (ruta?.operaciones.length || 0) *
+                10 +
+              10
       },
       productoId,
       operacionForm.codigo
@@ -818,6 +828,7 @@ function ConstructorRutasV2({
       operacionForm,
       perfil.empresa_id,
       productoId,
+      operacionEditandoId,
       ruta
     ]
   );
@@ -825,9 +836,17 @@ function ConstructorRutasV2({
   const agregarOperacion = async (evento) => {
     evento.preventDefault();
     const versionRutaActual = ruta?.version || 1;
+    const estaEditando =
+      Boolean(operacionEditandoId);
     const errores = validarOperacionBasica(
       vistaOperacion,
-      ruta?.operaciones || []
+      estaEditando
+        ? (ruta?.operaciones || []).filter(
+            operacion =>
+              operacion.id !==
+              operacionEditandoId
+          )
+        : ruta?.operaciones || []
     );
 
     if (
@@ -845,32 +864,53 @@ function ConstructorRutasV2({
 
     try {
       setGuardando(true);
-      await guardarOperacionRuta(
-        db,
-        perfil.empresa_id,
-        productoId,
-        versionRutaActual,
-        {
-          ...operacionForm,
-          secuencia:
-            (ruta?.operaciones.length || 0) *
-              10 +
-            10
-        },
-        ruta?.operaciones || []
-      );
+      if (estaEditando) {
+        await actualizarOperacionRuta({
+          db,
+          empresaId: perfil.empresa_id,
+          productoId,
+          version: versionRutaActual,
+          operacionId: operacionEditandoId,
+          datos: {
+            ...operacionForm,
+            secuencia: operacionForm.secuencia
+          },
+          existentes: ruta?.operaciones || [],
+          ruta
+        });
+      } else {
+        await guardarOperacionRuta(
+          db,
+          perfil.empresa_id,
+          productoId,
+          versionRutaActual,
+          {
+            ...operacionForm,
+            secuencia:
+              (ruta?.operaciones.length || 0) *
+                10 +
+              10
+          },
+          ruta?.operaciones || []
+        );
+      }
       setOperacionForm(operacionInicial);
+      setOperacionEditandoId("");
       await cargarRuta(
         productoId,
         versionRutaActual
       );
       setMensaje(
-        "Operación agregada a la ruta."
+        estaEditando
+          ? "Operación actualizada."
+          : "Operación agregada a la ruta."
       );
     } catch (fallo) {
       setError(
         fallo?.message ||
-        "No se pudo agregar la operación."
+        (estaEditando
+          ? "No se pudo actualizar la operación."
+          : "No se pudo agregar la operación.")
       );
     } finally {
       setGuardando(false);
@@ -1044,6 +1084,93 @@ function ConstructorRutasV2({
     } finally {
       setGuardando(false);
     }
+  };
+
+  const editarOperacion = operacion => {
+    if (!rutaBorrador) {
+      setError(
+        "Solo puedes editar operaciones de una ruta en borrador."
+      );
+      return;
+    }
+
+    const dependencia =
+      (operacion.dependencias || [])[0] || {};
+
+    setOperacionEditandoId(operacion.id);
+    setOperacionForm({
+      codigo: operacion.operacion_codigo || "",
+      nombre: operacion.operacion_nombre || "",
+      pieza_id: operacion.pieza_id || "",
+      pieza_codigo: operacion.pieza_codigo || "",
+      pieza_nombre: operacion.pieza_nombre || "",
+      subproducto_id:
+        operacion.subproducto_id || "",
+      subproducto_codigo:
+        operacion.subproducto_codigo || "",
+      subproducto_nombre:
+        operacion.subproducto_nombre || "",
+      proceso_codigo:
+        operacion.proceso_id || "",
+      proceso_nombre:
+        operacion.proceso_nombre || "",
+      estacion_codigo:
+        operacion.estacion_id ||
+        operacion.subproceso_id ||
+        "",
+      estacion_nombre:
+        operacion.estacion_nombre ||
+        operacion.subproceso_nombre ||
+        "",
+      subproceso_codigo:
+        operacion.subproceso_id ||
+        operacion.estacion_id ||
+        "",
+      subproceso_nombre:
+        operacion.subproceso_nombre ||
+        operacion.estacion_nombre ||
+        "",
+      material_entrada_id:
+        operacion.material_entrada_id || "",
+      materiales_entrada:
+        operacion.materiales_entrada?.length > 0
+          ? operacion.materiales_entrada
+          : operacion.material_entrada_id
+            ? [{
+                material_id:
+                  operacion.material_entrada_id,
+                material_codigo:
+                  operacion
+                    .material_entrada_codigo ||
+                  "",
+                material_nombre: "",
+                cantidad: 1
+              }]
+            : [],
+      material_salida_id:
+        operacion.material_salida_id || "",
+      medida: operacion.medida || "",
+      unidades_por_producto:
+        operacion.unidades_por_producto || "",
+      unidades_por_hora:
+        operacion.unidades_por_hora || "",
+      dependencia_id:
+        dependencia.ruta_operacion_id || "",
+      porcentaje_minimo_avance:
+        dependencia.porcentaje_minimo_avance ?? "0",
+      secuencia: operacion.secuencia || ""
+    });
+    setError("");
+    setMensaje(
+      `Editando operación ${operacion.operacion_codigo}.`
+    );
+  };
+
+  const cancelarEdicionOperacion = () => {
+    setOperacionEditandoId("");
+    setOperacionForm(operacionInicial);
+    setError("");
+    setMensaje("");
   };
 
   const eliminarBorrador = async () => {
@@ -1820,8 +1947,22 @@ function ConstructorRutasV2({
                     style={tarjeta}
                   >
                     <h2 style={{ marginTop: 0 }}>
-                      Agregar operación
+                      {operacionEditandoId
+                        ? "Editar operación"
+                        : "Agregar operación"}
                     </h2>
+                    {operacionEditandoId && (
+                      <p style={{
+                        color: "#475569",
+                        background: "#F8FAFC",
+                        padding: 9,
+                        borderRadius: 8
+                      }}>
+                        Estás corrigiendo una operación
+                        existente. Al guardar, se actualizará
+                        esta ruta en borrador.
+                      </p>
+                    )}
 
                     {materialesActivos.length < 2 && (
                       <p style={{
@@ -2483,8 +2624,31 @@ function ConstructorRutasV2({
                         cursor: "pointer"
                       }}
                     >
-                      Agregar a la ruta
+                      {operacionEditandoId
+                        ? "Guardar cambios de operación"
+                        : "Agregar a la ruta"}
                     </button>
+                    {operacionEditandoId && (
+                      <button
+                        type="button"
+                        onClick={cancelarEdicionOperacion}
+                        disabled={guardando}
+                        style={{
+                          ...campo,
+                          marginTop: 8,
+                          background: "white",
+                          color: "#334155",
+                          border:
+                            "1px solid #CBD5E1",
+                          fontWeight: "bold",
+                          cursor: guardando
+                            ? "wait"
+                            : "pointer"
+                        }}
+                      >
+                        Cancelar edición
+                      </button>
+                    )}
                   </form>
                 )}
 
@@ -2678,37 +2842,69 @@ function ConstructorRutasV2({
                                 </button>
                               )}
                               {rutaBorrador && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (
-                                      window.confirm(
-                                        `¿Eliminar la operación ${operacion.operacion_codigo} de esta ruta?`
-                                      )
-                                    ) {
-                                      eliminarOperacion(
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      editarOperacion(
                                         operacion
-                                      );
+                                      )
                                     }
-                                  }}
-                                  disabled={guardando}
-                                  style={{
-                                    marginTop: 10,
-                                    marginLeft: 8,
-                                    border:
-                                      "1px solid #B91C1C",
-                                    borderRadius: 7,
-                                    padding: "7px 10px",
-                                    background: "white",
-                                    color: "#B91C1C",
-                                    fontWeight: "bold",
-                                    cursor: guardando
-                                      ? "wait"
-                                      : "pointer"
-                                  }}
-                                >
-                                  Eliminar operación
-                                </button>
+                                    disabled={guardando}
+                                    style={{
+                                      marginTop: 10,
+                                      border:
+                                        "1px solid #0369A1",
+                                      borderRadius: 7,
+                                      padding:
+                                        "7px 10px",
+                                      background:
+                                        "white",
+                                      color: "#0369A1",
+                                      fontWeight:
+                                        "bold",
+                                      cursor: guardando
+                                        ? "wait"
+                                        : "pointer"
+                                    }}
+                                  >
+                                    Editar operación
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (
+                                        window.confirm(
+                                          `¿Eliminar la operación ${operacion.operacion_codigo} de esta ruta?`
+                                        )
+                                      ) {
+                                        eliminarOperacion(
+                                          operacion
+                                        );
+                                      }
+                                    }}
+                                    disabled={guardando}
+                                    style={{
+                                      marginTop: 10,
+                                      marginLeft: 8,
+                                      border:
+                                        "1px solid #B91C1C",
+                                      borderRadius: 7,
+                                      padding:
+                                        "7px 10px",
+                                      background:
+                                        "white",
+                                      color: "#B91C1C",
+                                      fontWeight:
+                                        "bold",
+                                      cursor: guardando
+                                        ? "wait"
+                                        : "pointer"
+                                    }}
+                                  >
+                                    Eliminar operación
+                                  </button>
+                                </>
                               )}
                               {rutaPublicada &&
                                 recalibrandoId ===
