@@ -94,6 +94,52 @@ export const prepararProductosAsociadosMaterial = (
   return [...mapa.values()];
 };
 
+export const prepararSubproductosAsociadosMaterial = (
+  subproductos = [],
+  principal = {}
+) => {
+  const mapa = new Map();
+
+  const agregar = subproducto => {
+    const subproductoId = limpiarTexto(
+      subproducto.subproducto_id ||
+        subproducto.id
+    );
+
+    if (!subproductoId) {
+      return;
+    }
+
+    mapa.set(subproductoId, {
+      subproducto_id: subproductoId,
+      subproducto_codigo:
+        normalizarCodigoMaterial(
+          subproducto.subproducto_codigo ||
+            subproducto.codigo
+        ),
+      subproducto_nombre: limpiarTexto(
+        subproducto.subproducto_nombre ||
+          subproducto.nombre
+      ),
+      producto_id: limpiarTexto(
+        subproducto.producto_id
+      ),
+      producto_codigo:
+        normalizarCodigoMaterial(
+          subproducto.producto_codigo
+        ),
+      producto_nombre: limpiarTexto(
+        subproducto.producto_nombre
+      )
+    });
+  };
+
+  agregar(principal);
+  subproductos.forEach(agregar);
+
+  return [...mapa.values()];
+};
+
 export const prepararMaterial = (
   datos,
   empresaId,
@@ -127,6 +173,39 @@ export const prepararMaterial = (
         ? prepararProductosAsociadosMaterial(
             datos.productos_asociados,
             {
+              producto_id: datos.producto_id,
+              producto_codigo:
+                datos.producto_codigo,
+              producto_nombre:
+                datos.producto_nombre
+            }
+          )
+        : [],
+    subproducto_id:
+      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+        ? limpiarTexto(datos.subproducto_id)
+        : "",
+    subproducto_codigo:
+      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+        ? normalizarCodigoMaterial(
+            datos.subproducto_codigo
+          )
+        : "",
+    subproducto_nombre:
+      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+        ? limpiarTexto(datos.subproducto_nombre)
+        : "",
+    subproductos_asociados:
+      tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
+        ? prepararSubproductosAsociadosMaterial(
+            datos.subproductos_asociados,
+            {
+              subproducto_id:
+                datos.subproducto_id,
+              subproducto_codigo:
+                datos.subproducto_codigo,
+              subproducto_nombre:
+                datos.subproducto_nombre,
               producto_id: datos.producto_id,
               producto_codigo:
                 datos.producto_codigo,
@@ -282,6 +361,13 @@ export const actualizarMaterial = async (
       producto_nombre: material.producto_nombre,
       productos_asociados:
         material.productos_asociados,
+      subproducto_id: material.subproducto_id,
+      subproducto_codigo:
+        material.subproducto_codigo,
+      subproducto_nombre:
+        material.subproducto_nombre,
+      subproductos_asociados:
+        material.subproductos_asociados,
       unidad_medida: material.unidad_medida,
       costo_unitario_referencial:
         material.costo_unitario_referencial,

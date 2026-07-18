@@ -38,6 +38,10 @@ test("normaliza el codigo y los textos del material", () => {
     producto_codigo: "",
     producto_nombre: "",
     productos_asociados: [],
+    subproducto_id: "",
+    subproducto_codigo: "",
+    subproducto_nombre: "",
+    subproductos_asociados: [],
     nombre: "Tubo 15x15",
     unidad_medida: "metro",
     costo_unitario_referencial: 1250.5,
@@ -65,6 +69,17 @@ test("RF nunca queda marcado como comprado", () => {
         producto_codigo: "PCL0002",
         producto_nombre: "Display alternativo"
       }],
+      subproducto_id: "sub-1",
+      subproducto_codigo: "sub0001",
+      subproducto_nombre: "Lateral",
+      subproductos_asociados: [{
+        subproducto_id: "sub-2",
+        subproducto_codigo: "SUB0002",
+        subproducto_nombre: "Bandeja",
+        producto_id: "producto-1",
+        producto_codigo: "PCL0001",
+        producto_nombre: "Modular"
+      }],
       nombre: "Tubo cortado",
       unidad_medida: "unidad",
       es_comprado: true
@@ -76,6 +91,8 @@ test("RF nunca queda marcado como comprado", () => {
   expect(material.es_comprado).toBe(false);
   expect(material.producto_id).toBe("producto-1");
   expect(material.producto_codigo).toBe("PCL0001");
+  expect(material.subproducto_id).toBe("sub-1");
+  expect(material.subproducto_codigo).toBe("SUB0001");
   expect(material.productos_asociados).toEqual([
     {
       producto_id: "producto-1",
@@ -86,6 +103,24 @@ test("RF nunca queda marcado como comprado", () => {
       producto_id: "producto-2",
       producto_codigo: "PCL0002",
       producto_nombre: "Display alternativo"
+    }
+  ]);
+  expect(material.subproductos_asociados).toEqual([
+    {
+      subproducto_id: "sub-1",
+      subproducto_codigo: "SUB0001",
+      subproducto_nombre: "Lateral",
+      producto_id: "producto-1",
+      producto_codigo: "PCL0001",
+      producto_nombre: "Modular"
+    },
+    {
+      subproducto_id: "sub-2",
+      subproducto_codigo: "SUB0002",
+      subproducto_nombre: "Bandeja",
+      producto_id: "producto-1",
+      producto_codigo: "PCL0001",
+      producto_nombre: "Modular"
     }
   ]);
   expect(validarNuevoMaterial(material)).toEqual([]);
