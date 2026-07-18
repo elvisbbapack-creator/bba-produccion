@@ -200,8 +200,16 @@ test("prepara una operacion con dependencia parcial", () => {
       material_salida_id: "rf-2",
       unidades_por_producto: "4",
       unidades_por_hora: "80",
-      dependencia_id: "OP0001",
-      porcentaje_minimo_avance: "20"
+      dependencias: [
+        {
+          ruta_operacion_id: "OP0001",
+          porcentaje_minimo_avance: "20"
+        },
+        {
+          ruta_operacion_id: "OP0002",
+          porcentaje_minimo_avance: "50"
+        }
+      ]
     },
     "producto-1",
     "OP0005"
@@ -228,11 +236,60 @@ test("prepara una operacion con dependencia parcial", () => {
       ruta_operacion_id: "OP0001",
       porcentaje_minimo_avance: 20,
       requiere_material_disponible: true
+    }, {
+      ruta_operacion_id: "OP0002",
+      porcentaje_minimo_avance: 50,
+      requiere_material_disponible: true
     }]
   });
   expect(
     validarOperacionBasica(operacion)
   ).toEqual([]);
+});
+
+test("rechaza dependencias repetidas en una operación", () => {
+  const operacion = prepararOperacionRuta(
+    {
+      empresa_id: "bba",
+      secuencia: "20",
+      codigo: "op0005",
+      nombre: "Perforacion 4 hoyos",
+      pieza_id: "pieza-1",
+      pieza_codigo: "PZ0001",
+      pieza_nombre: "Lateral 290",
+      proceso_codigo: "PR0001",
+      proceso_nombre: "Corte",
+      estacion_codigo: "ET0003",
+      estacion_nombre: "Laser tubo",
+      materiales_entrada: [{
+        material_id: "rf-1",
+        material_codigo: "RF0001",
+        material_nombre: "Tubo cortado",
+        cantidad: "1"
+      }],
+      material_salida_id: "rf-2",
+      unidades_por_producto: "4",
+      unidades_por_hora: "80",
+      dependencias: [
+        {
+          ruta_operacion_id: "OP0001",
+          porcentaje_minimo_avance: "20"
+        },
+        {
+          ruta_operacion_id: "OP0001",
+          porcentaje_minimo_avance: "50"
+        }
+      ]
+    },
+    "producto-1",
+    "OP0005"
+  );
+
+  expect(
+    validarOperacionBasica(operacion)
+  ).toContain(
+    "La dependencia OP0001 está repetida."
+  );
 });
 
 test("valida una recalibración trazable del estándar", () => {

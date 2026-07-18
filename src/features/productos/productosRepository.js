@@ -259,18 +259,62 @@ const prepararMaterialesEntrada = (
   return materialesNormalizados;
 };
 
+const prepararDependenciasOperacion = datos => {
+  const dependencias = Array.isArray(
+    datos.dependencias
+  )
+    ? datos.dependencias
+    : [];
+
+  const dependenciasNormalizadas = dependencias
+    .map(dependencia => ({
+      ruta_operacion_id: limpiarTexto(
+        dependencia.ruta_operacion_id ||
+        dependencia.dependencia_id
+      ),
+      porcentaje_minimo_avance: Number(
+        dependencia.porcentaje_minimo_avance
+      ),
+      requiere_material_disponible:
+        dependencia.requiere_material_disponible !==
+        false
+    }))
+    .filter(
+      dependencia =>
+        dependencia.ruta_operacion_id
+    );
+
+  const dependenciaSimple =
+    limpiarTexto(datos.dependencia_id);
+
+  if (
+    dependenciasNormalizadas.length === 0 &&
+    dependenciaSimple
+  ) {
+    return [{
+      ruta_operacion_id: dependenciaSimple,
+      porcentaje_minimo_avance: Number(
+        datos.porcentaje_minimo_avance
+      ),
+      requiere_material_disponible: true
+    }];
+  }
+
+  return dependenciasNormalizadas;
+};
+
 export const prepararOperacionRuta = (
   datos,
   productoId,
   id
 ) => {
-  const dependenciaId =
-    limpiarTexto(datos.dependencia_id);
   const materialesEntrada =
     prepararMaterialesEntrada(
       datos.materiales_entrada,
       datos.material_entrada_id
     );
+  const dependencias =
+    prepararDependenciasOperacion(datos);
 
   return {
     id,
@@ -330,15 +374,7 @@ export const prepararOperacionRuta = (
     unidades_por_hora: Number(
       datos.unidades_por_hora
     ),
-    dependencias: dependenciaId
-      ? [{
-          ruta_operacion_id: dependenciaId,
-          porcentaje_minimo_avance: Number(
-            datos.porcentaje_minimo_avance
-          ),
-          requiere_material_disponible: true
-        }]
-      : [],
+    dependencias,
     activo: true
   };
 };
@@ -431,6 +467,48 @@ export const validarOperacionBasica = (
 
       if (material.material_id) {
         materialesUsados.add(material.material_id);
+      }
+    });
+
+  const dependenciasUsadas = new Set();
+  (operacion.dependencias || [])
+    .forEach((dependencia, indice) => {
+      const posicion = indice + 1;
+      const porcentaje = Number(
+        dependencia.porcentaje_minimo_avance
+      );
+
+      if (!dependencia.ruta_operacion_id) {
+        errores.push(
+          `La dependencia ${posicion} requiere operación.`
+        );
+      }
+
+      if (
+        !Number.isFinite(porcentaje) ||
+        porcentaje < 0 ||
+        porcentaje > 100
+      ) {
+        errores.push(
+          `La dependencia ${posicion} requiere avance entre 0 y 100.`
+        );
+      }
+
+      if (
+        dependencia.ruta_operacion_id &&
+        dependenciasUsadas.has(
+          dependencia.ruta_operacion_id
+        )
+      ) {
+        errores.push(
+          `La dependencia ${dependencia.ruta_operacion_id} está repetida.`
+        );
+      }
+
+      if (dependencia.ruta_operacion_id) {
+        dependenciasUsadas.add(
+          dependencia.ruta_operacion_id
+        );
       }
     });
 

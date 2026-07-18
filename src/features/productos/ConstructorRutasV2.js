@@ -73,9 +73,16 @@ const operacionInicial = {
   medida: "",
   unidades_por_producto: "",
   unidades_por_hora: "",
+  dependencias: [],
   dependencia_id: "",
   porcentaje_minimo_avance: "0"
 };
+
+const crearDependenciaInicial = () => ({
+  ruta_operacion_id: "",
+  porcentaje_minimo_avance: "0",
+  requiere_material_disponible: true
+});
 
 const crearMaterialEntradaInicial = () => ({
   material_id: "",
@@ -641,6 +648,10 @@ function ConstructorRutasV2({
     operacionForm.materiales_entrada.length > 0
       ? operacionForm.materiales_entrada
       : [crearMaterialEntradaInicial()];
+  const dependenciasFormulario =
+    operacionForm.dependencias?.length > 0
+      ? operacionForm.dependencias
+      : [crearDependenciaInicial()];
 
   const actualizarMaterialEntrada = (
     indice,
@@ -710,6 +721,72 @@ function ConstructorRutasV2({
         material_entrada_id:
           lista[0]?.material_id || "",
         materiales_entrada: lista
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const actualizarDependenciaOperacion = (
+    indice,
+    campoDependencia,
+    valor
+  ) => {
+    setOperacionForm(actual => {
+      const lista =
+        actual.dependencias?.length > 0
+          ? [...actual.dependencias]
+          : [crearDependenciaInicial()];
+
+      lista[indice] = {
+        ...lista[indice],
+        [campoDependencia]: valor
+      };
+
+      return {
+        ...actual,
+        dependencia_id:
+          lista[0]?.ruta_operacion_id || "",
+        porcentaje_minimo_avance:
+          lista[0]?.porcentaje_minimo_avance ??
+          "0",
+        dependencias: lista
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const agregarDependenciaOperacion = () => {
+    setOperacionForm(actual => ({
+      ...actual,
+      dependencias: [
+        ...(actual.dependencias?.length > 0
+          ? actual.dependencias
+          : [crearDependenciaInicial()]),
+        crearDependenciaInicial()
+      ]
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const quitarDependenciaOperacion = indice => {
+    setOperacionForm(actual => {
+      const lista = (
+        actual.dependencias?.length > 0
+          ? actual.dependencias
+          : [crearDependenciaInicial()]
+      ).filter((_, posicion) => posicion !== indice);
+
+      return {
+        ...actual,
+        dependencia_id:
+          lista[0]?.ruta_operacion_id || "",
+        porcentaje_minimo_avance:
+          lista[0]?.porcentaje_minimo_avance ??
+          "0",
+        dependencias: lista
       };
     });
     setError("");
@@ -1179,6 +1256,24 @@ function ConstructorRutasV2({
         operacion.unidades_por_producto || "",
       unidades_por_hora:
         operacion.unidades_por_hora || "",
+      dependencias:
+        operacion.dependencias?.length > 0
+          ? operacion.dependencias.map(
+              dependencia => ({
+                ruta_operacion_id:
+                  dependencia
+                    .ruta_operacion_id || "",
+                porcentaje_minimo_avance:
+                  dependencia
+                    .porcentaje_minimo_avance ??
+                  "0",
+                requiere_material_disponible:
+                  dependencia
+                    .requiere_material_disponible !==
+                  false
+              })
+            )
+          : [],
       dependencia_id:
         dependencia.ruta_operacion_id || "",
       porcentaje_minimo_avance:
@@ -2581,65 +2676,160 @@ function ConstructorRutasV2({
                           y todavía se está midiendo.
                         </span>
                       </label>
-                      <label style={etiqueta}>
-                        Depende de
-                        <select
-                          value={
-                            operacionForm
-                              .dependencia_id
-                          }
-                          onChange={evento =>
-                            actualizarOperacion(
-                              "dependencia_id",
-                              evento.target.value
-                            )
-                          }
-                          style={campo}
-                        >
-                          <option value="">
-                            Sin dependencia
-                          </option>
-                          {(ruta?.operaciones || []).map(
-                            operacion => (
-                              <option
-                                key={operacion.id}
-                                value={operacion.id}
+                      <div style={{
+                        gridColumn: "1 / -1",
+                        border: "1px solid #E2E8F0",
+                        borderRadius: 10,
+                        padding: 12
+                      }}>
+                        <strong>Dependencias</strong>
+                        <p style={{
+                          color: "#64748B",
+                          fontSize: 12,
+                          marginTop: 5
+                        }}>
+                          Agrega todas las OP previas que
+                          deben avanzar antes de iniciar esta
+                          operación.
+                        </p>
+                        <div style={{
+                          display: "grid",
+                          gap: 8
+                        }}>
+                          {dependenciasFormulario.map(
+                            (
+                              dependencia,
+                              indice
+                            ) => (
+                              <div
+                                key={`${indice}-${dependencia.ruta_operacion_id}`}
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns:
+                                    "1fr 150px 42px",
+                                  gap: 8,
+                                  alignItems: "end"
+                                }}
                               >
-                                {
-                                  operacion
-                                    .operacion_codigo
-                                }
-                                {" - "}
-                                {
-                                  operacion
-                                    .operacion_nombre
-                                }
-                              </option>
+                                <label style={etiqueta}>
+                                  Depende de
+                                  <select
+                                    value={
+                                      dependencia
+                                        .ruta_operacion_id ||
+                                      ""
+                                    }
+                                    onChange={evento =>
+                                      actualizarDependenciaOperacion(
+                                        indice,
+                                        "ruta_operacion_id",
+                                        evento.target
+                                          .value
+                                      )
+                                    }
+                                    style={campo}
+                                  >
+                                    <option value="">
+                                      Sin dependencia
+                                    </option>
+                                    {(ruta?.operaciones ||
+                                      [])
+                                      .filter(
+                                        operacion =>
+                                          operacion.id !==
+                                          operacionEditandoId
+                                      )
+                                      .map(
+                                        operacion => (
+                                          <option
+                                            key={
+                                              operacion.id
+                                            }
+                                            value={
+                                              operacion.id
+                                            }
+                                          >
+                                            {
+                                              operacion
+                                                .operacion_codigo
+                                            }
+                                            {" - "}
+                                            {
+                                              operacion
+                                                .operacion_nombre
+                                            }
+                                          </option>
+                                        )
+                                      )}
+                                  </select>
+                                </label>
+                                <label style={etiqueta}>
+                                  Avance mínimo %
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={
+                                      dependencia
+                                        .porcentaje_minimo_avance
+                                    }
+                                    onChange={evento =>
+                                      actualizarDependenciaOperacion(
+                                        indice,
+                                        "porcentaje_minimo_avance",
+                                        evento.target
+                                          .value
+                                      )
+                                    }
+                                    style={campo}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    quitarDependenciaOperacion(
+                                      indice
+                                    )
+                                  }
+                                  disabled={
+                                    dependenciasFormulario
+                                      .length === 1 &&
+                                    !dependencia
+                                      .ruta_operacion_id
+                                  }
+                                  style={{
+                                    border:
+                                      "1px solid #FCA5A5",
+                                    borderRadius: 8,
+                                    background:
+                                      "#FEF2F2",
+                                    color: "#B91C1C",
+                                    minHeight: 42,
+                                    cursor: "pointer"
+                                  }}
+                                >
+                                  -
+                                </button>
+                              </div>
                             )
                           )}
-                        </select>
-                      </label>
-                      {operacionForm.dependencia_id && (
-                        <label style={etiqueta}>
-                          Avance mínimo %
-                          <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            value={
-                              operacionForm
-                                .porcentaje_minimo_avance
-                            }
-                            onChange={evento =>
-                              actualizarOperacion(
-                                "porcentaje_minimo_avance",
-                                evento.target.value
-                              )
-                            }
-                            style={campo}
-                          />
-                        </label>
-                      )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={agregarDependenciaOperacion}
+                          style={{
+                            ...campo,
+                            marginTop: 8,
+                            background: "#EFF6FF",
+                            borderColor: "#BFDBFE",
+                            color: "#1D4ED8",
+                            cursor: "pointer",
+                            fontWeight: "bold"
+                          }}
+                        >
+                          + Agregar dependencia
+                        </button>
+                      </div>
                     </div>
 
                     <button

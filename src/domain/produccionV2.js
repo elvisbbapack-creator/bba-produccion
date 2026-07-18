@@ -350,6 +350,8 @@ export const validarRuta = (
       );
     }
 
+    const dependenciasUsadas = new Set();
+
     (operacion.dependencias || [])
       .forEach(dependencia => {
         const porcentaje = Number(
@@ -372,6 +374,23 @@ export const validarRuta = (
         ) {
           errores.push(
             `La dependencia de ${referencia} requiere un porcentaje entre 0 y 100.`
+          );
+        }
+
+        if (
+          dependencia.ruta_operacion_id &&
+          dependenciasUsadas.has(
+            dependencia.ruta_operacion_id
+          )
+        ) {
+          errores.push(
+            `La operacion ${referencia} tiene dependencias repetidas.`
+          );
+        }
+
+        if (dependencia.ruta_operacion_id) {
+          dependenciasUsadas.add(
+            dependencia.ruta_operacion_id
           );
         }
       });
