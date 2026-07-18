@@ -44,6 +44,11 @@ service cloud.firestore {
         hasPermission('almacen.gestionar');
     }
 
+    function canManageMaterials() {
+      return canManageWarehouse() ||
+        canManageEngineering();
+    }
+
     function canManageCosting() {
       return canManage() ||
         hasPermission('costeo.gestionar');
@@ -257,11 +262,11 @@ service cloud.firestore {
       allow read: if belongsToCompany(
         resource.data
       );
-      allow create: if canManageWarehouse() &&
+      allow create: if canManageMaterials() &&
         belongsToCompany(
           request.resource.data
         );
-      allow update: if canManageWarehouse() &&
+      allow update: if canManageMaterials() &&
         belongsToCompany(resource.data) &&
         belongsToCompany(
           request.resource.data
