@@ -2,6 +2,7 @@ import { TIPOS_MATERIAL } from "../../domain/produccionV2";
 import {
   normalizarCodigoMaterial,
   prepararMaterial,
+  siguienteCodigoMaterial,
   validarNuevoMaterial
 } from "./materialesRepository";
 
@@ -106,6 +107,26 @@ test("permite crear suministros productivos comprados", () => {
   expect(material.tipo).toBe("SUM");
   expect(material.es_comprado).toBe(true);
   expect(validarNuevoMaterial(material)).toEqual([]);
+});
+
+test("calcula el siguiente código disponible por tipo", () => {
+  const materiales = [
+    { codigo: "MP0001" },
+    { codigo: "MP0003" },
+    { codigo: "RF0001" },
+    { codigo: "SUM0001" },
+    { codigo: "SUM0002" }
+  ];
+
+  expect(
+    siguienteCodigoMaterial("MP", materiales)
+  ).toBe("MP0002");
+  expect(
+    siguienteCodigoMaterial("RF", materiales)
+  ).toBe("RF0002");
+  expect(
+    siguienteCodigoMaterial("SUM", materiales)
+  ).toBe("SUM0003");
 });
 
 test("rechaza codigos duplicados", () => {

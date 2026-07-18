@@ -20,6 +20,7 @@ import {
   crearMaterial,
   listarMateriales,
   prepararMaterial,
+  siguienteCodigoMaterial,
   validarNuevoMaterial
 } from "./materialesRepository";
 
@@ -134,6 +135,48 @@ function CatalogoMaterialesV2({
     ),
     [materiales, vistaPrevia]
   );
+
+  const crearEstadoInicial = useCallback(
+    (tipo = TIPOS_MATERIAL.MATERIA_PRIMA) => ({
+      ...estadoInicial,
+      tipo,
+      codigo: siguienteCodigoMaterial(
+        tipo,
+        materiales
+      ),
+      es_comprado: [
+        TIPOS_MATERIAL.MATERIA_PRIMA,
+        TIPOS_MATERIAL.SUMINISTRO
+      ].includes(tipo)
+    }),
+    [materiales]
+  );
+
+  useEffect(() => {
+    if (editandoId) {
+      return;
+    }
+
+    const siguienteCodigo =
+      siguienteCodigoMaterial(
+        formulario.tipo,
+        materiales
+      );
+
+    if (formulario.codigo === siguienteCodigo) {
+      return;
+    }
+
+    setFormulario(actual => ({
+      ...actual,
+      codigo: siguienteCodigo
+    }));
+  }, [
+    editandoId,
+    formulario.codigo,
+    formulario.tipo,
+    materiales
+  ]);
 
   const actualizarCampo = (campo, valor) => {
     setFormulario(actual => ({
@@ -270,7 +313,7 @@ function CatalogoMaterialesV2({
   };
 
   const limpiarFormulario = () => {
-    setFormulario(estadoInicial);
+    setFormulario(crearEstadoInicial());
     setEditandoId("");
     setError("");
   };
@@ -475,7 +518,10 @@ function CatalogoMaterialesV2({
                   setFormulario(actual => ({
                     ...actual,
                     tipo,
-                    codigo: tipo,
+                    codigo: siguienteCodigoMaterial(
+                      tipo,
+                      materiales
+                    ),
                     producto_id:
                       tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
                         ? actual.producto_id
@@ -534,16 +580,24 @@ function CatalogoMaterialesV2({
                   )
                 }
                 placeholder={`${formulario.tipo}0001`}
-                disabled={Boolean(editandoId)}
+                disabled
                 style={{
                   ...estiloCampo,
                   marginTop: 6,
-                  marginBottom: 14,
-                  background: editandoId
-                    ? "#F8FAFC"
-                    : "white"
+                  marginBottom: 6,
+                  background: "#F8FAFC"
                 }}
               />
+              <span style={{
+                display: "block",
+                color: "#64748B",
+                fontSize: 13,
+                marginBottom: 14
+              }}>
+                Código asignado automáticamente
+                según el siguiente correlativo
+                disponible.
+              </span>
             </label>
 
             {formulario.tipo ===

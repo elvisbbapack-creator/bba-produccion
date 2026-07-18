@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -29,6 +30,35 @@ export const normalizarCodigoMaterial = (valor) =>
   limpiarTexto(valor)
     .toUpperCase()
     .replace(/\s+/g, "");
+
+export const siguienteCodigoMaterial = (
+  tipo,
+  materiales = []
+) => {
+  const prefijo = normalizarCodigoMaterial(tipo);
+  const usados = new Set(
+    materiales
+      .map(material =>
+        normalizarCodigoMaterial(material.codigo)
+      )
+      .filter(codigo =>
+        new RegExp(`^${prefijo}\\d{4,}$`).test(
+          codigo
+        )
+      )
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `${prefijo}${String(correlativo).padStart(4, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `${prefijo}${String(correlativo).padStart(4, "0")}`;
+};
 
 export const prepararProductosAsociadosMaterial = (
   productos = [],
@@ -194,6 +224,14 @@ export const crearMaterial = async (
     COLECCION,
     idMaterial(empresaId, codigo)
   );
+  const existente = await getDoc(referencia);
+
+  if (existente.exists()) {
+    throw new Error(
+      `El codigo ${codigo} ya existe. Actualiza la página para tomar el siguiente correlativo disponible.`
+    );
+  }
+
   const material = prepararMaterial(
     datos,
     empresaId,
