@@ -1588,7 +1588,7 @@ const cargarTodosLosParos = async () => {
           accion: () => setPantalla("subproductosV2")
         },
         {
-          titulo: "Operaciones Estándar (V2)",
+          titulo: "Catálogo de Operaciones (V2)",
           visible: puedeAdministrar,
           accion: () => setPantalla("detallesV2")
         },
