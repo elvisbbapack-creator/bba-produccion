@@ -90,6 +90,39 @@ test("congela la ruta y calcula 400 unidades para una OT de 100", () => {
   });
 });
 
+test("escala operaciones de subproducto con la composición del producto", () => {
+  const operaciones = congelarRutaParaOT({
+    ruta: {
+      ...rutaPcl0001,
+      operaciones: [{
+        ...rutaPcl0001.operaciones[0],
+        subproducto_id: "sub-1",
+        subproducto_codigo: "SUB0001",
+        subproducto_nombre: "Lateral",
+        unidades_por_producto: 2
+      }]
+    },
+    materiales: materialesPcl0001,
+    cantidadProducto: 100,
+    composicionProducto: [{
+      tipo: "SUBPRODUCTO",
+      item_id: "sub-1",
+      item_codigo: "SUB0001",
+      item_nombre: "Lateral",
+      cantidad: 2
+    }]
+  });
+
+  expect(operaciones[0]).toMatchObject({
+    unidades_por_item_base: 2,
+    unidades_por_producto: 4,
+    factor_composicion: 2,
+    item_base_tipo: "SUBPRODUCTO",
+    item_base_codigo: "SUB0001",
+    cantidad_requerida: 400
+  });
+});
+
 test("calcula RF disponible descontando consumo y descarte", () => {
   expect(
     calcularDisponibilidadRF({

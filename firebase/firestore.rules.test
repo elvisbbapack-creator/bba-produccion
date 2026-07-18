@@ -908,7 +908,47 @@ service cloud.firestore {
             belongsToCompany(
               request.resource.data
             );
-          allow update: if false;
+          allow update: if canManageEngineering() &&
+            belongsToCompany(resource.data) &&
+            belongsToCompany(
+              request.resource.data
+            ) &&
+            get(
+              /databases/$(database)/documents/productos/$(productoId)/rutas/$(rutaId)
+            ).data.estado == 'borrador' &&
+            request.resource.data.empresa_id ==
+              resource.data.empresa_id &&
+            request.resource.data.producto_id ==
+              resource.data.producto_id &&
+            request.resource.data.diff(
+              resource.data
+            ).affectedKeys().hasOnly([
+              'secuencia',
+              'operacion_id',
+              'operacion_codigo',
+              'operacion_nombre',
+              'pieza_id',
+              'pieza_codigo',
+              'pieza_nombre',
+              'subproducto_id',
+              'subproducto_codigo',
+              'subproducto_nombre',
+              'proceso_id',
+              'proceso_nombre',
+              'estacion_id',
+              'estacion_nombre',
+              'subproceso_id',
+              'subproceso_nombre',
+              'material_entrada_id',
+              'materiales_entrada',
+              'material_salida_id',
+              'medida',
+              'unidades_por_producto',
+              'unidades_por_hora',
+              'dependencias',
+              'activo',
+              'fecha_actualizacion'
+            ]);
           allow delete: if canManageEngineering() &&
             belongsToCompany(resource.data) &&
             get(

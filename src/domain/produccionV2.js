@@ -12,6 +12,37 @@ const codigoValido = (codigo, prefijo) =>
   typeof codigo === "string" &&
   new RegExp(`^${prefijo}\\d{4,}$`).test(codigo);
 
+const factorComposicionOperacion = (
+  operacion = {},
+  composicionProducto = []
+) => {
+  const objetivo = operacion.subproducto_id
+    ? {
+        tipo: "SUBPRODUCTO",
+        item_id: operacion.subproducto_id
+      }
+    : operacion.pieza_id
+      ? {
+          tipo: "PIEZA",
+          item_id: operacion.pieza_id
+        }
+      : null;
+  const item = objetivo
+    ? composicionProducto.find(
+        componente =>
+          componente.tipo === objetivo.tipo &&
+          componente.item_id ===
+            objetivo.item_id
+      )
+    : null;
+  const cantidad = Number(item?.cantidad || 0);
+
+  return {
+    factor: cantidad > 0 ? cantidad : 1,
+    item
+  };
+};
+
 const materialesEntradaOperacion = (
   operacion = {}
 ) => {
@@ -413,7 +444,8 @@ export const validarRuta = (
 export const congelarRutaParaOT = ({
   ruta,
   materiales,
-  cantidadProducto
+  cantidadProducto,
+  composicionProducto = []
 }) => {
   if (!numeroPositivo(cantidadProducto)) {
     throw new Error(
@@ -461,9 +493,17 @@ export const congelarRutaParaOT = ({
       const salida = materialesPorId.get(
         operacion.material_salida_id
       );
-      const unidadesPorProducto = Number(
+      const unidadesPorItemBase = Number(
         operacion.unidades_por_producto
       );
+      const composicion =
+        factorComposicionOperacion(
+          operacion,
+          composicionProducto
+        );
+      const unidadesPorProducto =
+        unidadesPorItemBase *
+        composicion.factor;
       const cantidadRequerida =
         Number(cantidadProducto) *
         unidadesPorProducto;
@@ -510,6 +550,33 @@ export const congelarRutaParaOT = ({
         medida: operacion.medida || "",
         unidades_por_producto:
           unidadesPorProducto,
+        unidades_por_item_base:
+          unidadesPorItemBase,
+        item_base_tipo:
+          composicion.item?.tipo ||
+          (operacion.subproducto_id
+            ? "SUBPRODUCTO"
+            : operacion.pieza_id
+              ? "PIEZA"
+              : "PRODUCTO"),
+        item_base_id:
+          composicion.item?.item_id ||
+          operacion.subproducto_id ||
+          operacion.pieza_id ||
+          ruta.producto_id ||
+          "",
+        item_base_codigo:
+          composicion.item?.item_codigo ||
+          operacion.subproducto_codigo ||
+          operacion.pieza_codigo ||
+          "",
+        item_base_nombre:
+          composicion.item?.item_nombre ||
+          operacion.subproducto_nombre ||
+          operacion.pieza_nombre ||
+          "",
+        factor_composicion:
+          composicion.factor,
         cantidad_requerida:
           cantidadRequerida,
         cantidad_ok: 0,

@@ -1285,7 +1285,9 @@ export const crearOrdenV2 = async ({
   const operaciones = congelarRutaParaOT({
     ruta,
     materiales,
-    cantidadProducto
+    cantidadProducto,
+    composicionProducto:
+      producto.composicion || []
   });
   const proyeccion = calcularProyeccionOT(
     operaciones,

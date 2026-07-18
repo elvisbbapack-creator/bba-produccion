@@ -239,6 +239,31 @@ function ConstructorRutasV2({
       : itemComposicion.tipo === "PIEZA"
         ? piezasProducto
         : materialesDisponiblesProducto;
+  const itemBaseOperacion =
+    operacionForm.subproducto_id
+      ? composicionProducto.find(
+          item =>
+            item.tipo === "SUBPRODUCTO" &&
+            item.item_id ===
+              operacionForm.subproducto_id
+        )
+      : operacionForm.pieza_id
+        ? composicionProducto.find(
+            item =>
+              item.tipo === "PIEZA" &&
+              item.item_id ===
+                operacionForm.pieza_id
+          )
+        : null;
+  const factorItemBaseOperacion = Number(
+    itemBaseOperacion?.cantidad || 1
+  );
+  const etiquetaUnidadesOperacion =
+    operacionForm.subproducto_id
+      ? "Unidades por subproducto"
+      : operacionForm.pieza_id
+        ? "Unidades por pieza"
+        : "Unidades por producto";
   const operacionCatalogoSeleccionadaId =
     operacionesCatalogoActivas.find(
       operacion =>
@@ -2502,7 +2527,7 @@ function ConstructorRutasV2({
                         />
                       </label>
                       <label style={etiqueta}>
-                        Unidades por producto
+                        {etiquetaUnidadesOperacion}
                         <input
                           type="number"
                           min="0"
@@ -2519,6 +2544,15 @@ function ConstructorRutasV2({
                           }
                           style={campo}
                         />
+                        <span style={{
+                          color: "#64748B",
+                          fontWeight: "normal",
+                          fontSize: 12
+                        }}>
+                          {itemBaseOperacion
+                            ? `El producto contiene ${factorItemBaseOperacion} x ${itemBaseOperacion.item_codigo}. Al crear la OT se multiplicará automáticamente.`
+                            : "Si la operación no está ligada a subproducto o pieza, se considera cantidad directa por producto."}
+                        </span>
                       </label>
                       <label style={etiqueta}>
                         Estándar (unidades por hora)
@@ -2706,6 +2740,12 @@ function ConstructorRutasV2({
                                 operacion
                                   .material_salida_id
                             );
+                          const textoUnidades =
+                            operacion.subproducto_id
+                              ? "por subproducto"
+                              : operacion.pieza_id
+                                ? "por pieza"
+                                : "por producto";
 
                           return (
                             <article
@@ -2788,7 +2828,7 @@ function ConstructorRutasV2({
                                   operacion
                                     .unidades_por_producto
                                 }
-                                {" por producto · "}
+                                {` ${textoUnidades} · `}
                                 {
                                   operacion
                                     .unidades_por_hora
