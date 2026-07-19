@@ -112,7 +112,7 @@ test("permite crear subproducto pendiente de piezas", () => {
   ).toEqual([]);
 });
 
-test("valida salida armado cuando se selecciona pieza de salida", () => {
+test("permite pieza de salida final aunque no diga armado", () => {
   expect(
     validarSubproducto({
       id: "sub-1",
@@ -123,9 +123,7 @@ test("valida salida armado cuando se selecciona pieza de salida", () => {
       pieza_salida_nombre: "Bandeja Terminada",
       componentes: []
     })
-  ).toEqual([
-    "La pieza de salida debe ser la pieza Armado del subproducto.",
-  ]);
+  ).toEqual([]);
 });
 
 test("rechaza pieza de salida como componente y duplicados", () => {

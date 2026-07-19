@@ -137,18 +137,6 @@ export const validarSubproducto = (
     );
   }
 
-  if (
-    subproducto.pieza_salida_id &&
-    subproducto.pieza_salida_nombre &&
-    !subproducto.pieza_salida_nombre
-      .toLowerCase()
-      .includes("armado")
-  ) {
-    errores.push(
-      "La pieza de salida debe ser la pieza Armado del subproducto."
-    );
-  }
-
   const piezasUsadas = new Set();
   subproducto.componentes.forEach(
     (componente, indice) => {

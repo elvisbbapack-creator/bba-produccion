@@ -465,7 +465,7 @@ function CatalogoSubproductosV2({
             </label>
 
             <label>
-              Pieza de salida Armado
+              Pieza de salida final
               {" "}
               <span style={{ color: "#64748B" }}>
                 (opcional)
@@ -507,9 +507,10 @@ function CatalogoSubproductosV2({
               marginBottom: 14
             }}>
               Puedes dejarlo pendiente. Cuando ya
-              exista la pieza de salida, vuelve a editar
-              este subproducto y selecciónala. Ejemplo:
-              "Lateral Armado".
+              exista la pieza que representa el resultado
+              final del subproducto, vuelve a editar y
+              selecciónala. Ejemplos: "Lateral Armado",
+              "Bandeja Terminada" o una gráfica final.
             </p>
 
             <div style={{

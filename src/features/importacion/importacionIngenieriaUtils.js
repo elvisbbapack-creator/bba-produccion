@@ -983,8 +983,8 @@ export const validarIngenieriaImportada = data => {
         piezaSalida.nombre
       )
     ) {
-      errores.push(
-        `La pieza salida ${piezaSalida.codigo} del subproducto ${subproducto.codigo} debe incluir "Armado" o "Terminado" en el nombre.`
+      advertencias.push(
+        `Subproducto ${subproducto.codigo} usa pieza salida ${piezaSalida.codigo} sin "Armado" o "Terminado"; revisa si realmente es la pieza final del subproducto.`
       );
     }
   });

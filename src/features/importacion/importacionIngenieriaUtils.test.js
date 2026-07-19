@@ -150,6 +150,33 @@ test("detecta referencias cruzadas inválidas", () => {
   );
 });
 
+test("advierte pieza salida sin armado o terminado sin bloquear importación", () => {
+  const resultado =
+    validarIngenieriaImportada({
+      ...dataValida,
+      piezas: [
+        ...dataValida.piezas,
+        {
+          codigo: "PZ0200",
+          nombre: "Grafica lateral",
+          medida: ""
+        }
+      ],
+      subproductos: [{
+        ...dataValida.subproductos[0],
+        pieza_salida_codigo: "PZ0200"
+      }]
+    });
+
+  expect(resultado.errores).toEqual([]);
+  expect(resultado.advertencias).toEqual(
+    expect.arrayContaining([
+      'Subproducto SUB0001 usa pieza salida PZ0200 sin "Armado" o "Terminado"; revisa si realmente es la pieza final del subproducto.',
+      "Pieza PZ0200 no tiene medida; se podrá completar después."
+    ])
+  );
+});
+
 test("plantilla usa estaciones ET en rutas y no subprocesos visibles", () => {
   [
     hojasPlantillaIngenieria.Ruta_Producto[0],
