@@ -158,6 +158,10 @@ function ConstructorRutasV2({
     useState(operacionInicial);
   const [operacionEditandoId,
     setOperacionEditandoId] = useState("");
+  const [
+    formularioOperacionAbierto,
+    setFormularioOperacionAbierto
+  ] = useState(false);
   const [itemComposicion, setItemComposicion] =
     useState(itemComposicionInicial);
   const [composicionProducto,
@@ -1150,6 +1154,7 @@ function ConstructorRutasV2({
           : operacionInicial
       );
       setOperacionEditandoId("");
+      setFormularioOperacionAbierto(false);
       await cargarRuta(
         entidadRutaId,
         versionRutaActual,
@@ -1390,6 +1395,7 @@ function ConstructorRutasV2({
       (operacion.dependencias || [])[0] || {};
 
     setOperacionEditandoId(operacion.id);
+    setFormularioOperacionAbierto(true);
     setOperacionForm({
       codigo: operacion.operacion_codigo || "",
       nombre: operacion.operacion_nombre || "",
@@ -1479,6 +1485,7 @@ function ConstructorRutasV2({
   const cancelarEdicionOperacion = () => {
     setOperacionEditandoId("");
     setOperacionForm(operacionInicial);
+    setFormularioOperacionAbierto(false);
     setError("");
     setMensaje("");
   };
@@ -2421,11 +2428,67 @@ function ConstructorRutasV2({
                     onSubmit={agregarOperacion}
                     style={tarjeta}
                   >
-                    <h2 style={{ marginTop: 0 }}>
-                      {operacionEditandoId
-                        ? "Editar operación"
-                        : "Agregar operación"}
-                    </h2>
+                    <div style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "start",
+                      gap: 12,
+                      marginBottom:
+                        formularioOperacionAbierto
+                          ? 14
+                          : 0
+                    }}>
+                      <div>
+                        <h2 style={{
+                          marginTop: 0,
+                          marginBottom: 4
+                        }}>
+                          {operacionEditandoId
+                            ? "Editar operación"
+                            : "Agregar operación"}
+                        </h2>
+                        <p style={{
+                          color: "#64748B",
+                          margin: 0,
+                          fontSize: 14
+                        }}>
+                          Abre este panel solo cuando
+                          necesites cargar o corregir una
+                          operación.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormularioOperacionAbierto(
+                            abierto => !abierto
+                          )
+                        }
+                        style={{
+                          border: "none",
+                          borderRadius: 8,
+                          background:
+                            formularioOperacionAbierto
+                              ? "#E2E8F0"
+                              : "#0F766E",
+                          color:
+                            formularioOperacionAbierto
+                              ? "#334155"
+                              : "white",
+                          padding: "9px 12px",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap"
+                        }}
+                      >
+                        {formularioOperacionAbierto
+                          ? "Ocultar"
+                          : "+ Nueva operación"}
+                      </button>
+                    </div>
+
+                    {formularioOperacionAbierto ? (
+                    <>
                     {operacionEditandoId && (
                       <p style={{
                         color: "#475569",
@@ -3228,6 +3291,21 @@ function ConstructorRutasV2({
                       >
                         Cancelar edición
                       </button>
+                    )}
+                    </>
+                    ) : (
+                      <p style={{
+                        color: "#64748B",
+                        background: "#F8FAFC",
+                        padding: 10,
+                        borderRadius: 8,
+                        marginTop: 12,
+                        marginBottom: 0
+                      }}>
+                        Panel cerrado para mantener la ruta
+                        ordenada. La lista de operaciones
+                        queda visible abajo.
+                      </p>
                     )}
                   </form>
                 )}
