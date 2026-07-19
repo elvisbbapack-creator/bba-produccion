@@ -33,6 +33,40 @@ empresa_id, codigo, nombre, pais, zona_horaria, activo
 
 Ejemplos de zona horaria: `America/Santiago` y `America/Lima`.
 
+### `operarios/{personaId}`
+
+La coleccion `operarios` se mantiene como puente con la primera app, pero en
+V2 representa personas de planta codificadas desde RRHH:
+
+```text
+empresa_id
+planta_id
+codigo: PER0001
+codigo_persona: PER0001
+operario_codigo: PER0001
+nombre
+rol_laboral: operario
+activo
+equipo: Alexis | Pablo
+habilidades_estacion_ids: [PR0001__ET0001]
+habilidades_estaciones: [{
+  proceso_codigo,
+  proceso_nombre,
+  estacion_codigo,
+  estacion_nombre
+}]
+fecha_ingreso
+fecha_salida
+motivo_salida
+observacion
+```
+
+`Personas y Operarios (V2)` permite crear personas manualmente y descargar una
+plantilla Excel independiente de la ingenieria. Esta plantilla sirve para migrar
+personal desde la app anterior, actualizar equipos y cargar habilidades por
+estacion. Si una persona queda inactiva, se guarda sin equipo para que no figure
+en balance de dotacion ni sugerencias de IA.
+
 ### `materiales/{materialId}`
 
 ```text

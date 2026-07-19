@@ -4,6 +4,7 @@ import {
   useMemo,
   useState
 } from "react";
+import * as XLSX from "xlsx";
 import {
   EQUIPOS_TRABAJO_RRHH,
   PLANTAS_RRHH,
@@ -13,8 +14,14 @@ import {
   listarPersonasRRHH,
   normalizarPersona
 } from "./rrhhRepository";
+import {
+  hojasPlantillaPersonal,
+  leerPersonalDesdeWorkbook,
+  resumenPersonal
+} from "./importacionPersonalUtils";
 
 const estadoInicial = {
+  codigo: "",
   nombre: "",
   rol_laboral: "operario",
   activo: true,
@@ -59,6 +66,24 @@ const normalizar = valor =>
     .toLowerCase()
     .replace(/\s+/g, " ");
 
+const descargarPlantillaPersonal = () => {
+  const workbook = XLSX.utils.book_new();
+
+  Object.entries(hojasPlantillaPersonal)
+    .forEach(([nombre, filas]) => {
+      XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet(filas),
+        nombre
+      );
+    });
+
+  XLSX.writeFile(
+    workbook,
+    "plantilla-personal-bba.xlsx"
+  );
+};
+
 export default function GestionPersonasRRHHV2({
   db,
   perfil,
@@ -77,6 +102,12 @@ export default function GestionPersonasRRHHV2({
     useState(false);
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [archivoPersonalNombre, setArchivoPersonalNombre] =
+    useState("");
+  const [previewPersonal, setPreviewPersonal] =
+    useState(null);
+  const [importandoPersonal, setImportandoPersonal] =
+    useState(false);
   const [filtroEquipo, setFiltroEquipo] =
     useState("");
   const [filtroHabilidad, setFiltroHabilidad] =
@@ -262,6 +293,126 @@ export default function GestionPersonasRRHHV2({
       resumenEquipo
     )
   };
+  const resumenImportacionPersonal = useMemo(
+    () => resumenPersonal(previewPersonal),
+    [previewPersonal]
+  );
+
+  const cargarArchivoPersonal = async evento => {
+    const archivo = evento.target.files?.[0];
+    if (!archivo) {
+      return;
+    }
+
+    try {
+      setError("");
+      setMensaje("");
+      setArchivoPersonalNombre(archivo.name);
+      const buffer = await archivo.arrayBuffer();
+      const workbook = XLSX.read(buffer, {
+        type: "array"
+      });
+      const data = leerPersonalDesdeWorkbook(
+        workbook,
+        XLSX
+      );
+
+      const habilidadesDisponibles = new Set(
+        habilidades.map(habilidad =>
+          normalizar(habilidad.clave)
+        )
+      );
+      const advertenciasHabilidades = [];
+
+      data.personas.forEach(persona => {
+        (persona.habilidades_estacion_ids || [])
+          .forEach(habilidadId => {
+            if (
+              habilidadId &&
+              !habilidadesDisponibles.has(
+                normalizar(habilidadId)
+              )
+            ) {
+              advertenciasHabilidades.push(
+                `Persona ${persona.nombre}: habilidad ${habilidadId} no existe en estaciones V2 y se importará sin etiqueta visible.`
+              );
+            }
+          });
+      });
+
+      setPreviewPersonal({
+        ...data,
+        advertencias: [
+          ...data.advertencias,
+          ...advertenciasHabilidades
+        ]
+      });
+    } catch (fallo) {
+      setPreviewPersonal(null);
+      setError(
+        fallo?.message ||
+        "No se pudo leer el Excel de personal."
+      );
+    } finally {
+      evento.target.value = "";
+    }
+  };
+
+  const importarPersonal = async () => {
+    if (!previewPersonal) {
+      return;
+    }
+    if (previewPersonal.errores.length > 0) {
+      setError(
+        "Corrige los errores del Excel antes de importar."
+      );
+      return;
+    }
+
+    try {
+      setImportandoPersonal(true);
+      setError("");
+      setMensaje("");
+      const existentesPorCodigo = new Map(
+        personas
+          .filter(persona => persona.codigo)
+          .map(persona => [
+            persona.codigo,
+            persona
+          ])
+      );
+
+      for (const persona of previewPersonal.personas) {
+        const existente =
+          persona.codigo &&
+          existentesPorCodigo.get(persona.codigo);
+
+        await guardarPersonaRRHH(
+          db,
+          perfil,
+          {
+            ...persona,
+            id: existente?.id || ""
+          },
+          habilidades
+        );
+      }
+
+      await cargar();
+      setPreviewPersonal(null);
+      setArchivoPersonalNombre("");
+      setMensaje(
+        "Personal importado correctamente."
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo importar el personal."
+      );
+    } finally {
+      setImportandoPersonal(false);
+    }
+  };
 
   const brechas = habilidades
     .map(habilidad => {
@@ -404,6 +555,183 @@ export default function GestionPersonasRRHHV2({
           "0 2px 8px rgba(15,23,42,0.08)",
         marginBottom: 18
       }}>
+        <h3>Importar personal codificado</h3>
+        <p style={{
+          color: "#64748B",
+          lineHeight: 1.5
+        }}>
+          Usa esta plantilla para migrar operarios
+          desde la app anterior o cargar personas
+          nuevas en bloque. Si dejas el código vacío,
+          el sistema asignará el siguiente PER
+          disponible.
+        </p>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: 10,
+          marginBottom: 12
+        }}>
+          <button
+            type="button"
+            style={botonSecundario}
+            onClick={descargarPlantillaPersonal}
+          >
+            Descargar plantilla personal
+          </button>
+          <label style={{
+            ...botonPrimario,
+            textAlign: "center"
+          }}>
+            Subir Excel personal
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={cargarArchivoPersonal}
+              style={{ display: "none" }}
+            />
+          </label>
+        </div>
+
+        {previewPersonal && (
+          <div style={{
+            background: "#F8FAFC",
+            border: "1px solid #E2E8F0",
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 16
+          }}>
+            <b>
+              Vista previa: {archivoPersonalNombre}
+            </b>
+            <div style={{
+              marginTop: 8,
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: 8
+            }}>
+              <span>
+                Personas: {resumenImportacionPersonal.personas}
+              </span>
+              <span>
+                Errores: {resumenImportacionPersonal.errores}
+              </span>
+              <span>
+                Advertencias: {resumenImportacionPersonal.advertencias}
+              </span>
+            </div>
+            {previewPersonal.errores.length > 0 && (
+              <ul style={{ color: "#B71C1C" }}>
+                {previewPersonal.errores.map(errorItem => (
+                  <li key={errorItem}>{errorItem}</li>
+                ))}
+              </ul>
+            )}
+            {previewPersonal.advertencias.length > 0 && (
+              <ul style={{ color: "#B45309" }}>
+                {previewPersonal.advertencias
+                  .slice(0, 8)
+                  .map(advertencia => (
+                    <li key={advertencia}>
+                      {advertencia}
+                    </li>
+                  ))}
+              </ul>
+            )}
+            <div style={{
+              maxHeight: 220,
+              overflow: "auto",
+              margin: "12px 0",
+              border: "1px solid #E2E8F0",
+              borderRadius: 10
+            }}>
+              <table style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 13
+              }}>
+                <thead>
+                  <tr>
+                    {[
+                      "Código",
+                      "Nombre",
+                      "Planta",
+                      "Equipo",
+                      "Activo",
+                      "Habilidades"
+                    ].map(titulo => (
+                      <th
+                        key={titulo}
+                        style={{
+                          textAlign: "left",
+                          padding: 8,
+                          borderBottom:
+                            "1px solid #E2E8F0"
+                        }}
+                      >
+                        {titulo}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewPersonal.personas
+                    .slice(0, 12)
+                    .map((persona, indice) => (
+                      <tr key={`${persona.codigo}-${indice}`}>
+                        <td style={{ padding: 8 }}>
+                          {persona.codigo ||
+                            "Automático"}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {persona.nombre}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {persona.planta_id}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {persona.equipo ||
+                            "Sin equipo"}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {persona.activo
+                            ? "Sí"
+                            : "No"}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {persona
+                            .habilidades_estacion_ids
+                            .join(", ")}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+            <button
+              type="button"
+              style={botonPrimario}
+              disabled={
+                importandoPersonal ||
+                previewPersonal.errores.length > 0
+              }
+              onClick={importarPersonal}
+            >
+              {importandoPersonal
+                ? "Importando..."
+                : "Confirmar importación"}
+            </button>
+          </div>
+        )}
+
+        <hr style={{
+          border: "none",
+          borderTop: "1px solid #E2E8F0",
+          margin: "18px 0"
+        }} />
+
         <h3>
           {editandoId
             ? "Editar persona"
@@ -416,6 +744,13 @@ export default function GestionPersonasRRHHV2({
             "repeat(auto-fit, minmax(220px, 1fr))",
           gap: 12
         }}>
+          <input
+            style={campo}
+            placeholder="Código automático PER0001"
+            value={formulario.codigo}
+            disabled
+          />
+
           <input
             style={campo}
             placeholder="Nombre"
@@ -733,7 +1068,9 @@ export default function GestionPersonasRRHHV2({
             }}
           >
             <h3 style={{ margin: "0 0 6px" }}>
-              {persona.nombre}
+              {persona.codigo
+                ? `${persona.codigo} - ${persona.nombre}`
+                : persona.nombre}
             </h3>
             <div>
               <b>Rol:</b> {persona.rol_laboral}

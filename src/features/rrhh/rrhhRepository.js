@@ -38,6 +38,11 @@ export const PLANTAS_RRHH = [
 const limpiarTexto = valor =>
   (valor || "").toString().trim();
 
+export const normalizarCodigoPersona = valor =>
+  limpiarTexto(valor)
+    .toUpperCase()
+    .replace(/\s+/g, "");
+
 export const normalizarLista = valor =>
   Array.isArray(valor)
     ? [
@@ -98,6 +103,12 @@ export const normalizarPersona = (
 
   return {
     id,
+    codigo:
+      normalizarCodigoPersona(
+        data.codigo ||
+        data.codigo_persona ||
+        data.operario_codigo
+      ),
     nombre: data.nombre || "",
     rol_laboral:
       data.rol_laboral ||
@@ -148,12 +159,50 @@ export const listarPersonasRRHH = async (
     );
 };
 
+export const siguienteCodigoPersona = (
+  personas = []
+) => {
+  const ultimo = personas.reduce(
+    (mayor, persona) => {
+      const codigo = normalizarCodigoPersona(
+        persona.codigo
+      );
+      const coincidencia =
+        codigo.match(/^PER(\d+)$/);
+
+      if (!coincidencia) {
+        return mayor;
+      }
+
+      return Math.max(
+        mayor,
+        Number(coincidencia[1])
+      );
+    },
+    0
+  );
+
+  return `PER${String(ultimo + 1).padStart(4, "0")}`;
+};
+
+export const obtenerSiguienteCodigoPersona = async (
+  db,
+  empresaId
+) => siguienteCodigoPersona(
+  await listarPersonasRRHH(db, empresaId)
+);
+
 const prepararPersona = (
   datos,
   perfil,
   habilidadesDisponibles
 ) => {
   const nombre = limpiarTexto(datos.nombre);
+  const codigo = normalizarCodigoPersona(
+    datos.codigo ||
+    datos.codigo_persona ||
+    datos.operario_codigo
+  );
   const rolLaboral =
     datos.rol_laboral || "operario";
   const activo = datos.activo !== false;
@@ -174,6 +223,9 @@ const prepararPersona = (
   }
 
   return {
+    codigo,
+    codigo_persona: codigo,
+    operario_codigo: codigo,
     nombre,
     rol_laboral: rolLaboral,
     rol: rolLaboral,
@@ -203,8 +255,17 @@ export const guardarPersonaRRHH = async (
   datos,
   habilidadesDisponibles
 ) => {
+  const datosConCodigo = { ...datos };
+  if (!datosConCodigo.id && !datosConCodigo.codigo) {
+    datosConCodigo.codigo =
+      await obtenerSiguienteCodigoPersona(
+        db,
+        perfil.empresa_id
+      );
+  }
+
   const persona = prepararPersona(
-    datos,
+    datosConCodigo,
     perfil,
     habilidadesDisponibles
   );
