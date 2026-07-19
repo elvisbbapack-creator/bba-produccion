@@ -756,17 +756,6 @@ function CatalogoPiezasV2({
       return;
     }
 
-    if (
-      formulario.relacion_principal_tipo ===
-        "subproducto" &&
-      !formulario.subproducto_id
-    ) {
-      setError(
-        "Selecciona el subproducto principal de esta pieza."
-      );
-      return;
-    }
-
     try {
       setGuardando(true);
       let mensajeExito = "Pieza creada.";
@@ -896,6 +885,10 @@ function CatalogoPiezasV2({
             "subproducto" ? (
               <label>
                 Subproducto principal
+                {" "}
+                <span style={{ color: "#64748B" }}>
+                  (opcional)
+                </span>
                 <select
                   value={formulario.subproducto_id}
                   onChange={evento =>
@@ -910,7 +903,7 @@ function CatalogoPiezasV2({
                   }}
                 >
                   <option value="">
-                    Seleccionar subproducto
+                    Pendiente de crear/asociar
                   </option>
                   {subproductos
                     .filter(
@@ -931,6 +924,16 @@ function CatalogoPiezasV2({
                       </option>
                     ))}
                 </select>
+                <small style={{
+                  display: "block",
+                  color: "#64748B",
+                  marginTop: -8,
+                  marginBottom: 14
+                }}>
+                  Puedes crear la pieza ahora aunque el
+                  subproducto todavía no exista. Luego
+                  vuelves a editar la pieza y la asocias.
+                </small>
               </label>
             ) : (
               <label>
