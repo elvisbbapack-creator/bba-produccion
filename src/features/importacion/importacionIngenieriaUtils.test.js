@@ -68,6 +68,7 @@ const dataValida = {
     producto_codigo: "PCL0001",
     codigo: "OP0001",
     nombre: "Corte lateral",
+    subproducto_codigo: "SUB0001",
     pieza_codigo: "PZ0001",
     material_entrada_codigo: "MP0001",
     material_salida_codigo: "RF0001"
@@ -121,7 +122,8 @@ test("detecta referencias cruzadas inválidas", () => {
       }],
       operaciones: [{
         ...dataValida.operaciones[0],
-        pieza_codigo: "PZ9999"
+        pieza_codigo: "PZ9999",
+        subproducto_codigo: "SUB9999"
       }],
       rutas: [{
         ...dataValida.rutas[0],
@@ -137,6 +139,7 @@ test("detecta referencias cruzadas inválidas", () => {
       "Subproducto SUB0001 referencia producto inexistente PCL9999.",
       "Subproducto SUB0001 referencia pieza salida inexistente PZ9999.",
       "Operación OP0001 referencia pieza inexistente PZ9999.",
+      "Operación OP0001 referencia subproducto inexistente SUB9999.",
       "Ruta referencia operación inexistente OP9999.",
       "Ruta OP9999 referencia producto inexistente PCL9999.",
       "Ruta producto OP9999 referencia subproducto inexistente SUB9999.",
@@ -172,4 +175,17 @@ test("plantilla usa estaciones ET en rutas y no subprocesos visibles", () => {
     "estacion_codigo",
     "estacion_nombre"
   ]);
+});
+
+test("plantilla vincula operaciones OP con subproductos", () => {
+  expect(
+    hojasPlantillaIngenieria.Operaciones_OP[0]
+  ).toEqual(
+    expect.arrayContaining([
+      "operacion_codigo",
+      "operacion_nombre",
+      "subproducto_codigo",
+      "pieza_codigo"
+    ])
+  );
 });

@@ -162,6 +162,15 @@ export const prepararOperacionCatalogo = (
     producto_nombre: limpiarTexto(
       datos.producto_nombre
     ),
+    subproducto_id: limpiarTexto(
+      datos.subproducto_id
+    ),
+    subproducto_codigo: limpiarTexto(
+      datos.subproducto_codigo
+    ),
+    subproducto_nombre: limpiarTexto(
+      datos.subproducto_nombre
+    ),
     productos_asociados: prepararProductosAsociados(
       datos.productos_asociados,
       {
@@ -381,6 +390,12 @@ export const actualizarOperacionCatalogo = async (
         operacionActualizada.producto_codigo,
       producto_nombre:
         operacionActualizada.producto_nombre,
+      subproducto_id:
+        operacionActualizada.subproducto_id,
+      subproducto_codigo:
+        operacionActualizada.subproducto_codigo,
+      subproducto_nombre:
+        operacionActualizada.subproducto_nombre,
       productos_asociados:
         operacionActualizada.productos_asociados,
       pieza_id: operacionActualizada.pieza_id,

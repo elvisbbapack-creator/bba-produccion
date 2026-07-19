@@ -268,6 +268,7 @@ export const hojasPlantillaIngenieria = {
     [
       "operacion_codigo",
       "operacion_nombre",
+      "subproducto_codigo",
       "pieza_codigo",
       "material_entrada_codigo",
       "material_entrada_cantidad",
@@ -276,6 +277,7 @@ export const hojasPlantillaIngenieria = {
     [
       "OP0001",
       "Corte lateral 290",
+      "SUB0001",
       "PZ0001",
       "MP0001",
       "0.29",
@@ -569,6 +571,9 @@ export const leerIngenieriaDesdeWorkbook = (
       ),
       pieza_codigo: normalizarCodigo(
         fila.pieza_codigo
+      ),
+      subproducto_codigo: normalizarCodigo(
+        fila.subproducto_codigo
       ),
       proceso_codigo: normalizarCodigo(
         fila.proceso_codigo
@@ -1057,6 +1062,16 @@ export const validarIngenieriaImportada = data => {
     ) {
       errores.push(
         `Operación ${operacion.codigo} requiere nombre y pieza.`
+      );
+    }
+    if (
+      operacion.subproducto_codigo &&
+      !subproductosPorCodigo.has(
+        operacion.subproducto_codigo
+      )
+    ) {
+      errores.push(
+        `Operación ${operacion.codigo} referencia subproducto inexistente ${operacion.subproducto_codigo}.`
       );
     }
     if (

@@ -12,6 +12,7 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
+  actualizarOperacionCatalogo,
   guardarOperacionCatalogo,
   listarOperacionesCatalogo
 } from "../detalles/detallesRepository";
@@ -708,6 +709,12 @@ function ImportadorIngenieriaV2({
           materiales.get(
             operacion.material_salida_codigo
           );
+        const subproductoOperacion =
+          operacion.subproducto_codigo
+            ? subproductos.get(
+                operacion.subproducto_codigo
+              )
+            : null;
 
         if (
           !operacionesExistentes.has(
@@ -724,6 +731,12 @@ function ImportadorIngenieriaV2({
               pieza_codigo: pieza.codigo,
               pieza_nombre: pieza.nombre,
               medida: pieza.medida,
+              subproducto_id:
+                subproductoOperacion?.id || "",
+              subproducto_codigo:
+                subproductoOperacion?.codigo || "",
+              subproducto_nombre:
+                subproductoOperacion?.nombre || "",
               material_entrada_id:
                 materialesEntrada[0]?.material_id ||
                 "",
@@ -738,6 +751,32 @@ function ImportadorIngenieriaV2({
             )
           );
           operaciones.set(creada.codigo, creada);
+        } else if (subproductoOperacion) {
+          const existente = operaciones.get(
+            operacion.codigo
+          );
+          const actualizada =
+            await actualizarOperacionCatalogo(
+              db,
+              perfil.empresa_id,
+              existente.id,
+              {
+                ...existente,
+                subproducto_id:
+                  subproductoOperacion.id,
+                subproducto_codigo:
+                  subproductoOperacion.codigo,
+                subproducto_nombre:
+                  subproductoOperacion.nombre
+              },
+              Array.from(
+                operaciones.values()
+              )
+            );
+          operaciones.set(
+            actualizada.codigo,
+            actualizada
+          );
         }
       }
 

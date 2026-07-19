@@ -29,6 +29,9 @@ test("normaliza código y textos de operación", () => {
         producto_id: "producto-1",
         producto_codigo: "pcl0001",
         producto_nombre: " Modular ",
+        subproducto_id: "sub-1",
+        subproducto_codigo: "SUB0001",
+        subproducto_nombre: "Lateral",
         productos_asociados: [{
           producto_id: "producto-2",
           producto_codigo: "PCL0002",
@@ -52,6 +55,9 @@ test("normaliza código y textos de operación", () => {
     producto_id: "producto-1",
     producto_codigo: "PCL0001",
     producto_nombre: "Modular",
+    subproducto_id: "sub-1",
+    subproducto_codigo: "SUB0001",
+    subproducto_nombre: "Lateral",
     productos_asociados: [
       {
         producto_id: "producto-1",
@@ -116,6 +122,9 @@ test("permite varios materiales de entrada", () => {
     producto_id: "producto-1",
     producto_codigo: "PCL0001",
     producto_nombre: "Modular",
+    subproducto_id: "",
+    subproducto_codigo: "",
+    subproducto_nombre: "",
     productos_asociados: [{
       producto_id: "producto-1",
       producto_codigo: "PCL0001",

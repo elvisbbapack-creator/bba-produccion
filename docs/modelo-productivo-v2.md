@@ -190,7 +190,8 @@ omiten para evitar duplicados. La V3 puede crear `MP`, `RF` y `SUM`; `RT` no es
 un tipo formal del modelo actual. En `Piezas_PZ`, `material_base_codigo` acepta
 uno o varios codigos separados por coma (por ejemplo `RF0001, RF0002`) y
 `material_base_cantidad` permite las cantidades equivalentes. En
-`Operaciones_OP`, `material_entrada_codigo` y `material_entrada_cantidad`
+`Operaciones_OP`, `subproducto_codigo` vincula la operacion al subproducto
+cuando corresponde, y `material_entrada_codigo` / `material_entrada_cantidad`
 permiten varios materiales con cantidades reales. Las rutas se cargan desde
 `Ruta_Producto` y `Ruta_Subproducto`, separando el catalogo de operaciones de
 la secuencia productiva, estandar, proceso y estacion. La plantilla visible usa
