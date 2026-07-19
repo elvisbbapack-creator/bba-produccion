@@ -4,6 +4,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   aCatalogoProcesosRuta,
   listarProcesosEstaciones
@@ -251,6 +252,13 @@ export default function CostosOperativosFijosV2({
       maxWidth: 1200,
       margin: "0 auto"
     }}>
+      <BotonVolver
+        onClick={onVolver}
+        style={{ marginBottom: 12 }}
+      >
+        Volver
+      </BotonVolver>
+
       <h2>Costos Operativos Fijos de Planta</h2>
       <p style={{
         color: "#475569",
@@ -743,12 +751,6 @@ export default function CostosOperativosFijosV2({
           onClick={limpiar}
         >
           Limpiar formulario
-        </button>
-        <button
-          style={botonSecundario}
-          onClick={onVolver}
-        >
-          Volver
         </button>
       </div>
 

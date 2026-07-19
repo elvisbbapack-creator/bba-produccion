@@ -4,6 +4,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   TIPOS_MATERIAL
 } from "../../domain/produccionV2";
@@ -748,20 +749,12 @@ function CatalogoMaterialesV2({
         maxWidth: 1100,
         margin: "0 auto"
       }}>
-        <button
-          type="button"
+        <BotonVolver
           onClick={onVolver}
-          style={{
-            border: "none",
-            background: "transparent",
-            color: "#1D4ED8",
-            cursor: "pointer",
-            fontWeight: "bold",
-            marginBottom: 12
-          }}
+          style={{ marginBottom: 12 }}
         >
           Volver a Ingeniería
-        </button>
+        </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
           Catálogo de materiales V2

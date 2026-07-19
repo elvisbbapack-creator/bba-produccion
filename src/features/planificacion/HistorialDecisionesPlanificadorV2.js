@@ -3,6 +3,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   construirAprendizajeDecisionesPlanificador,
   listarImpactosDecisionesPlanificador,
@@ -189,19 +190,12 @@ function HistorialDecisionesPlanificadorV2({
         maxWidth: 1280,
         margin: "0 auto"
       }}>
-        <button
-          type="button"
+        <BotonVolver
           onClick={onVolver}
-          style={{
-            border: "none",
-            background: "transparent",
-            color: "#1D4ED8",
-            cursor: "pointer",
-            fontWeight: "bold"
-          }}
+          style={{ marginBottom: 12 }}
         >
           Volver a Operación
-        </button>
+        </BotonVolver>
 
         <div style={{
           display: "flex",

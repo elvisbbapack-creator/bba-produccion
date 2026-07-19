@@ -4,6 +4,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   actualizarProceso,
   guardarProceso,
@@ -297,19 +298,9 @@ function CatalogoProcesosEstacionesV2({
         display: "grid",
         gap: 18
       }}>
-        <button
-          onClick={onVolver}
-          style={{
-            width: "fit-content",
-            padding: "9px 13px",
-            borderRadius: 8,
-            border: "1px solid #CBD5E1",
-            background: "white",
-            cursor: "pointer"
-          }}
-        >
+        <BotonVolver onClick={onVolver}>
           Volver
-        </button>
+        </BotonVolver>
 
         <section style={{
           background: "white",

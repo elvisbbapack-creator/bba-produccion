@@ -4,6 +4,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   listarMateriales
 } from "../materiales/materialesRepository";
@@ -1146,6 +1147,13 @@ export default function CotizadorTecnicoV2({
       maxWidth: 1250,
       margin: "0 auto"
     }}>
+      <BotonVolver
+        onClick={onVolver}
+        style={{ marginBottom: 12 }}
+      >
+        Volver
+      </BotonVolver>
+
       <h2>Costeo y Cotización Técnica</h2>
       <p style={{
         color: "#475569",
@@ -1755,12 +1763,6 @@ export default function CotizadorTecnicoV2({
           onClick={limpiarFormulario}
         >
           Nueva cotización
-        </button>
-        <button
-          style={botonSecundario}
-          onClick={onVolver}
-        >
-          Volver
         </button>
       </div>
 

@@ -3,6 +3,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   observarOrdenesActivas,
   observarResumenPlanta,
@@ -256,6 +257,15 @@ function DashboardV2({
         maxWidth: modoTv ? "100%" : 1400,
         margin: "0 auto"
       }}>
+        {perfil.rol !== "tv" && (
+          <BotonVolver
+            onClick={onVolver}
+            style={{ marginBottom: 12 }}
+          >
+            Volver
+          </BotonVolver>
+        )}
+
         <header style={{
           display: "flex",
           justifyContent: "space-between",
@@ -330,20 +340,6 @@ function DashboardV2({
                   {modoTv
                     ? "Vista normal"
                     : "Modo TV"}
-                </button>
-                <button
-                  type="button"
-                  onClick={onVolver}
-                  style={{
-                    padding: "10px 14px",
-                    border: "none",
-                    borderRadius: 8,
-                    background: "#2563EB",
-                    color: "white",
-                    cursor: "pointer"
-                  }}
-                >
-                  Volver
                 </button>
               </>
             )}

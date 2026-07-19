@@ -3,6 +3,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   PERMISOS_V2,
   permisosPorRol
@@ -337,6 +338,13 @@ export default function GestionUsuariosV2({
       maxWidth: 1180,
       margin: "0 auto"
     }}>
+      <BotonVolver
+        onClick={onVolver}
+        style={{ marginBottom: 12 }}
+      >
+        Volver
+      </BotonVolver>
+
       <h2>
         Usuarios, Acceso y Permisos
       </h2>
@@ -970,15 +978,6 @@ export default function GestionUsuariosV2({
         ))}
       </div>
 
-      <button
-        style={{
-          ...botonSecundario,
-          marginTop: 18
-        }}
-        onClick={onVolver}
-      >
-        Volver
-      </button>
     </div>
   );
 }

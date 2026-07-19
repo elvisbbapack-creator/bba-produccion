@@ -5,6 +5,7 @@ import {
   useRef,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   validarRuta
 } from "../../domain/produccionV2";
@@ -1595,19 +1596,12 @@ function ConstructorRutasV2({
         maxWidth: 1250,
         margin: "0 auto"
       }}>
-        <button
-          type="button"
+        <BotonVolver
           onClick={onVolver}
-          style={{
-            border: "none",
-            background: "transparent",
-            color: "#1D4ED8",
-            cursor: "pointer",
-            fontWeight: "bold"
-          }}
+          style={{ marginBottom: 12 }}
         >
           Volver a Ingeniería
-        </button>
+        </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
           Productos y rutas V2

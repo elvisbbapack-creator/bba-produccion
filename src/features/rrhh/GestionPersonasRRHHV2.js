@@ -5,6 +5,7 @@ import {
   useState
 } from "react";
 import * as XLSX from "xlsx";
+import BotonVolver from "../../components/BotonVolver";
 import {
   EQUIPOS_TRABAJO_RRHH,
   PLANTAS_RRHH,
@@ -455,6 +456,13 @@ export default function GestionPersonasRRHHV2({
       maxWidth: 1180,
       margin: "0 auto"
     }}>
+      <BotonVolver
+        onClick={onVolver}
+        style={{ marginBottom: 12 }}
+      >
+        Volver
+      </BotonVolver>
+
       <h2>RRHH / Personas</h2>
       <p style={{
         color: "#475569",
@@ -1122,15 +1130,6 @@ export default function GestionPersonasRRHHV2({
         ))}
       </div>
 
-      <button
-        style={{
-          ...botonSecundario,
-          marginTop: 18
-        }}
-        onClick={onVolver}
-      >
-        Volver
-      </button>
     </div>
   );
 }

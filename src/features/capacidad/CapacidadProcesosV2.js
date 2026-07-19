@@ -4,6 +4,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   calcularCapacidadRecursos,
   construirGuiaValidacionCapacidad,
@@ -415,19 +416,12 @@ function CapacidadProcesosV2({
         maxWidth: 1100,
         margin: "0 auto"
       }}>
-        <button
-          type="button"
+        <BotonVolver
           onClick={onVolver}
-          style={{
-            border: "none",
-            background: "transparent",
-            color: "#1D4ED8",
-            cursor: "pointer",
-            fontWeight: "bold"
-          }}
+          style={{ marginBottom: 12 }}
         >
           {textoVolver}
-        </button>
+        </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
           Capacidad por proceso V2

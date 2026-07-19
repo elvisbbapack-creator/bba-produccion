@@ -4,6 +4,7 @@ import {
   useMemo,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   listarOperacionesOT
 } from "../ordenes/ordenesRepository";
@@ -973,19 +974,12 @@ function EjecucionProduccionV2({
         maxWidth: 1200,
         margin: "0 auto"
       }}>
-        <button
-          type="button"
+        <BotonVolver
           onClick={onVolver}
-          style={{
-            border: "none",
-            background: "transparent",
-            color: "#1D4ED8",
-            cursor: "pointer",
-            fontWeight: "bold"
-          }}
+          style={{ marginBottom: 12 }}
         >
           Volver a Operación
-        </button>
+        </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
           Ejecución productiva V2

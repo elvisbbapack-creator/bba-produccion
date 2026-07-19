@@ -3,6 +3,7 @@ import {
   useEffect,
   useState
 } from "react";
+import BotonVolver from "../../components/BotonVolver";
 import {
   crearCausa,
   crearDefecto,
@@ -175,19 +176,12 @@ function CalidadV2({ db, perfil, onVolver }) {
         maxWidth: 1200,
         margin: "0 auto"
       }}>
-        <button
-          type="button"
+        <BotonVolver
           onClick={onVolver}
-          style={{
-            border: "none",
-            background: "transparent",
-            color: "#1D4ED8",
-            fontWeight: "bold",
-            cursor: "pointer"
-          }}
+          style={{ marginBottom: 12 }}
         >
           Volver
-        </button>
+        </BotonVolver>
         <h1>Calidad V2</h1>
         <p style={{ color: "#475569" }}>
           Catálogos de calidad, merma y reprocesos
