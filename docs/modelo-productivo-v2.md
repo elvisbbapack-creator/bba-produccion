@@ -172,6 +172,7 @@ para cargar ingenieria completa con estas hojas:
 ```text
 Materiales_MP_SUM
 Recursos_RF
+Procesos_ET
 Productos_PCL
 Subproductos_SUB
 Piezas_PZ
@@ -192,7 +193,9 @@ uno o varios codigos separados por coma (por ejemplo `RF0001, RF0002`) y
 `Operaciones_OP`, `material_entrada_codigo` y `material_entrada_cantidad`
 permiten varios materiales con cantidades reales. Las rutas se cargan desde
 `Ruta_Producto` y `Ruta_Subproducto`, separando el catalogo de operaciones de
-la secuencia productiva, estandar, proceso y estacion.
+la secuencia productiva, estandar, proceso y estacion. La plantilla visible usa
+`estacion_codigo` y `estacion_nombre`; los campos `subproceso_*` quedan solo
+como compatibilidad interna con archivos antiguos.
 
 ### `catalogo_procesos_estaciones/{empresaId}__{codigoPR}`
 

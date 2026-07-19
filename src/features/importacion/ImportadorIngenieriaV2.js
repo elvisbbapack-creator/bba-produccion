@@ -20,6 +20,11 @@ import {
   listarPiezas
 } from "../piezas/piezasRepository";
 import {
+  actualizarProceso,
+  guardarProceso,
+  listarProcesosEstaciones
+} from "../procesos/procesosRepository";
+import {
   actualizarComposicionProducto,
   crearProductoConRuta,
   guardarOperacionRuta,
@@ -83,7 +88,8 @@ function ImportadorIngenieriaV2({
     piezas: [],
     subproductos: [],
     operaciones: [],
-    materiales: []
+    materiales: [],
+    procesos: []
   });
   const [cargando, setCargando] =
     useState(true);
@@ -107,7 +113,8 @@ function ImportadorIngenieriaV2({
           piezas,
           subproductos,
           operaciones,
-          materiales
+          materiales,
+          procesos
         ] = await Promise.all([
           listarProductos(db, perfil.empresa_id),
           listarPiezas(db, perfil.empresa_id),
@@ -119,14 +126,19 @@ function ImportadorIngenieriaV2({
             db,
             perfil.empresa_id
           ),
-          listarMateriales(db, perfil.empresa_id)
+          listarMateriales(db, perfil.empresa_id),
+          listarProcesosEstaciones(
+            db,
+            perfil.empresa_id
+          )
         ]);
         setCatalogos({
           productos,
           piezas,
           subproductos,
           operaciones,
-          materiales
+          materiales,
+          procesos
         });
       } catch (fallo) {
         setError(
@@ -166,7 +178,8 @@ function ImportadorIngenieriaV2({
         ),
         operaciones: porCodigo(
           catalogos.operaciones
-        )
+        ),
+        procesos: porCodigo(catalogos.procesos)
       };
 
       data.piezas.forEach(pieza => {
@@ -207,6 +220,14 @@ function ImportadorIngenieriaV2({
         ) {
           advertencias.push(
             `Producto ${producto.codigo} ya existe y se usará para la ruta.`
+          );
+        }
+      });
+
+      (data.procesos || []).forEach(proceso => {
+        if (existentes.procesos.has(proceso.codigo)) {
+          advertencias.push(
+            `Proceso ${proceso.codigo} ya existe; se agregarán estaciones nuevas si faltan.`
           );
         }
       });
@@ -333,6 +354,9 @@ function ImportadorIngenieriaV2({
       const operacionesExistentes = porCodigo(
         catalogos.operaciones
       );
+      const procesosExistentes = porCodigo(
+        catalogos.procesos
+      );
 
       const productos = new Map(
         productosExistentes
@@ -344,6 +368,61 @@ function ImportadorIngenieriaV2({
       const operaciones = new Map(
         operacionesExistentes
       );
+      const procesos = new Map(
+        procesosExistentes
+      );
+
+      for (const proceso of preview.procesos || []) {
+        const existente = procesos.get(
+          proceso.codigo
+        );
+        if (!existente) {
+          const creado = await guardarProceso(
+            db,
+            perfil.empresa_id,
+            proceso,
+            Array.from(procesos.values())
+          );
+          procesos.set(creado.codigo, creado);
+          continue;
+        }
+
+        const estacionesExistentes = new Set(
+          (existente.estaciones || []).map(
+            estacion => estacion.codigo
+          )
+        );
+        const estacionesNuevas =
+          (proceso.estaciones || []).filter(
+            estacion =>
+              !estacionesExistentes.has(
+                estacion.codigo
+              )
+          );
+        if (estacionesNuevas.length === 0) {
+          continue;
+        }
+
+        const actualizado = await actualizarProceso(
+          db,
+          perfil.empresa_id,
+          existente.id,
+          {
+            ...existente,
+            nombre:
+              existente.nombre || proceso.nombre,
+            estaciones: [
+              ...(existente.estaciones || []),
+              ...estacionesNuevas
+            ]
+          },
+          Array.from(procesos.values())
+        );
+        procesos.set(
+          actualizado.codigo,
+          actualizado
+        );
+      }
 
       for (const producto of preview.productos) {
         if (productos.has(producto.codigo)) {
@@ -767,6 +846,14 @@ function ImportadorIngenieriaV2({
                   itemRuta.subproducto_codigo
                 )
               : null;
+          const estacionCodigo =
+            itemRuta.estacion_codigo ||
+            itemRuta.subproceso_codigo ||
+            "";
+          const estacionNombre =
+            itemRuta.estacion_nombre ||
+            itemRuta.subproceso_nombre ||
+            "";
 
           await guardarOperacionRuta(
             db,
@@ -789,10 +876,12 @@ function ImportadorIngenieriaV2({
                 itemRuta.proceso_codigo,
               proceso_nombre:
                 itemRuta.proceso_nombre,
+              estacion_codigo: estacionCodigo,
+              estacion_nombre: estacionNombre,
               subproceso_codigo:
-                itemRuta.subproceso_codigo,
+                estacionCodigo,
               subproceso_nombre:
-                itemRuta.subproceso_nombre,
+                estacionNombre,
               material_entrada_id:
                 materialesEntrada[0]?.material_id ||
                 "",
@@ -994,6 +1083,9 @@ function ImportadorIngenieriaV2({
                 <li>
                   Materiales MP/RF/SUM:{" "}
                   {resumen.materiales}
+                </li>
+                <li>
+                  Procesos/ET: {resumen.procesos}
                 </li>
                 <li>Productos: {resumen.productos}</li>
                 <li>Piezas: {resumen.piezas}</li>

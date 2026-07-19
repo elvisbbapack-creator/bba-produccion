@@ -88,6 +88,59 @@ const validarUnicos = (
   });
 };
 
+const agruparProcesosEstaciones = filas => {
+  const procesos = new Map();
+
+  filas
+    .filter(fila =>
+      fila.proceso_codigo ||
+      fila.proceso_nombre ||
+      fila.estacion_codigo ||
+      fila.estacion_nombre
+    )
+    .forEach(fila => {
+      const codigo = normalizarCodigo(
+        fila.proceso_codigo
+      );
+      if (!procesos.has(codigo)) {
+        procesos.set(codigo, {
+          codigo,
+          nombre: limpiarTexto(
+            fila.proceso_nombre
+          ),
+          activo: true,
+          estaciones: []
+        });
+      }
+
+      const proceso = procesos.get(codigo);
+      if (!proceso.nombre) {
+        proceso.nombre = limpiarTexto(
+          fila.proceso_nombre
+        );
+      }
+
+      const estacionCodigo = normalizarCodigo(
+        fila.estacion_codigo ||
+        fila.subproceso_codigo
+      );
+      const estacionNombre = limpiarTexto(
+        fila.estacion_nombre ||
+        fila.subproceso_nombre
+      );
+
+      if (estacionCodigo || estacionNombre) {
+        proceso.estaciones.push({
+          codigo: estacionCodigo,
+          nombre: estacionNombre,
+          activo: true
+        });
+      }
+    });
+
+  return Array.from(procesos.values());
+};
+
 export const hojasPlantillaIngenieria = {
   Materiales_MP_SUM: [
     [
@@ -135,6 +188,20 @@ export const hojasPlantillaIngenieria = {
       "unidad",
       "PCL0001",
       "SUB0001"
+    ]
+  ],
+  Procesos_ET: [
+    [
+      "proceso_codigo",
+      "proceso_nombre",
+      "estacion_codigo",
+      "estacion_nombre"
+    ],
+    [
+      "PR0001",
+      "Corte",
+      "ET0001",
+      "Tubo en prensa"
     ]
   ],
   Productos_PCL: [
@@ -294,6 +361,10 @@ export const leerIngenieriaDesdeWorkbook = (
     obtenerHoja(workbook, ["Recursos_RF"]),
     xlsx
   );
+  const procesoFilas = leerFilas(
+    obtenerHoja(workbook, ["Procesos_ET"]),
+    xlsx
+  );
   const productoFilas = leerFilas(
     obtenerHoja(workbook, [
       "Productos_PCL",
@@ -378,6 +449,10 @@ export const leerIngenieriaDesdeWorkbook = (
         activo: booleano(fila.activo)
       }))
   ];
+
+  const procesos = agruparProcesosEstaciones(
+    procesoFilas
+  );
 
   const productos = productoFilas
     .filter(fila =>
@@ -501,11 +576,11 @@ export const leerIngenieriaDesdeWorkbook = (
       proceso_nombre: limpiarTexto(
         fila.proceso_nombre
       ),
-      subproceso_codigo: normalizarCodigo(
+      estacion_codigo: normalizarCodigo(
         fila.estacion_codigo ||
         fila.subproceso_codigo
       ),
-      subproceso_nombre: limpiarTexto(
+      estacion_nombre: limpiarTexto(
         fila.estacion_nombre ||
         fila.subproceso_nombre
       ),
@@ -558,11 +633,11 @@ export const leerIngenieriaDesdeWorkbook = (
       proceso_nombre: limpiarTexto(
         fila.proceso_nombre
       ),
-      subproceso_codigo: normalizarCodigo(
+      estacion_codigo: normalizarCodigo(
         fila.estacion_codigo ||
         fila.subproceso_codigo
       ),
-      subproceso_nombre: limpiarTexto(
+      estacion_nombre: limpiarTexto(
         fila.estacion_nombre ||
         fila.subproceso_nombre
       ),
@@ -607,11 +682,11 @@ export const leerIngenieriaDesdeWorkbook = (
       proceso_nombre: limpiarTexto(
         fila.proceso_nombre
       ),
-      subproceso_codigo: normalizarCodigo(
+      estacion_codigo: normalizarCodigo(
         fila.estacion_codigo ||
         fila.subproceso_codigo
       ),
-      subproceso_nombre: limpiarTexto(
+      estacion_nombre: limpiarTexto(
         fila.estacion_nombre ||
         fila.subproceso_nombre
       ),
@@ -638,6 +713,7 @@ export const leerIngenieriaDesdeWorkbook = (
 
   return validarIngenieriaImportada({
     materiales,
+    procesos,
     productos,
     piezas,
     subproductos,
@@ -649,7 +725,15 @@ export const leerIngenieriaDesdeWorkbook = (
         ? rutas
         : operaciones.map(operacion => ({
             ...operacion,
-            tipo_ruta: "PRODUCTO"
+            tipo_ruta: "PRODUCTO",
+            estacion_codigo:
+              operacion.estacion_codigo ||
+              operacion.subproceso_codigo ||
+              "",
+            estacion_nombre:
+              operacion.estacion_nombre ||
+              operacion.subproceso_nombre ||
+              ""
           }))
   });
 };
@@ -692,6 +776,12 @@ export const validarIngenieriaImportada = data => {
     data.materiales || [],
     "codigo",
     "El material",
+    errores
+  );
+  validarUnicos(
+    data.procesos || [],
+    "codigo",
+    "El proceso",
     errores
   );
   validarUnicos(
@@ -745,6 +835,44 @@ export const validarIngenieriaImportada = data => {
         `Material ${material.codigo} requiere unidad_medida.`
       );
     }
+  });
+
+  (data.procesos || []).forEach(proceso => {
+    if (!/^PR\d{4,}$/.test(proceso.codigo)) {
+      errores.push(
+        `Proceso ${proceso.codigo || "(sin código)"} debe usar formato PR0001.`
+      );
+    }
+    if (!proceso.nombre) {
+      errores.push(
+        `Proceso ${proceso.codigo} requiere nombre.`
+      );
+    }
+    if ((proceso.estaciones || []).length === 0) {
+      errores.push(
+        `Proceso ${proceso.codigo} requiere al menos una estación ET.`
+      );
+    }
+
+    const estacionesUsadas = new Set();
+    (proceso.estaciones || []).forEach(estacion => {
+      if (!/^ET\d{4,}$/.test(estacion.codigo)) {
+        errores.push(
+          `Estación ${estacion.codigo || "(sin código)"} del proceso ${proceso.codigo} debe usar formato ET0001.`
+        );
+      }
+      if (!estacion.nombre) {
+        errores.push(
+          `Estación ${estacion.codigo} del proceso ${proceso.codigo} requiere nombre.`
+        );
+      }
+      if (estacionesUsadas.has(estacion.codigo)) {
+        errores.push(
+          `Proceso ${proceso.codigo} repite estación ${estacion.codigo}.`
+        );
+      }
+      estacionesUsadas.add(estacion.codigo);
+    });
   });
 
   data.productos.forEach(producto => {
@@ -949,31 +1077,6 @@ export const validarIngenieriaImportada = data => {
         }
         entradasUsadas.add(materialCodigo);
       });
-    if (operacion.unidades_por_producto <= 0) {
-      errores.push(
-        `Operación ${operacion.codigo} requiere unidades_por_producto mayor que cero.`
-      );
-    }
-    if (operacion.unidades_por_hora <= 0) {
-      errores.push(
-        `Operación ${operacion.codigo} requiere unidades_por_hora mayor que cero.`
-      );
-    }
-    if (operacion.secuencia <= 0) {
-      errores.push(
-        `Operación ${operacion.codigo} requiere secuencia mayor que cero.`
-      );
-    }
-    if (
-      operacion.dependencia_operacion_codigo &&
-      !operacionesPorCodigo.has(
-        operacion.dependencia_operacion_codigo
-      )
-    ) {
-      errores.push(
-        `Operación ${operacion.codigo} depende de operación inexistente ${operacion.dependencia_operacion_codigo}.`
-      );
-    }
   });
 
   (data.rutas || []).forEach(ruta => {
@@ -1010,8 +1113,8 @@ export const validarIngenieriaImportada = data => {
     if (
       !ruta.proceso_codigo ||
       !ruta.proceso_nombre ||
-      !ruta.subproceso_codigo ||
-      !ruta.subproceso_nombre
+      !ruta.estacion_codigo ||
+      !ruta.estacion_nombre
     ) {
       errores.push(
         `Ruta ${ruta.codigo} requiere proceso y estación.`
@@ -1065,6 +1168,7 @@ export const validarIngenieriaImportada = data => {
 
 export const resumenIngenieria = data => ({
   materiales: data?.materiales?.length || 0,
+  procesos: data?.procesos?.length || 0,
   productos: data?.productos?.length || 0,
   piezas: data?.piezas?.length || 0,
   subproductos: data?.subproductos?.length || 0,
