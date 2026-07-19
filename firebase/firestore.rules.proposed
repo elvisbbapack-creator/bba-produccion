@@ -177,6 +177,7 @@ service cloud.firestore {
           'productos',
           'catalogo_piezas',
           'catalogo_subproductos',
+          'catalogo_procesos_estaciones',
           'catalogo_operaciones',
           'catalogo_defectos',
           'catalogo_causas',
@@ -192,6 +193,7 @@ service cloud.firestore {
           'productos',
           'catalogo_piezas',
           'catalogo_subproductos',
+          'catalogo_procesos_estaciones',
           'catalogo_operaciones',
           'catalogo_defectos',
           'catalogo_causas',
@@ -208,6 +210,7 @@ service cloud.firestore {
           'productos',
           'catalogo_piezas',
           'catalogo_subproductos',
+          'catalogo_procesos_estaciones',
           'catalogo_operaciones',
           'catalogo_defectos',
           'catalogo_causas',
@@ -223,6 +226,20 @@ service cloud.firestore {
     }
 
     match /productos/{productoId}/rutas/{rutaId} {
+      allow read: if belongsToCompany(resource.data);
+      allow create, update: if isManagement() &&
+        belongsToCompany(request.resource.data);
+      allow delete: if false;
+
+      match /operaciones/{operacionId} {
+        allow read: if belongsToCompany(resource.data);
+        allow create, update: if isManagement() &&
+          belongsToCompany(request.resource.data);
+        allow delete: if false;
+      }
+    }
+
+    match /catalogo_subproductos/{subproductoId}/rutas/{rutaId} {
       allow read: if belongsToCompany(resource.data);
       allow create, update: if isManagement() &&
         belongsToCompany(request.resource.data);
