@@ -226,13 +226,21 @@ service cloud.firestore {
     }
 
     match /productos/{productoId}/rutas/{rutaId} {
-      allow read: if belongsToCompany(resource.data);
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/productos/$(productoId)/rutas/$(rutaId)
+          )
+        ) ||
+        belongsToCompany(resource.data);
+      allow list: if isManagement();
       allow create, update: if isManagement() &&
         belongsToCompany(request.resource.data);
       allow delete: if false;
 
       match /operaciones/{operacionId} {
-        allow read: if belongsToCompany(resource.data);
+        allow get: if belongsToCompany(resource.data);
+        allow list: if isManagement();
         allow create, update: if isManagement() &&
           belongsToCompany(request.resource.data);
         allow delete: if false;
@@ -240,13 +248,21 @@ service cloud.firestore {
     }
 
     match /catalogo_subproductos/{subproductoId}/rutas/{rutaId} {
-      allow read: if belongsToCompany(resource.data);
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/catalogo_subproductos/$(subproductoId)/rutas/$(rutaId)
+          )
+        ) ||
+        belongsToCompany(resource.data);
+      allow list: if isManagement();
       allow create, update: if isManagement() &&
         belongsToCompany(request.resource.data);
       allow delete: if false;
 
       match /operaciones/{operacionId} {
-        allow read: if belongsToCompany(resource.data);
+        allow get: if belongsToCompany(resource.data);
+        allow list: if isManagement();
         allow create, update: if isManagement() &&
           belongsToCompany(request.resource.data);
         allow delete: if false;
