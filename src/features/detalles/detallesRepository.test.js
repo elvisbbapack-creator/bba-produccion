@@ -148,7 +148,7 @@ test("permite varios materiales de entrada", () => {
   });
 });
 
-test("exige código OP, pieza, nombre, medida y material", () => {
+test("exige código OP, pieza, nombre y material", () => {
   expect(
     validarOperacionCatalogo({
       id: "operacion-1",
@@ -162,7 +162,6 @@ test("exige código OP, pieza, nombre, medida y material", () => {
     "El código de operación debe usar el formato OP0001.",
     "La operación requiere nombre.",
     "Selecciona una pieza.",
-    "La operación requiere medida.",
     "Selecciona el material de entrada."
   ]);
 });

@@ -893,6 +893,20 @@ function ImportadorIngenieriaV2({
             itemRuta.estacion_nombre ||
             itemRuta.subproceso_nombre ||
             "";
+          const dependenciasRuta =
+            itemRuta
+              .dependencia_operacion_codigos
+              ?.length > 0
+              ? itemRuta
+                  .dependencia_operacion_codigos
+                  .map(dependenciaCodigo => ({
+                    ruta_operacion_id:
+                      dependenciaCodigo,
+                    porcentaje_minimo_avance:
+                      itemRuta
+                        .porcentaje_minimo_avance
+                  }))
+              : [];
 
           await guardarOperacionRuta(
             db,
@@ -934,6 +948,7 @@ function ImportadorIngenieriaV2({
               unidades_por_hora:
                 itemRuta.unidades_por_hora,
               secuencia: itemRuta.secuencia,
+              dependencias: dependenciasRuta,
               dependencia_id:
                 itemRuta
                   .dependencia_operacion_codigo,

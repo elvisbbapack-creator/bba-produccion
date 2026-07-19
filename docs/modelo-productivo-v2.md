@@ -187,14 +187,17 @@ El importador primero lee el archivo, normaliza codigos, valida referencias
 cruzadas y muestra una vista previa. Solo permite confirmar la importacion si no
 hay errores criticos. Los registros que ya existen se usan como referencia y se
 omiten para evitar duplicados. La V3 puede crear `MP`, `RF` y `SUM`; `RT` no es
-un tipo formal del modelo actual. En `Piezas_PZ`, `material_base_codigo` acepta
-uno o varios codigos separados por coma (por ejemplo `RF0001, RF0002`) y
-`material_base_cantidad` permite las cantidades equivalentes. En
+un tipo formal del modelo actual. En `Piezas_PZ`, `medida` es opcional y puede
+completarse despues; `material_base_codigo` acepta uno o varios codigos
+separados por coma (por ejemplo `RF0001, RF0002`) y `material_base_cantidad`
+permite las cantidades equivalentes. En
 `Operaciones_OP`, `subproducto_codigo` vincula la operacion al subproducto
 cuando corresponde, y `material_entrada_codigo` / `material_entrada_cantidad`
 permiten varios materiales con cantidades reales. Las rutas se cargan desde
 `Ruta_Producto` y `Ruta_Subproducto`, separando el catalogo de operaciones de
-la secuencia productiva, estandar, proceso y estacion. La plantilla visible usa
+la secuencia productiva, estandar, proceso y estacion. En `Ruta_Subproducto`,
+la plantilla visible usa `unidades_por_subproducto`; el importador tambien
+acepta `unidades_por_producto` por compatibilidad. La plantilla visible usa
 `estacion_codigo` y `estacion_nombre`; los campos `subproceso_*` quedan solo
 como compatibilidad interna con archivos antiguos.
 

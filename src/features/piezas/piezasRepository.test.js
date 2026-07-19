@@ -225,7 +225,7 @@ test("prepara pieza relacionada principalmente a subproducto", () => {
   });
 });
 
-test("exige código PZ, nombre y medida", () => {
+test("exige código PZ y nombre", () => {
   expect(
     validarPieza({
       id: "pieza-1",
@@ -235,8 +235,7 @@ test("exige código PZ, nombre y medida", () => {
     })
   ).toEqual([
     "El código de pieza debe usar el formato PZ0001.",
-    "La pieza requiere nombre.",
-    "La pieza requiere medida."
+    "La pieza requiere nombre."
   ]);
 });
 

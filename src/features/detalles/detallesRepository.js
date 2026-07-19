@@ -220,12 +220,6 @@ export const validarOperacionCatalogo = (
     errores.push("Selecciona una pieza.");
   }
 
-  if (!operacion.medida) {
-    errores.push(
-      "La operación requiere medida."
-    );
-  }
-
   if (
     !operacion.material_entrada_id ||
     (operacion.materiales_entrada || [])

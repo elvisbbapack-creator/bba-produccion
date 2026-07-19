@@ -262,10 +262,6 @@ export const validarPieza = (
     errores.push("La pieza requiere nombre.");
   }
 
-  if (!pieza.medida) {
-    errores.push("La pieza requiere medida.");
-  }
-
   const materialesUsados = new Set();
   (pieza.materiales_base || []).forEach(
     (material, indice) => {

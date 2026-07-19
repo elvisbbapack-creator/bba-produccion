@@ -4,7 +4,12 @@ const limpiarTexto = valor =>
 const normalizarCodigo = valor =>
   limpiarTexto(valor)
     .toUpperCase()
-    .replace(/\s+/g, "");
+    .replace(/\s+/g, "")
+    .replace(
+      /^(MP|RF|SUM|PCL|SUB|PZ|OP|PR|ET)(\d+)$/,
+      (_, prefijo, numeroCodigo) =>
+        `${prefijo}${numeroCodigo.padStart(4, "0")}`
+    );
 
 const numero = valor => {
   const valorNumerico = Number(
@@ -38,6 +43,9 @@ const normalizarListaCodigos = valor =>
     .split(/[,;|]/)
     .map(normalizarCodigo)
     .filter(Boolean);
+
+const normalizarListaDependencias = valor =>
+  normalizarListaCodigos(valor);
 
 const normalizarListaNumeros = valor =>
   limpiarTexto(valor)
@@ -323,7 +331,7 @@ export const hojasPlantillaIngenieria = {
       "proceso_nombre",
       "estacion_codigo",
       "estacion_nombre",
-      "unidades_por_producto",
+      "unidades_por_subproducto",
       "unidades_por_hora",
       "secuencia",
       "dependencia_operacion_codigo",
@@ -604,7 +612,8 @@ export const leerIngenieriaDesdeWorkbook = (
         fila.material_salida_codigo
       ),
       unidades_por_producto: numero(
-        fila.unidades_por_producto
+        fila.unidades_por_producto ||
+        fila.unidades_por_subproducto
       ),
       unidades_por_hora: numero(
         fila.unidades_por_hora
@@ -612,6 +621,10 @@ export const leerIngenieriaDesdeWorkbook = (
       secuencia: numero(fila.secuencia),
       dependencia_operacion_codigo:
         normalizarCodigo(
+          fila.dependencia_operacion_codigo
+        ),
+      dependencia_operacion_codigos:
+        normalizarListaDependencias(
           fila.dependencia_operacion_codigo
         ),
       porcentaje_minimo_avance: numero(
@@ -650,7 +663,8 @@ export const leerIngenieriaDesdeWorkbook = (
         fila.subproducto_codigo
       ),
       unidades_por_producto: numero(
-        fila.unidades_por_producto
+        fila.unidades_por_producto ||
+        fila.unidades_por_subproducto
       ),
       unidades_por_hora: numero(
         fila.unidades_por_hora
@@ -658,6 +672,10 @@ export const leerIngenieriaDesdeWorkbook = (
       secuencia: numero(fila.secuencia),
       dependencia_operacion_codigo:
         normalizarCodigo(
+          fila.dependencia_operacion_codigo
+        ),
+      dependencia_operacion_codigos:
+        normalizarListaDependencias(
           fila.dependencia_operacion_codigo
         ),
       porcentaje_minimo_avance: numero(
@@ -696,7 +714,8 @@ export const leerIngenieriaDesdeWorkbook = (
         fila.subproceso_nombre
       ),
       unidades_por_producto: numero(
-        fila.unidades_por_producto
+        fila.unidades_por_producto ||
+        fila.unidades_por_subproducto
       ),
       unidades_por_hora: numero(
         fila.unidades_por_hora
@@ -704,6 +723,10 @@ export const leerIngenieriaDesdeWorkbook = (
       secuencia: numero(fila.secuencia),
       dependencia_operacion_codigo:
         normalizarCodigo(
+          fila.dependencia_operacion_codigo
+        ),
+      dependencia_operacion_codigos:
+        normalizarListaDependencias(
           fila.dependencia_operacion_codigo
         ),
       porcentaje_minimo_avance: numero(
@@ -899,9 +922,14 @@ export const validarIngenieriaImportada = data => {
         `Pieza ${pieza.codigo || "(sin código)"} debe usar formato PZ0001.`
       );
     }
-    if (!pieza.nombre || !pieza.medida) {
+    if (!pieza.nombre) {
       errores.push(
-        `Pieza ${pieza.codigo} requiere nombre y medida.`
+        `Pieza ${pieza.codigo} requiere nombre.`
+      );
+    }
+    if (!pieza.medida) {
+      advertencias.push(
+        `Pieza ${pieza.codigo} no tiene medida; se podrá completar después.`
       );
     }
 
@@ -951,12 +979,12 @@ export const validarIngenieriaImportada = data => {
         `Subproducto ${subproducto.codigo} referencia pieza salida inexistente ${subproducto.pieza_salida_codigo}.`
       );
     } else if (
-      !piezaSalida.nombre
-        .toLowerCase()
-        .includes("armado")
+      !/(armado|terminado)/i.test(
+        piezaSalida.nombre
+      )
     ) {
       errores.push(
-        `La pieza salida ${piezaSalida.codigo} del subproducto ${subproducto.codigo} debe incluir "Armado" en el nombre.`
+        `La pieza salida ${piezaSalida.codigo} del subproducto ${subproducto.codigo} debe incluir "Armado" o "Terminado" en el nombre.`
       );
     }
   });
@@ -1150,14 +1178,21 @@ export const validarIngenieriaImportada = data => {
         `Ruta ${ruta.codigo} requiere secuencia mayor que cero.`
       );
     }
-    if (
-      ruta.dependencia_operacion_codigo &&
-      !operacionesPorCodigo.has(
-        ruta.dependencia_operacion_codigo
-      )
-    ) {
+    const dependenciasRuta =
+      ruta.dependencia_operacion_codigos?.length > 0
+        ? ruta.dependencia_operacion_codigos
+        : ruta.dependencia_operacion_codigo
+          ? [ruta.dependencia_operacion_codigo]
+          : [];
+    const dependenciasInexistentes =
+      dependenciasRuta.filter(
+        dependencia =>
+          !operacionesPorCodigo.has(dependencia)
+      );
+
+    if (dependenciasInexistentes.length > 0) {
       errores.push(
-        `Ruta ${ruta.codigo} depende de operación inexistente ${ruta.dependencia_operacion_codigo}.`
+        `Ruta ${ruta.codigo} depende de operación inexistente ${dependenciasInexistentes.join(", ")}.`
       );
     }
   });

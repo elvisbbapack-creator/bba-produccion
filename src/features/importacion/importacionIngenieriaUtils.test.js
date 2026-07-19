@@ -1,8 +1,10 @@
 import {
   hojasPlantillaIngenieria,
+  leerIngenieriaDesdeWorkbook,
   resumenIngenieria,
   validarIngenieriaImportada
 } from "./importacionIngenieriaUtils";
+import * as XLSX from "xlsx";
 
 const dataValida = {
   materiales: [
@@ -188,4 +190,124 @@ test("plantilla vincula operaciones OP con subproductos", () => {
       "pieza_codigo"
     ])
   );
+});
+
+test("acepta medidas vacías como advertencia", () => {
+  const resultado =
+    validarIngenieriaImportada({
+      ...dataValida,
+      piezas: dataValida.piezas.map(pieza =>
+        pieza.codigo === "PZ0001"
+          ? { ...pieza, medida: "" }
+          : pieza
+      )
+    });
+
+  expect(resultado.errores).toEqual([]);
+  expect(resultado.advertencias).toContain(
+    "Pieza PZ0001 no tiene medida; se podrá completar después."
+  );
+});
+
+test("lee ruta de subproducto con unidades_por_subproducto y dependencias múltiples", () => {
+  const workbook = XLSX.utils.book_new();
+  const agregarHoja = (nombre, filas) => {
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet(filas),
+      nombre
+    );
+  };
+
+  agregarHoja("Materiales_MP_SUM", [
+    [
+      "tipo",
+      "codigo",
+      "nombre",
+      "unidad_medida"
+    ],
+    ["MP", "MP008", "Lata", "metro"]
+  ]);
+  agregarHoja("Productos_PCL", [
+    ["producto_codigo", "producto_nombre", "familia"],
+    ["PCL1", "Modular", "Exhibidores"]
+  ]);
+  agregarHoja("Piezas_PZ", [
+    [
+      "pieza_codigo",
+      "pieza_nombre",
+      "medida",
+      "material_base_codigo"
+    ],
+    ["PZ1", "Lata bandeja", "", "MP008"]
+  ]);
+  agregarHoja("Subproductos_SUB", [
+    [
+      "subproducto_codigo",
+      "subproducto_nombre",
+      "producto_codigo",
+      "pieza_salida_codigo"
+    ],
+    ["SUB1", "Bandeja", "PCL1", "PZ1"]
+  ]);
+  agregarHoja("Operaciones_OP", [
+    [
+      "operacion_codigo",
+      "operacion_nombre",
+      "subproducto_codigo",
+      "pieza_codigo",
+      "material_entrada_codigo"
+    ],
+    ["OP1", "Corte", "SUB1", "PZ1", "MP008"],
+    ["OP2", "Doblez", "SUB1", "PZ1", "MP008"],
+    ["OP3", "Soldadura", "SUB1", "PZ1", "MP008"]
+  ]);
+  agregarHoja("Ruta_Subproducto", [
+    [
+      "producto_codigo",
+      "subproducto_codigo",
+      "operacion_codigo",
+      "proceso_codigo",
+      "proceso_nombre",
+      "estacion_codigo",
+      "estacion_nombre",
+      "unidades_por_subproducto",
+      "unidades_por_hora",
+      "secuencia",
+      "dependencia_operacion_codigo"
+    ],
+    [
+      "PCL1",
+      "SUB1",
+      "OP3",
+      "PR1",
+      "Soldadura",
+      "ET1",
+      "Soldadora",
+      "2",
+      "50",
+      "3",
+      "OP1, OP2"
+    ]
+  ]);
+
+  const resultado =
+    leerIngenieriaDesdeWorkbook(
+      workbook,
+      XLSX
+    );
+
+  expect(resultado.materiales[0].codigo).toBe(
+    "MP0008"
+  );
+  expect(resultado.rutas[0]).toMatchObject({
+    producto_codigo: "PCL0001",
+    subproducto_codigo: "SUB0001",
+    codigo: "OP0003",
+    unidades_por_producto: 2,
+    dependencia_operacion_codigos: [
+      "OP0001",
+      "OP0002"
+    ]
+  });
 });
