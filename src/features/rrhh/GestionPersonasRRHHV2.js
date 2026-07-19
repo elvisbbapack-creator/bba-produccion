@@ -385,7 +385,7 @@ export default function GestionPersonasRRHHV2({
     }
     if (previewPersonal.errores.length > 0) {
       setEstadoImportacionPersonal(
-        "No se puede importar porque el Excel tiene errores."
+        `No se puede importar todavía: hay ${previewPersonal.errores.length} error(es) en el Excel. Revísalos en la lista roja de arriba.`
       );
       setError(
         "Corrige los errores del Excel antes de importar."
@@ -816,11 +816,11 @@ export default function GestionPersonasRRHHV2({
             </div>
             <button
               type="button"
-              style={botonPrimario}
-              disabled={
-                importandoPersonal ||
-                previewPersonal.errores.length > 0
-              }
+              style={{
+                ...botonPrimario,
+                opacity: importandoPersonal ? 0.7 : 1
+              }}
+              disabled={importandoPersonal}
               onClick={importarPersonal}
             >
               {importandoPersonal
