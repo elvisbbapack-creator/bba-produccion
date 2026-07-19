@@ -169,7 +169,31 @@ service cloud.firestore {
     }
 
     match /{catalogo}/{documentId} {
-      allow read: if catalogo in [
+      allow get: if catalogo in [
+          'materiales',
+          'procesos',
+          'subprocesos',
+          'operaciones',
+          'productos',
+          'catalogo_piezas',
+          'catalogo_subproductos',
+          'catalogo_procesos_estaciones',
+          'catalogo_operaciones',
+          'catalogo_defectos',
+          'catalogo_causas',
+          'catalogo_motivos_paro'
+        ] &&
+        (
+          (
+            isManagement() &&
+            !exists(
+              /databases/$(database)/documents/$(catalogo)/$(documentId)
+            )
+          ) ||
+          belongsToCompany(resource.data)
+        );
+
+      allow list: if catalogo in [
           'materiales',
           'procesos',
           'subprocesos',
