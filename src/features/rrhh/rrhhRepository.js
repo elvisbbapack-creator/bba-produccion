@@ -22,7 +22,11 @@ export const EQUIPOS_TRABAJO_RRHH = [
 ];
 
 export const ROLES_LABORALES_RRHH = [
-  "operario"
+  "operario",
+  "supervisor",
+  "jefe",
+  "gerente",
+  "auxiliar"
 ];
 
 export const PLANTAS_RRHH = [
@@ -43,6 +47,18 @@ export const normalizarCodigoPersona = valor =>
   limpiarTexto(valor)
     .toUpperCase()
     .replace(/\s+/g, "");
+
+export const normalizarRolLaboral = valor => {
+  const rol = limpiarTexto(valor)
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+  if (rol === "gerencia") {
+    return "gerente";
+  }
+
+  return rol || "operario";
+};
 
 export const normalizarLista = valor =>
   Array.isArray(valor)
@@ -112,9 +128,11 @@ export const normalizarPersona = (
       ),
     nombre: data.nombre || "",
     rol_laboral:
-      data.rol_laboral ||
-      data.rol ||
-      "operario",
+      normalizarRolLaboral(
+        data.rol_laboral ||
+        data.rol ||
+        "operario"
+      ),
     activo: data.activo !== false,
     empresa_id: data.empresa_id || "bba",
     planta_id: data.planta_id || "chile",
@@ -205,8 +223,9 @@ const prepararPersona = (
     datos.operario_codigo
   );
   const rolLaboral =
-    limpiarTexto(datos.rol_laboral || "operario")
-      .toLowerCase();
+    normalizarRolLaboral(
+      datos.rol_laboral || "operario"
+    );
   const activo = datos.activo !== false;
   const habilidadesIds = normalizarLista(
     datos.habilidades_estacion_ids
@@ -221,7 +240,9 @@ const prepararPersona = (
   }
 
   if (!ROLES_LABORALES_RRHH.includes(rolLaboral)) {
-    throw new Error("Selecciona un rol laboral válido.");
+    throw new Error(
+      `Rol laboral inválido: ${rolLaboral}. Usa: ${ROLES_LABORALES_RRHH.join(", ")}.`
+    );
   }
 
   return {

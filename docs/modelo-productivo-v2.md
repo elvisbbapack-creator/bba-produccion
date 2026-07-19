@@ -45,7 +45,7 @@ codigo: PER0001
 codigo_persona: PER0001
 operario_codigo: PER0001
 nombre
-rol_laboral: operario
+rol_laboral: operario | supervisor | jefe | gerente | auxiliar
 activo
 equipo: Alexis | Pablo
 habilidades_estacion_ids: [PR0001__ET0001]
@@ -64,8 +64,10 @@ observacion
 `Personas y Operarios (V2)` permite crear personas manualmente y descargar una
 plantilla Excel independiente de la ingenieria. Esta plantilla sirve para migrar
 personal desde la app anterior, actualizar equipos y cargar habilidades por
-estacion. Si una persona queda inactiva, se guarda sin equipo para que no figure
-en balance de dotacion ni sugerencias de IA.
+estacion. `rol_laboral` describe la funcion real de la persona en RRHH; no
+otorga acceso al sistema. Si una persona queda inactiva o es auxiliar, puede
+quedar sin equipo y sin habilidades productivas para no contaminar el balance de
+dotacion ni las sugerencias de IA.
 
 ### `materiales/{materialId}`
 

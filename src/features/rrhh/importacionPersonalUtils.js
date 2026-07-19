@@ -13,8 +13,25 @@ const normalizarCodigo = valor =>
     .toUpperCase()
     .replace(/\s+/g, "");
 
-const normalizarRol = valor =>
-  limpiarTexto(valor).toLowerCase() || "operario";
+export const ROLES_PERSONAL_EXCEL = [
+  "operario",
+  "supervisor",
+  "jefe",
+  "gerente",
+  "auxiliar"
+];
+
+const normalizarRol = valor => {
+  const rol = limpiarTexto(valor)
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+  if (rol === "gerencia") {
+    return "gerente";
+  }
+
+  return rol || "operario";
+};
 
 const normalizarLista = valor =>
   limpiarTexto(valor)
@@ -90,6 +107,19 @@ export const hojasPlantillaPersonal = {
       "",
       "PR0001__ET0001; PR0002__ET0003",
       "Migrado desde app anterior"
+    ],
+    [
+      "",
+      "Auxiliar Aseo Ejemplo",
+      "auxiliar",
+      "verdadero",
+      "chile",
+      "",
+      "2026-07-19",
+      "",
+      "",
+      "",
+      "No participa en proceso productivo"
     ]
   ]
 };
@@ -156,6 +186,16 @@ export const leerPersonalDesdeWorkbook = (
       }
       if (codigo) {
         codigos.add(codigo);
+      }
+
+      if (
+        !ROLES_PERSONAL_EXCEL.includes(
+          rolLaboral
+        )
+      ) {
+        errores.push(
+          `Fila ${indice + 2}: rol_laboral inválido "${rolLaboral}". Usa: ${ROLES_PERSONAL_EXCEL.join(", ")}.`
+        );
       }
 
       if (

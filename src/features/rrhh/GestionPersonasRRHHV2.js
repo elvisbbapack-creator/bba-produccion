@@ -540,7 +540,8 @@ export default function GestionPersonasRRHHV2({
         Gestiona personas de planta, aunque no
         usen el sistema. Producción usa esta base
         para dotación, equipos y habilidades por
-        estación.
+        estación. Roles laborales válidos: operario,
+        supervisor, jefe, gerente y auxiliar.
       </p>
 
       {error && (

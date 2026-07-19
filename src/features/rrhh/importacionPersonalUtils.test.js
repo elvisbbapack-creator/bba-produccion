@@ -63,6 +63,47 @@ test("lee personal codificado desde Excel", () => {
   });
 });
 
+test("acepta roles laborales de planta y normaliza gerencia como gerente", () => {
+  const workbook = workbookDesdeFilas([
+    ["codigo_persona", "nombre", "rol_laboral"],
+    ["PER0001", "Supervisor Uno", "Supervisor"],
+    ["PER0002", "Jefe Uno", "jefe"],
+    ["PER0003", "Gerente Uno", "gerencia"],
+    ["PER0004", "Auxiliar Uno", "auxiliar"]
+  ]);
+
+  const data = leerPersonalDesdeWorkbook(
+    workbook,
+    XLSX
+  );
+
+  expect(data.errores).toEqual([]);
+  expect(
+    data.personas.map(persona => persona.rol_laboral)
+  ).toEqual([
+    "supervisor",
+    "jefe",
+    "gerente",
+    "auxiliar"
+  ]);
+});
+
+test("detecta rol laboral invalido en Excel", () => {
+  const workbook = workbookDesdeFilas([
+    ["codigo_persona", "nombre", "rol_laboral"],
+    ["PER0001", "Persona Uno", "administrador"]
+  ]);
+
+  const data = leerPersonalDesdeWorkbook(
+    workbook,
+    XLSX
+  );
+
+  expect(data.errores).toContain(
+    "Fila 2: rol_laboral inválido \"administrador\". Usa: operario, supervisor, jefe, gerente, auxiliar."
+  );
+});
+
 test("valida formato y duplicidad de codigo", () => {
   const workbook = workbookDesdeFilas([
     ["codigo_persona", "nombre"],
