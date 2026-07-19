@@ -48,6 +48,7 @@ test("lee personal codificado desde Excel", () => {
   expect(data.personas[0]).toMatchObject({
     codigo: "PER0007",
     nombre: "Operario Uno",
+    rol_laboral: "operario",
     activo: true,
     equipo: "Alexis",
     habilidades_estacion_ids: [

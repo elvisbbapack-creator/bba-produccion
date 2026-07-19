@@ -13,6 +13,9 @@ const normalizarCodigo = valor =>
     .toUpperCase()
     .replace(/\s+/g, "");
 
+const normalizarRol = valor =>
+  limpiarTexto(valor).toLowerCase() || "operario";
+
 const normalizarLista = valor =>
   limpiarTexto(valor)
     .split(/[,;|]/)
@@ -118,8 +121,9 @@ export const leerPersonalDesdeWorkbook = (
         );
       const nombre = limpiarTexto(fila.nombre);
       const rolLaboral =
-        limpiarTexto(fila.rol_laboral || fila.rol) ||
-        "operario";
+        normalizarRol(
+          fila.rol_laboral || fila.rol
+        );
       const activo = booleano(fila.activo);
       const habilidades =
         normalizarLista(

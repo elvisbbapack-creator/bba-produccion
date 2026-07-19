@@ -205,7 +205,8 @@ const prepararPersona = (
     datos.operario_codigo
   );
   const rolLaboral =
-    datos.rol_laboral || "operario";
+    limpiarTexto(datos.rol_laboral || "operario")
+      .toLowerCase();
   const activo = datos.activo !== false;
   const habilidadesIds = normalizarLista(
     datos.habilidades_estacion_ids
@@ -300,6 +301,125 @@ export const guardarPersonaRRHH = async (
   );
 
   return creado.id;
+};
+
+const siguienteCodigoDesdeSet = codigos => {
+  let mayor = 0;
+
+  codigos.forEach(codigoActual => {
+    const coincidencia =
+      normalizarCodigoPersona(codigoActual)
+        .match(/^PER(\d+)$/);
+
+    if (coincidencia) {
+      mayor = Math.max(
+        mayor,
+        Number(coincidencia[1])
+      );
+    }
+  });
+
+  return `PER${String(mayor + 1).padStart(4, "0")}`;
+};
+
+export const guardarPersonasRRHHMasivo = async (
+  db,
+  perfil,
+  personasImportadas,
+  habilidadesDisponibles,
+  personasActuales = []
+) => {
+  const existentesPorCodigo = new Map(
+    personasActuales
+      .filter(persona => persona.codigo)
+      .map(persona => [
+        normalizarCodigoPersona(persona.codigo),
+        persona
+      ])
+  );
+  const codigosUsados = new Set(
+    personasActuales
+      .map(persona =>
+        normalizarCodigoPersona(persona.codigo)
+      )
+      .filter(Boolean)
+  );
+  let batch = writeBatch(db);
+  let operaciones = 0;
+  let guardadas = 0;
+
+  const confirmarBatch = async () => {
+    if (operaciones === 0) {
+      return;
+    }
+
+    await batch.commit();
+    batch = writeBatch(db);
+    operaciones = 0;
+  };
+
+  for (const personaImportada of personasImportadas) {
+    let codigo = normalizarCodigoPersona(
+      personaImportada.codigo ||
+      personaImportada.codigo_persona ||
+      personaImportada.operario_codigo
+    );
+
+    if (!codigo) {
+      codigo = siguienteCodigoDesdeSet(
+        codigosUsados
+      );
+    }
+
+    codigosUsados.add(codigo);
+
+    const existente =
+      existentesPorCodigo.get(codigo);
+    const referencia = existente?.id
+      ? doc(db, COLECCION_PERSONAS, existente.id)
+      : doc(
+        db,
+        COLECCION_PERSONAS,
+        `${perfil.empresa_id}__${codigo}`
+      );
+    const persona = prepararPersona(
+      {
+        ...personaImportada,
+        codigo
+      },
+      perfil,
+      habilidadesDisponibles
+    );
+
+    batch.set(referencia, {
+      ...persona,
+      creado_por_id:
+        existente?.creado_por_id ||
+        perfil.uid ||
+        "",
+      creado_por_nombre:
+        existente?.creado_por_nombre ||
+        perfil.nombre ||
+        "",
+      creado_en:
+        existente?.creado_en || serverTimestamp(),
+      actualizado_por_id: perfil.uid || "",
+      actualizado_por_nombre:
+        perfil.nombre || "",
+      actualizado_en: serverTimestamp()
+    });
+
+    guardadas += 1;
+    operaciones += 1;
+
+    if (operaciones === 450) {
+      await confirmarBatch();
+    }
+  }
+
+  await confirmarBatch();
+
+  return guardadas;
 };
 
 export const eliminarPersonasRRHH = async (

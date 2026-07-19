@@ -12,6 +12,7 @@ import {
   ROLES_LABORALES_RRHH,
   eliminarPersonasRRHH,
   guardarPersonaRRHH,
+  guardarPersonasRRHHMasivo,
   listarHabilidadesEstacion,
   listarPersonasRRHH,
   normalizarPersona
@@ -115,6 +116,10 @@ export default function GestionPersonasRRHHV2({
     useState(null);
   const [importandoPersonal, setImportandoPersonal] =
     useState(false);
+  const [
+    estadoImportacionPersonal,
+    setEstadoImportacionPersonal
+  ] = useState("");
   const [eliminandoPersonas, setEliminandoPersonas] =
     useState(false);
   const [filtroEquipo, setFiltroEquipo] =
@@ -316,6 +321,7 @@ export default function GestionPersonasRRHHV2({
     try {
       setError("");
       setMensaje("");
+      setEstadoImportacionPersonal("");
       setArchivoPersonalNombre(archivo.name);
       const buffer = await archivo.arrayBuffer();
       const workbook = XLSX.read(buffer, {
@@ -356,8 +362,14 @@ export default function GestionPersonasRRHHV2({
           ...advertenciasHabilidades
         ]
       });
+      setEstadoImportacionPersonal(
+        data.errores.length > 0
+          ? "El botón confirmar queda bloqueado porque el Excel tiene errores por corregir."
+          : "Archivo leído. Revisa la vista previa y confirma la importación."
+      );
     } catch (fallo) {
       setPreviewPersonal(null);
+      setEstadoImportacionPersonal("");
       setError(
         fallo?.message ||
         "No se pudo leer el Excel de personal."
@@ -372,6 +384,9 @@ export default function GestionPersonasRRHHV2({
       return;
     }
     if (previewPersonal.errores.length > 0) {
+      setEstadoImportacionPersonal(
+        "No se puede importar porque el Excel tiene errores."
+      );
       setError(
         "Corrige los errores del Excel antes de importar."
       );
@@ -382,38 +397,29 @@ export default function GestionPersonasRRHHV2({
       setImportandoPersonal(true);
       setError("");
       setMensaje("");
-      const existentesPorCodigo = new Map(
-        personas
-          .filter(persona => persona.codigo)
-          .map(persona => [
-            persona.codigo,
-            persona
-          ])
+      setEstadoImportacionPersonal(
+        `Importando ${previewPersonal.personas.length} personas...`
       );
-
-      for (const persona of previewPersonal.personas) {
-        const existente =
-          persona.codigo &&
-          existentesPorCodigo.get(persona.codigo);
-
-        await guardarPersonaRRHH(
+      const guardadas =
+        await guardarPersonasRRHHMasivo(
           db,
           perfil,
-          {
-            ...persona,
-            id: existente?.id || ""
-          },
-          habilidades
+          previewPersonal.personas,
+          habilidades,
+          personas
         );
-      }
 
       await cargar();
       setPreviewPersonal(null);
       setArchivoPersonalNombre("");
+      setEstadoImportacionPersonal("");
       setMensaje(
-        "Personal importado correctamente."
+        `${guardadas} personas importadas correctamente.`
       );
     } catch (fallo) {
+      setEstadoImportacionPersonal(
+        "La importación no se pudo completar."
+      );
       setError(
         fallo?.message ||
         "No se pudo importar el personal."
@@ -454,6 +460,7 @@ export default function GestionPersonasRRHHV2({
       setEliminandoPersonas(true);
       setError("");
       setMensaje("");
+      setEstadoImportacionPersonal("");
       const eliminadas =
         await eliminarPersonasRRHH(
           db,
@@ -463,6 +470,7 @@ export default function GestionPersonasRRHHV2({
       setPreviewPersonal(null);
       setArchivoPersonalNombre("");
       limpiar();
+      setEstadoImportacionPersonal("");
       setMensaje(
         `${eliminadas} personas eliminadas. Ya puedes subir la nueva plantilla.`
       );
@@ -721,6 +729,20 @@ export default function GestionPersonasRRHHV2({
                     </li>
                   ))}
               </ul>
+            )}
+            {estadoImportacionPersonal && (
+              <div style={{
+                background: importandoPersonal
+                  ? "#EFF6FF"
+                  : "#F8FAFC",
+                color: "#1E3A8A",
+                padding: 10,
+                borderRadius: 10,
+                marginTop: 10,
+                fontWeight: "bold"
+              }}>
+                {estadoImportacionPersonal}
+              </div>
             )}
             <div style={{
               maxHeight: 220,
