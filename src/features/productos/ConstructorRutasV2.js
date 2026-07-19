@@ -209,6 +209,10 @@ function ConstructorRutasV2({
     ruta?.estado === "publicada";
   const rutaBorrador =
     ruta?.estado === "borrador";
+  const productoCompuestoPorSubproductos =
+    !esRutaSubproducto &&
+    subproductosProducto.length > 0 &&
+    (ruta?.operaciones || []).length === 0;
   const materialesActivos = materiales.filter(
     material => material.activo
   );
@@ -1246,7 +1250,7 @@ function ConstructorRutasV2({
     }
   };
 
-  const erroresRuta = ruta
+  const erroresRutaBase = ruta
     ? validarRuta(
         {
           producto_id: productoId,
@@ -1256,6 +1260,32 @@ function ConstructorRutasV2({
         materiales
       )
     : [];
+  const erroresRuta =
+    productoCompuestoPorSubproductos
+      ? erroresRutaBase.filter(
+          error =>
+            error !==
+            "La ruta requiere al menos una operacion."
+        )
+      : erroresRutaBase;
+
+  const verRutaSubproducto = subproducto => {
+    setTipoRuta(TIPOS_RUTA.SUBPRODUCTO);
+    setSubproductoRutaId(subproducto.id);
+    setError("");
+    setMensaje("");
+    cargarRuta(
+      subproducto.id,
+      subproducto.version_ruta_borrador ||
+        subproducto.version_ruta_activa ||
+        1,
+      {
+        productoId,
+        tipoRuta: TIPOS_RUTA.SUBPRODUCTO,
+        subproductoId: subproducto.id
+      }
+    );
+  };
 
   const publicar = async () => {
     if (erroresRuta.length > 0) {
@@ -2174,29 +2204,109 @@ function ConstructorRutasV2({
                         Subproductos del producto
                       </strong>
                       {subproductosProducto.map(
-                        subproducto => (
-                          <span
+                        subproducto => {
+                          const versionRuta =
+                            subproducto
+                              .version_ruta_borrador ||
+                            subproducto
+                              .version_ruta_activa ||
+                            1;
+                          const estadoRuta =
+                            subproducto
+                              .version_ruta_borrador
+                              ? `Borrador V${subproducto.version_ruta_borrador}`
+                              : subproducto
+                                  .version_ruta_activa
+                                ? `Publicada V${subproducto.version_ruta_activa}`
+                                : "Ruta V1 pendiente";
+
+                          return (
+                          <div
                             key={subproducto.id}
                             style={{
+                              display: "grid",
+                              gridTemplateColumns:
+                                "1fr auto",
+                              gap: 10,
+                              alignItems: "center",
+                              border:
+                                "1px solid #E2E8F0",
+                              borderRadius: 10,
+                              padding: 10,
+                              background:
+                                subproducto.id ===
+                                subproductoRutaId
+                                  ? "#EFF6FF"
+                                  : "#F8FAFC",
                               color: "#475569",
                               fontSize: 14
                             }}
                           >
-                            {subproducto.codigo}
-                            {" - "}
-                            {subproducto.nombre}
-                            {" · Pieza salida: "}
-                            {
-                              subproducto
-                                .pieza_salida_codigo
-                            }
-                            {" - "}
-                            {
-                              subproducto
-                                .pieza_salida_nombre
-                            }
-                          </span>
-                        )
+                            <div>
+                              <strong style={{
+                                color: "#0F172A"
+                              }}>
+                                {subproducto.codigo}
+                                {" - "}
+                                {subproducto.nombre}
+                              </strong>
+                              <div>
+                                Pieza salida:{" "}
+                                {
+                                  subproducto
+                                    .pieza_salida_codigo
+                                }
+                                {" - "}
+                                {
+                                  subproducto
+                                    .pieza_salida_nombre
+                                }
+                              </div>
+                              <div style={{
+                                color: "#2563EB",
+                                fontWeight: "bold"
+                              }}>
+                                {estadoRuta}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                verRutaSubproducto(
+                                  subproducto
+                                )
+                              }
+                              style={{
+                                background: "#2563EB",
+                                color: "white",
+                                border: 0,
+                                borderRadius: 8,
+                                padding: "9px 12px",
+                                fontWeight: "bold",
+                                cursor: "pointer",
+                                whiteSpace: "nowrap"
+                              }}
+                            >
+                              Ver ruta V{versionRuta}
+                            </button>
+                          </div>
+                          );
+                        }
+                      )}
+                      {productoCompuestoPorSubproductos && (
+                        <div style={{
+                          color: "#475569",
+                          background: "#F8FAFC",
+                          borderRadius: 10,
+                          padding: 10,
+                          fontSize: 14
+                        }}>
+                          Este producto no tiene
+                          operaciones directas en su ruta
+                          principal. Sus operaciones se
+                          revisan entrando a la ruta de
+                          cada subproducto.
+                        </div>
                       )}
                     </div>
                   )}
