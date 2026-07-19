@@ -11,6 +11,9 @@ import {
   listarProductos
 } from "../productos/productosRepository";
 import {
+  listarSubproductos
+} from "../subproductos/subproductosRepository";
+import {
   actualizarPieza,
   guardarPieza,
   listarPiezas,
@@ -21,10 +24,15 @@ import {
 
 const estadoInicial = {
   codigo: "",
+  relacion_principal_tipo: "producto",
   producto_id: "",
   producto_codigo: "",
   producto_nombre: "",
   productos_asociados: [],
+  subproducto_id: "",
+  subproducto_codigo: "",
+  subproducto_nombre: "",
+  subproductos_asociados: [],
   nombre: "",
   medida: "",
   material_base_id: "",
@@ -38,6 +46,15 @@ const materialBaseInicial = {
 };
 
 const productoAsociadoInicial = {
+  producto_id: "",
+  producto_codigo: "",
+  producto_nombre: ""
+};
+
+const subproductoAsociadoInicial = {
+  subproducto_id: "",
+  subproducto_codigo: "",
+  subproducto_nombre: "",
   producto_id: "",
   producto_codigo: "",
   producto_nombre: ""
@@ -59,6 +76,8 @@ function CatalogoPiezasV2({
 }) {
   const [piezas, setPiezas] = useState([]);
   const [productos, setProductos] = useState([]);
+  const [subproductos, setSubproductos] =
+    useState([]);
   const [materiales, setMateriales] =
     useState([]);
   const [formulario, setFormulario] =
@@ -98,7 +117,12 @@ function CatalogoPiezasV2({
     try {
       setCargando(true);
       setError("");
-      const [piezasData, materialesData, productosData] =
+      const [
+        piezasData,
+        materialesData,
+        productosData,
+        subproductosData
+      ] =
         await Promise.all([
           listarPiezas(db, perfil.empresa_id),
           listarMateriales(
@@ -108,11 +132,16 @@ function CatalogoPiezasV2({
           listarProductos(
             db,
             perfil.empresa_id
+          ),
+          listarSubproductos(
+            db,
+            perfil.empresa_id
           )
         ]);
       setPiezas(piezasData);
       setMateriales(materialesData);
       setProductos(productosData);
+      setSubproductos(subproductosData);
     } catch (fallo) {
       setError(
         fallo?.message ||
@@ -154,6 +183,23 @@ function CatalogoPiezasV2({
     setMensaje("");
   };
 
+  const seleccionarTipoRelacion = tipo => {
+    setFormulario(actual => ({
+      ...actual,
+      relacion_principal_tipo: tipo,
+      ...(tipo === "producto"
+        ? {
+            subproducto_id: "",
+            subproducto_codigo: "",
+            subproducto_nombre: "",
+            subproductos_asociados: []
+          }
+        : {})
+    }));
+    setError("");
+    setMensaje("");
+  };
+
   const seleccionarProducto = productoId => {
     const producto = productos.find(
       item => item.id === productoId
@@ -161,6 +207,7 @@ function CatalogoPiezasV2({
 
     setFormulario(actual => ({
       ...actual,
+      relacion_principal_tipo: "producto",
       producto_id: producto?.id || "",
       producto_codigo: producto?.codigo || "",
       producto_nombre: producto?.nombre || "",
@@ -184,6 +231,90 @@ function CatalogoPiezasV2({
     setMensaje("");
   };
 
+  const asociarProductoDesdeSubproducto = (
+    productosAsociados = [],
+    subproducto
+  ) => {
+    if (!subproducto?.producto_id) {
+      return productosAsociados;
+    }
+
+    const productoAsociado = {
+      producto_id: subproducto.producto_id,
+      producto_codigo:
+        subproducto.producto_codigo || "",
+      producto_nombre:
+        subproducto.producto_nombre || ""
+    };
+
+    return [
+      productoAsociado,
+      ...(productosAsociados || []).filter(
+        item =>
+          item.producto_id &&
+          item.producto_id !==
+            productoAsociado.producto_id
+      )
+    ];
+  };
+
+  const seleccionarSubproducto = subproductoId => {
+    const subproducto = subproductos.find(
+      item => item.id === subproductoId
+    );
+
+    setFormulario(actual => ({
+      ...actual,
+      relacion_principal_tipo: "subproducto",
+      subproducto_id: subproducto?.id || "",
+      subproducto_codigo:
+        subproducto?.codigo || "",
+      subproducto_nombre:
+        subproducto?.nombre || "",
+      producto_id:
+        subproducto?.producto_id ||
+        actual.producto_id,
+      producto_codigo:
+        subproducto?.producto_codigo ||
+        actual.producto_codigo,
+      producto_nombre:
+        subproducto?.producto_nombre ||
+        actual.producto_nombre,
+      productos_asociados: subproducto
+        ? asociarProductoDesdeSubproducto(
+            actual.productos_asociados,
+            subproducto
+          )
+        : actual.productos_asociados,
+      subproductos_asociados: subproducto
+        ? [
+            {
+              subproducto_id: subproducto.id,
+              subproducto_codigo:
+                subproducto.codigo,
+              subproducto_nombre:
+                subproducto.nombre,
+              producto_id:
+                subproducto.producto_id || "",
+              producto_codigo:
+                subproducto.producto_codigo || "",
+              producto_nombre:
+                subproducto.producto_nombre || ""
+            },
+            ...(actual.subproductos_asociados || [])
+              .filter(
+                item =>
+                  item.subproducto_id &&
+                  item.subproducto_id !==
+                    subproducto.id
+              )
+          ]
+        : (actual.subproductos_asociados || [])
+    }));
+    setError("");
+    setMensaje("");
+  };
+
   const productosAsociadosFormulario =
     formulario.productos_asociados.length > 0
       ? formulario.productos_asociados
@@ -196,6 +327,25 @@ function CatalogoPiezasV2({
               formulario.producto_nombre
           }]
         : [productoAsociadoInicial];
+
+  const subproductosAsociadosFormulario =
+    formulario.subproductos_asociados.length > 0
+      ? formulario.subproductos_asociados
+      : formulario.subproducto_id
+        ? [{
+            subproducto_id:
+              formulario.subproducto_id,
+            subproducto_codigo:
+              formulario.subproducto_codigo,
+            subproducto_nombre:
+              formulario.subproducto_nombre,
+            producto_id: formulario.producto_id,
+            producto_codigo:
+              formulario.producto_codigo,
+            producto_nombre:
+              formulario.producto_nombre
+          }]
+        : [subproductoAsociadoInicial];
 
   const actualizarProductoAsociado = (
     indice,
@@ -276,6 +426,146 @@ function CatalogoPiezasV2({
           : []
       ).filter((_, posicion) => posicion !== indice)
     }));
+    setError("");
+    setMensaje("");
+  };
+
+  const actualizarSubproductoAsociado = (
+    indice,
+    subproductoId
+  ) => {
+    const subproducto = subproductos.find(
+      item => item.id === subproductoId
+    );
+
+    setFormulario(actual => {
+      const lista =
+        actual.subproductos_asociados.length > 0
+          ? [...actual.subproductos_asociados]
+          : actual.subproducto_id
+            ? [{
+                subproducto_id:
+                  actual.subproducto_id,
+                subproducto_codigo:
+                  actual.subproducto_codigo,
+                subproducto_nombre:
+                  actual.subproducto_nombre,
+                producto_id: actual.producto_id,
+                producto_codigo:
+                  actual.producto_codigo,
+                producto_nombre:
+                  actual.producto_nombre
+              }]
+            : [subproductoAsociadoInicial];
+
+      lista[indice] = subproducto
+        ? {
+            subproducto_id: subproducto.id,
+            subproducto_codigo:
+              subproducto.codigo,
+            subproducto_nombre:
+              subproducto.nombre,
+            producto_id:
+              subproducto.producto_id || "",
+            producto_codigo:
+              subproducto.producto_codigo || "",
+            producto_nombre:
+              subproducto.producto_nombre || ""
+          }
+        : subproductoAsociadoInicial;
+
+      const sinDuplicados = lista.filter(
+        (item, posicion, arreglo) =>
+          item.subproducto_id &&
+          arreglo.findIndex(
+            repetido =>
+              repetido.subproducto_id ===
+              item.subproducto_id
+          ) === posicion
+      );
+      const principal =
+        sinDuplicados[0] || null;
+
+      return {
+        ...actual,
+        relacion_principal_tipo: "subproducto",
+        subproducto_id:
+          principal?.subproducto_id || "",
+        subproducto_codigo:
+          principal?.subproducto_codigo || "",
+        subproducto_nombre:
+          principal?.subproducto_nombre || "",
+        producto_id:
+          principal?.producto_id ||
+          actual.producto_id,
+        producto_codigo:
+          principal?.producto_codigo ||
+          actual.producto_codigo,
+        producto_nombre:
+          principal?.producto_nombre ||
+          actual.producto_nombre,
+        productos_asociados: subproducto
+          ? asociarProductoDesdeSubproducto(
+              actual.productos_asociados,
+              subproducto
+            )
+          : actual.productos_asociados,
+        subproductos_asociados: sinDuplicados
+      };
+    });
+    setError("");
+    setMensaje("");
+  };
+
+  const agregarSubproductoAsociado = () => {
+    setFormulario(actual => ({
+      ...actual,
+      relacion_principal_tipo: "subproducto",
+      subproductos_asociados: [
+        ...(actual.subproductos_asociados.length > 0
+          ? actual.subproductos_asociados
+          : actual.subproducto_id
+            ? [{
+                subproducto_id:
+                  actual.subproducto_id,
+                subproducto_codigo:
+                  actual.subproducto_codigo,
+                subproducto_nombre:
+                  actual.subproducto_nombre,
+                producto_id: actual.producto_id,
+                producto_codigo:
+                  actual.producto_codigo,
+                producto_nombre:
+                  actual.producto_nombre
+              }]
+            : []),
+        subproductoAsociadoInicial
+      ]
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const quitarSubproductoAsociado = indice => {
+    setFormulario(actual => {
+      const lista = (
+        actual.subproductos_asociados.length > 0
+          ? actual.subproductos_asociados
+          : []
+      ).filter((_, posicion) => posicion !== indice);
+      const principal = lista[0] || null;
+
+      return {
+        ...actual,
+        subproducto_id:
+          principal?.subproducto_id || "",
+        subproducto_codigo:
+          principal?.subproducto_codigo || "",
+        subproducto_nombre:
+          principal?.subproducto_nombre || "",
+        subproductos_asociados: lista
+      };
+    });
     setError("");
     setMensaje("");
   };
@@ -383,6 +673,11 @@ function CatalogoPiezasV2({
     setEditandoId(pieza.id);
     setFormulario({
       codigo: pieza.codigo,
+      relacion_principal_tipo:
+        pieza.relacion_principal_tipo ||
+        (pieza.subproducto_id
+          ? "subproducto"
+          : "producto"),
       producto_id: pieza.producto_id || "",
       producto_codigo:
         pieza.producto_codigo || "",
@@ -393,6 +688,30 @@ function CatalogoPiezasV2({
         (pieza.producto_id
           ? [{
               producto_id: pieza.producto_id,
+              producto_codigo:
+                pieza.producto_codigo || "",
+              producto_nombre:
+                pieza.producto_nombre || ""
+            }]
+          : []),
+      subproducto_id:
+        pieza.subproducto_id || "",
+      subproducto_codigo:
+        pieza.subproducto_codigo || "",
+      subproducto_nombre:
+        pieza.subproducto_nombre || "",
+      subproductos_asociados:
+        pieza.subproductos_asociados ||
+        (pieza.subproducto_id
+          ? [{
+              subproducto_id:
+                pieza.subproducto_id,
+              subproducto_codigo:
+                pieza.subproducto_codigo || "",
+              subproducto_nombre:
+                pieza.subproducto_nombre || "",
+              producto_id:
+                pieza.producto_id || "",
               producto_codigo:
                 pieza.producto_codigo || "",
               producto_nombre:
@@ -426,9 +745,24 @@ function CatalogoPiezasV2({
       return;
     }
 
-    if (!formulario.producto_id) {
+    if (
+      formulario.relacion_principal_tipo ===
+        "producto" &&
+      !formulario.producto_id
+    ) {
       setError(
         "Selecciona el producto principal de esta pieza."
+      );
+      return;
+    }
+
+    if (
+      formulario.relacion_principal_tipo ===
+        "subproducto" &&
+      !formulario.subproducto_id
+    ) {
+      setError(
+        "Selecciona el subproducto principal de esta pieza."
       );
       return;
     }
@@ -533,37 +867,108 @@ function CatalogoPiezasV2({
             </h2>
 
             <label>
-              Producto principal
+              Relación principal
               <select
-                value={formulario.producto_id}
+                value={
+                  formulario.relacion_principal_tipo
+                }
                 onChange={evento =>
-                  seleccionarProducto(
+                  seleccionarTipoRelacion(
                     evento.target.value
                   )
                 }
                 style={{
                   ...campo,
                   marginTop: 6,
-                  marginBottom: 14
+                  marginBottom: 8
                 }}
               >
-                <option value="">
-                  Seleccionar producto
+                <option value="producto">
+                  Producto final
                 </option>
-                {productos
-                  .filter(producto => producto.activo !== false)
-                  .map(producto => (
-                    <option
-                      key={producto.id}
-                      value={producto.id}
-                    >
-                      {producto.codigo}
-                      {" - "}
-                      {producto.nombre}
-                    </option>
-                  ))}
+                <option value="subproducto">
+                  Subproducto
+                </option>
               </select>
             </label>
+
+            {formulario.relacion_principal_tipo ===
+            "subproducto" ? (
+              <label>
+                Subproducto principal
+                <select
+                  value={formulario.subproducto_id}
+                  onChange={evento =>
+                    seleccionarSubproducto(
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                >
+                  <option value="">
+                    Seleccionar subproducto
+                  </option>
+                  {subproductos
+                    .filter(
+                      subproducto =>
+                        subproducto.activo !== false
+                    )
+                    .map(subproducto => (
+                      <option
+                        key={subproducto.id}
+                        value={subproducto.id}
+                      >
+                        {subproducto.codigo}
+                        {" - "}
+                        {subproducto.nombre}
+                        {subproducto.producto_codigo
+                          ? ` · ${subproducto.producto_codigo}`
+                          : ""}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ) : (
+              <label>
+                Producto principal
+                <select
+                  value={formulario.producto_id}
+                  onChange={evento =>
+                    seleccionarProducto(
+                      evento.target.value
+                    )
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    marginBottom: 14
+                  }}
+                >
+                  <option value="">
+                    Seleccionar producto
+                  </option>
+                  {productos
+                    .filter(
+                      producto =>
+                        producto.activo !== false
+                    )
+                    .map(producto => (
+                      <option
+                        key={producto.id}
+                        value={producto.id}
+                      >
+                        {producto.codigo}
+                        {" - "}
+                        {producto.nombre}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
 
             <div style={{
               border: "1px solid #E2E8F0",
@@ -577,9 +982,11 @@ function CatalogoPiezasV2({
                 fontSize: 13,
                 marginTop: 6
               }}>
-                El producto principal queda incluido.
-                Agrega otros productos si esta pieza se
-                reutiliza en más de una ingeniería.
+                Si la relación principal es un subproducto,
+                el producto asociado se completa desde ese
+                subproducto. Agrega otros productos solo si
+                la pieza se usa directamente en más de una
+                ingeniería.
               </p>
 
               {productosAsociadosFormulario.map(
@@ -673,6 +1080,124 @@ function CatalogoPiezasV2({
                 + Agregar producto asociado
               </button>
             </div>
+
+            <div style={{
+              border: "1px solid #E2E8F0",
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 14
+            }}>
+              <strong>Subproductos donde se usa esta pieza</strong>
+              <p style={{
+                color: "#64748B",
+                fontSize: 13,
+                marginTop: 6
+              }}>
+                Úsalo cuando la pieza pertenezca a una
+                bandeja, lateral, cabecero, cruceta u otro
+                conjunto reutilizable.
+              </p>
+
+              {subproductosAsociadosFormulario.map(
+                (subproductoAsociado, indice) => (
+                  <div
+                    key={`${indice}-${subproductoAsociado.subproducto_id}`}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 42px",
+                      gap: 8,
+                      marginBottom: 8
+                    }}
+                  >
+                    <select
+                      value={
+                        subproductoAsociado
+                          .subproducto_id || ""
+                      }
+                      onChange={evento =>
+                        actualizarSubproductoAsociado(
+                          indice,
+                          evento.target.value
+                        )
+                      }
+                      style={campo}
+                    >
+                      <option value="">
+                        Seleccionar subproducto
+                      </option>
+                      {subproductos
+                        .filter(
+                          subproducto =>
+                            subproducto.activo !== false
+                        )
+                        .map(subproducto => (
+                          <option
+                            key={subproducto.id}
+                            value={subproducto.id}
+                          >
+                            {subproducto.codigo}
+                            {" - "}
+                            {subproducto.nombre}
+                            {subproducto
+                              .producto_codigo
+                              ? ` · ${subproducto.producto_codigo}`
+                              : ""}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        quitarSubproductoAsociado(
+                          indice
+                        )
+                      }
+                      disabled={
+                        subproductoAsociado
+                          .subproducto_id ===
+                          formulario.subproducto_id ||
+                        subproductosAsociadosFormulario
+                          .length === 1
+                      }
+                      style={{
+                        border:
+                          "1px solid #FCA5A5",
+                        borderRadius: 8,
+                        background: "#FEF2F2",
+                        color: "#B91C1C",
+                        cursor:
+                          subproductoAsociado
+                            .subproducto_id ===
+                            formulario.subproducto_id ||
+                          subproductosAsociadosFormulario
+                            .length === 1
+                            ? "not-allowed"
+                            : "pointer"
+                      }}
+                      title="Quitar subproducto asociado"
+                    >
+                      -
+                    </button>
+                  </div>
+                )
+              )}
+
+              <button
+                type="button"
+                onClick={agregarSubproductoAsociado}
+                style={{
+                  ...campo,
+                  background: "#EFF6FF",
+                  borderColor: "#BFDBFE",
+                  color: "#1D4ED8",
+                  cursor: "pointer",
+                  fontWeight: "bold"
+                }}
+              >
+                + Agregar subproducto asociado
+              </button>
+            </div>
+
 
             <label>
               Código pieza
@@ -986,6 +1511,15 @@ function CatalogoPiezasV2({
                       )
                       .filter(Boolean)
                       .join(", ");
+                  const subproductosTexto =
+                    (pieza.subproductos_asociados || [])
+                      .map(subproducto =>
+                        subproducto.subproducto_codigo
+                          ? `${subproducto.subproducto_codigo} - ${subproducto.subproducto_nombre}`
+                          : ""
+                      )
+                      .filter(Boolean)
+                      .join(", ");
 
                   return (
                     <article
@@ -1022,6 +1556,9 @@ function CatalogoPiezasV2({
                               : pieza.producto_codigo
                                 ? `Producto: ${pieza.producto_codigo} - ${pieza.producto_nombre} · `
                                 : "Producto: sin asociar · "}
+                            {subproductosTexto
+                              ? `Subproductos: ${subproductosTexto} · `
+                              : ""}
                             Medida: {pieza.medida}
                             {materialesTexto
                               ? ` · Materiales base: ${materialesTexto}`

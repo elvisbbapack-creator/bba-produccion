@@ -133,6 +133,49 @@ export const prepararProductosAsociados = (
   return [...mapa.values()];
 };
 
+export const prepararSubproductosAsociados = (
+  subproductos = [],
+  principal = {}
+) => {
+  const mapa = new Map();
+
+  const agregar = subproducto => {
+    const subproductoId = limpiarTexto(
+      subproducto.subproducto_id || subproducto.id
+    );
+
+    if (!subproductoId) {
+      return;
+    }
+
+    mapa.set(subproductoId, {
+      subproducto_id: subproductoId,
+      subproducto_codigo: normalizarCodigoPieza(
+        subproducto.subproducto_codigo ||
+          subproducto.codigo
+      ),
+      subproducto_nombre: limpiarTexto(
+        subproducto.subproducto_nombre ||
+          subproducto.nombre
+      ),
+      producto_id: limpiarTexto(
+        subproducto.producto_id
+      ),
+      producto_codigo: normalizarCodigoPieza(
+        subproducto.producto_codigo
+      ),
+      producto_nombre: limpiarTexto(
+        subproducto.producto_nombre
+      )
+    });
+  };
+
+  agregar(principal);
+  subproductos.forEach(agregar);
+
+  return [...mapa.values()];
+};
+
 export const prepararPieza = (
   datos,
   empresaId,
@@ -157,6 +200,11 @@ export const prepararPieza = (
     producto_nombre: limpiarTexto(
       datos.producto_nombre
     ),
+    relacion_principal_tipo:
+      datos.relacion_principal_tipo ===
+      "subproducto"
+        ? "subproducto"
+        : "producto",
     productos_asociados: prepararProductosAsociados(
       datos.productos_asociados,
       {
@@ -165,6 +213,29 @@ export const prepararPieza = (
         producto_nombre: datos.producto_nombre
       }
     ),
+    subproducto_id: limpiarTexto(
+      datos.subproducto_id
+    ),
+    subproducto_codigo: normalizarCodigoPieza(
+      datos.subproducto_codigo
+    ),
+    subproducto_nombre: limpiarTexto(
+      datos.subproducto_nombre
+    ),
+    subproductos_asociados:
+      prepararSubproductosAsociados(
+        datos.subproductos_asociados,
+        {
+          subproducto_id: datos.subproducto_id,
+          subproducto_codigo:
+            datos.subproducto_codigo,
+          subproducto_nombre:
+            datos.subproducto_nombre,
+          producto_id: datos.producto_id,
+          producto_codigo: datos.producto_codigo,
+          producto_nombre: datos.producto_nombre
+        }
+      ),
     nombre: limpiarTexto(datos.nombre),
     medida: limpiarTexto(datos.medida),
     material_base_id:
@@ -328,8 +399,17 @@ export const actualizarPieza = async (
       producto_id: pieza.producto_id,
       producto_codigo: pieza.producto_codigo,
       producto_nombre: pieza.producto_nombre,
+      relacion_principal_tipo:
+        pieza.relacion_principal_tipo,
       productos_asociados:
         pieza.productos_asociados,
+      subproducto_id: pieza.subproducto_id,
+      subproducto_codigo:
+        pieza.subproducto_codigo,
+      subproducto_nombre:
+        pieza.subproducto_nombre,
+      subproductos_asociados:
+        pieza.subproductos_asociados,
       medida: pieza.medida,
       material_base_id:
         pieza.material_base_id,

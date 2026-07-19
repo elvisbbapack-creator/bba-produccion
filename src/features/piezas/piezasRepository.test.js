@@ -1,6 +1,7 @@
 import {
   normalizarCodigoPieza,
   prepararPieza,
+  prepararSubproductosAsociados,
   siguienteCodigoPieza,
   validarPieza
 } from "./piezasRepository";
@@ -45,6 +46,7 @@ test("normaliza código y textos de pieza", () => {
     producto_id: "producto-1",
     producto_codigo: "PCL0001",
     producto_nombre: "Modular",
+    relacion_principal_tipo: "producto",
     productos_asociados: [
       {
         producto_id: "producto-1",
@@ -57,6 +59,10 @@ test("normaliza código y textos de pieza", () => {
         producto_nombre: "Modular Peru"
       }
     ],
+    subproducto_id: "",
+    subproducto_codigo: "",
+    subproducto_nombre: "",
+    subproductos_asociados: [],
     nombre: "Lateral 290",
     medida: "290 mm",
     material_base_id: "mp-tubo",
@@ -105,11 +111,16 @@ test("permite múltiples materiales base", () => {
     producto_id: "producto-1",
     producto_codigo: "PCL0001",
     producto_nombre: "Modular",
+    relacion_principal_tipo: "producto",
     productos_asociados: [{
       producto_id: "producto-1",
       producto_codigo: "PCL0001",
       producto_nombre: "Modular"
     }],
+    subproducto_id: "",
+    subproducto_codigo: "",
+    subproducto_nombre: "",
+    subproductos_asociados: [],
     nombre: "Lateral Armado",
     medida: "Armado",
     material_base_id: "rf-1",
@@ -128,6 +139,89 @@ test("permite múltiples materiales base", () => {
       }
     ],
     activo: true
+  });
+});
+
+test("normaliza subproductos asociados de pieza", () => {
+  expect(
+    prepararSubproductosAsociados(
+      [{
+        subproducto_id: "sub-2",
+        subproducto_codigo: "sub0002",
+        subproducto_nombre: "Lateral",
+        producto_id: "producto-2",
+        producto_codigo: "pcl0002",
+        producto_nombre: "Modular Peru"
+      }],
+      {
+        subproducto_id: "sub-1",
+        subproducto_codigo: "sub0001",
+        subproducto_nombre: "Bandeja",
+        producto_id: "producto-1",
+        producto_codigo: "pcl0001",
+        producto_nombre: "Modular Chile"
+      }
+    )
+  ).toEqual([
+    {
+      subproducto_id: "sub-1",
+      subproducto_codigo: "SUB0001",
+      subproducto_nombre: "Bandeja",
+      producto_id: "producto-1",
+      producto_codigo: "PCL0001",
+      producto_nombre: "Modular Chile"
+    },
+    {
+      subproducto_id: "sub-2",
+      subproducto_codigo: "SUB0002",
+      subproducto_nombre: "Lateral",
+      producto_id: "producto-2",
+      producto_codigo: "PCL0002",
+      producto_nombre: "Modular Peru"
+    }
+  ]);
+});
+
+test("prepara pieza relacionada principalmente a subproducto", () => {
+  expect(
+    prepararPieza(
+      {
+        codigo: "pz0200",
+        relacion_principal_tipo: "subproducto",
+        producto_id: "producto-1",
+        producto_codigo: "PCL0001",
+        producto_nombre: "Modular",
+        subproducto_id: "sub-1",
+        subproducto_codigo: "SUB0001",
+        subproducto_nombre: "Bandeja",
+        nombre: "Bandeja Armado",
+        medida: "Armado"
+      },
+      "bba",
+      "pieza-sub"
+    )
+  ).toMatchObject({
+    id: "pieza-sub",
+    empresa_id: "bba",
+    codigo: "PZ0200",
+    relacion_principal_tipo: "subproducto",
+    producto_id: "producto-1",
+    subproducto_id: "sub-1",
+    subproducto_codigo: "SUB0001",
+    subproducto_nombre: "Bandeja",
+    productos_asociados: [{
+      producto_id: "producto-1",
+      producto_codigo: "PCL0001",
+      producto_nombre: "Modular"
+    }],
+    subproductos_asociados: [{
+      subproducto_id: "sub-1",
+      subproducto_codigo: "SUB0001",
+      subproducto_nombre: "Bandeja",
+      producto_id: "producto-1",
+      producto_codigo: "PCL0001",
+      producto_nombre: "Modular"
+    }]
   });
 });
 
