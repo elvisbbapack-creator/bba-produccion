@@ -6,6 +6,8 @@ import {
 } from "react";
 import * as XLSX from "xlsx";
 import {
+  actualizarMaterial,
+  crearMaterial,
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
@@ -17,6 +19,7 @@ import {
   listarPiezas
 } from "../piezas/piezasRepository";
 import {
+  actualizarComposicionProducto,
   crearProductoConRuta,
   guardarOperacionRuta,
   listarProductos,
@@ -147,7 +150,10 @@ function ImportadorIngenieriaV2({
         ...data.advertencias
       ];
       const materiales = porCodigo(
-        catalogos.materiales
+        [
+          ...catalogos.materiales,
+          ...(data.materiales || [])
+        ]
       );
       const existentes = {
         productos: porCodigo(
@@ -175,6 +181,19 @@ function ImportadorIngenieriaV2({
         if (existentes.piezas.has(pieza.codigo)) {
           advertencias.push(
             `Pieza ${pieza.codigo} ya existe y se omitirá.`
+          );
+        }
+      });
+
+      (data.materiales || []).forEach(material => {
+        if (
+          catalogos.materiales.some(
+            existente =>
+              existente.codigo === material.codigo
+          )
+        ) {
+          advertencias.push(
+            `Material ${material.codigo} ya existe y se usará como referencia.`
           );
         }
       });
@@ -318,6 +337,12 @@ function ImportadorIngenieriaV2({
         productosExistentes
       );
       const piezas = new Map(piezasExistentes);
+      const subproductos = new Map(
+        subproductosExistentes
+      );
+      const operaciones = new Map(
+        operacionesExistentes
+      );
 
       for (const producto of preview.productos) {
         if (productos.has(producto.codigo)) {
@@ -334,22 +359,65 @@ function ImportadorIngenieriaV2({
         productos.set(creado.codigo, creado);
       }
 
+      for (const material of preview.materiales || []) {
+        if (materiales.has(material.codigo)) {
+          continue;
+        }
+        const producto = productos.get(
+          material.producto_codigo
+        );
+        const subproducto = subproductos.get(
+          material.subproducto_codigo
+        );
+        const creado = await crearMaterial(
+          db,
+          perfil.empresa_id,
+          {
+            ...material,
+            producto_id: producto?.id || "",
+            producto_codigo: producto?.codigo || "",
+            producto_nombre: producto?.nombre || "",
+            subproducto_id:
+              subproducto?.id || "",
+            subproducto_codigo:
+              subproducto?.codigo || "",
+            subproducto_nombre:
+              subproducto?.nombre || "",
+            proveedor_preferente_id: ""
+          }
+        );
+        materiales.set(creado.codigo, creado);
+      }
+
       for (const pieza of preview.piezas) {
         if (piezas.has(pieza.codigo)) {
           continue;
         }
         const materialesBase =
           (pieza.materiales_base_codigos || [])
-            .map(materialCodigo =>
-              materiales.get(materialCodigo)
-            )
-            .filter(Boolean)
-            .map(material => ({
+            .map((materialCodigo, indice) => {
+              const material =
+                materiales.get(materialCodigo);
+              if (!material) {
+                return null;
+              }
+              return {
               material_id: material.id,
               material_codigo: material.codigo,
               material_nombre: material.nombre,
-              cantidad: 1
-            }));
+                cantidad:
+                  pieza.materiales_base_cantidades?.[
+                    indice
+                  ] || 1
+              };
+            })
+            .filter(Boolean);
+        const producto = productos.get(
+          pieza.producto_codigo
+        );
+        const subproducto = subproductos.get(
+          pieza.subproducto_codigo
+        );
         const creada = await guardarPieza(
           db,
           perfil.empresa_id,
@@ -361,6 +429,15 @@ function ImportadorIngenieriaV2({
               materialesBase[0]?.material_id ||
               "",
             materiales_base: materialesBase,
+            producto_id: producto?.id || "",
+            producto_codigo: producto?.codigo || "",
+            producto_nombre: producto?.nombre || "",
+            subproducto_id:
+              subproducto?.id || "",
+            subproducto_codigo:
+              subproducto?.codigo || "",
+            subproducto_nombre:
+              subproducto?.nombre || "",
             activo: pieza.activo
           },
           Array.from(piezas.values())
@@ -401,7 +478,7 @@ function ImportadorIngenieriaV2({
               };
             });
 
-        await guardarSubproducto(
+        const creado = await guardarSubproducto(
           db,
           perfil.empresa_id,
           {
@@ -410,17 +487,109 @@ function ImportadorIngenieriaV2({
             producto_id: producto.id,
             producto_codigo: producto.codigo,
             producto_nombre: producto.nombre,
-            pieza_salida_id: piezaSalida.id,
+            pieza_salida_id:
+              piezaSalida?.id || "",
             pieza_salida_codigo:
-              piezaSalida.codigo,
+              piezaSalida?.codigo || "",
             pieza_salida_nombre:
-              piezaSalida.nombre,
+              piezaSalida?.nombre || "",
             componentes,
             activo: subproducto.activo
           },
           Array.from(
             subproductosExistentes.values()
           )
+        );
+        subproductos.set(creado.codigo, creado);
+      }
+
+      for (const material of preview.materiales || []) {
+        if (
+          material.tipo !== "RF" ||
+          !material.subproducto_codigo
+        ) {
+          continue;
+        }
+        const existente = materiales.get(
+          material.codigo
+        );
+        const producto = productos.get(
+          material.producto_codigo
+        );
+        const subproducto = subproductos.get(
+          material.subproducto_codigo
+        );
+
+        if (!existente || !subproducto) {
+          continue;
+        }
+
+        const actualizado = await actualizarMaterial(
+          db,
+          perfil.empresa_id,
+          existente.id,
+          {
+            ...existente,
+            producto_id:
+              producto?.id || existente.producto_id,
+            producto_codigo:
+              producto?.codigo ||
+              existente.producto_codigo,
+            producto_nombre:
+              producto?.nombre ||
+              existente.producto_nombre,
+            subproducto_id: subproducto.id,
+            subproducto_codigo: subproducto.codigo,
+            subproducto_nombre: subproducto.nombre
+          },
+          Array.from(materiales.values())
+        );
+        materiales.set(
+          actualizado.codigo,
+          actualizado
+        );
+      }
+
+      const composicionPorProducto = (
+        preview.composicionProducto || []
+      ).reduce((acumulado, item) => {
+        const lista =
+          acumulado.get(item.producto_codigo) || [];
+        lista.push(item);
+        acumulado.set(item.producto_codigo, lista);
+        return acumulado;
+      }, new Map());
+
+      for (
+        const [
+          productoCodigo,
+          composicion
+        ] of composicionPorProducto.entries()
+      ) {
+        const producto = productos.get(productoCodigo);
+        const composicionNormalizada =
+          composicion.map(item => {
+            const referencia =
+              item.tipo === "SUBPRODUCTO"
+                ? subproductos.get(item.item_codigo)
+                : item.tipo === "PIEZA"
+                  ? piezas.get(item.item_codigo)
+                  : materiales.get(item.item_codigo);
+
+            return {
+              tipo: item.tipo,
+              categoria: item.categoria,
+              item_id: referencia.id,
+              item_codigo: referencia.codigo,
+              item_nombre: referencia.nombre,
+              cantidad: item.cantidad
+            };
+          });
+
+        await actualizarComposicionProducto(
+          db,
+          producto.id,
+          composicionNormalizada
         );
       }
 
@@ -437,16 +606,24 @@ function ImportadorIngenieriaV2({
               : [];
         const materialesEntrada =
           materialesEntradaCodigos
-            .map(materialCodigo =>
-              materiales.get(materialCodigo)
-            )
-            .filter(Boolean)
-            .map(material => ({
+            .map((materialCodigo, indice) => {
+              const material =
+                materiales.get(materialCodigo);
+              if (!material) {
+                return null;
+              }
+              return {
               material_id: material.id,
               material_codigo: material.codigo,
               material_nombre: material.nombre,
-              cantidad: 1
-            }));
+                cantidad:
+                  operacion
+                    .materiales_entrada_cantidades?.[
+                      indice
+                    ] || 1
+              };
+            })
+            .filter(Boolean);
         const materialSalida =
           materiales.get(
             operacion.material_salida_codigo
@@ -457,7 +634,7 @@ function ImportadorIngenieriaV2({
             operacion.codigo
           )
         ) {
-          await guardarOperacionCatalogo(
+          const creada = await guardarOperacionCatalogo(
             db,
             perfil.empresa_id,
             {
@@ -477,44 +654,60 @@ function ImportadorIngenieriaV2({
               activo: true
             },
             Array.from(
-              operacionesExistentes.values()
+              operaciones.values()
             )
           );
+          operaciones.set(creada.codigo, creada);
         }
       }
 
-      const operacionesPorProducto =
-        preview.operaciones.reduce(
-          (acumulado, operacion) => {
-            const lista =
-              acumulado.get(
-                operacion.producto_codigo
-              ) || [];
-            lista.push(operacion);
-            acumulado.set(
-              operacion.producto_codigo,
-              lista
-            );
-            return acumulado;
-          },
-          new Map()
-        );
+      const operacionesExcel = porCodigo(
+        preview.operaciones
+      );
 
-      for (
-        const [
-          productoCodigo,
-          operaciones
-        ] of operacionesPorProducto.entries()
-      ) {
-        const producto =
-          productos.get(productoCodigo);
+      const rutasPorEntidad = (
+        preview.rutas || []
+      ).reduce((acumulado, itemRuta) => {
+        const clave = [
+          itemRuta.tipo_ruta || "PRODUCTO",
+          itemRuta.producto_codigo,
+          itemRuta.subproducto_codigo || ""
+        ].join("::");
+        const lista = acumulado.get(clave) || [];
+        lista.push(itemRuta);
+        acumulado.set(clave, lista);
+        return acumulado;
+      }, new Map());
+
+      for (const rutasEntidad of rutasPorEntidad.values()) {
+        const primeraRuta = rutasEntidad[0];
+        const producto = productos.get(
+          primeraRuta.producto_codigo
+        );
+        const subproducto =
+          primeraRuta.tipo_ruta === "SUBPRODUCTO"
+            ? subproductos.get(
+                primeraRuta.subproducto_codigo
+              )
+            : null;
+        const opcionesRuta =
+          primeraRuta.tipo_ruta === "SUBPRODUCTO"
+            ? {
+                tipoRuta: "SUBPRODUCTO",
+                subproductoId: subproducto.id,
+                entidadId: subproducto.id
+              }
+            : { tipoRuta: "PRODUCTO" };
         const version =
-          producto.version_ruta_activa || 1;
+          primeraRuta.tipo_ruta === "SUBPRODUCTO"
+            ? subproducto.version_ruta_activa || 1
+            : producto.version_ruta_activa || 1;
         const ruta = await obtenerRuta(
           db,
           producto.id,
           perfil.empresa_id,
-          version
+          version,
+          opcionesRuta
         );
         const existentesRuta =
           ruta.operaciones || [];
@@ -524,12 +717,15 @@ function ImportadorIngenieriaV2({
           )
         );
 
-        for (const operacion of operaciones.sort(
+        for (const itemRuta of rutasEntidad.sort(
           (a, b) => a.secuencia - b.secuencia
         )) {
-          if (codigosRuta.has(operacion.codigo)) {
+          if (codigosRuta.has(itemRuta.codigo)) {
             continue;
           }
+          const operacion =
+            operacionesExcel.get(itemRuta.codigo) ||
+            operaciones.get(itemRuta.codigo);
           const pieza = piezas.get(
             operacion.pieza_codigo
           );
@@ -542,20 +738,34 @@ function ImportadorIngenieriaV2({
                 : [];
           const materialesEntrada =
             materialesEntradaCodigos
-              .map(materialCodigo =>
-                materiales.get(materialCodigo)
-              )
-              .filter(Boolean)
-              .map(material => ({
+              .map((materialCodigo, indice) => {
+                const material =
+                  materiales.get(materialCodigo);
+                if (!material) {
+                  return null;
+                }
+                return {
                 material_id: material.id,
                 material_codigo: material.codigo,
                 material_nombre: material.nombre,
-                cantidad: 1
-              }));
+                  cantidad:
+                    operacion
+                      .materiales_entrada_cantidades?.[
+                        indice
+                      ] || 1
+                };
+              })
+              .filter(Boolean);
           const materialSalida =
             materiales.get(
               operacion.material_salida_codigo
             );
+          const subproductoAsociado =
+            itemRuta.subproducto_codigo
+              ? subproductos.get(
+                  itemRuta.subproducto_codigo
+                )
+              : null;
 
           await guardarOperacionRuta(
             db,
@@ -568,14 +778,20 @@ function ImportadorIngenieriaV2({
               pieza_id: pieza.id,
               pieza_codigo: pieza.codigo,
               pieza_nombre: pieza.nombre,
+              subproducto_id:
+                subproductoAsociado?.id || "",
+              subproducto_codigo:
+                subproductoAsociado?.codigo || "",
+              subproducto_nombre:
+                subproductoAsociado?.nombre || "",
               proceso_codigo:
-                operacion.proceso_codigo,
+                itemRuta.proceso_codigo,
               proceso_nombre:
-                operacion.proceso_nombre,
+                itemRuta.proceso_nombre,
               subproceso_codigo:
-                operacion.subproceso_codigo,
+                itemRuta.subproceso_codigo,
               subproceso_nombre:
-                operacion.subproceso_nombre,
+                itemRuta.subproceso_nombre,
               material_entrada_id:
                 materialesEntrada[0]?.material_id ||
                 "",
@@ -585,17 +801,18 @@ function ImportadorIngenieriaV2({
                 materialSalida?.id || "",
               medida: pieza.medida,
               unidades_por_producto:
-                operacion.unidades_por_producto,
+                itemRuta.unidades_por_producto,
               unidades_por_hora:
-                operacion.unidades_por_hora,
-              secuencia: operacion.secuencia,
+                itemRuta.unidades_por_hora,
+              secuencia: itemRuta.secuencia,
               dependencia_id:
-                operacion
+                itemRuta
                   .dependencia_operacion_codigo,
               porcentaje_minimo_avance:
-                operacion.porcentaje_minimo_avance
+                itemRuta.porcentaje_minimo_avance
             },
-            existentesRuta
+            existentesRuta,
+            opcionesRuta
           );
         }
       }
@@ -647,9 +864,9 @@ function ImportadorIngenieriaV2({
           color: "#475569",
           marginTop: 0
         }}>
-          Sube la plantilla Excel para crear productos,
-          piezas, subproductos, operaciones y rutas sin
-          digitación manual.
+          Sube la plantilla Excel V3 para crear materiales,
+          productos, piezas, subproductos, composición,
+          operaciones y rutas sin digitación manual.
         </p>
 
         <section style={{
@@ -781,6 +998,10 @@ function ImportadorIngenieriaV2({
                 color: "#334155",
                 lineHeight: 1.8
               }}>
+                <li>
+                  Materiales MP/RF/SUM:{" "}
+                  {resumen.materiales}
+                </li>
                 <li>Productos: {resumen.productos}</li>
                 <li>Piezas: {resumen.piezas}</li>
                 <li>
@@ -788,13 +1009,18 @@ function ImportadorIngenieriaV2({
                   {resumen.subproductos}
                 </li>
                 <li>
+                  Composición:{" "}
+                  {resumen.composicion}
+                </li>
+                <li>
                   Componentes:{" "}
                   {resumen.componentes}
                 </li>
                 <li>
-                  Operaciones/Ruta:{" "}
+                  Operaciones catálogo:{" "}
                   {resumen.operaciones}
                 </li>
+                <li>Rutas: {resumen.rutas}</li>
               </ul>
             </section>
 

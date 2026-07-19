@@ -130,25 +130,33 @@ producto"; la ruta responde "como se fabrica".
 
 ## Importador de ingenieria Excel
 
-El modulo `Importar Ingenieria Excel (V2)` permite cargar una plantilla `.xlsx`
-con estas hojas:
+El modulo `Importar Ingenieria Excel (V2)` descarga una plantilla V3 `.xlsx`
+para cargar ingenieria completa con estas hojas:
 
 ```text
-Producto
-Piezas
-Subproductos
+Materiales_MP_SUM
+Recursos_RF
+Productos_PCL
+Subproductos_SUB
+Piezas_PZ
+Composicion_Producto
 Componentes_Subproducto
-Operaciones
+Operaciones_OP
+Ruta_Producto
+Ruta_Subproducto
 ```
 
 El importador primero lee el archivo, normaliza codigos, valida referencias
 cruzadas y muestra una vista previa. Solo permite confirmar la importacion si no
-hay errores criticos. Los registros que ya existen se omiten para evitar
-duplicados. Los materiales `MP` y `RF` deben existir previamente en el catalogo
-MP/RF para que la operacion pueda enlazarse con seguridad. En la hoja `Piezas`,
-la columna `material_base_codigo` acepta uno o varios codigos separados por coma
-(por ejemplo `RF0001, RF0002`). En la hoja `Operaciones`,
-`material_entrada_codigo` tambien acepta varios codigos separados por coma.
+hay errores criticos. Los registros que ya existen se usan como referencia y se
+omiten para evitar duplicados. La V3 puede crear `MP`, `RF` y `SUM`; `RT` no es
+un tipo formal del modelo actual. En `Piezas_PZ`, `material_base_codigo` acepta
+uno o varios codigos separados por coma (por ejemplo `RF0001, RF0002`) y
+`material_base_cantidad` permite las cantidades equivalentes. En
+`Operaciones_OP`, `material_entrada_codigo` y `material_entrada_cantidad`
+permiten varios materiales con cantidades reales. Las rutas se cargan desde
+`Ruta_Producto` y `Ruta_Subproducto`, separando el catalogo de operaciones de
+la secuencia productiva, estandar, proceso y estacion.
 
 ### `catalogo_procesos_estaciones/{empresaId}__{codigoPR}`
 
