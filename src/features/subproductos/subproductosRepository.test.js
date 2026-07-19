@@ -80,7 +80,7 @@ test("normaliza codigo y componentes de subproducto", () => {
   });
 });
 
-test("valida campos obligatorios y salida armado", () => {
+test("valida campos obligatorios basicos", () => {
   expect(
     validarSubproducto({
       id: "sub-1",
@@ -94,10 +94,37 @@ test("valida campos obligatorios y salida armado", () => {
   ).toEqual([
     "El codigo de subproducto debe usar el formato SUB0001.",
     "El subproducto requiere nombre.",
-    "Selecciona el producto al que pertenece.",
-    "Selecciona la pieza de salida Armado.",
+    "Selecciona el producto al que pertenece."
+  ]);
+});
+
+test("permite crear subproducto pendiente de piezas", () => {
+  expect(
+    validarSubproducto({
+      id: "sub-1",
+      codigo: "SUB0001",
+      nombre: "Bandeja",
+      producto_id: "producto-1",
+      pieza_salida_id: "",
+      pieza_salida_nombre: "",
+      componentes: []
+    })
+  ).toEqual([]);
+});
+
+test("valida salida armado cuando se selecciona pieza de salida", () => {
+  expect(
+    validarSubproducto({
+      id: "sub-1",
+      codigo: "SUB0001",
+      nombre: "Bandeja",
+      producto_id: "producto-1",
+      pieza_salida_id: "pieza-1",
+      pieza_salida_nombre: "Bandeja Terminada",
+      componentes: []
+    })
+  ).toEqual([
     "La pieza de salida debe ser la pieza Armado del subproducto.",
-    "Agrega al menos una pieza componente."
   ]);
 });
 

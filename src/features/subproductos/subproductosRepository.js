@@ -137,13 +137,8 @@ export const validarSubproducto = (
     );
   }
 
-  if (!subproducto.pieza_salida_id) {
-    errores.push(
-      "Selecciona la pieza de salida Armado."
-    );
-  }
-
   if (
+    subproducto.pieza_salida_id &&
     subproducto.pieza_salida_nombre &&
     !subproducto.pieza_salida_nombre
       .toLowerCase()
@@ -151,12 +146,6 @@ export const validarSubproducto = (
   ) {
     errores.push(
       "La pieza de salida debe ser la pieza Armado del subproducto."
-    );
-  }
-
-  if (subproducto.componentes.length === 0) {
-    errores.push(
-      "Agrega al menos una pieza componente."
     );
   }
 

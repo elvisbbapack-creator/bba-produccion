@@ -369,9 +369,10 @@ function CatalogoSubproductosV2({
           color: "#475569",
           marginTop: 0
         }}>
-          Agrupa piezas que se unen por soldadura
-          y define la pieza Armado que continuará
-          hacia lavado, pintura u otros procesos.
+          Crea conjuntos reutilizables como bandejas,
+          laterales o cabeceros. Puedes crear el
+          subproducto primero y completar sus piezas
+          después.
         </p>
 
         <div style={{
@@ -472,6 +473,10 @@ function CatalogoSubproductosV2({
 
             <label>
               Pieza de salida Armado
+              {" "}
+              <span style={{ color: "#64748B" }}>
+                (opcional)
+              </span>
               <select
                 value={
                   formulario.pieza_salida_id
@@ -488,7 +493,7 @@ function CatalogoSubproductosV2({
                 }}
               >
                 <option value="">
-                  Seleccionar pieza Armado
+                  Pendiente de crear/asociar
                 </option>
                 {piezasActivas.map(pieza => (
                   <option
@@ -508,9 +513,10 @@ function CatalogoSubproductosV2({
               marginTop: 0,
               marginBottom: 14
             }}>
-              Ejemplo: si el subproducto es
-              "Lateral", crea/selecciona una pieza
-              llamada "Lateral Armado".
+              Puedes dejarlo pendiente. Cuando ya
+              exista la pieza de salida, vuelve a editar
+              este subproducto y selecciónala. Ejemplo:
+              "Lateral Armado".
             </p>
 
             <div style={{
@@ -520,6 +526,15 @@ function CatalogoSubproductosV2({
               marginBottom: 14
             }}>
               <strong>Piezas componentes</strong>
+              <p style={{
+                color: "#64748B",
+                fontSize: 13,
+                marginTop: 6,
+                marginBottom: 0
+              }}>
+                También puedes dejarlas pendientes y
+                agregarlas después de crear las piezas.
+              </p>
               <div style={{
                 display: "grid",
                 gridTemplateColumns:
@@ -742,7 +757,18 @@ function CatalogoSubproductosV2({
                 gap: 10
               }}>
                 {subproductos.map(
-                  subproducto => (
+                  subproducto => {
+                    const tieneSalida = Boolean(
+                      subproducto.pieza_salida_id
+                    );
+                    const tieneComponentes =
+                      (subproducto.componentes || [])
+                        .length > 0;
+                    const pendiente =
+                      !tieneSalida ||
+                      !tieneComponentes;
+
+                    return (
                     <article
                       key={subproducto.id}
                       style={{
@@ -768,6 +794,22 @@ function CatalogoSubproductosV2({
                             {" - "}
                             {subproducto.nombre}
                           </strong>
+                          {pendiente && (
+                            <span style={{
+                              display: "inline-block",
+                              marginLeft: 8,
+                              padding:
+                                "3px 8px",
+                              borderRadius: 999,
+                              background:
+                                "#FEF3C7",
+                              color: "#92400E",
+                              fontSize: 12,
+                              fontWeight: "bold"
+                            }}>
+                              Pendiente de completar
+                            </span>
+                          )}
                           <div style={{
                             color: "#475569",
                             fontSize: 14,
@@ -788,13 +830,9 @@ function CatalogoSubproductosV2({
                             marginTop: 5
                           }}>
                             Salida:{" "}
-                            {
-                              subproducto.pieza_salida_codigo
-                            }
-                            {" - "}
-                            {
-                              subproducto.pieza_salida_nombre
-                            }
+                            {tieneSalida
+                              ? `${subproducto.pieza_salida_codigo} - ${subproducto.pieza_salida_nombre}`
+                              : "pendiente"}
                           </div>
                         </div>
                         <button
@@ -823,21 +861,30 @@ function CatalogoSubproductosV2({
                         color: "#334155",
                         fontSize: 14
                       }}>
-                        {(subproducto.componentes || [])
-                          .map(item => (
-                            <span key={
-                              item.pieza_id
-                            }>
-                              {item.pieza_codigo}
-                              {" - "}
-                              {item.pieza_nombre}
-                              {" · Cantidad: "}
-                              {item.cantidad}
-                            </span>
-                          ))}
+                        {tieneComponentes ? (
+                          (subproducto.componentes || [])
+                            .map(item => (
+                              <span key={
+                                item.pieza_id
+                              }>
+                                {item.pieza_codigo}
+                                {" - "}
+                                {item.pieza_nombre}
+                                {" · Cantidad: "}
+                                {item.cantidad}
+                              </span>
+                            ))
+                        ) : (
+                          <span style={{
+                            color: "#64748B"
+                          }}>
+                            Componentes pendientes.
+                          </span>
+                        )}
                       </div>
                     </article>
-                  )
+                    );
+                  }
                 )}
               </div>
             )}
