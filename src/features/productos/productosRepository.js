@@ -370,6 +370,21 @@ export const prepararOperacionRuta = (
     id,
     empresa_id: datos.empresa_id,
     producto_id: productoId,
+    tipo_ruta:
+      rutaEsSubproducto(datos.tipo_ruta)
+        ? "SUBPRODUCTO"
+        : "PRODUCTO",
+    entidad_ruta_id: limpiarTexto(
+      datos.entidad_ruta_id ||
+      productoId
+    ),
+    subproducto_ruta_id:
+      rutaEsSubproducto(datos.tipo_ruta)
+        ? limpiarTexto(
+            datos.subproducto_ruta_id ||
+            datos.entidad_ruta_id
+          )
+        : "",
     secuencia: Number(datos.secuencia),
     operacion_id: id,
     operacion_codigo:
@@ -619,6 +634,86 @@ const idRuta = (version) => `v${version}`;
 const idOperacion = (codigo) =>
   normalizarCodigoOperacion(codigo);
 
+const rutaEsSubproducto = tipoRuta =>
+  normalizarCodigo(tipoRuta) === "SUBPRODUCTO";
+
+const referenciaEntidadRuta = (
+  db,
+  productoId,
+  opciones = {}
+) => {
+  const esSubproducto = rutaEsSubproducto(
+    opciones.tipoRuta
+  );
+  const entidadId = esSubproducto
+    ? limpiarTexto(
+        opciones.subproductoId ||
+        opciones.entidadId
+      )
+    : limpiarTexto(productoId);
+
+  return {
+    tipoRuta: esSubproducto
+      ? "SUBPRODUCTO"
+      : "PRODUCTO",
+    coleccion: esSubproducto
+      ? "catalogo_subproductos"
+      : "productos",
+    entidadId,
+    ref: doc(
+      db,
+      esSubproducto
+        ? "catalogo_subproductos"
+        : "productos",
+      entidadId
+    )
+  };
+};
+
+const referenciaRuta = (
+  db,
+  productoId,
+  version,
+  opciones = {}
+) => {
+  const entidad =
+    referenciaEntidadRuta(
+      db,
+      productoId,
+      opciones
+    );
+
+  return {
+    ...entidad,
+    rutaRef: doc(
+      db,
+      entidad.coleccion,
+      entidad.entidadId,
+      "rutas",
+      idRuta(version)
+    ),
+    operacionesCollection: collection(
+      db,
+      entidad.coleccion,
+      entidad.entidadId,
+      "rutas",
+      idRuta(version),
+      "operaciones"
+    )
+  };
+};
+
+const camposActualizacionEntidadRuta = (
+  referencias,
+  campos = {}
+) => ({
+  ...campos,
+  fecha_actualizacion: serverTimestamp(),
+  ...(referencias.tipoRuta === "SUBPRODUCTO"
+    ? { actualizado_en: serverTimestamp() }
+    : {})
+});
+
 export const listarProductos = async (
   db,
   empresaId
@@ -698,27 +793,22 @@ export const obtenerRuta = async (
   db,
   productoId,
   empresaId,
-  version = 1
+  version = 1,
+  opciones = {}
 ) => {
   const rutaId = idRuta(version);
-  const rutaRef = doc(
+  const referencias = referenciaRuta(
     db,
-    "productos",
     productoId,
-    "rutas",
-    rutaId
+    version,
+    opciones
   );
-  const rutaSnap = await getDoc(rutaRef);
+  const rutaSnap = await getDoc(
+    referencias.rutaRef
+  );
   const operacionesSnap = await getDocs(
     query(
-      collection(
-        db,
-        "productos",
-        productoId,
-        "rutas",
-        rutaId,
-        "operaciones"
-      ),
+      referencias.operacionesCollection,
       where("empresa_id", "==", empresaId)
     )
   );
@@ -727,6 +817,12 @@ export const obtenerRuta = async (
     id: rutaId,
     ...(rutaSnap.exists() ? rutaSnap.data() : {}),
     producto_id: productoId,
+    tipo_ruta: referencias.tipoRuta,
+    entidad_ruta_id: referencias.entidadId,
+    subproducto_ruta_id:
+      referencias.tipoRuta === "SUBPRODUCTO"
+        ? referencias.entidadId
+        : "",
     version,
     existe: rutaSnap.exists(),
     estado:
@@ -783,24 +879,32 @@ export const guardarOperacionRuta = async (
   productoId,
   version,
   datos,
-  existentes = []
+  existentes = [],
+  opciones = {}
 ) => {
   const codigo = normalizarCodigoOperacion(
     datos.codigo
   );
-  const operacionRef = doc(
+  const referencias = referenciaRuta(
     db,
-    "productos",
     productoId,
-    "rutas",
-    idRuta(version),
-    "operaciones",
+    version,
+    opciones
+  );
+  const operacionRef = doc(
+    referencias.operacionesCollection,
     idOperacion(codigo)
   );
   const operacion = prepararOperacionRuta(
     {
       ...datos,
-      empresa_id: empresaId
+      empresa_id: empresaId,
+      tipo_ruta: referencias.tipoRuta,
+      entidad_ruta_id: referencias.entidadId,
+      subproducto_ruta_id:
+        referencias.tipoRuta === "SUBPRODUCTO"
+          ? referencias.entidadId
+          : ""
     },
     productoId,
     operacionRef.id
@@ -812,6 +916,28 @@ export const guardarOperacionRuta = async (
 
   if (errores.length > 0) {
     throw new Error(errores.join(" "));
+  }
+
+  const rutaSnap = await getDoc(
+    referencias.rutaRef
+  );
+
+  if (!rutaSnap.exists()) {
+    await setDoc(referencias.rutaRef, {
+      id: referencias.rutaRef.id,
+      empresa_id: empresaId,
+      producto_id: productoId,
+      tipo_ruta: referencias.tipoRuta,
+      entidad_ruta_id: referencias.entidadId,
+      subproducto_ruta_id:
+        referencias.tipoRuta === "SUBPRODUCTO"
+          ? referencias.entidadId
+          : "",
+      version,
+      estado: "borrador",
+      fecha_creacion: serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    });
   }
 
   await setDoc(operacionRef, {
@@ -831,7 +957,10 @@ export const actualizarOperacionRuta = async ({
   operacionId,
   datos,
   existentes = [],
-  ruta
+  ruta,
+  tipoRuta,
+  subproductoId,
+  entidadId
 }) => {
   if (ruta?.estado !== "borrador") {
     throw new Error(
@@ -848,19 +977,26 @@ export const actualizarOperacionRuta = async ({
   ).find(operacion =>
     operacion.id === operacionId
   );
-  const operacionRef = doc(
+  const referencias = referenciaRuta(
     db,
-    "productos",
     productoId,
-    "rutas",
-    idRuta(version),
-    "operaciones",
+    version,
+    { tipoRuta, subproductoId, entidadId }
+  );
+  const operacionRef = doc(
+    referencias.operacionesCollection,
     siguienteId
   );
   const operacion = prepararOperacionRuta(
     {
       ...datos,
-      empresa_id: empresaId
+      empresa_id: empresaId,
+      tipo_ruta: referencias.tipoRuta,
+      entidad_ruta_id: referencias.entidadId,
+      subproducto_ruta_id:
+        referencias.tipoRuta === "SUBPRODUCTO"
+          ? referencias.entidadId
+          : ""
     },
     productoId,
     siguienteId
@@ -905,8 +1041,8 @@ export const actualizarOperacionRuta = async ({
     batch.delete(
       doc(
         db,
-        "productos",
-        productoId,
+        referencias.coleccion,
+        referencias.entidadId,
         "rutas",
         idRuta(version),
         "operaciones",
@@ -934,7 +1070,10 @@ export const eliminarOperacionRuta = async ({
   productoId,
   version,
   operacionId,
-  ruta
+  ruta,
+  tipoRuta,
+  subproductoId,
+  entidadId
 }) => {
   if (ruta?.estado !== "borrador") {
     throw new Error(
@@ -958,14 +1097,16 @@ export const eliminarOperacionRuta = async ({
     );
   }
 
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    version,
+    { tipoRuta, subproductoId, entidadId }
+  );
+
   await deleteDoc(
     doc(
-      db,
-      "productos",
-      productoId,
-      "rutas",
-      idRuta(version),
-      "operaciones",
+      referencias.operacionesCollection,
       operacionId
     )
   );
@@ -977,7 +1118,10 @@ export const publicarRuta = async ({
   productoId,
   version,
   operaciones,
-  materiales
+  materiales,
+  tipoRuta,
+  subproductoId,
+  entidadId
 }) => {
   const ruta = {
     producto_id: productoId,
@@ -993,30 +1137,32 @@ export const publicarRuta = async ({
     throw new Error(errores.join(" "));
   }
 
-  const productoRef = doc(
+  const referencias = referenciaRuta(
     db,
-    "productos",
-    productoId
-  );
-  const rutaRef = doc(
-    db,
-    "productos",
     productoId,
-    "rutas",
-    idRuta(version)
+    version,
+    { tipoRuta, subproductoId, entidadId }
   );
   const lote = writeBatch(db);
 
-  lote.update(productoRef, {
-    version_ruta_activa: version,
-    version_ruta_borrador: null,
-    fecha_actualizacion: serverTimestamp()
-  });
-  lote.update(rutaRef, {
+  lote.update(
+    referencias.ref,
+    camposActualizacionEntidadRuta(referencias, {
+      version_ruta_activa: version,
+      version_ruta_borrador: null
+    })
+  );
+  lote.update(referencias.rutaRef, {
     estado: "publicada",
     vigente_desde: serverTimestamp(),
     fecha_actualizacion: serverTimestamp(),
-    empresa_id: empresaId
+    empresa_id: empresaId,
+    tipo_ruta: referencias.tipoRuta,
+    entidad_ruta_id: referencias.entidadId,
+    subproducto_ruta_id:
+      referencias.tipoRuta === "SUBPRODUCTO"
+        ? referencias.entidadId
+        : ""
   });
   await lote.commit();
 };
@@ -1026,9 +1172,17 @@ export const eliminarRutaBorrador = async ({
   empresaId,
   producto,
   ruta,
-  perfil
+  perfil,
+  tipoRuta,
+  subproducto
 }) => {
-  if (!producto?.id || !ruta?.version) {
+  const esSubproducto =
+    rutaEsSubproducto(tipoRuta);
+  const entidad = esSubproducto
+    ? subproducto
+    : producto;
+
+  if (!entidad?.id || !ruta?.version) {
     throw new Error("Selecciona una ruta.");
   }
 
@@ -1052,38 +1206,36 @@ export const eliminarRutaBorrador = async ({
     );
   }
 
-  const rutaRef = doc(
+  const referencias = referenciaRuta(
     db,
-    "productos",
     producto.id,
-    "rutas",
-    idRuta(ruta.version)
+    ruta.version,
+    {
+      tipoRuta,
+      subproductoId: subproducto?.id
+    }
   );
   const operacionesSnap = await getDocs(
-    collection(
-      db,
-      "productos",
-      producto.id,
-      "rutas",
-      idRuta(ruta.version),
-      "operaciones"
-    )
+    referencias.operacionesCollection
   );
   const lote = writeBatch(db);
 
   operacionesSnap.docs.forEach(documento => {
     lote.delete(documento.ref);
   });
-  lote.delete(rutaRef);
+  lote.delete(referencias.rutaRef);
 
   if (
-    Number(producto.version_ruta_borrador) ===
+    Number(entidad.version_ruta_borrador) ===
     Number(ruta.version)
   ) {
-    lote.update(doc(db, "productos", producto.id), {
-      version_ruta_borrador: null,
-      fecha_actualizacion: serverTimestamp()
-    });
+    lote.update(
+      referencias.ref,
+      camposActualizacionEntidadRuta(
+        referencias,
+        { version_ruta_borrador: null }
+      )
+    );
   }
 
   await lote.commit();
@@ -1100,11 +1252,18 @@ export const anularRutaPublicada = async ({
   producto,
   ruta,
   motivo,
-  perfil
+  perfil,
+  tipoRuta,
+  subproducto
 }) => {
+  const esSubproducto =
+    rutaEsSubproducto(tipoRuta);
+  const entidad = esSubproducto
+    ? subproducto
+    : producto;
   const motivoLimpio = limpiarTexto(motivo);
 
-  if (!producto?.id || !ruta?.version) {
+  if (!entidad?.id || !ruta?.version) {
     throw new Error("Selecciona una ruta.");
   }
 
@@ -1120,32 +1279,30 @@ export const anularRutaPublicada = async ({
     );
   }
 
-  const productoRef = doc(
+  const referencias = referenciaRuta(
     db,
-    "productos",
-    producto.id
-  );
-  const rutaRef = doc(
-    db,
-    "productos",
     producto.id,
-    "rutas",
-    idRuta(ruta.version)
+    ruta.version,
+    {
+      tipoRuta,
+      subproductoId: subproducto?.id
+    }
   );
   const lote = writeBatch(db);
-  const actualizacionesProducto = {
-    fecha_actualizacion: serverTimestamp()
-  };
+  const actualizacionesEntidad =
+    camposActualizacionEntidadRuta(
+      referencias
+    );
 
   if (
-    Number(producto.version_ruta_activa) ===
+    Number(entidad.version_ruta_activa) ===
     Number(ruta.version)
   ) {
-    actualizacionesProducto.version_ruta_activa =
+    actualizacionesEntidad.version_ruta_activa =
       null;
   }
 
-  lote.update(rutaRef, {
+  lote.update(referencias.rutaRef, {
     estado: "anulada",
     motivo_anulacion: motivoLimpio,
     anulada_por: perfil?.uid || "",
@@ -1153,7 +1310,10 @@ export const anularRutaPublicada = async ({
     fecha_actualizacion: serverTimestamp(),
     empresa_id: empresaId
   });
-  lote.update(productoRef, actualizacionesProducto);
+  lote.update(
+    referencias.ref,
+    actualizacionesEntidad
+  );
 
   await lote.commit();
 
@@ -1196,28 +1356,30 @@ export const crearVersionBorradorRuta = async ({
   productoId,
   versionActual,
   operaciones,
-  perfil
+  perfil,
+  tipoRuta,
+  subproductoId
 }) => {
   const versionNueva =
     Number(versionActual || 1) + 1;
-  const productoRef = doc(
+  const referencias = referenciaRuta(
     db,
-    "productos",
-    productoId
-  );
-  const rutaNuevaRef = doc(
-    db,
-    "productos",
     productoId,
-    "rutas",
-    idRuta(versionNueva)
+    versionNueva,
+    { tipoRuta, subproductoId }
   );
   const lote = writeBatch(db);
 
-  lote.set(rutaNuevaRef, {
-    id: rutaNuevaRef.id,
+  lote.set(referencias.rutaRef, {
+    id: referencias.rutaRef.id,
     empresa_id: empresaId,
     producto_id: productoId,
+    tipo_ruta: referencias.tipoRuta,
+    entidad_ruta_id: referencias.entidadId,
+    subproducto_ruta_id:
+      referencias.tipoRuta === "SUBPRODUCTO"
+        ? referencias.entidadId
+        : "",
     version: versionNueva,
     estado: "borrador",
     version_origen: Number(versionActual || 1),
@@ -1229,8 +1391,8 @@ export const crearVersionBorradorRuta = async ({
   operaciones.forEach(operacion => {
     const operacionRef = doc(
       db,
-      "productos",
-      productoId,
+      referencias.coleccion,
+      referencias.entidadId,
       "rutas",
       idRuta(versionNueva),
       "operaciones",
@@ -1238,6 +1400,12 @@ export const crearVersionBorradorRuta = async ({
     );
     const copia = {
       ...operacion,
+      tipo_ruta: referencias.tipoRuta,
+      entidad_ruta_id: referencias.entidadId,
+      subproducto_ruta_id:
+        referencias.tipoRuta === "SUBPRODUCTO"
+          ? referencias.entidadId
+          : "",
       ruta_version: versionNueva,
       fecha_creacion: serverTimestamp(),
       fecha_actualizacion: serverTimestamp()
@@ -1248,10 +1416,12 @@ export const crearVersionBorradorRuta = async ({
     lote.set(operacionRef, copia);
   });
 
-  lote.update(productoRef, {
-    version_ruta_borrador: versionNueva,
-    fecha_actualizacion: serverTimestamp()
-  });
+  lote.update(
+    referencias.ref,
+    camposActualizacionEntidadRuta(referencias, {
+      version_ruta_borrador: versionNueva
+    })
+  );
 
   await lote.commit();
 
@@ -1267,7 +1437,9 @@ export const recalibrarEstandarRuta = async ({
   operacionId,
   unidadesPorHora,
   motivo,
-  perfil
+  perfil,
+  tipoRuta,
+  subproductoId
 }) => {
   const operacionActual = operaciones.find(
     operacion => operacion.id === operacionId
@@ -1292,24 +1464,17 @@ export const recalibrarEstandarRuta = async ({
 
   const versionNueva =
     Number(versionActual) + 1;
-  const productoRef = doc(
+  const referenciasActual = referenciaRuta(
     db,
-    "productos",
-    productoId
-  );
-  const rutaActualRef = doc(
-    db,
-    "productos",
     productoId,
-    "rutas",
-    idRuta(versionActual)
+    versionActual,
+    { tipoRuta, subproductoId }
   );
-  const rutaNuevaRef = doc(
+  const referenciasNueva = referenciaRuta(
     db,
-    "productos",
     productoId,
-    "rutas",
-    idRuta(versionNueva)
+    versionNueva,
+    { tipoRuta, subproductoId }
   );
   const lote = writeBatch(db);
   const motivoLimpio = limpiarTexto(motivo);
@@ -1317,10 +1482,17 @@ export const recalibrarEstandarRuta = async ({
     unidadesPorHora
   );
 
-  lote.set(rutaNuevaRef, {
-    id: rutaNuevaRef.id,
+  lote.set(referenciasNueva.rutaRef, {
+    id: referenciasNueva.rutaRef.id,
     empresa_id: empresaId,
     producto_id: productoId,
+    tipo_ruta: referenciasNueva.tipoRuta,
+    entidad_ruta_id:
+      referenciasNueva.entidadId,
+    subproducto_ruta_id:
+      referenciasNueva.tipoRuta === "SUBPRODUCTO"
+        ? referenciasNueva.entidadId
+        : "",
     version: versionNueva,
     estado: "publicada",
     version_origen: Number(versionActual),
@@ -1336,8 +1508,8 @@ export const recalibrarEstandarRuta = async ({
       operacion.id === operacionId;
     const operacionRef = doc(
       db,
-      "productos",
-      productoId,
+      referenciasNueva.coleccion,
+      referenciasNueva.entidadId,
       "rutas",
       idRuta(versionNueva),
       "operaciones",
@@ -1345,6 +1517,13 @@ export const recalibrarEstandarRuta = async ({
     );
     const copia = {
       ...operacion,
+      tipo_ruta: referenciasNueva.tipoRuta,
+      entidad_ruta_id:
+        referenciasNueva.entidadId,
+      subproducto_ruta_id:
+        referenciasNueva.tipoRuta === "SUBPRODUCTO"
+          ? referenciasNueva.entidadId
+          : "",
       unidades_por_hora: esRecalibrada
         ? nuevoEstandar
         : Number(operacion.unidades_por_hora),
@@ -1369,14 +1548,17 @@ export const recalibrarEstandarRuta = async ({
     lote.set(operacionRef, copia);
   });
 
-  lote.update(rutaActualRef, {
+  lote.update(referenciasActual.rutaRef, {
     estado: "retirada",
     fecha_actualizacion: serverTimestamp()
   });
-  lote.update(productoRef, {
-    version_ruta_activa: versionNueva,
-    fecha_actualizacion: serverTimestamp()
-  });
+  lote.update(
+    referenciasNueva.ref,
+    camposActualizacionEntidadRuta(
+      referenciasNueva,
+      { version_ruta_activa: versionNueva }
+    )
+  );
   await lote.commit();
 
   return {

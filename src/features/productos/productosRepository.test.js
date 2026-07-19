@@ -265,6 +265,51 @@ test("prepara una operacion con dependencia parcial", () => {
   ).toEqual([]);
 });
 
+test("prepara operación para ruta de subproducto", () => {
+  const operacion = prepararOperacionRuta(
+    {
+      empresa_id: "bba",
+      tipo_ruta: "SUBPRODUCTO",
+      entidad_ruta_id: "sub-1",
+      subproducto_ruta_id: "sub-1",
+      secuencia: "10",
+      codigo: "op0001",
+      nombre: "Soldadura lateral",
+      subproducto_id: "sub-1",
+      subproducto_codigo: "SUB0001",
+      subproducto_nombre: "Lateral",
+      proceso_codigo: "PR0003",
+      proceso_nombre: "Soldadura",
+      estacion_codigo: "ET0007",
+      estacion_nombre: "Soldadura punto",
+      materiales_entrada: [{
+        material_id: "rf-1",
+        material_codigo: "RF0001",
+        material_nombre: "Lateral cortado",
+        cantidad: "2"
+      }],
+      material_salida_id: "rf-armado",
+      unidades_por_producto: "1",
+      unidades_por_hora: "35"
+    },
+    "producto-1",
+    "OP0001"
+  );
+
+  expect(operacion).toMatchObject({
+    producto_id: "producto-1",
+    tipo_ruta: "SUBPRODUCTO",
+    entidad_ruta_id: "sub-1",
+    subproducto_ruta_id: "sub-1",
+    subproducto_codigo: "SUB0001",
+    unidades_por_producto: 1,
+    unidades_por_hora: 35
+  });
+  expect(
+    validarOperacionBasica(operacion)
+  ).toEqual([]);
+});
+
 test("rechaza dependencias repetidas en una operación", () => {
   const operacion = prepararOperacionRuta(
     {

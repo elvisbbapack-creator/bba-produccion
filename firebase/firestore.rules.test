@@ -698,9 +698,102 @@ service cloud.firestore {
           'pieza_salida_nombre',
           'componentes',
           'activo',
+          'version_ruta_activa',
+          'version_ruta_borrador',
+          'fecha_actualizacion',
           'actualizado_en'
         ]);
       allow delete: if false;
+
+      match /rutas/{rutaId} {
+        allow read: if belongsToCompany(
+          resource.data
+        );
+        allow create: if canManageEngineering() &&
+          belongsToCompany(
+            request.resource.data
+          );
+        allow update: if canManageEngineering() &&
+          belongsToCompany(resource.data) &&
+          belongsToCompany(
+            request.resource.data
+          ) &&
+          request.resource.data.diff(
+            resource.data
+          ).affectedKeys().hasOnly([
+            'estado',
+            'vigente_desde',
+            'motivo_anulacion',
+            'anulada_por',
+            'anulada_en',
+            'tipo_ruta',
+            'entidad_ruta_id',
+            'subproducto_ruta_id',
+            'fecha_actualizacion'
+          ]);
+        allow delete: if canManageEngineering() &&
+          belongsToCompany(resource.data) &&
+          resource.data.estado == 'borrador';
+
+        match /operaciones/{operacionId} {
+          allow read: if belongsToCompany(
+            resource.data
+          );
+          allow create: if canManageEngineering() &&
+            belongsToCompany(
+              request.resource.data
+            );
+          allow update: if canManageEngineering() &&
+            belongsToCompany(resource.data) &&
+            belongsToCompany(
+              request.resource.data
+            ) &&
+            get(
+              /databases/$(database)/documents/catalogo_subproductos/$(subproductoId)/rutas/$(rutaId)
+            ).data.estado == 'borrador' &&
+            request.resource.data.empresa_id ==
+              resource.data.empresa_id &&
+            request.resource.data.subproducto_ruta_id ==
+              resource.data.subproducto_ruta_id &&
+            request.resource.data.diff(
+              resource.data
+            ).affectedKeys().hasOnly([
+              'secuencia',
+              'operacion_id',
+              'operacion_codigo',
+              'operacion_nombre',
+              'pieza_id',
+              'pieza_codigo',
+              'pieza_nombre',
+              'subproducto_id',
+              'subproducto_codigo',
+              'subproducto_nombre',
+              'proceso_id',
+              'proceso_nombre',
+              'estacion_id',
+              'estacion_nombre',
+              'subproceso_id',
+              'subproceso_nombre',
+              'material_entrada_id',
+              'materiales_entrada',
+              'material_salida_id',
+              'medida',
+              'unidades_por_producto',
+              'unidades_por_hora',
+              'dependencias',
+              'activo',
+              'tipo_ruta',
+              'entidad_ruta_id',
+              'subproducto_ruta_id',
+              'fecha_actualizacion'
+            ]);
+          allow delete: if canManageEngineering() &&
+            belongsToCompany(resource.data) &&
+            get(
+              /databases/$(database)/documents/catalogo_subproductos/$(subproductoId)/rutas/$(rutaId)
+            ).data.estado == 'borrador';
+        }
+      }
     }
 
     match /{catalogo}/{registroId} {
@@ -910,6 +1003,9 @@ service cloud.firestore {
             'motivo_anulacion',
             'anulada_por',
             'anulada_en',
+            'tipo_ruta',
+            'entidad_ruta_id',
+            'subproducto_ruta_id',
             'fecha_actualizacion'
           ]);
         allow delete: if canManageEngineering() &&
@@ -963,6 +1059,9 @@ service cloud.firestore {
               'unidades_por_hora',
               'dependencias',
               'activo',
+              'tipo_ruta',
+              'entidad_ruta_id',
+              'subproducto_ruta_id',
               'fecha_actualizacion'
             ]);
           allow delete: if canManageEngineering() &&
