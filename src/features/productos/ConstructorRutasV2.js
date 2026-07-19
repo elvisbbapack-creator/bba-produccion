@@ -3233,10 +3233,45 @@ function ConstructorRutasV2({
                 )}
 
                 <section style={tarjeta}>
-                  <h2 style={{ marginTop: 0 }}>
-                    Operaciones (
-                    {ruta?.operaciones.length || 0})
-                  </h2>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "start",
+                    gap: 12,
+                    marginBottom: 10
+                  }}>
+                    <div>
+                      <h2 style={{
+                        marginTop: 0,
+                        marginBottom: 4
+                      }}>
+                        Operaciones (
+                        {ruta?.operaciones.length || 0})
+                      </h2>
+                      <p style={{
+                        color: "#64748B",
+                        margin: 0,
+                        fontSize: 14
+                      }}>
+                        La lista queda contenida para
+                        mantener la pantalla ordenada en
+                        rutas largas.
+                      </p>
+                    </div>
+                    {(ruta?.operaciones || []).length > 0 && (
+                      <span style={{
+                        background: "#EFF6FF",
+                        color: "#1D4ED8",
+                        borderRadius: 999,
+                        padding: "5px 10px",
+                        fontWeight: "bold",
+                        fontSize: 13,
+                        whiteSpace: "nowrap"
+                      }}>
+                        Scroll interno
+                      </span>
+                    )}
+                  </div>
                   {(ruta?.operaciones || []).length ===
                   0 ? (
                     <p style={{ color: "#64748B" }}>
@@ -3245,7 +3280,10 @@ function ConstructorRutasV2({
                   ) : (
                     <div style={{
                       display: "grid",
-                      gap: 10
+                      gap: 10,
+                      maxHeight: 620,
+                      overflowY: "auto",
+                      paddingRight: 6
                     }}>
                       {ruta.operaciones.map(
                         operacion => {
