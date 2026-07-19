@@ -6,6 +6,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  writeBatch,
   where
 } from "firebase/firestore";
 import {
@@ -299,4 +300,38 @@ export const guardarPersonaRRHH = async (
   );
 
   return creado.id;
+};
+
+export const eliminarPersonasRRHH = async (
+  db,
+  empresaId
+) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, COLECCION_PERSONAS),
+      where("empresa_id", "==", empresaId)
+    )
+  );
+
+  let eliminadas = 0;
+  let batch = writeBatch(db);
+  let operaciones = 0;
+
+  for (const documento of snapshot.docs) {
+    batch.delete(documento.ref);
+    eliminadas += 1;
+    operaciones += 1;
+
+    if (operaciones === 450) {
+      await batch.commit();
+      batch = writeBatch(db);
+      operaciones = 0;
+    }
+  }
+
+  if (operaciones > 0) {
+    await batch.commit();
+  }
+
+  return eliminadas;
 };

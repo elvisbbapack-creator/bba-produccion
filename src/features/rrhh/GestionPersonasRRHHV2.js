@@ -10,6 +10,7 @@ import {
   EQUIPOS_TRABAJO_RRHH,
   PLANTAS_RRHH,
   ROLES_LABORALES_RRHH,
+  eliminarPersonasRRHH,
   guardarPersonaRRHH,
   listarHabilidadesEstacion,
   listarPersonasRRHH,
@@ -60,6 +61,11 @@ const botonSecundario = {
   background: "#455A64"
 };
 
+const botonPeligro = {
+  ...botonPrimario,
+  background: "#B91C1C"
+};
+
 const normalizar = valor =>
   (valor || "")
     .toString()
@@ -108,6 +114,8 @@ export default function GestionPersonasRRHHV2({
   const [previewPersonal, setPreviewPersonal] =
     useState(null);
   const [importandoPersonal, setImportandoPersonal] =
+    useState(false);
+  const [eliminandoPersonas, setEliminandoPersonas] =
     useState(false);
   const [filtroEquipo, setFiltroEquipo] =
     useState("");
@@ -415,6 +423,59 @@ export default function GestionPersonasRRHHV2({
     }
   };
 
+  const eliminarListaActual = async () => {
+    if (personas.length === 0) {
+      setMensaje(
+        "No hay personas actuales para eliminar."
+      );
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `Se eliminarán ${personas.length} personas de la empresa actual antes de importar la nueva plantilla. Esta acción no elimina usuarios de acceso Firebase. ¿Continuar?`
+    );
+
+    if (!confirmar) {
+      return;
+    }
+
+    const texto = window.prompt(
+      "Para confirmar escribe ELIMINAR"
+    );
+
+    if (texto !== "ELIMINAR") {
+      setError(
+        "Eliminación cancelada: confirmación incorrecta."
+      );
+      return;
+    }
+
+    try {
+      setEliminandoPersonas(true);
+      setError("");
+      setMensaje("");
+      const eliminadas =
+        await eliminarPersonasRRHH(
+          db,
+          perfil.empresa_id
+        );
+      await cargar();
+      setPreviewPersonal(null);
+      setArchivoPersonalNombre("");
+      limpiar();
+      setMensaje(
+        `${eliminadas} personas eliminadas. Ya puedes subir la nueva plantilla.`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo eliminar la lista actual de personas."
+      );
+    } finally {
+      setEliminandoPersonas(false);
+    }
+  };
+
   const brechas = habilidades
     .map(habilidad => {
       const conteos = Object.fromEntries(
@@ -600,6 +661,19 @@ export default function GestionPersonasRRHHV2({
               style={{ display: "none" }}
             />
           </label>
+          <button
+            type="button"
+            style={botonPeligro}
+            disabled={
+              eliminandoPersonas ||
+              personas.length === 0
+            }
+            onClick={eliminarListaActual}
+          >
+            {eliminandoPersonas
+              ? "Eliminando..."
+              : "Eliminar lista actual"}
+          </button>
         </div>
 
         {previewPersonal && (
