@@ -59,6 +59,35 @@ const normalizarListaNumeros = valor =>
       Number.isFinite(valorNumerico)
     );
 
+const consolidarComponentesSubproducto = (
+  componentes = []
+) => {
+  const componentesPorClave = new Map();
+
+  componentes.forEach(componente => {
+    const clave = [
+      componente.subproducto_codigo,
+      componente.pieza_codigo
+    ].join("::");
+    const existente =
+      componentesPorClave.get(clave);
+
+    if (existente) {
+      componentesPorClave.set(clave, {
+        ...existente,
+        cantidad:
+          Number(existente.cantidad || 0) +
+          Number(componente.cantidad || 0)
+      });
+      return;
+    }
+
+    componentesPorClave.set(clave, componente);
+  });
+
+  return Array.from(componentesPorClave.values());
+};
+
 const leerFilas = (hoja, xlsx) => {
   if (!hoja) {
     return [];
@@ -552,34 +581,37 @@ export const leerIngenieriaDesdeWorkbook = (
     }));
 
   const componentesSubproducto =
-    componenteFilas.flatMap(fila => {
-      const subproductosCodigos =
-        normalizarListaCodigos(
-          fila.subproducto_codigo
-        );
-      const piezasCodigos =
-        normalizarListaCodigos(
-          fila.pieza_codigo ||
-            fila.pieza_componente_codigo
-        );
-      const cantidad = numero(fila.cantidad);
+    consolidarComponentesSubproducto(
+      componenteFilas.flatMap(fila => {
+        const subproductosCodigos =
+          normalizarListaCodigos(
+            fila.subproducto_codigo
+          );
+        const piezasCodigos =
+          normalizarListaCodigos(
+            fila.pieza_codigo ||
+              fila.pieza_componente_codigo
+          );
+        const cantidad = numero(fila.cantidad);
 
-      if (
-        subproductosCodigos.length === 0 &&
-        piezasCodigos.length === 0
-      ) {
-        return [];
-      }
+        if (
+          subproductosCodigos.length === 0 &&
+          piezasCodigos.length === 0
+        ) {
+          return [];
+        }
 
-      return subproductosCodigos.flatMap(
-        subproductoCodigo =>
-          piezasCodigos.map(piezaCodigo => ({
-            subproducto_codigo: subproductoCodigo,
-            pieza_codigo: piezaCodigo,
-            cantidad
-          }))
-      );
-    });
+        return subproductosCodigos.flatMap(
+          subproductoCodigo =>
+            piezasCodigos.map(piezaCodigo => ({
+              subproducto_codigo:
+                subproductoCodigo,
+              pieza_codigo: piezaCodigo,
+              cantidad
+            }))
+        );
+      })
+    );
 
   const operaciones = operacionFilas
     .filter(fila =>

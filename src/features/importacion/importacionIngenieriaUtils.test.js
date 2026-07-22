@@ -385,7 +385,8 @@ test("expande componentes y rutas con códigos separados por coma", () => {
       "pieza_componente_codigo",
       "cantidad"
     ],
-    ["SUB7,SUB8", "PZ30,PZ31", "2"]
+    ["SUB7,SUB8", "PZ30,PZ31", "2"],
+    ["SUB7", "PZ30", "3"]
   ]);
   agregarHoja("Operaciones_OP", [
     [
@@ -444,6 +445,20 @@ test("expande componentes y rutas con códigos separados por coma", () => {
     ])
   );
   expect(resultado.componentesSubproducto).toHaveLength(4);
+  expect(resultado.componentesSubproducto).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        subproducto_codigo: "SUB0007",
+        pieza_codigo: "PZ0030",
+        cantidad: 5
+      }),
+      expect.objectContaining({
+        subproducto_codigo: "SUB0008",
+        pieza_codigo: "PZ0030",
+        cantidad: 2
+      })
+    ])
+  );
   expect(resultado.operaciones[0].subproducto_codigos).toEqual([
     "SUB0007",
     "SUB0008"
