@@ -219,6 +219,21 @@ test("plantilla vincula operaciones OP con subproductos", () => {
   );
 });
 
+test("plantilla aclara que componentes usa pieza_componente_codigo y cantidad", () => {
+  expect(
+    hojasPlantillaIngenieria
+      .Componentes_Subproducto[0]
+  ).toEqual([
+    "subproducto_codigo",
+    "pieza_componente_codigo",
+    "cantidad"
+  ]);
+  expect(
+    hojasPlantillaIngenieria
+      .Componentes_Subproducto[1]
+  ).toEqual(["SUB0001", "PZ0001", "2"]);
+});
+
 test("acepta medidas vacías como advertencia", () => {
   const resultado =
     validarIngenieriaImportada({

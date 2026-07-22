@@ -300,7 +300,7 @@ export const hojasPlantillaIngenieria = {
   Componentes_Subproducto: [
     [
       "subproducto_codigo",
-      "pieza_codigo",
+      "pieza_componente_codigo",
       "cantidad"
     ],
     ["SUB0001", "PZ0001", "2"]
