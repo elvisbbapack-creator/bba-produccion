@@ -631,6 +631,8 @@ test("prepara una OT V2 liberada", () => {
     correlativo: 1,
     empresaId: "bba",
     plantaId: "chile",
+    clienteId: "bba__CLI0001",
+    clienteCodigo: "CLI0001",
     clienteNombre: "Cliente Demo",
     producto: {
       id: "producto-1",
@@ -650,6 +652,9 @@ test("prepara una OT V2 liberada", () => {
   expect(orden).toMatchObject({
     codigo: "OT-CHI-000001",
     planta_id: "chile",
+    cliente_id: "bba__CLI0001",
+    cliente_codigo: "CLI0001",
+    cliente_nombre: "Cliente Demo",
     producto_codigo: "PCL0001",
     ruta_version: 1,
     cantidad_producto: 100,

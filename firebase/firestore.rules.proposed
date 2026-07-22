@@ -181,7 +181,9 @@ service cloud.firestore {
           'catalogo_operaciones',
           'catalogo_defectos',
           'catalogo_causas',
-          'catalogo_motivos_paro'
+          'catalogo_motivos_paro',
+          'clientes',
+          'proveedores'
         ] &&
         (
           (
@@ -205,7 +207,9 @@ service cloud.firestore {
           'catalogo_operaciones',
           'catalogo_defectos',
           'catalogo_causas',
-          'catalogo_motivos_paro'
+          'catalogo_motivos_paro',
+          'clientes',
+          'proveedores'
         ] &&
         belongsToCompany(resource.data);
 
@@ -221,7 +225,9 @@ service cloud.firestore {
           'catalogo_operaciones',
           'catalogo_defectos',
           'catalogo_causas',
-          'catalogo_motivos_paro'
+          'catalogo_motivos_paro',
+          'clientes',
+          'proveedores'
         ] &&
         isManagement() &&
         belongsToCompany(request.resource.data);
@@ -238,7 +244,9 @@ service cloud.firestore {
           'catalogo_operaciones',
           'catalogo_defectos',
           'catalogo_causas',
-          'catalogo_motivos_paro'
+          'catalogo_motivos_paro',
+          'clientes',
+          'proveedores'
         ] &&
         isManagement() &&
         belongsToCompany(resource.data) &&

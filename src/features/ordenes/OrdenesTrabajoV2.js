@@ -9,6 +9,10 @@ import {
   listarProductos
 } from "../productos/productosRepository";
 import {
+  TIPOS_TERCERO,
+  listarTerceros
+} from "../terceros/tercerosRepository";
+import {
   listarCapacidadesProceso
 } from "../capacidad/capacidadRepository";
 import {
@@ -36,6 +40,8 @@ import {
 
 const formularioInicial = {
   planta_id: "",
+  cliente_id: "",
+  cliente_codigo: "",
   cliente_nombre: "",
   producto_id: "",
   cantidad_producto: "",
@@ -134,6 +140,7 @@ function OrdenesTrabajoV2({
     planta_id: plantas[0] || ""
   });
   const [productos, setProductos] = useState([]);
+  const [clientes, setClientes] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
   const [ordenSeleccionada, setOrdenSeleccionada] =
     useState(null);
@@ -328,12 +335,24 @@ function OrdenesTrabajoV2({
       try {
         setCargando(true);
         setError("");
-        const productosData =
-          await listarProductos(
-            db,
-            perfil.empresa_id
-          );
+        const [productosData, clientesData] =
+          await Promise.all([
+            listarProductos(
+              db,
+              perfil.empresa_id
+            ),
+            listarTerceros(
+              db,
+              perfil.empresa_id,
+              TIPOS_TERCERO.CLIENTE
+            )
+          ]);
         setProductos(productosData);
+        setClientes(
+          clientesData.filter(
+            cliente => cliente.activo !== false
+          )
+        );
         await cargarOrdenes(
           formulario.planta_id
         );
@@ -384,6 +403,21 @@ function OrdenesTrabajoV2({
     }
   };
 
+  const seleccionarCliente = clienteId => {
+    const cliente = clientes.find(
+      item => item.id === clienteId
+    );
+
+    setFormulario(actual => ({
+      ...actual,
+      cliente_id: clienteId,
+      cliente_codigo: cliente?.codigo || "",
+      cliente_nombre: cliente?.nombre || ""
+    }));
+    setError("");
+    setMensaje("");
+  };
+
   const crear = async (evento) => {
     evento.preventDefault();
     const errores = validarDatosOrden({
@@ -409,6 +443,9 @@ function OrdenesTrabajoV2({
         db,
         perfil,
         plantaId: formulario.planta_id,
+        clienteId: formulario.cliente_id,
+        clienteCodigo:
+          formulario.cliente_codigo,
         clienteNombre:
           formulario.cliente_nombre,
         producto: productoSeleccionado,
@@ -688,20 +725,45 @@ function OrdenesTrabajoV2({
 
                 <label style={etiqueta}>
                   Cliente
-                  <input
+                  <select
                     value={
-                      formulario.cliente_nombre
+                      formulario.cliente_id
                     }
                     onChange={evento =>
-                      actualizar(
-                        "cliente_nombre",
+                      seleccionarCliente(
                         evento.target.value
                       )
                     }
-                    placeholder="Nombre del cliente"
                     style={campo}
-                  />
+                  >
+                    <option value="">
+                      Seleccionar cliente
+                    </option>
+                    {clientes.map(cliente => (
+                      <option
+                        key={cliente.id}
+                        value={cliente.id}
+                      >
+                        {cliente.codigo}
+                        {" - "}
+                        {cliente.nombre}
+                      </option>
+                    ))}
+                  </select>
                 </label>
+
+                {clientes.length === 0 &&
+                  !cargando && (
+                    <div style={{
+                      color: "#92400E",
+                      background: "#FFFBEB",
+                      padding: 9,
+                      borderRadius: 8
+                    }}>
+                      No existen clientes activos
+                      creados en el catálogo.
+                    </div>
+                  )}
 
                 <label style={etiqueta}>
                   Producto con ruta publicada
