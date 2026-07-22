@@ -9,6 +9,12 @@ import {
   listarMateriales
 } from "../materiales/materialesRepository";
 import {
+  listarProductos
+} from "../productos/productosRepository";
+import {
+  listarSubproductos
+} from "../subproductos/subproductosRepository";
+import {
   listarPiezas
 } from "../piezas/piezasRepository";
 import {
@@ -54,6 +60,8 @@ const campo = {
   fontSize: 15
 };
 
+const FILTRO_SIN_ASOCIAR = "__sin_asociar__";
+
 function CatalogoDetallesV2({
   db,
   perfil,
@@ -63,6 +71,9 @@ function CatalogoDetallesV2({
     useState([]);
   const [piezas, setPiezas] = useState([]);
   const [materiales, setMateriales] =
+    useState([]);
+  const [productos, setProductos] = useState([]);
+  const [subproductos, setSubproductos] =
     useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
@@ -169,79 +180,73 @@ function CatalogoDetallesV2({
     piezaSeleccionada
   ]);
   const opcionesFiltroProducto = useMemo(() => {
-    const mapa = new Map();
-
-    operaciones.forEach(operacion => {
-      const agregar = producto => {
-        const productoId = producto.producto_id;
-
-        if (
-          !productoId ||
-          !producto.producto_codigo
-        ) {
-          return;
-        }
-
-        mapa.set(productoId, {
-          producto_id: productoId,
-          producto_codigo:
-            producto.producto_codigo,
-          producto_nombre:
-            producto.producto_nombre || ""
-        });
-      };
-
-      agregar(operacion);
-      (operacion.productos_asociados || [])
-        .forEach(agregar);
-    });
-
-    return [...mapa.values()]
+    return productos
+      .filter(producto => producto.activo !== false)
+      .map(producto => ({
+        producto_id: producto.id,
+        producto_codigo: producto.codigo || "",
+        producto_nombre: producto.nombre || ""
+      }))
       .sort((a, b) =>
         (a.producto_codigo || "")
           .localeCompare(b.producto_codigo || "")
       );
-  }, [operaciones]);
+  }, [productos]);
   const opcionesFiltroSubproducto = useMemo(() => {
-    const mapa = new Map();
-
-    operaciones.forEach(operacion => {
-      const subproductoId =
-        operacion.subproducto_id;
-
-      if (!subproductoId) {
-        return;
-      }
-
-      mapa.set(subproductoId, {
-        subproducto_id: subproductoId,
+    return subproductos
+      .filter(subproducto =>
+        subproducto.activo !== false &&
+        (
+          !filtroProductoId ||
+          filtroProductoId ===
+            FILTRO_SIN_ASOCIAR ||
+          subproducto.producto_id ===
+            filtroProductoId
+        )
+      )
+      .map(subproducto => ({
+        subproducto_id: subproducto.id,
         subproducto_codigo:
-          operacion.subproducto_codigo || "",
+          subproducto.codigo || "",
         subproducto_nombre:
-          operacion.subproducto_nombre || ""
-      });
-    });
-
-    return [...mapa.values()]
+          subproducto.nombre || ""
+      }))
       .sort((a, b) =>
         (a.subproducto_codigo || "")
           .localeCompare(
             b.subproducto_codigo || ""
           )
       );
-  }, [operaciones]);
+  }, [filtroProductoId, subproductos]);
   const operacionesFiltradas = useMemo(
     () =>
       operaciones.filter(operacion => {
-        const coincideProducto =
-          !filtroProductoId ||
-          operacion.producto_id ===
-            filtroProductoId ||
+        const subproductoOperacion =
+          subproductos.find(
+            subproducto =>
+              subproducto.id ===
+              operacion.subproducto_id
+          );
+        const sinAsociar =
+          !operacion.producto_id &&
+          !operacion.subproducto_id &&
           (operacion.productos_asociados || [])
-            .some(producto =>
-              producto.producto_id ===
-              filtroProductoId
-            );
+            .length === 0;
+        const coincideProducto =
+          filtroProductoId ===
+            FILTRO_SIN_ASOCIAR
+            ? sinAsociar
+            : !filtroProductoId ||
+              operacion.producto_id ===
+                filtroProductoId ||
+              subproductoOperacion
+                ?.producto_id ===
+                filtroProductoId ||
+              (operacion.productos_asociados || [])
+                .some(producto =>
+                  producto.producto_id ===
+                  filtroProductoId
+                );
         const coincideSubproducto =
           !filtroSubproductoId ||
           operacion.subproducto_id ===
@@ -253,7 +258,8 @@ function CatalogoDetallesV2({
     [
       filtroProductoId,
       filtroSubproductoId,
-      operaciones
+      operaciones,
+      subproductos
     ]
   );
 
@@ -285,7 +291,9 @@ function CatalogoDetallesV2({
       const [
         operacionesData,
         materialesData,
-        piezasData
+        piezasData,
+        productosData,
+        subproductosData
       ] =
         await Promise.all([
           listarOperacionesCatalogo(
@@ -296,11 +304,21 @@ function CatalogoDetallesV2({
             db,
             perfil.empresa_id
           ),
-          listarPiezas(db, perfil.empresa_id)
+          listarPiezas(db, perfil.empresa_id),
+          listarProductos(
+            db,
+            perfil.empresa_id
+          ),
+          listarSubproductos(
+            db,
+            perfil.empresa_id
+          )
         ]);
       setOperaciones(operacionesData);
       setMateriales(materialesData);
       setPiezas(piezasData);
+      setProductos(productosData);
+      setSubproductos(subproductosData);
     } catch (fallo) {
       setError(
         fallo?.message ||
@@ -1115,6 +1133,11 @@ function CatalogoDetallesV2({
                   <option value="">
                     Todos los productos
                   </option>
+                  <option
+                    value={FILTRO_SIN_ASOCIAR}
+                  >
+                    Sin asociar
+                  </option>
                   {opcionesFiltroProducto.map(
                     producto => (
                       <option
@@ -1142,7 +1165,6 @@ function CatalogoDetallesV2({
                     setFiltroSubproductoId(
                       evento.target.value
                     );
-                    setFiltroProductoId("");
                   }}
                   style={{
                     ...campo,
@@ -1150,7 +1172,11 @@ function CatalogoDetallesV2({
                   }}
                 >
                   <option value="">
-                    Todos los subproductos
+                    {filtroProductoId &&
+                    filtroProductoId !==
+                      FILTRO_SIN_ASOCIAR
+                      ? "Todos los subproductos del producto"
+                      : "Todos los subproductos"}
                   </option>
                   {opcionesFiltroSubproducto.map(
                     subproducto => (

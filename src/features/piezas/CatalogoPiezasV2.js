@@ -70,6 +70,8 @@ const campo = {
   fontSize: 15
 };
 
+const FILTRO_SIN_ASOCIAR = "__sin_asociar__";
+
 function CatalogoPiezasV2({
   db,
   perfil,
@@ -83,6 +85,10 @@ function CatalogoPiezasV2({
     useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
+  const [filtroProductoId,
+    setFiltroProductoId] = useState("");
+  const [filtroSubproductoId,
+    setFiltroSubproductoId] = useState("");
   const [editandoId, setEditandoId] =
     useState("");
   const [cargando, setCargando] =
@@ -94,6 +100,81 @@ function CatalogoPiezasV2({
 
   const materialesActivos = materiales.filter(
     material => material.activo
+  );
+  const productosFiltro = useMemo(
+    () =>
+      productos
+        .filter(producto => producto.activo !== false)
+        .sort((a, b) =>
+          (a.codigo || "")
+            .localeCompare(b.codigo || "")
+        ),
+    [productos]
+  );
+  const subproductosFiltro = useMemo(
+    () =>
+      subproductos
+        .filter(subproducto =>
+          subproducto.activo !== false &&
+          (
+            !filtroProductoId ||
+            filtroProductoId ===
+              FILTRO_SIN_ASOCIAR ||
+            subproducto.producto_id ===
+              filtroProductoId
+          )
+        )
+        .sort((a, b) =>
+          (a.codigo || "")
+            .localeCompare(b.codigo || "")
+        ),
+    [filtroProductoId, subproductos]
+  );
+  const piezasFiltradas = useMemo(
+    () =>
+      piezas.filter(pieza => {
+        const sinAsociar =
+          !pieza.producto_id &&
+          !pieza.subproducto_id &&
+          (pieza.productos_asociados || [])
+            .length === 0 &&
+          (pieza.subproductos_asociados || [])
+            .length === 0;
+        const coincideProducto =
+          filtroProductoId ===
+            FILTRO_SIN_ASOCIAR
+            ? sinAsociar
+            : !filtroProductoId ||
+              pieza.producto_id ===
+                filtroProductoId ||
+              (pieza.productos_asociados || [])
+                .some(producto =>
+                  producto.producto_id ===
+                  filtroProductoId
+                ) ||
+              (pieza.subproductos_asociados || [])
+                .some(subproducto =>
+                  subproducto.producto_id ===
+                  filtroProductoId
+                );
+        const coincideSubproducto =
+          !filtroSubproductoId ||
+          pieza.subproducto_id ===
+            filtroSubproductoId ||
+          (pieza.subproductos_asociados || [])
+            .some(subproducto =>
+              subproducto.subproducto_id ===
+              filtroSubproductoId
+            );
+
+        return coincideProducto &&
+          coincideSubproducto;
+      }),
+    [
+      filtroProductoId,
+      filtroSubproductoId,
+      piezas
+    ]
   );
 
   const vistaPieza = useMemo(
@@ -1461,8 +1542,99 @@ function CatalogoPiezasV2({
               "0 2px 10px rgba(15,23,42,0.08)"
           }}>
             <h2 style={{ marginTop: 0 }}>
-              Piezas registradas ({piezas.length})
+              Piezas registradas (
+              {piezasFiltradas.length}
+              /{piezas.length})
             </h2>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 10,
+              marginBottom: 14
+            }}>
+              <label>
+                Filtrar por producto
+                <select
+                  value={filtroProductoId}
+                  onChange={evento => {
+                    setFiltroProductoId(
+                      evento.target.value
+                    );
+                    setFiltroSubproductoId("");
+                  }}
+                  style={{
+                    ...campo,
+                    marginTop: 6
+                  }}
+                >
+                  <option value="">
+                    Todos los productos
+                  </option>
+                  <option
+                    value={FILTRO_SIN_ASOCIAR}
+                  >
+                    Sin asociar
+                  </option>
+                  {productosFiltro.map(producto => (
+                    <option
+                      key={producto.id}
+                      value={producto.id}
+                    >
+                      {producto.codigo}
+                      {" - "}
+                      {producto.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Filtrar por subproducto
+                <select
+                  value={filtroSubproductoId}
+                  onChange={evento =>
+                    setFiltroSubproductoId(
+                      evento.target.value
+                    )
+                  }
+                  disabled={
+                    filtroProductoId ===
+                    FILTRO_SIN_ASOCIAR
+                  }
+                  style={{
+                    ...campo,
+                    marginTop: 6,
+                    background:
+                      filtroProductoId ===
+                      FILTRO_SIN_ASOCIAR
+                        ? "#F8FAFC"
+                        : "white"
+                  }}
+                >
+                  <option value="">
+                    {filtroProductoId &&
+                    filtroProductoId !==
+                      FILTRO_SIN_ASOCIAR
+                      ? "Todos los subproductos del producto"
+                      : "Todos los subproductos"}
+                  </option>
+                  {subproductosFiltro.map(
+                    subproducto => (
+                      <option
+                        key={subproducto.id}
+                        value={subproducto.id}
+                      >
+                        {subproducto.codigo}
+                        {" - "}
+                        {subproducto.nombre}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+            </div>
 
             {cargando ? (
               <p>Cargando catálogo...</p>
@@ -1470,12 +1642,19 @@ function CatalogoPiezasV2({
               <p style={{ color: "#64748B" }}>
                 Todavía no hay piezas registradas.
               </p>
+            ) : piezasFiltradas.length === 0 ? (
+              <p style={{ color: "#64748B" }}>
+                No hay piezas con ese filtro.
+              </p>
             ) : (
               <div style={{
                 display: "grid",
-                gap: 10
+                gap: 10,
+                maxHeight: 680,
+                overflowY: "auto",
+                paddingRight: 6
               }}>
-                {piezas.map(pieza => {
+                {piezasFiltradas.map(pieza => {
                   const materialesBase =
                     pieza.materiales_base?.length > 0
                       ? pieza.materiales_base
