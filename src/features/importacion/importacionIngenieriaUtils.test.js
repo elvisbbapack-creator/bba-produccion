@@ -338,3 +338,126 @@ test("lee ruta de subproducto con unidades_por_subproducto y dependencias múlti
     ]
   });
 });
+
+test("expande componentes y rutas con códigos separados por coma", () => {
+  const workbook = XLSX.utils.book_new();
+  const agregarHoja = (nombre, filas) => {
+    XLSX.utils.book_append_sheet(
+      workbook,
+      XLSX.utils.aoa_to_sheet(filas),
+      nombre
+    );
+  };
+
+  agregarHoja("Materiales_MP_SUM", [
+    ["tipo", "codigo", "nombre", "unidad_medida"],
+    ["MP", "MP1", "Tubo", "metro"]
+  ]);
+  agregarHoja("Productos_PCL", [
+    ["producto_codigo", "producto_nombre", "familia"],
+    ["PCL1", "Modular", "Exhibidores"]
+  ]);
+  agregarHoja("Piezas_PZ", [
+    [
+      "pieza_codigo",
+      "pieza_nombre",
+      "medida",
+      "material_base_codigo"
+    ],
+    ["PZ1", "Lateral terminado", "", "MP1"],
+    ["PZ2", "Bandeja terminada", "", "MP1"],
+    ["PZ30", "Lateral 290", "", "MP1"],
+    ["PZ31", "Lateral 350", "", "MP1"]
+  ]);
+  agregarHoja("Subproductos_SUB", [
+    [
+      "subproducto_codigo",
+      "subproducto_nombre",
+      "producto_codigo",
+      "pieza_salida_codigo"
+    ],
+    ["SUB7", "Lateral", "PCL1", "PZ1"],
+    ["SUB8", "Bandeja", "PCL1", "PZ2"]
+  ]);
+  agregarHoja("Componentes_Subproducto", [
+    [
+      "subproducto_codigo",
+      "pieza_componente_codigo",
+      "cantidad"
+    ],
+    ["SUB7,SUB8", "PZ30,PZ31", "2"]
+  ]);
+  agregarHoja("Operaciones_OP", [
+    [
+      "operacion_codigo",
+      "operacion_nombre",
+      "subproducto_codigo",
+      "pieza_codigo",
+      "material_entrada_codigo"
+    ],
+    ["OP27", "Soldar", "SUB7,SUB8", "PZ30", "MP1"]
+  ]);
+  agregarHoja("Ruta_Subproducto", [
+    [
+      "producto_codigo",
+      "subproducto_codigo",
+      "operacion_codigo",
+      "proceso_codigo",
+      "proceso_nombre",
+      "estacion_codigo",
+      "estacion_nombre",
+      "unidades_por_subproducto",
+      "unidades_por_hora",
+      "secuencia"
+    ],
+    [
+      "PCL1",
+      "SUB7,SUB8",
+      "OP27",
+      "PR1",
+      "Soldadura",
+      "ET1",
+      "Soldadora",
+      "1",
+      "20",
+      "1"
+    ]
+  ]);
+
+  const resultado =
+    leerIngenieriaDesdeWorkbook(
+      workbook,
+      XLSX
+    );
+
+  expect(resultado.errores).toEqual([]);
+  expect(resultado.componentesSubproducto).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        subproducto_codigo: "SUB0007",
+        pieza_codigo: "PZ0030"
+      }),
+      expect.objectContaining({
+        subproducto_codigo: "SUB0008",
+        pieza_codigo: "PZ0031"
+      })
+    ])
+  );
+  expect(resultado.componentesSubproducto).toHaveLength(4);
+  expect(resultado.operaciones[0].subproducto_codigos).toEqual([
+    "SUB0007",
+    "SUB0008"
+  ]);
+  expect(resultado.rutas).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        subproducto_codigo: "SUB0007",
+        codigo: "OP0027"
+      }),
+      expect.objectContaining({
+        subproducto_codigo: "SUB0008",
+        codigo: "OP0027"
+      })
+    ])
+  );
+});

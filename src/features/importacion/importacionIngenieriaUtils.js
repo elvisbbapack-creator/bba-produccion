@@ -47,6 +47,10 @@ const normalizarListaCodigos = valor =>
 const normalizarListaDependencias = valor =>
   normalizarListaCodigos(valor);
 
+const primeraReferencia = valor =>
+  normalizarListaCodigos(valor)[0] ||
+  normalizarCodigo(valor);
+
 const normalizarListaNumeros = valor =>
   limpiarTexto(valor)
     .split(/[,;|]/)
@@ -547,20 +551,35 @@ export const leerIngenieriaDesdeWorkbook = (
       cantidad: numero(fila.cantidad)
     }));
 
-  const componentesSubproducto = componenteFilas
-    .filter(fila =>
-      fila.subproducto_codigo ||
-      fila.pieza_codigo
-    )
-    .map(fila => ({
-      subproducto_codigo: normalizarCodigo(
-        fila.subproducto_codigo
-      ),
-      pieza_codigo: normalizarCodigo(
-        fila.pieza_codigo
-      ),
-      cantidad: numero(fila.cantidad)
-    }));
+  const componentesSubproducto =
+    componenteFilas.flatMap(fila => {
+      const subproductosCodigos =
+        normalizarListaCodigos(
+          fila.subproducto_codigo
+        );
+      const piezasCodigos =
+        normalizarListaCodigos(
+          fila.pieza_codigo ||
+            fila.pieza_componente_codigo
+        );
+      const cantidad = numero(fila.cantidad);
+
+      if (
+        subproductosCodigos.length === 0 &&
+        piezasCodigos.length === 0
+      ) {
+        return [];
+      }
+
+      return subproductosCodigos.flatMap(
+        subproductoCodigo =>
+          piezasCodigos.map(piezaCodigo => ({
+            subproducto_codigo: subproductoCodigo,
+            pieza_codigo: piezaCodigo,
+            cantidad
+          }))
+      );
+    });
 
   const operaciones = operacionFilas
     .filter(fila =>
@@ -580,7 +599,10 @@ export const leerIngenieriaDesdeWorkbook = (
       pieza_codigo: normalizarCodigo(
         fila.pieza_codigo
       ),
-      subproducto_codigo: normalizarCodigo(
+      subproducto_codigo: primeraReferencia(
+        fila.subproducto_codigo
+      ),
+      subproducto_codigos: normalizarListaCodigos(
         fila.subproducto_codigo
       ),
       proceso_codigo: normalizarCodigo(
@@ -659,7 +681,10 @@ export const leerIngenieriaDesdeWorkbook = (
         fila.estacion_nombre ||
         fila.subproceso_nombre
       ),
-      subproducto_codigo: normalizarCodigo(
+      subproducto_codigo: primeraReferencia(
+        fila.subproducto_codigo
+      ),
+      subproducto_codigos: normalizarListaCodigos(
         fila.subproducto_codigo
       ),
       unidades_por_producto: numero(
@@ -688,51 +713,58 @@ export const leerIngenieriaDesdeWorkbook = (
       fila.subproducto_codigo ||
       fila.operacion_codigo
     )
-    .map(fila => ({
-      tipo_ruta: "SUBPRODUCTO",
-      producto_codigo: normalizarCodigo(
-        fila.producto_codigo
-      ),
-      subproducto_codigo: normalizarCodigo(
-        fila.subproducto_codigo
-      ),
-      codigo: normalizarCodigo(
-        fila.operacion_codigo
-      ),
-      proceso_codigo: normalizarCodigo(
-        fila.proceso_codigo
-      ),
-      proceso_nombre: limpiarTexto(
-        fila.proceso_nombre
-      ),
-      estacion_codigo: normalizarCodigo(
-        fila.estacion_codigo ||
-        fila.subproceso_codigo
-      ),
-      estacion_nombre: limpiarTexto(
-        fila.estacion_nombre ||
-        fila.subproceso_nombre
-      ),
-      unidades_por_producto: numero(
-        fila.unidades_por_producto ||
-        fila.unidades_por_subproducto
-      ),
-      unidades_por_hora: numero(
-        fila.unidades_por_hora
-      ),
-      secuencia: numero(fila.secuencia),
-      dependencia_operacion_codigo:
-        normalizarCodigo(
-          fila.dependencia_operacion_codigo
-        ),
-      dependencia_operacion_codigos:
-        normalizarListaDependencias(
-          fila.dependencia_operacion_codigo
-        ),
-      porcentaje_minimo_avance: numero(
-        fila.porcentaje_minimo_avance
-      )
-    }));
+    .flatMap(fila => {
+      const subproductosCodigos =
+        normalizarListaCodigos(
+          fila.subproducto_codigo
+        );
+
+      return subproductosCodigos.map(
+        subproductoCodigo => ({
+          tipo_ruta: "SUBPRODUCTO",
+          producto_codigo: normalizarCodigo(
+            fila.producto_codigo
+          ),
+          subproducto_codigo: subproductoCodigo,
+          codigo: normalizarCodigo(
+            fila.operacion_codigo
+          ),
+          proceso_codigo: normalizarCodigo(
+            fila.proceso_codigo
+          ),
+          proceso_nombre: limpiarTexto(
+            fila.proceso_nombre
+          ),
+          estacion_codigo: normalizarCodigo(
+            fila.estacion_codigo ||
+            fila.subproceso_codigo
+          ),
+          estacion_nombre: limpiarTexto(
+            fila.estacion_nombre ||
+            fila.subproceso_nombre
+          ),
+          unidades_por_producto: numero(
+            fila.unidades_por_producto ||
+            fila.unidades_por_subproducto
+          ),
+          unidades_por_hora: numero(
+            fila.unidades_por_hora
+          ),
+          secuencia: numero(fila.secuencia),
+          dependencia_operacion_codigo:
+            normalizarCodigo(
+              fila.dependencia_operacion_codigo
+            ),
+          dependencia_operacion_codigos:
+            normalizarListaDependencias(
+              fila.dependencia_operacion_codigo
+            ),
+          porcentaje_minimo_avance: numero(
+            fila.porcentaje_minimo_avance
+          )
+        })
+      );
+    });
 
   const rutas = [
     ...rutasProducto,
@@ -1092,14 +1124,25 @@ export const validarIngenieriaImportada = data => {
         `Operación ${operacion.codigo} requiere nombre y pieza.`
       );
     }
+    const subproductosOperacion =
+      operacion.subproducto_codigos?.length > 0
+        ? operacion.subproducto_codigos
+        : operacion.subproducto_codigo
+          ? [operacion.subproducto_codigo]
+          : [];
+    const subproductosOperacionInexistentes =
+      subproductosOperacion.filter(
+        subproductoCodigo =>
+          !subproductosPorCodigo.has(
+            subproductoCodigo
+          )
+      );
+
     if (
-      operacion.subproducto_codigo &&
-      !subproductosPorCodigo.has(
-        operacion.subproducto_codigo
-      )
+      subproductosOperacionInexistentes.length > 0
     ) {
       errores.push(
-        `Operación ${operacion.codigo} referencia subproducto inexistente ${operacion.subproducto_codigo}.`
+        `Operación ${operacion.codigo} referencia subproducto inexistente ${subproductosOperacionInexistentes.join(",")}.`
       );
     }
     if (
