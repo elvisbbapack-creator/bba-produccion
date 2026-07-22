@@ -173,24 +173,21 @@ function CatalogoDetallesV2({
 
     operaciones.forEach(operacion => {
       const agregar = producto => {
-        const productoId =
-          producto.producto_id ||
-          producto.id;
+        const productoId = producto.producto_id;
 
-        if (!productoId) {
+        if (
+          !productoId ||
+          !producto.producto_codigo
+        ) {
           return;
         }
 
         mapa.set(productoId, {
           producto_id: productoId,
           producto_codigo:
-            producto.producto_codigo ||
-            producto.codigo ||
-            "",
+            producto.producto_codigo,
           producto_nombre:
-            producto.producto_nombre ||
-            producto.nombre ||
-            ""
+            producto.producto_nombre || ""
         });
       };
 
