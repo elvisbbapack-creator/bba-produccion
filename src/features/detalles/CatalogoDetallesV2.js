@@ -27,6 +27,9 @@ const estadoInicial = {
   producto_codigo: "",
   producto_nombre: "",
   productos_asociados: [],
+  subproducto_id: "",
+  subproducto_codigo: "",
+  subproducto_nombre: "",
   pieza_id: "",
   pieza_codigo: "",
   pieza_nombre: "",
@@ -78,6 +81,89 @@ function CatalogoDetallesV2({
   const salidasRf = materialesActivos.filter(
     material => material.tipo === "RF"
   );
+  const piezaSeleccionada = piezas.find(
+    pieza => pieza.id === formulario.pieza_id
+  );
+  const asociacionesUsoPieza = useMemo(() => {
+    const mapa = new Map();
+    const agregarSubproducto = subproducto => {
+      const subproductoId =
+        subproducto.subproducto_id ||
+        subproducto.id;
+
+      if (!subproductoId) {
+        return;
+      }
+
+      mapa.set(`subproducto:${subproductoId}`, {
+        tipo: "subproducto",
+        id: subproductoId,
+        etiqueta: `${subproducto.subproducto_codigo || subproducto.codigo} - ${subproducto.subproducto_nombre || subproducto.nombre}`,
+        producto_id: subproducto.producto_id || "",
+        producto_codigo:
+          subproducto.producto_codigo || "",
+        producto_nombre:
+          subproducto.producto_nombre || "",
+        subproducto_id: subproductoId,
+        subproducto_codigo:
+          subproducto.subproducto_codigo ||
+          subproducto.codigo ||
+          "",
+        subproducto_nombre:
+          subproducto.subproducto_nombre ||
+          subproducto.nombre ||
+          ""
+      });
+    };
+    const agregarProducto = producto => {
+      const productoId =
+        producto.producto_id ||
+        producto.id;
+
+      if (!productoId) {
+        return;
+      }
+
+      mapa.set(`producto:${productoId}`, {
+        tipo: "producto",
+        id: productoId,
+        etiqueta: `${producto.producto_codigo || producto.codigo} - ${producto.producto_nombre || producto.nombre}`,
+        producto_id: productoId,
+        producto_codigo:
+          producto.producto_codigo ||
+          producto.codigo ||
+          "",
+        producto_nombre:
+          producto.producto_nombre ||
+          producto.nombre ||
+          "",
+        subproducto_id: "",
+        subproducto_codigo: "",
+        subproducto_nombre: ""
+      });
+    };
+
+    (piezaSeleccionada?.subproductos_asociados || [])
+      .forEach(agregarSubproducto);
+    if (piezaSeleccionada?.subproducto_id) {
+      agregarSubproducto(piezaSeleccionada);
+    }
+    (piezaSeleccionada?.productos_asociados || [])
+      .forEach(agregarProducto);
+    if (piezaSeleccionada?.producto_id) {
+      agregarProducto(piezaSeleccionada);
+    }
+    if (formulario.subproducto_id) {
+      agregarSubproducto(formulario);
+    } else if (formulario.producto_id) {
+      agregarProducto(formulario);
+    }
+
+    return [...mapa.values()];
+  }, [
+    formulario,
+    piezaSeleccionada
+  ]);
 
   const vistaOperacion = useMemo(
     () => prepararOperacionCatalogo(
@@ -170,6 +256,12 @@ function CatalogoDetallesV2({
     formulario.materiales_entrada.length > 0
       ? formulario.materiales_entrada
       : [crearMaterialEntradaInicial()];
+  const asociacionUsoActual =
+    formulario.subproducto_id
+      ? `subproducto:${formulario.subproducto_id}`
+      : formulario.producto_id
+        ? `producto:${formulario.producto_id}`
+        : "";
 
   const materialesEntradaDesdePieza = pieza => {
     if (pieza?.materiales_base?.length > 0) {
@@ -269,18 +361,57 @@ function CatalogoDetallesV2({
     );
     const materialesEntrada =
       materialesEntradaDesdePieza(pieza);
+    const subproductoPrincipal =
+      pieza?.relacion_principal_tipo ===
+        "subproducto" &&
+      pieza?.subproducto_id
+        ? {
+            subproducto_id:
+              pieza.subproducto_id,
+            subproducto_codigo:
+              pieza.subproducto_codigo,
+            subproducto_nombre:
+              pieza.subproducto_nombre,
+            producto_id:
+              pieza.producto_id || "",
+            producto_codigo:
+              pieza.producto_codigo || "",
+            producto_nombre:
+              pieza.producto_nombre || ""
+          }
+        : pieza?.subproductos_asociados?.[0];
+    const productoPrincipal =
+      pieza?.productos_asociados?.[0];
     setFormulario(actual => ({
       ...actual,
       pieza_id: pieza?.id || "",
       pieza_codigo: pieza?.codigo || "",
       pieza_nombre: pieza?.nombre || "",
-      producto_id: pieza?.producto_id || "",
+      producto_id:
+        subproductoPrincipal?.producto_id ||
+        productoPrincipal?.producto_id ||
+        pieza?.producto_id ||
+        "",
       producto_codigo:
-        pieza?.producto_codigo || "",
+        subproductoPrincipal?.producto_codigo ||
+        productoPrincipal?.producto_codigo ||
+        pieza?.producto_codigo ||
+        "",
       producto_nombre:
-        pieza?.producto_nombre || "",
+        subproductoPrincipal?.producto_nombre ||
+        productoPrincipal?.producto_nombre ||
+        pieza?.producto_nombre ||
+        "",
       productos_asociados:
         pieza?.productos_asociados || [],
+      subproducto_id:
+        subproductoPrincipal?.subproducto_id || "",
+      subproducto_codigo:
+        subproductoPrincipal
+          ?.subproducto_codigo || "",
+      subproducto_nombre:
+        subproductoPrincipal
+          ?.subproducto_nombre || "",
       medida: pieza?.medida || actual.medida,
       material_entrada_id:
         materialesEntrada[0]?.material_id ||
@@ -289,6 +420,30 @@ function CatalogoDetallesV2({
         materialesEntrada.length > 0
           ? materialesEntrada
           : actual.materiales_entrada
+    }));
+    setError("");
+    setMensaje("");
+  };
+
+  const seleccionarAsociacionUso = valor => {
+    const asociacion = asociacionesUsoPieza.find(
+      item => `${item.tipo}:${item.id}` === valor
+    );
+
+    setFormulario(actual => ({
+      ...actual,
+      producto_id:
+        asociacion?.producto_id || "",
+      producto_codigo:
+        asociacion?.producto_codigo || "",
+      producto_nombre:
+        asociacion?.producto_nombre || "",
+      subproducto_id:
+        asociacion?.subproducto_id || "",
+      subproducto_codigo:
+        asociacion?.subproducto_codigo || "",
+      subproducto_nombre:
+        asociacion?.subproducto_nombre || ""
     }));
     setError("");
     setMensaje("");
@@ -319,6 +474,12 @@ function CatalogoDetallesV2({
         operacion.producto_nombre || "",
       productos_asociados:
         operacion.productos_asociados || [],
+      subproducto_id:
+        operacion.subproducto_id || "",
+      subproducto_codigo:
+        operacion.subproducto_codigo || "",
+      subproducto_nombre:
+        operacion.subproducto_nombre || "",
       pieza_id: operacion.pieza_id || "",
       pieza_codigo: operacion.pieza_codigo || "",
       pieza_nombre: operacion.pieza_nombre || "",
@@ -498,6 +659,60 @@ function CatalogoDetallesV2({
                     </option>
                   ))}
               </select>
+            </label>
+
+            <label>
+              Asociación de uso
+              <select
+                value={asociacionUsoActual}
+                onChange={evento =>
+                  seleccionarAsociacionUso(
+                    evento.target.value
+                  )
+                }
+                disabled={
+                  asociacionesUsoPieza.length === 0
+                }
+                style={{
+                  ...campo,
+                  marginTop: 6,
+                  marginBottom: 6,
+                  background:
+                    asociacionesUsoPieza.length === 0
+                      ? "#F8FAFC"
+                      : "white"
+                }}
+              >
+                <option value="">
+                  {formulario.pieza_id
+                    ? "Sin asociación disponible"
+                    : "Selecciona primero una pieza"}
+                </option>
+                {asociacionesUsoPieza.map(
+                  asociacion => (
+                    <option
+                      key={`${asociacion.tipo}:${asociacion.id}`}
+                      value={`${asociacion.tipo}:${asociacion.id}`}
+                    >
+                      {asociacion.tipo ===
+                      "subproducto"
+                        ? "Subproducto"
+                        : "Producto"}
+                      {": "}
+                      {asociacion.etiqueta}
+                    </option>
+                  )
+                )}
+              </select>
+              <small style={{
+                display: "block",
+                color: "#64748B",
+                marginBottom: 14
+              }}>
+                Se usa para ordenar la operación en
+                ingeniería. La ruta final se define en
+                Productos y Rutas V2.
+              </small>
             </label>
 
             <label>
@@ -822,6 +1037,23 @@ function CatalogoDetallesV2({
                   const salida = materialPorId(
                     operacion.material_salida_id
                   );
+                  const productosTexto =
+                    (operacion.productos_asociados || [])
+                      .map(producto =>
+                        producto.producto_codigo
+                          ? `${producto.producto_codigo} - ${producto.producto_nombre}`
+                          : ""
+                      )
+                      .filter(Boolean)
+                      .join(", ");
+                  const contextoTexto =
+                    operacion.subproducto_codigo
+                      ? `Subproducto: ${operacion.subproducto_codigo} - ${operacion.subproducto_nombre}`
+                      : operacion.producto_codigo
+                        ? `Producto: ${operacion.producto_codigo} - ${operacion.producto_nombre}`
+                        : productosTexto
+                          ? `Productos: ${productosTexto}`
+                          : "Asociación: sin definir";
 
                   return (
                     <article
@@ -855,9 +1087,8 @@ function CatalogoDetallesV2({
                           }}>
                             Medida:{" "}
                             {operacion.medida}
-                            {" · Producto: "}
-                            {operacion.producto_codigo ||
-                              "sin asociar"}
+                            {" · "}
+                            {contextoTexto}
                             {" · Pieza: "}
                             {operacion.pieza_codigo ||
                               "-"}
