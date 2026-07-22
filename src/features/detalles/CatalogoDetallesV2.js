@@ -66,6 +66,10 @@ function CatalogoDetallesV2({
     useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
+  const [filtroProductoId,
+    setFiltroProductoId] = useState("");
+  const [filtroSubproductoId,
+    setFiltroSubproductoId] = useState("");
   const [editandoId, setEditandoId] =
     useState("");
   const [cargando, setCargando] =
@@ -164,6 +168,97 @@ function CatalogoDetallesV2({
     formulario,
     piezaSeleccionada
   ]);
+  const opcionesFiltroProducto = useMemo(() => {
+    const mapa = new Map();
+
+    operaciones.forEach(operacion => {
+      const agregar = producto => {
+        const productoId =
+          producto.producto_id ||
+          producto.id;
+
+        if (!productoId) {
+          return;
+        }
+
+        mapa.set(productoId, {
+          producto_id: productoId,
+          producto_codigo:
+            producto.producto_codigo ||
+            producto.codigo ||
+            "",
+          producto_nombre:
+            producto.producto_nombre ||
+            producto.nombre ||
+            ""
+        });
+      };
+
+      agregar(operacion);
+      (operacion.productos_asociados || [])
+        .forEach(agregar);
+    });
+
+    return [...mapa.values()]
+      .sort((a, b) =>
+        (a.producto_codigo || "")
+          .localeCompare(b.producto_codigo || "")
+      );
+  }, [operaciones]);
+  const opcionesFiltroSubproducto = useMemo(() => {
+    const mapa = new Map();
+
+    operaciones.forEach(operacion => {
+      const subproductoId =
+        operacion.subproducto_id;
+
+      if (!subproductoId) {
+        return;
+      }
+
+      mapa.set(subproductoId, {
+        subproducto_id: subproductoId,
+        subproducto_codigo:
+          operacion.subproducto_codigo || "",
+        subproducto_nombre:
+          operacion.subproducto_nombre || ""
+      });
+    });
+
+    return [...mapa.values()]
+      .sort((a, b) =>
+        (a.subproducto_codigo || "")
+          .localeCompare(
+            b.subproducto_codigo || ""
+          )
+      );
+  }, [operaciones]);
+  const operacionesFiltradas = useMemo(
+    () =>
+      operaciones.filter(operacion => {
+        const coincideProducto =
+          !filtroProductoId ||
+          operacion.producto_id ===
+            filtroProductoId ||
+          (operacion.productos_asociados || [])
+            .some(producto =>
+              producto.producto_id ===
+              filtroProductoId
+            );
+        const coincideSubproducto =
+          !filtroSubproductoId ||
+          operacion.subproducto_id ===
+            filtroSubproductoId;
+
+        return coincideProducto &&
+          coincideSubproducto;
+      }),
+    [
+      filtroProductoId,
+      filtroSubproductoId,
+      operaciones
+    ]
+  );
 
   const vistaOperacion = useMemo(
     () => prepararOperacionCatalogo(
@@ -994,8 +1089,97 @@ function CatalogoDetallesV2({
           }}>
             <h2 style={{ marginTop: 0 }}>
               Operaciones registradas (
-              {operaciones.length})
+              {operacionesFiltradas.length}
+              /{operaciones.length})
             </h2>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 10,
+              marginBottom: 14
+            }}>
+              <label>
+                Filtrar por producto
+                <select
+                  value={filtroProductoId}
+                  onChange={evento => {
+                    setFiltroProductoId(
+                      evento.target.value
+                    );
+                    setFiltroSubproductoId("");
+                  }}
+                  style={{
+                    ...campo,
+                    marginTop: 6
+                  }}
+                >
+                  <option value="">
+                    Todos los productos
+                  </option>
+                  {opcionesFiltroProducto.map(
+                    producto => (
+                      <option
+                        key={producto.producto_id}
+                        value={
+                          producto.producto_id
+                        }
+                      >
+                        {producto.producto_codigo ||
+                          "Sin código"}
+                        {" - "}
+                        {producto.producto_nombre ||
+                          "Sin nombre"}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+
+              <label>
+                Filtrar por subproducto
+                <select
+                  value={filtroSubproductoId}
+                  onChange={evento => {
+                    setFiltroSubproductoId(
+                      evento.target.value
+                    );
+                    setFiltroProductoId("");
+                  }}
+                  style={{
+                    ...campo,
+                    marginTop: 6
+                  }}
+                >
+                  <option value="">
+                    Todos los subproductos
+                  </option>
+                  {opcionesFiltroSubproducto.map(
+                    subproducto => (
+                      <option
+                        key={
+                          subproducto
+                            .subproducto_id
+                        }
+                        value={
+                          subproducto
+                            .subproducto_id
+                        }
+                      >
+                        {subproducto
+                          .subproducto_codigo ||
+                          "Sin código"}
+                        {" - "}
+                        {subproducto
+                          .subproducto_nombre ||
+                          "Sin nombre"}
+                      </option>
+                    )
+                  )}
+                </select>
+              </label>
+            </div>
 
             {cargando ? (
               <p>Cargando catálogo...</p>
@@ -1003,12 +1187,19 @@ function CatalogoDetallesV2({
               <p style={{ color: "#64748B" }}>
                 Todavía no hay operaciones registradas.
               </p>
+            ) : operacionesFiltradas.length === 0 ? (
+              <p style={{ color: "#64748B" }}>
+                No hay operaciones con ese filtro.
+              </p>
             ) : (
               <div style={{
                 display: "grid",
-                gap: 10
+                gap: 10,
+                maxHeight: 680,
+                overflowY: "auto",
+                paddingRight: 6
               }}>
-                {operaciones.map(operacion => {
+                {operacionesFiltradas.map(operacion => {
                   const materialesEntrada =
                     operacion.materiales_entrada
                       ?.length > 0
