@@ -13,6 +13,9 @@ import {
   listarTerceros
 } from "../terceros/tercerosRepository";
 import {
+  listarSubproductos
+} from "../subproductos/subproductosRepository";
+import {
   listarCapacidadesProceso
 } from "../capacidad/capacidadRepository";
 import {
@@ -140,6 +143,8 @@ function OrdenesTrabajoV2({
     planta_id: plantas[0] || ""
   });
   const [productos, setProductos] = useState([]);
+  const [subproductos, setSubproductos] =
+    useState([]);
   const [clientes, setClientes] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
   const [ordenSeleccionada, setOrdenSeleccionada] =
@@ -173,12 +178,39 @@ function OrdenesTrabajoV2({
     });
 
   const productosPublicados = useMemo(
-    () => productos.filter(
-      producto =>
-        producto.activo &&
-        producto.version_ruta_activa
-    ),
-    [productos]
+    () => {
+      const subproductosPorId = new Map(
+        subproductos.map(subproducto => [
+          subproducto.id,
+          subproducto
+        ])
+      );
+
+      return productos.filter(producto => {
+        if (!producto.activo) {
+          return false;
+        }
+
+        if (producto.version_ruta_activa) {
+          return true;
+        }
+
+        return (producto.composicion || [])
+          .some(item => {
+            if (item.tipo !== "SUBPRODUCTO") {
+              return false;
+            }
+
+            const subproducto =
+              subproductosPorId.get(item.item_id);
+            return Boolean(
+              subproducto?.activo !== false &&
+              subproducto?.version_ruta_activa
+            );
+          });
+      });
+    },
+    [productos, subproductos]
   );
 
   const productoSeleccionado =
@@ -335,7 +367,11 @@ function OrdenesTrabajoV2({
       try {
         setCargando(true);
         setError("");
-        const [productosData, clientesData] =
+        const [
+          productosData,
+          clientesData,
+          subproductosData
+        ] =
           await Promise.all([
             listarProductos(
               db,
@@ -345,9 +381,14 @@ function OrdenesTrabajoV2({
               db,
               perfil.empresa_id,
               TIPOS_TERCERO.CLIENTE
+            ),
+            listarSubproductos(
+              db,
+              perfil.empresa_id
             )
           ]);
         setProductos(productosData);
+        setSubproductos(subproductosData);
         setClientes(
           clientesData.filter(
             cliente => cliente.activo !== false

@@ -122,8 +122,14 @@ service cloud.firestore {
     }
 
     match /configuracion_capacidad/{configId} {
-      allow read: if isManagement() &&
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/configuracion_capacidad/$(configId)
+          )
+        ) ||
         belongsToPlant(resource.data);
+      allow list: if belongsToPlant(resource.data);
       allow create: if isManagement() &&
         belongsToPlant(request.resource.data);
       allow update: if isManagement() &&
@@ -299,6 +305,25 @@ service cloud.firestore {
           belongsToCompany(request.resource.data);
         allow delete: if false;
       }
+    }
+
+    match /programacion_turnos/{programacionId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope() &&
+        request.resource.data.semana_inicio ==
+          resource.data.semana_inicio &&
+        request.resource.data.operario_id ==
+          resource.data.operario_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
     }
 
     match /ordenes_trabajo/{otId} {

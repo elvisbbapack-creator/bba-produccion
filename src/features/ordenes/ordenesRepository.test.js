@@ -701,3 +701,24 @@ test("exige fecha de entrega planificada para nuevas OT", () => {
     "La OT requiere fecha de entrega planificada."
   ]);
 });
+
+test("permite OT para producto con rutas en subproductos", () => {
+  expect(
+    validarDatosOrden({
+      plantaId: "chile",
+      clienteNombre: "Cliente Demo",
+      producto: {
+        version_ruta_activa: null,
+        composicion: [{
+          tipo: "SUBPRODUCTO",
+          item_id: "sub-1",
+          item_codigo: "SUB0001",
+          cantidad: 2
+        }]
+      },
+      cantidadProducto: 100,
+      fechaInicio: "2026-06-15",
+      fechaEntrega: "2026-06-20"
+    })
+  ).toEqual([]);
+});

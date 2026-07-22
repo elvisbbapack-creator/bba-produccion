@@ -41,6 +41,17 @@ const numeroPositivo = (valor) =>
   Number.isFinite(Number(valor)) &&
   Number(valor) > 0;
 
+const esSubproductoComposicion = item =>
+  item?.tipo === "SUBPRODUCTO" &&
+  limpiarTexto(item.item_id);
+
+const productoTieneRutaLiberable = producto =>
+  Boolean(
+    producto?.version_ruta_activa ||
+    (producto?.composicion || [])
+      .some(esSubproductoComposicion)
+  );
+
 const codigoPlanta = (plantaId) =>
   limpiarTexto(plantaId)
     .toUpperCase()
@@ -902,7 +913,9 @@ export const prepararOrden = ({
   cantidadProducto,
   fechaInicio,
   fechaEntrega,
-  perfil
+  perfil,
+  rutaVersion =
+    producto?.version_ruta_activa || null
 }) => ({
   codigo,
   correlativo,
@@ -916,10 +929,15 @@ export const prepararOrden = ({
   producto_id: producto.id,
   producto_codigo: producto.codigo,
   producto_nombre: producto.nombre,
-  ruta_id: `v${producto.version_ruta_activa}`,
-  ruta_version: Number(
-    producto.version_ruta_activa
-  ),
+  ruta_id: rutaVersion
+    ? `v${rutaVersion}`
+    : "subproductos",
+  ruta_version: rutaVersion
+    ? Number(rutaVersion)
+    : null,
+  ruta_origen: rutaVersion
+    ? "producto"
+    : "subproductos",
   cantidad_producto: Number(
     cantidadProducto
   ),
@@ -967,7 +985,7 @@ export const validarDatosOrden = ({
 
   if (
     !producto ||
-    !producto.version_ruta_activa
+    !productoTieneRutaLiberable(producto)
   ) {
     errores.push(
       "Selecciona un producto con ruta publicada."
@@ -997,6 +1015,162 @@ export const validarDatosOrden = ({
   }
 
   return errores;
+};
+
+const obtenerSubproducto = async (
+  db,
+  empresaId,
+  subproductoId
+) => {
+  const snapshot = await getDoc(
+    doc(
+      db,
+      "catalogo_subproductos",
+      subproductoId
+    )
+  );
+
+  if (
+    !snapshot.exists() ||
+    snapshot.data().empresa_id !== empresaId
+  ) {
+    throw new Error(
+      "La composición del producto referencia un subproducto inexistente."
+    );
+  }
+
+  return {
+    id: snapshot.id,
+    ...snapshot.data()
+  };
+};
+
+const prefijarOperacionSubproducto = (
+  operacion,
+  subproducto
+) => {
+  const prefijo =
+    subproducto.codigo || subproducto.id;
+
+  return {
+    ...operacion,
+    id: `${prefijo}__${operacion.id}`,
+    subproducto_id: subproducto.id,
+    subproducto_codigo:
+      subproducto.codigo || "",
+    subproducto_nombre:
+      subproducto.nombre || "",
+    dependencias:
+      (operacion.dependencias || []).map(
+        dependencia => ({
+          ...dependencia,
+          ruta_operacion_id:
+            dependencia.ruta_operacion_id
+              ? `${prefijo}__${dependencia.ruta_operacion_id}`
+              : dependencia.ruta_operacion_id
+        })
+      )
+  };
+};
+
+const obtenerRutaConsolidadaOT = async ({
+  db,
+  empresaId,
+  producto
+}) => {
+  const rutas = [];
+
+  if (producto.version_ruta_activa) {
+    const rutaProducto = await obtenerRuta(
+      db,
+      producto.id,
+      empresaId,
+      producto.version_ruta_activa
+    );
+
+    if (rutaProducto.estado !== "publicada") {
+      throw new Error(
+        "La ruta seleccionada no está publicada."
+      );
+    }
+
+    rutas.push(rutaProducto);
+  }
+
+  const subproductosComposicion =
+    (producto.composicion || [])
+      .filter(esSubproductoComposicion);
+
+  for (const item of subproductosComposicion) {
+    const subproducto =
+      await obtenerSubproducto(
+        db,
+        empresaId,
+        item.item_id
+      );
+
+    if (subproducto.activo === false) {
+      throw new Error(
+        `El subproducto ${item.item_codigo || subproducto.codigo} está inactivo.`
+      );
+    }
+
+    if (!subproducto.version_ruta_activa) {
+      throw new Error(
+        `El subproducto ${item.item_codigo || subproducto.codigo} no tiene ruta publicada.`
+      );
+    }
+
+    const rutaSubproducto = await obtenerRuta(
+      db,
+      producto.id,
+      empresaId,
+      subproducto.version_ruta_activa,
+      {
+        tipoRuta: "SUBPRODUCTO",
+        subproductoId: subproducto.id,
+        entidadId: subproducto.id
+      }
+    );
+
+    if (rutaSubproducto.estado !== "publicada") {
+      throw new Error(
+        `La ruta del subproducto ${subproducto.codigo} no está publicada.`
+      );
+    }
+
+    rutas.push({
+      ...rutaSubproducto,
+      operaciones:
+        rutaSubproducto.operaciones.map(
+          operacion =>
+            prefijarOperacionSubproducto(
+              operacion,
+              subproducto
+            )
+        )
+    });
+  }
+
+  const operaciones = rutas
+    .flatMap(ruta => ruta.operaciones || [])
+    .map((operacion, indice) => ({
+      ...operacion,
+      secuencia:
+        Number(operacion.secuencia || 0) +
+        indice / 1000
+    }));
+
+  return {
+    id: producto.version_ruta_activa
+      ? `v${producto.version_ruta_activa}`
+      : "subproductos",
+    producto_id: producto.id,
+    version:
+      producto.version_ruta_activa || null,
+    estado: "publicada",
+    operaciones
+  };
 };
 
 export const listarOrdenesV2 = async (
@@ -1269,23 +1443,16 @@ export const crearOrdenV2 = async ({
   }
 
   const [ruta, materiales] = await Promise.all([
-    obtenerRuta(
+    obtenerRutaConsolidadaOT({
       db,
-      producto.id,
-      perfil.empresa_id,
-      producto.version_ruta_activa
-    ),
+      empresaId: perfil.empresa_id,
+      producto
+    }),
     listarMateriales(
       db,
       perfil.empresa_id
     )
   ]);
-
-  if (ruta.estado !== "publicada") {
-    throw new Error(
-      "La ruta seleccionada no está publicada."
-    );
-  }
 
   const operaciones = congelarRutaParaOT({
     ruta,
@@ -1339,7 +1506,9 @@ export const crearOrdenV2 = async ({
         cantidadProducto,
         fechaInicio,
         fechaEntrega,
-        perfil
+        perfil,
+        rutaVersion:
+          producto.version_ruta_activa || null
       });
 
       transaccion.set(correlativoRef, {
