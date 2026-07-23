@@ -2,6 +2,7 @@ import {
   getAuth,
   getIdTokenResult,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut
 } from "firebase/auth";
@@ -31,6 +32,15 @@ export const iniciarSesion = async (
 
 export const cerrarSesion = () =>
   signOut(auth);
+
+export const enviarCorreoRestablecerPassword = async (
+  email
+) => {
+  return sendPasswordResetEmail(
+    auth,
+    email.trim()
+  );
+};
 
 export const obtenerPerfilFirebase = async (
   usuario

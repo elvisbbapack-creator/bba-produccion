@@ -245,7 +245,10 @@ function App() {
   const [emailAcceso, setEmailAcceso] = useState("");
   const [passwordAcceso, setPasswordAcceso] = useState("");
   const [errorAcceso, setErrorAcceso] = useState("");
+  const [mensajeAcceso, setMensajeAcceso] = useState("");
   const [ingresando, setIngresando] = useState(false);
+  const [enviandoReset, setEnviandoReset] =
+    useState(false);
   const [contextoCapacidadV2,
     setContextoCapacidadV2] = useState(null);
   const [contextoTurnosV2,
@@ -1310,9 +1313,10 @@ const cargarTodosLosParos = async () => {
               placeholder="Correo"
               autoComplete="username"
               value={emailAcceso}
-              onChange={(e) =>
-                setEmailAcceso(e.target.value)
-              }
+              onChange={(e) => {
+                setEmailAcceso(e.target.value);
+                setMensajeAcceso("");
+              }}
               style={estiloInput}
             />
 
@@ -1321,11 +1325,22 @@ const cargarTodosLosParos = async () => {
               placeholder="Contraseña"
               autoComplete="current-password"
               value={passwordAcceso}
-              onChange={(e) =>
-                setPasswordAcceso(e.target.value)
-              }
+              onChange={(e) => {
+                setPasswordAcceso(e.target.value);
+                setMensajeAcceso("");
+              }}
               style={estiloInput}
             />
+
+            {mensajeAcceso && (
+              <div style={{
+                color: "#2E7D32",
+                marginBottom: 12,
+                fontSize: 14
+              }}>
+                {mensajeAcceso}
+              </div>
+            )}
 
             {errorAcceso && (
               <div style={{
@@ -1347,12 +1362,14 @@ const cargarTodosLosParos = async () => {
                   setErrorAcceso(
                     "Ingresa correo y contraseña."
                   );
+                  setMensajeAcceso("");
                   return;
                 }
 
                 try {
                   setIngresando(true);
                   setErrorAcceso("");
+                  setMensajeAcceso("");
                   const {
                     iniciarSesion
                   } = await import(
@@ -1390,6 +1407,66 @@ const cargarTodosLosParos = async () => {
               {ingresando
                 ? "Ingresando..."
                 : "Ingresar"}
+            </button>
+
+            <button
+              disabled={enviandoReset}
+              onClick={async () => {
+                const email =
+                  emailAcceso.trim();
+
+                if (!email) {
+                  setErrorAcceso(
+                    "Ingresa tu correo para restablecer la contraseña."
+                  );
+                  setMensajeAcceso("");
+                  return;
+                }
+
+                try {
+                  setEnviandoReset(true);
+                  setErrorAcceso("");
+                  setMensajeAcceso("");
+                  const {
+                    enviarCorreoRestablecerPassword
+                  } = await import(
+                    "./auth/servicio"
+                  );
+                  await enviarCorreoRestablecerPassword(
+                    email
+                  );
+                  setMensajeAcceso(
+                    "Correo de restablecimiento enviado. Revisa tu email."
+                  );
+                } catch (error) {
+                  const {
+                    mensajeErrorAutenticacion
+                  } = await import(
+                    "./auth/servicio"
+                  );
+                  setErrorAcceso(
+                    mensajeErrorAutenticacion(error)
+                  );
+                } finally {
+                  setEnviandoReset(false);
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid #1976D2",
+                background: "white",
+                color: "#1976D2",
+                fontWeight: "bold",
+                cursor: "pointer",
+                fontSize: 14,
+                marginTop: 10
+              }}
+            >
+              {enviandoReset
+                ? "Enviando correo..."
+                : "Olvidé mi contraseña"}
             </button>
           </>
         ) : (
