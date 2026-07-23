@@ -3,7 +3,6 @@ import {
   collection,
   doc,
   getDocs,
-  orderBy,
   query,
   setDoc,
   updateDoc,
@@ -100,17 +99,24 @@ export const listarUsuariosPermisos = async (
       collection(db, "usuarios"),
       ...(empresaId
         ? [where("empresa_id", "==", empresaId)]
-        : []),
-      orderBy("nombre", "asc")
+        : [])
     )
   );
 
-  return snap.docs.map(documento =>
-    normalizarUsuario(
-      documento.id,
-      documento.data()
+  return snap.docs
+    .map(documento =>
+      normalizarUsuario(
+        documento.id,
+        documento.data()
+      )
     )
-  );
+    .sort((a, b) =>
+      (a.nombre || "").localeCompare(
+        b.nombre || "",
+        "es",
+        { sensitivity: "base" }
+      )
+    );
 };
 
 export const guardarUsuarioPermisos = async (
