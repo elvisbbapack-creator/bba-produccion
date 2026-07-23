@@ -14,6 +14,11 @@ export const TIPOS_TERCERO = {
   PROVEEDOR: "proveedor"
 };
 
+export const PREFIJOS_TERCERO = {
+  [TIPOS_TERCERO.CLIENTE]: "CLI",
+  [TIPOS_TERCERO.PROVEEDOR]: "PRV"
+};
+
 const COLECCIONES = {
   [TIPOS_TERCERO.CLIENTE]: "clientes",
   [TIPOS_TERCERO.PROVEEDOR]: "proveedores"
@@ -26,6 +31,38 @@ export const normalizarCodigoTercero = valor =>
   limpiarTexto(valor)
     .toUpperCase()
     .replace(/\s+/g, "");
+
+export const siguienteCodigoTercero = (
+  terceros = [],
+  tipo = TIPOS_TERCERO.CLIENTE
+) => {
+  const prefijo =
+    PREFIJOS_TERCERO[tipo] ||
+    PREFIJOS_TERCERO[TIPOS_TERCERO.CLIENTE];
+  const patron = new RegExp(
+    `^${prefijo}(\\d{3,})$`
+  );
+  const usados = new Set(
+    terceros
+      .map(tercero =>
+        normalizarCodigoTercero(
+          tercero.codigo
+        )
+      )
+      .filter(codigo => patron.test(codigo))
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `${prefijo}${String(correlativo).padStart(3, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `${prefijo}${String(correlativo).padStart(3, "0")}`;
+};
 
 const idTercero = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
@@ -184,4 +221,3 @@ export const guardarTercero = async (
 
   return tercero;
 };
-

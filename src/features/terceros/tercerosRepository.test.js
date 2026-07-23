@@ -2,6 +2,7 @@ import {
   TIPOS_TERCERO,
   normalizarCodigoTercero,
   prepararTercero,
+  siguienteCodigoTercero,
   validarTercero
 } from "./tercerosRepository";
 
@@ -9,6 +10,30 @@ test("normaliza codigo de tercero", () => {
   expect(
     normalizarCodigoTercero(" cli 001 ")
   ).toBe("CLI001");
+});
+
+test("propone siguiente codigo por tipo de tercero", () => {
+  expect(
+    siguienteCodigoTercero(
+      [
+        { codigo: "CLI001" },
+        { codigo: "CLI003" },
+        { codigo: "PRV001" }
+      ],
+      TIPOS_TERCERO.CLIENTE
+    )
+  ).toBe("CLI002");
+
+  expect(
+    siguienteCodigoTercero(
+      [
+        { codigo: "CLI001" },
+        { codigo: "PRV001" },
+        { codigo: "PRV002" }
+      ],
+      TIPOS_TERCERO.PROVEEDOR
+    )
+  ).toBe("PRV003");
 });
 
 test("prepara tercero con datos base", () => {
@@ -55,4 +80,3 @@ test("valida codigo duplicado", () => {
     ])
   ).toContain("El código CLI001 ya existe.");
 });
-

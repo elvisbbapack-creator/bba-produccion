@@ -8,7 +8,8 @@ import BotonVolver from "../../components/BotonVolver";
 import {
   TIPOS_TERCERO,
   guardarTercero,
-  listarTerceros
+  listarTerceros,
+  siguienteCodigoTercero
 } from "./tercerosRepository";
 
 const campo = {
@@ -48,6 +49,16 @@ const estadoInicial = {
   observacion: "",
   activo: true
 };
+
+const CONDICIONES_PAGO = [
+  "Factura 30",
+  "Factura 45",
+  "Factura 60",
+  "Factura 90",
+  "Contado",
+  "Letra 30",
+  "Cheque 30"
+];
 
 const normalizar = valor =>
   (valor || "")
@@ -114,6 +125,28 @@ export default function TercerosV2({
     tipo === TIPOS_TERCERO.CLIENTE
       ? clientes
       : proveedores;
+
+  useEffect(() => {
+    if (formulario.id) {
+      return;
+    }
+
+    const siguienteCodigo =
+      siguienteCodigoTercero(terceros, tipo);
+
+    setFormulario(actual =>
+      actual.codigo === siguienteCodigo
+        ? actual
+        : {
+            ...actual,
+            codigo: siguienteCodigo
+          }
+    );
+  }, [
+    formulario.id,
+    terceros,
+    tipo
+  ]);
 
   const tercerosFiltrados = useMemo(
     () =>
@@ -184,7 +217,15 @@ export default function TercerosV2({
         db,
         perfil,
         tipo,
-        formulario,
+        {
+          ...formulario,
+          codigo: formulario.id
+            ? formulario.codigo
+            : siguienteCodigoTercero(
+                terceros,
+                tipo
+              )
+        },
         terceros
       );
       await cargar();
@@ -285,12 +326,9 @@ export default function TercerosV2({
           </select>
           <input
             style={campo}
-            placeholder="Código: CLI001 / PRV001"
+            placeholder="Código automático"
             value={formulario.codigo}
-            disabled={Boolean(formulario.id)}
-            onChange={e =>
-              actualizar({ codigo: e.target.value })
-            }
+            disabled
           />
           <input
             style={campo}
@@ -348,16 +386,37 @@ export default function TercerosV2({
               actualizar({ telefono: e.target.value })
             }
           />
-          <input
+          <select
             style={campo}
-            placeholder="Condición de pago"
             value={formulario.condicion_pago}
             onChange={e =>
               actualizar({
                 condicion_pago: e.target.value
               })
             }
-          />
+          >
+            <option value="">
+              Condición de pago
+            </option>
+            {formulario.condicion_pago &&
+              !CONDICIONES_PAGO.includes(
+                formulario.condicion_pago
+              ) && (
+                <option
+                  value={formulario.condicion_pago}
+                >
+                  {formulario.condicion_pago}
+                </option>
+              )}
+            {CONDICIONES_PAGO.map(condicion => (
+              <option
+                key={condicion}
+                value={condicion}
+              >
+                {condicion}
+              </option>
+            ))}
+          </select>
           <select
             style={campo}
             value={formulario.activo ? "true" : "false"}
