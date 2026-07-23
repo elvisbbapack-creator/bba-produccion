@@ -273,8 +273,16 @@ function CatalogoPiezasV2({
 
       const { productoIds, subproductoIds } =
         contextoMaterialesFormulario;
+      const materialSinVincular =
+        !material.producto_id &&
+        !material.subproducto_id &&
+        (material.productos_asociados || [])
+          .length === 0 &&
+        (material.subproductos_asociados || [])
+          .length === 0;
 
       return (
+        materialSinVincular ||
         productoIds.has(material.producto_id) ||
         subproductoIds.has(
           material.subproducto_id
@@ -1495,7 +1503,8 @@ function CatalogoPiezasV2({
                 Agrega uno o varios MP/RF que componen
                 esta pieza. Si ya seleccionaste producto
                 o subproducto, el listado se filtra por
-                materiales vinculados a esa ingeniería.
+                materiales vinculados a esa ingeniería
+                y materiales aún sin vincular.
               </p>
               {contextoMaterialesFormulario
                 .tieneContexto &&
@@ -1507,10 +1516,10 @@ function CatalogoPiezasV2({
                     borderRadius: 8,
                     fontSize: 13
                   }}>
-                    No hay materiales vinculados al
-                    producto/subproducto seleccionado.
-                    Revisa las asociaciones en Catálogo
-                    de materiales V2.
+                    No hay materiales vinculados ni sin
+                    vincular para el contexto
+                    seleccionado. Revisa el Catálogo de
+                    materiales V2.
                   </p>
                 )}
 
