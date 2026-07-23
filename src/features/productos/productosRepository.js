@@ -626,6 +626,41 @@ export const validarRecalibracionEstandar = ({
   return errores;
 };
 
+export const operacionesQueDependenDe = (
+  operaciones = [],
+  operacionId
+) =>
+  operaciones.filter(operacion =>
+    (operacion.dependencias || []).some(
+      dependencia =>
+        dependencia.ruta_operacion_id ===
+        operacionId
+    )
+  );
+
+export const quitarDependenciaOperacion = (
+  operacion,
+  operacionId
+) => {
+  const dependencias = (
+    operacion.dependencias || []
+  ).filter(
+    dependencia =>
+      dependencia.ruta_operacion_id !==
+      operacionId
+  );
+
+  return {
+    ...operacion,
+    dependencias,
+    dependencia_id:
+      dependencias[0]?.ruta_operacion_id || "",
+    porcentaje_minimo_avance:
+      dependencias[0]
+        ?.porcentaje_minimo_avance ?? "0"
+  };
+};
+
 const idProducto = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
 
@@ -1073,7 +1108,8 @@ export const eliminarOperacionRuta = async ({
   ruta,
   tipoRuta,
   subproductoId,
-  entidadId
+  entidadId,
+  limpiarDependencias = false
 }) => {
   if (ruta?.estado !== "borrador") {
     throw new Error(
@@ -1081,17 +1117,16 @@ export const eliminarOperacionRuta = async ({
     );
   }
 
-  const usadaComoDependencia = (
-    ruta?.operaciones || []
-  ).some(operacion =>
-    (operacion.dependencias || []).some(
-      dependencia =>
-        dependencia.ruta_operacion_id ===
-        operacionId
-    )
-  );
+  const operacionesDependientes =
+    operacionesQueDependenDe(
+      ruta?.operaciones || [],
+      operacionId
+    );
 
-  if (usadaComoDependencia) {
+  if (
+    operacionesDependientes.length > 0 &&
+    !limpiarDependencias
+  ) {
     throw new Error(
       "No se puede eliminar: otra operación depende de esta."
     );
@@ -1104,12 +1139,51 @@ export const eliminarOperacionRuta = async ({
     { tipoRuta, subproductoId, entidadId }
   );
 
-  await deleteDoc(
+  if (operacionesDependientes.length === 0) {
+    await deleteDoc(
+      doc(
+        referencias.operacionesCollection,
+        operacionId
+      )
+    );
+    return;
+  }
+
+  const batch = writeBatch(db);
+
+  operacionesDependientes.forEach(operacion => {
+    const operacionActualizada =
+      quitarDependenciaOperacion(
+        operacion,
+        operacionId
+      );
+
+    batch.update(
+      doc(
+        referencias.operacionesCollection,
+        operacion.id
+      ),
+      {
+        dependencias:
+          operacionActualizada.dependencias,
+        dependencia_id:
+          operacionActualizada.dependencia_id,
+        porcentaje_minimo_avance:
+          operacionActualizada
+            .porcentaje_minimo_avance,
+        fecha_actualizacion: serverTimestamp()
+      }
+    );
+  });
+
+  batch.delete(
     doc(
       referencias.operacionesCollection,
       operacionId
     )
   );
+
+  await batch.commit();
 };
 
 export const publicarRuta = async ({

@@ -39,6 +39,7 @@ import {
   extraerCatalogoProcesosRuta,
   guardarOperacionRuta,
   listarProductos,
+  operacionesQueDependenDe,
   obtenerRuta,
   prepararOperacionRuta,
   prepararProducto,
@@ -1380,6 +1381,30 @@ function ConstructorRutasV2({
       return;
     }
 
+    const operacionesDependientes =
+      operacionesQueDependenDe(
+        ruta.operaciones || [],
+        operacion.id
+      );
+    const limpiarDependencias =
+      operacionesDependientes.length > 0;
+
+    if (limpiarDependencias) {
+      const resumenDependientes =
+        operacionesDependientes
+          .map(dependiente =>
+            `${dependiente.operacion_codigo} - ${dependiente.operacion_nombre}`
+          )
+          .join("\n");
+      const confirmado = window.confirm(
+        `La operación ${operacion.operacion_codigo} es dependencia de:\n\n${resumenDependientes}\n\n¿Eliminar ${operacion.operacion_codigo} y quitar esa dependencia de las operaciones indicadas?`
+      );
+
+      if (!confirmado) {
+        return;
+      }
+    }
+
     try {
       setGuardando(true);
       await eliminarOperacionRuta({
@@ -1390,7 +1415,8 @@ function ConstructorRutasV2({
         entidadId: entidadRutaId,
         version: ruta.version,
         operacionId: operacion.id,
-        ruta
+        ruta,
+        limpiarDependencias
       });
       await cargarRuta(
         entidadRutaId,
@@ -1402,7 +1428,9 @@ function ConstructorRutasV2({
         }
       );
       setMensaje(
-        `Operación ${operacion.operacion_codigo} eliminada de la ruta.`
+        limpiarDependencias
+          ? `Operación ${operacion.operacion_codigo} eliminada y dependencias relacionadas limpiadas.`
+          : `Operación ${operacion.operacion_codigo} eliminada de la ruta.`
       );
     } catch (fallo) {
       setError(

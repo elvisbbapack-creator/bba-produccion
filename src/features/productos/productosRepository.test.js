@@ -3,6 +3,8 @@ import {
   prepararComposicionProducto,
   prepararOperacionRuta,
   prepararProducto,
+  operacionesQueDependenDe,
+  quitarDependenciaOperacion,
   siguienteCodigoOperacionRuta,
   siguienteCodigoProducto,
   validarComposicionProducto,
@@ -353,6 +355,67 @@ test("rechaza dependencias repetidas en una operación", () => {
   ).toContain(
     "La dependencia OP0001 está repetida."
   );
+});
+
+test("identifica y limpia operaciones que dependen de otra operación", () => {
+  const operaciones = [
+    {
+      id: "OP0069",
+      operacion_codigo: "OP0069",
+      operacion_nombre: "Grafico cenefa"
+    },
+    {
+      id: "OP0070",
+      operacion_codigo: "OP0070",
+      operacion_nombre: "Pintura lateral",
+      dependencias: [
+        {
+          ruta_operacion_id: "OP0069",
+          porcentaje_minimo_avance: 30,
+          requiere_material_disponible: true
+        },
+        {
+          ruta_operacion_id: "OP0068",
+          porcentaje_minimo_avance: 100,
+          requiere_material_disponible: true
+        }
+      ]
+    },
+    {
+      id: "OP0071",
+      operacion_codigo: "OP0071",
+      dependencias: [
+        {
+          ruta_operacion_id: "OP0068",
+          porcentaje_minimo_avance: 100,
+          requiere_material_disponible: true
+        }
+      ]
+    }
+  ];
+
+  expect(
+    operacionesQueDependenDe(
+      operaciones,
+      "OP0069"
+    ).map(operacion => operacion.id)
+  ).toEqual(["OP0070"]);
+
+  expect(
+    quitarDependenciaOperacion(
+      operaciones[1],
+      "OP0069"
+    )
+  ).toMatchObject({
+    id: "OP0070",
+    dependencia_id: "OP0068",
+    porcentaje_minimo_avance: 100,
+    dependencias: [{
+      ruta_operacion_id: "OP0068",
+      porcentaje_minimo_avance: 100,
+      requiere_material_disponible: true
+    }]
+  });
 });
 
 test("valida una recalibración trazable del estándar", () => {
