@@ -13,6 +13,7 @@ import {
   PLANTAS_BBA,
   ROLES_USUARIO_BBA,
   activarUsuarioAuthPendiente,
+  consolidarUsuarioPendienteDuplicado,
   guardarUsuarioPermisos,
   listarUsuariosPermisos,
   normalizarUsuario
@@ -87,6 +88,8 @@ export default function GestionUsuariosV2({
   const [guardando, setGuardando] =
     useState(false);
   const [activandoId, setActivandoId] =
+    useState("");
+  const [consolidandoId, setConsolidandoId] =
     useState("");
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -268,6 +271,46 @@ export default function GestionUsuariosV2({
     }
   };
 
+  const consolidarDuplicado = async (
+    usuarioPendiente,
+    usuarioVinculado
+  ) => {
+    if (
+      !window.confirm(
+        `¿Marcar la ficha pendiente de ${usuarioPendiente.nombre} ` +
+          "como reemplazada por la cuenta Firebase Auth ya vinculada?"
+      )
+    ) {
+      return;
+    }
+
+    setConsolidandoId(usuarioPendiente.id);
+    setError("");
+    setMensaje("");
+
+    try {
+      await consolidarUsuarioPendienteDuplicado(
+        db,
+        usuarioPendiente,
+        usuarioVinculado,
+        perfil
+      );
+      await cargar();
+      setMensaje(
+        `Ficha pendiente de ${usuarioPendiente.nombre} consolidada. ` +
+          "Ahora quedará oculta como histórico."
+      );
+    } catch (err) {
+      console.error(err);
+      setError(
+        err.message ||
+        "No se pudo consolidar la ficha duplicada."
+      );
+    } finally {
+      setConsolidandoId("");
+    }
+  };
+
   const usuariosFiltrados = useMemo(() => {
     return usuarios.filter(usuario => {
       const activo = usuario.activo !== false;
@@ -335,6 +378,26 @@ export default function GestionUsuariosV2({
   const usuariosHistoricos = usuarios.filter(
     esFichaReemplazada
   );
+  const usuariosVinculadosPorEmail = useMemo(() => {
+    const indice = new Map();
+
+    usuarios.forEach(usuario => {
+      const email =
+        (usuario.email || "")
+          .trim()
+          .toLowerCase();
+
+      if (
+        email &&
+        usuario.estado_auth === "vinculado" &&
+        usuario.uid
+      ) {
+        indice.set(email, usuario);
+      }
+    });
+
+    return indice;
+  }, [usuarios]);
 
   const resumen = {
     total: usuariosOperativos.length,
@@ -839,21 +902,35 @@ export default function GestionUsuariosV2({
         display: "grid",
         gap: 12
       }}>
-        {usuariosFiltrados.map(usuario => (
-          <div
-            key={usuario.id}
-            style={{
-              background: "white",
-              padding: 16,
-              borderRadius: 14,
-              borderLeft:
-                usuario.activo !== false
-                  ? "6px solid #2E7D32"
-                  : "6px solid #B71C1C",
-              boxShadow:
-                "0 2px 8px rgba(15,23,42,0.08)"
-            }}
-          >
+        {usuariosFiltrados.map(usuario => {
+          const usuarioVinculadoMismoCorreo =
+            usuariosVinculadosPorEmail.get(
+              (usuario.email || "")
+                .trim()
+                .toLowerCase()
+            );
+          const tieneDuplicadoVinculado =
+            usuario.estado_auth ===
+              "pendiente_auth" &&
+            usuarioVinculadoMismoCorreo &&
+            usuarioVinculadoMismoCorreo.id !==
+              usuario.id;
+
+          return (
+            <div
+              key={usuario.id}
+              style={{
+                background: "white",
+                padding: 16,
+                borderRadius: 14,
+                borderLeft:
+                  usuario.activo !== false
+                    ? "6px solid #2E7D32"
+                    : "6px solid #B71C1C",
+                boxShadow:
+                  "0 2px 8px rgba(15,23,42,0.08)"
+              }}
+            >
             <div style={{
               display: "flex",
               justifyContent: "space-between",
@@ -955,8 +1032,14 @@ export default function GestionUsuariosV2({
                 padding: 10,
                 borderRadius: 10
               }}>
-                Pendiente: activar Firebase Auth y
-                asignar custom claims desde Cloud Function.
+                {tieneDuplicadoVinculado
+                  ? (
+                      "Existe una cuenta Firebase Auth vinculada con este mismo correo. " +
+                      "Consolida esta ficha pendiente para dejar solo el usuario operativo."
+                    )
+                  : (
+                      "Pendiente: activar Firebase Auth y asignar custom claims desde Cloud Function."
+                    )}
               </div>
             )}
 
@@ -967,7 +1050,28 @@ export default function GestionUsuariosV2({
               gap: 10,
               marginTop: 12
             }}>
-              {usuario.estado_auth === "pendiente_auth" && (
+              {tieneDuplicadoVinculado && (
+                <button
+                  style={{
+                    ...botonPrimario,
+                    background: "#6D4C41"
+                  }}
+                  disabled={Boolean(consolidandoId)}
+                  onClick={() =>
+                    consolidarDuplicado(
+                      usuario,
+                      usuarioVinculadoMismoCorreo
+                    )
+                  }
+                >
+                  {consolidandoId === usuario.id
+                    ? "Consolidando..."
+                    : "Consolidar duplicado"}
+                </button>
+              )}
+
+              {usuario.estado_auth === "pendiente_auth" &&
+                !tieneDuplicadoVinculado && (
                 <button
                   style={{
                     ...botonPrimario,
@@ -990,7 +1094,8 @@ export default function GestionUsuariosV2({
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
     </div>

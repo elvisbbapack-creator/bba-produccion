@@ -216,6 +216,64 @@ export const guardarUsuarioPermisos = async (
   return creado.id;
 };
 
+export const consolidarUsuarioPendienteDuplicado = async (
+  db,
+  usuarioPendiente,
+  usuarioVinculado,
+  perfil
+) => {
+  if (!usuarioPendiente?.id) {
+    throw new Error("Falta la ficha pendiente.");
+  }
+
+  if (!usuarioVinculado?.uid) {
+    throw new Error(
+      "Falta el UID de la ficha vinculada."
+    );
+  }
+
+  const emailPendiente =
+    (usuarioPendiente.email || "")
+      .trim()
+      .toLowerCase();
+  const emailVinculado =
+    (usuarioVinculado.email || "")
+      .trim()
+      .toLowerCase();
+
+  if (
+    !emailPendiente ||
+    emailPendiente !== emailVinculado
+  ) {
+    throw new Error(
+      "Solo se pueden consolidar fichas con el mismo correo."
+    );
+  }
+
+  if (
+    usuarioPendiente.estado_auth !== "pendiente_auth"
+  ) {
+    throw new Error(
+      "Solo se pueden consolidar fichas pendientes de Auth."
+    );
+  }
+
+  await updateDoc(
+    doc(db, "usuarios", usuarioPendiente.id),
+    {
+      uid: usuarioVinculado.uid,
+      activo: false,
+      estado_auth: "reemplazado_por_uid",
+      observacion:
+        `Ficha pendiente reemplazada por usuarios/${usuarioVinculado.uid}.`,
+      actualizado_por_id: perfil?.uid || "",
+      actualizado_por_nombre:
+        perfil?.nombre || "",
+      actualizado_en: new Date()
+    }
+  );
+};
+
 export const activarUsuarioAuthPendiente = async (
   functions,
   usuarioDocId,
