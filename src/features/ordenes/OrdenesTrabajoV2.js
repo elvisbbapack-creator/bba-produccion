@@ -195,8 +195,18 @@ function OrdenesTrabajoV2({
           return true;
         }
 
-        return (producto.composicion || [])
-          .some(item => {
+        const subproductosComposicion =
+          (producto.composicion || [])
+            .filter(item =>
+              item.tipo === "SUBPRODUCTO"
+            );
+
+        if (subproductosComposicion.length === 0) {
+          return false;
+        }
+
+        return subproductosComposicion
+          .every(item => {
             if (item.tipo !== "SUBPRODUCTO") {
               return false;
             }
