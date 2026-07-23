@@ -320,6 +320,30 @@ function ConstructorRutasV2({
         operacion.codigo ===
         operacionForm.codigo
     )?.id || "";
+  const completarSubproductoRuta = useCallback(
+    (datos = {}) => {
+      if (
+        !esRutaSubproducto ||
+        !subproductoRutaSeleccionado
+      ) {
+        return datos;
+      }
+
+      return {
+        ...datos,
+        subproducto_id:
+          datos.subproducto_id ||
+          subproductoRutaSeleccionado.id,
+        subproducto_codigo:
+          datos.subproducto_codigo ||
+          subproductoRutaSeleccionado.codigo,
+        subproducto_nombre:
+          datos.subproducto_nombre ||
+          subproductoRutaSeleccionado.nombre
+      };
+    },
+    [esRutaSubproducto, subproductoRutaSeleccionado]
+  );
   const catalogoProcesosRuta = useMemo(
     () => extraerCatalogoProcesosRuta(
       ruta?.operaciones || [],
@@ -924,28 +948,44 @@ function ConstructorRutasV2({
       return;
     }
 
-    setOperacionForm(actual => ({
-      ...actual,
-      codigo: operacion.codigo,
-      nombre: operacion.nombre,
-      pieza_id: operacion.pieza_id || "",
-      pieza_codigo: operacion.pieza_codigo || "",
-      pieza_nombre: operacion.pieza_nombre || "",
-      medida: operacion.medida,
-      material_entrada_id:
-        operacion.material_entrada_id || "",
-      materiales_entrada:
-        operacion.materiales_entrada ||
-        (operacion.material_entrada_id
-          ? [{
-              material_id:
-                operacion.material_entrada_id,
-              cantidad: 1
-            }]
-          : []),
-      material_salida_id:
-        operacion.material_salida_id || ""
-    }));
+    setOperacionForm(actual =>
+      completarSubproductoRuta({
+        ...actual,
+        codigo: operacion.codigo,
+        nombre: operacion.nombre,
+        pieza_id: operacion.pieza_id || "",
+        pieza_codigo:
+          operacion.pieza_codigo || "",
+        pieza_nombre:
+          operacion.pieza_nombre || "",
+        subproducto_id:
+          operacion.subproducto_id ||
+          actual.subproducto_id ||
+          "",
+        subproducto_codigo:
+          operacion.subproducto_codigo ||
+          actual.subproducto_codigo ||
+          "",
+        subproducto_nombre:
+          operacion.subproducto_nombre ||
+          actual.subproducto_nombre ||
+          "",
+        medida: operacion.medida,
+        material_entrada_id:
+          operacion.material_entrada_id || "",
+        materiales_entrada:
+          operacion.materiales_entrada ||
+          (operacion.material_entrada_id
+            ? [{
+                material_id:
+                  operacion.material_entrada_id,
+                cantidad: 1
+              }]
+            : []),
+        material_salida_id:
+          operacion.material_salida_id || ""
+      })
+    );
     setError("");
     setMensaje("");
   };
@@ -1038,23 +1078,24 @@ function ConstructorRutasV2({
 
   const vistaOperacion = useMemo(
     () => prepararOperacionRuta(
-      {
-        ...operacionForm,
-        empresa_id: perfil.empresa_id,
-        tipo_ruta: tipoRuta,
-        entidad_ruta_id: entidadRutaId,
-        subproducto_ruta_id: subproductoRutaId,
-        secuencia:
-          operacionEditandoId
-            ? operacionForm.secuencia
-            : (ruta?.operaciones.length || 0) *
-                10 +
-              10
-      },
+      completarSubproductoRuta({
+          ...operacionForm,
+          empresa_id: perfil.empresa_id,
+          tipo_ruta: tipoRuta,
+          entidad_ruta_id: entidadRutaId,
+          subproducto_ruta_id: subproductoRutaId,
+          secuencia:
+            operacionEditandoId
+              ? operacionForm.secuencia
+              : (ruta?.operaciones.length || 0) *
+                  10 +
+                10
+        }),
       productoId,
       operacionForm.codigo
     ),
     [
+      completarSubproductoRuta,
       operacionForm,
       perfil.empresa_id,
       productoId,
@@ -1107,10 +1148,10 @@ function ConstructorRutasV2({
           entidadId: entidadRutaId,
           version: versionRutaActual,
           operacionId: operacionEditandoId,
-          datos: {
+          datos: completarSubproductoRuta({
             ...operacionForm,
             secuencia: operacionForm.secuencia
-          },
+          }),
           existentes: ruta?.operaciones || [],
           ruta
         });
@@ -1120,13 +1161,13 @@ function ConstructorRutasV2({
           perfil.empresa_id,
           productoId,
           versionRutaActual,
-          {
+          completarSubproductoRuta({
             ...operacionForm,
             secuencia:
               (ruta?.operaciones.length || 0) *
                 10 +
               10
-          },
+          }),
           ruta?.operaciones || [],
           {
             tipoRuta,
@@ -1455,7 +1496,7 @@ function ConstructorRutasV2({
 
     setOperacionEditandoId(operacion.id);
     setFormularioOperacionAbierto(true);
-    setOperacionForm({
+    setOperacionForm(completarSubproductoRuta({
       codigo: operacion.operacion_codigo || "",
       nombre: operacion.operacion_nombre || "",
       pieza_id: operacion.pieza_id || "",
@@ -1534,7 +1575,7 @@ function ConstructorRutasV2({
       porcentaje_minimo_avance:
         dependencia.porcentaje_minimo_avance ?? "0",
       secuencia: operacion.secuencia || ""
-    });
+    }));
     setError("");
     setMensaje(
       `Editando operación ${operacion.operacion_codigo}.`
@@ -3534,8 +3575,29 @@ function ConstructorRutasV2({
                                 operacion
                                   .material_salida_id
                             );
+                          const subproductoMostrado =
+                            operacion.subproducto_codigo
+                              ? {
+                                  codigo:
+                                    operacion
+                                      .subproducto_codigo,
+                                  nombre:
+                                    operacion
+                                      .subproducto_nombre
+                                }
+                              : esRutaSubproducto &&
+                                  subproductoRutaSeleccionado
+                                ? {
+                                    codigo:
+                                      subproductoRutaSeleccionado
+                                        .codigo,
+                                    nombre:
+                                      subproductoRutaSeleccionado
+                                        .nombre
+                                  }
+                                : null;
                           const textoUnidades =
-                            operacion.subproducto_id
+                            subproductoMostrado
                               ? "por subproducto"
                               : operacion.pieza_id
                                 ? "por pieza"
@@ -3583,17 +3645,17 @@ function ConstructorRutasV2({
                                     {" · "}
                                   </>
                                 )}
-                                {operacion.subproducto_codigo && (
+                                {subproductoMostrado && (
                                   <>
                                     Subproducto{" "}
                                     {
-                                      operacion
-                                        .subproducto_codigo
+                                      subproductoMostrado
+                                        .codigo
                                     }
                                     {" - "}
                                     {
-                                      operacion
-                                        .subproducto_nombre
+                                      subproductoMostrado
+                                        .nombre
                                     }
                                     {" · "}
                                   </>
