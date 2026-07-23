@@ -1743,7 +1743,7 @@ const cargarTodosLosParos = async () => {
           accion: () => setPantalla("parosV2")
         },
         {
-          titulo: "Usuarios y Permisos (V2)",
+          titulo: "Usuarios / Control de Acceso (V2)",
           visible:
             puedeGestionarUsuariosV2(
               usuarioSeleccionado

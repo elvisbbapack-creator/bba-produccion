@@ -346,7 +346,7 @@ export default function GestionUsuariosV2({
       </BotonVolver>
 
       <h2>
-        Usuarios, Acceso y Permisos
+        Usuarios / Control de Acceso
       </h2>
 
       <p style={{
