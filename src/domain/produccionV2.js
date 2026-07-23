@@ -65,6 +65,115 @@ const materialesEntradaOperacion = (
     : [];
 };
 
+export const autocompletarDependenciasRf = (
+  ruta = {},
+  materiales = []
+) => {
+  const operaciones = Array.isArray(ruta.operaciones)
+    ? ruta.operaciones
+    : [];
+  const materialesPorId = new Map(
+    materiales.map(material => [
+      material.id,
+      material
+    ])
+  );
+  const productoresRf = new Map();
+
+  operaciones.forEach(operacion => {
+    const salida = materialesPorId.get(
+      operacion.material_salida_id
+    );
+
+    if (
+      salida?.tipo ===
+        TIPOS_MATERIAL.RECURSO_FABRICACION &&
+      !productoresRf.has(salida.id)
+    ) {
+      productoresRf.set(salida.id, operacion);
+    }
+  });
+
+  const cambios = [];
+  const operacionesActualizadas = operaciones.map(
+    operacion => {
+      const dependencias = [
+        ...(operacion.dependencias || [])
+      ];
+      const dependenciasUsadas = new Set(
+        dependencias
+          .map(dependencia =>
+            dependencia.ruta_operacion_id
+          )
+          .filter(Boolean)
+      );
+
+      materialesEntradaOperacion(operacion)
+        .forEach(entradaOperacion => {
+          const entrada = materialesPorId.get(
+            entradaOperacion.material_id
+          );
+
+          if (
+            entrada?.tipo !==
+              TIPOS_MATERIAL.RECURSO_FABRICACION ||
+            entrada.es_comprado
+          ) {
+            return;
+          }
+
+          const productora =
+            productoresRf.get(entrada.id);
+
+          if (
+            !productora ||
+            productora.id === operacion.id ||
+            dependenciasUsadas.has(productora.id)
+          ) {
+            return;
+          }
+
+          dependencias.push({
+            ruta_operacion_id: productora.id,
+            porcentaje_minimo_avance: 100,
+            requiere_material_disponible: true
+          });
+          dependenciasUsadas.add(productora.id);
+          cambios.push({
+            operacion_id: operacion.id,
+            operacion_codigo:
+              operacion.operacion_codigo,
+            rf_id: entrada.id,
+            rf_codigo: entrada.codigo,
+            productora_id: productora.id,
+            productora_codigo:
+              productora.operacion_codigo
+          });
+        });
+
+      if (dependencias.length ===
+        (operacion.dependencias || []).length) {
+        return operacion;
+      }
+
+      return {
+        ...operacion,
+        dependencias,
+        dependencia_id:
+          dependencias[0]?.ruta_operacion_id || "",
+        porcentaje_minimo_avance:
+          dependencias[0]
+            ?.porcentaje_minimo_avance ?? "0"
+      };
+    }
+  );
+
+  return {
+    operaciones: operacionesActualizadas,
+    cambios
+  };
+};
+
 export const validarMaterial = (material = {}) => {
   const errores = [];
 

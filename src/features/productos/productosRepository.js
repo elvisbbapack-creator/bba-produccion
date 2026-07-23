@@ -1186,6 +1186,52 @@ export const eliminarOperacionRuta = async ({
   await batch.commit();
 };
 
+export const actualizarDependenciasOperacionesRuta =
+async ({
+  db,
+  productoId,
+  version,
+  ruta,
+  operaciones = [],
+  tipoRuta,
+  subproductoId,
+  entidadId
+}) => {
+  if (ruta?.estado !== "borrador") {
+    throw new Error(
+      "Solo se pueden actualizar dependencias en rutas en borrador."
+    );
+  }
+
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    version,
+    { tipoRuta, subproductoId, entidadId }
+  );
+  const batch = writeBatch(db);
+
+  operaciones.forEach(operacion => {
+    batch.update(
+      doc(
+        referencias.operacionesCollection,
+        operacion.id
+      ),
+      {
+        dependencias: operacion.dependencias || [],
+        dependencia_id:
+          operacion.dependencia_id || "",
+        porcentaje_minimo_avance:
+          operacion.porcentaje_minimo_avance ??
+          "0",
+        fecha_actualizacion: serverTimestamp()
+      }
+    );
+  });
+
+  await batch.commit();
+};
+
 export const publicarRuta = async ({
   db,
   empresaId,

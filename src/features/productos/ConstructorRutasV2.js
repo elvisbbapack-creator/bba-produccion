@@ -7,6 +7,7 @@ import {
 } from "react";
 import BotonVolver from "../../components/BotonVolver";
 import {
+  autocompletarDependenciasRf,
   validarRuta
 } from "../../domain/produccionV2";
 import {
@@ -30,6 +31,7 @@ import {
 } from "../subproductos/subproductosRepository";
 import {
   actualizarOperacionRuta,
+  actualizarDependenciasOperacionesRuta,
   actualizarComposicionProducto,
   anularRutaPublicada,
   crearVersionBorradorRuta,
@@ -1310,6 +1312,12 @@ function ConstructorRutasV2({
             "La ruta requiere al menos una operacion."
         )
       : erroresRutaBase;
+  const rutaTieneDependenciasRfFaltantes =
+    erroresRuta.some(error =>
+      error.includes(
+        "debe depender de quien produce"
+      )
+    );
 
   const verRutaSubproducto = subproducto => {
     setTipoRuta(TIPOS_RUTA.SUBPRODUCTO);
@@ -1327,6 +1335,87 @@ function ConstructorRutasV2({
         subproductoId: subproducto.id
       }
     );
+  };
+
+  const completarDependenciasRf = async () => {
+    if (!rutaBorrador || !ruta?.operaciones?.length) {
+      setError(
+        "Solo puedes completar dependencias en una ruta borrador."
+      );
+      return;
+    }
+
+    const resultado =
+      autocompletarDependenciasRf(
+        {
+          producto_id: productoId,
+          version: ruta.version,
+          operaciones: ruta.operaciones
+        },
+        materiales
+      );
+
+    if (resultado.cambios.length === 0) {
+      setMensaje(
+        "No se encontraron dependencias RF faltantes para completar."
+      );
+      return;
+    }
+
+    const resumen = resultado.cambios
+      .map(cambio =>
+        `${cambio.operacion_codigo} dependerá de ${cambio.productora_codigo} por ${cambio.rf_codigo}.`
+      )
+      .join("\n");
+    const confirmado = window.confirm(
+      `Se completarán estas dependencias RF:\n\n${resumen}\n\n¿Guardar estos cambios en la ruta?`
+    );
+
+    if (!confirmado) {
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      const operacionesConCambios =
+        resultado.operaciones.filter(operacion =>
+          resultado.cambios.some(
+            cambio =>
+              cambio.operacion_id === operacion.id
+          )
+        );
+
+      await actualizarDependenciasOperacionesRuta({
+        db,
+        productoId,
+        tipoRuta,
+        subproductoId: subproductoRutaId,
+        entidadId: entidadRutaId,
+        version: ruta.version,
+        ruta,
+        operaciones: operacionesConCambios
+      });
+      await cargarRuta(
+        entidadRutaId,
+        ruta.version,
+        {
+          productoId,
+          tipoRuta,
+          subproductoId: subproductoRutaId
+        }
+      );
+      setMensaje(
+        `${resultado.cambios.length} dependencia(s) RF completada(s).`
+      );
+      setError("");
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudieron completar las dependencias RF."
+      );
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const publicar = async () => {
@@ -2106,6 +2195,30 @@ function ConstructorRutasV2({
                           >
                             Publicar ruta
                           </button>
+                          {rutaBorrador &&
+                            rutaTieneDependenciasRfFaltantes && (
+                              <button
+                                type="button"
+                                onClick={
+                                  completarDependenciasRf
+                                }
+                                disabled={guardando}
+                                style={{
+                                  padding: "10px 14px",
+                                  border: "none",
+                                  borderRadius: 8,
+                                  background: "#D97706",
+                                  color: "white",
+                                  fontWeight: "bold",
+                                  cursor: guardando
+                                    ? "wait"
+                                    : "pointer"
+                                }}
+                              >
+                                Completar dependencias
+                                RF
+                              </button>
+                            )}
                           {rutaBorrador &&
                             ruta?.existe && (
                             <button

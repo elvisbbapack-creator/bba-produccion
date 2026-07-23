@@ -1,4 +1,5 @@
 import {
+  autocompletarDependenciasRf,
   calcularDisponibilidadRF,
   congelarRutaParaOT,
   dependenciasCumplidas,
@@ -283,4 +284,67 @@ test("exige dependencia explicita del productor de un RF", () => {
   ).toContain(
     "La operacion DT0005 debe depender de quien produce RF0001."
   );
+});
+
+test("autocompleta dependencias RF faltantes desde la operacion productora", () => {
+  const materiales = [
+    {
+      id: "rf-82",
+      codigo: "RF0082",
+      tipo: "RF",
+      nombre: "Grafica impresa",
+      unidad_medida: "unidad"
+    },
+    {
+      id: "rf-83",
+      codigo: "RF0083",
+      tipo: "RF",
+      nombre: "Grafica cortada",
+      unidad_medida: "unidad"
+    }
+  ];
+  const ruta = {
+    producto_id: "PCL0006",
+    version: 1,
+    operaciones: [
+      {
+        id: "OP0043",
+        operacion_codigo: "OP0043",
+        material_salida_id: "rf-83",
+        dependencias: []
+      },
+      {
+        id: "OP0044",
+        operacion_codigo: "OP0044",
+        materiales_entrada: [{
+          material_id: "rf-83",
+          cantidad: 1
+        }],
+        material_salida_id: "rf-82",
+        dependencias: []
+      }
+    ]
+  };
+
+  const resultado =
+    autocompletarDependenciasRf(
+      ruta,
+      materiales
+    );
+
+  expect(resultado.cambios).toEqual([{
+    operacion_id: "OP0044",
+    operacion_codigo: "OP0044",
+    rf_id: "rf-83",
+    rf_codigo: "RF0083",
+    productora_id: "OP0043",
+    productora_codigo: "OP0043"
+  }]);
+  expect(
+    resultado.operaciones[1].dependencias
+  ).toEqual([{
+    ruta_operacion_id: "OP0043",
+    porcentaje_minimo_avance: 100,
+    requiere_material_disponible: true
+  }]);
 });
