@@ -75,6 +75,8 @@ const estiloCampo = {
   fontSize: 15
 };
 
+const FILTRO_SIN_VINCULAR = "__sin_vincular__";
+
 function CatalogoMaterialesV2({
   db,
   perfil,
@@ -87,6 +89,10 @@ function CatalogoMaterialesV2({
   const [proveedores, setProveedores] = useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
+  const [filtroProductoId, setFiltroProductoId] =
+    useState("");
+  const [filtroSubproductoId, setFiltroSubproductoId] =
+    useState("");
   const [editandoId, setEditandoId] =
     useState("");
   const [cargando, setCargando] = useState(true);
@@ -159,6 +165,84 @@ function CatalogoMaterialesV2({
       materiales
     ),
     [materiales, vistaPrevia]
+  );
+
+  const productosFiltro = useMemo(
+    () =>
+      productos
+        .filter(producto => producto.activo !== false)
+        .sort((a, b) =>
+          (a.codigo || "")
+            .localeCompare(b.codigo || "")
+        ),
+    [productos]
+  );
+
+  const subproductosFiltro = useMemo(
+    () =>
+      subproductos
+        .filter(subproducto =>
+          subproducto.activo !== false &&
+          (
+            !filtroProductoId ||
+            filtroProductoId ===
+              FILTRO_SIN_VINCULAR ||
+            subproducto.producto_id ===
+              filtroProductoId
+          )
+        )
+        .sort((a, b) =>
+          (a.codigo || "")
+            .localeCompare(b.codigo || "")
+        ),
+    [filtroProductoId, subproductos]
+  );
+
+  const materialesFiltrados = useMemo(
+    () =>
+      materiales.filter(material => {
+        const sinVincular =
+          !material.producto_id &&
+          !material.subproducto_id &&
+          (material.productos_asociados || [])
+            .length === 0 &&
+          (material.subproductos_asociados || [])
+            .length === 0;
+        const coincideProducto =
+          filtroProductoId ===
+            FILTRO_SIN_VINCULAR
+            ? sinVincular
+            : !filtroProductoId ||
+              material.producto_id ===
+                filtroProductoId ||
+              (material.productos_asociados || [])
+                .some(producto =>
+                  producto.producto_id ===
+                  filtroProductoId
+                ) ||
+              (material.subproductos_asociados || [])
+                .some(subproducto =>
+                  subproducto.producto_id ===
+                  filtroProductoId
+                );
+        const coincideSubproducto =
+          !filtroSubproductoId ||
+          material.subproducto_id ===
+            filtroSubproductoId ||
+          (material.subproductos_asociados || [])
+            .some(subproducto =>
+              subproducto.subproducto_id ===
+              filtroSubproductoId
+            );
+
+        return coincideProducto &&
+          coincideSubproducto;
+      }),
+    [
+      filtroProductoId,
+      filtroSubproductoId,
+      materiales
+    ]
   );
 
   const crearEstadoInicial = useCallback(
@@ -1447,8 +1531,93 @@ function CatalogoMaterialesV2({
               "0 2px 10px rgba(15,23,42,0.08)"
           }}>
             <h2 style={{ marginTop: 0 }}>
-              Materiales ({materiales.length})
+              Materiales ({materialesFiltrados.length}
+              /{materiales.length})
             </h2>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: 10,
+              marginBottom: 14
+            }}>
+              <label>
+                Filtrar por producto
+                <select
+                  value={filtroProductoId}
+                  onChange={evento => {
+                    setFiltroProductoId(
+                      evento.target.value
+                    );
+                    setFiltroSubproductoId("");
+                  }}
+                  style={{
+                    ...estiloCampo,
+                    marginTop: 6
+                  }}
+                >
+                  <option value="">
+                    Todos los productos
+                  </option>
+                  <option value={FILTRO_SIN_VINCULAR}>
+                    Sin vincular
+                  </option>
+                  {productosFiltro.map(producto => (
+                    <option
+                      key={producto.id}
+                      value={producto.id}
+                    >
+                      {producto.codigo}
+                      {" - "}
+                      {producto.nombre}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                Filtrar por subproducto
+                <select
+                  value={filtroSubproductoId}
+                  onChange={evento =>
+                    setFiltroSubproductoId(
+                      evento.target.value
+                    )
+                  }
+                  disabled={
+                    filtroProductoId ===
+                    FILTRO_SIN_VINCULAR
+                  }
+                  style={{
+                    ...estiloCampo,
+                    marginTop: 6,
+                    background:
+                      filtroProductoId ===
+                      FILTRO_SIN_VINCULAR
+                        ? "#F8FAFC"
+                        : "white"
+                  }}
+                >
+                  <option value="">
+                    Todos los subproductos
+                  </option>
+                  {subproductosFiltro.map(subproducto => (
+                    <option
+                      key={subproducto.id}
+                      value={subproducto.id}
+                    >
+                      {subproducto.codigo}
+                      {" - "}
+                      {subproducto.nombre}
+                      {subproducto.producto_codigo
+                        ? ` · ${subproducto.producto_codigo}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
             {cargando ? (
               <p>Cargando catálogo...</p>
@@ -1456,12 +1625,20 @@ function CatalogoMaterialesV2({
               <p style={{ color: "#64748B" }}>
                 Todavía no hay materiales registrados.
               </p>
+            ) : materialesFiltrados.length === 0 ? (
+              <p style={{ color: "#64748B" }}>
+                No hay materiales para los filtros
+                seleccionados.
+              </p>
             ) : (
               <div style={{
                 display: "grid",
-                gap: 10
+                gap: 10,
+                maxHeight: "70vh",
+                overflowY: "auto",
+                paddingRight: 6
               }}>
-                {materiales.map(material => {
+                {materialesFiltrados.map(material => {
                   const productosTexto =
                     (material.productos_asociados || [])
                       .map(producto =>
