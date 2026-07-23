@@ -98,8 +98,12 @@ function CatalogoPiezasV2({
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
 
-  const materialesActivos = materiales.filter(
-    material => material.activo
+  const materialesActivos = useMemo(
+    () =>
+      materiales.filter(
+        material => material.activo
+      ),
+    [materiales]
   );
   const productosFiltro = useMemo(
     () =>
@@ -220,6 +224,90 @@ function CatalogoPiezasV2({
   const erroresFormulario = useMemo(
     () => validarPieza(vistaPieza, piezas),
     [piezas, vistaPieza]
+  );
+
+  const contextoMaterialesFormulario = useMemo(
+    () => {
+      const productoIds = new Set(
+        [
+          formulario.producto_id,
+          ...(formulario.productos_asociados || [])
+            .map(producto => producto.producto_id),
+          ...(formulario.subproductos_asociados || [])
+            .map(subproducto => subproducto.producto_id)
+        ].filter(Boolean)
+      );
+      const subproductoIds = new Set(
+        [
+          formulario.subproducto_id,
+          ...(formulario.subproductos_asociados || [])
+            .map(subproducto =>
+              subproducto.subproducto_id
+            )
+        ].filter(Boolean)
+      );
+
+      return {
+        productoIds,
+        subproductoIds,
+        tieneContexto:
+          productoIds.size > 0 ||
+          subproductoIds.size > 0
+      };
+    },
+    [
+      formulario.producto_id,
+      formulario.productos_asociados,
+      formulario.subproducto_id,
+      formulario.subproductos_asociados
+    ]
+  );
+
+  const materialCoincideConContexto = useCallback(
+    material => {
+      if (
+        !contextoMaterialesFormulario.tieneContexto
+      ) {
+        return true;
+      }
+
+      const { productoIds, subproductoIds } =
+        contextoMaterialesFormulario;
+
+      return (
+        productoIds.has(material.producto_id) ||
+        subproductoIds.has(
+          material.subproducto_id
+        ) ||
+        (material.productos_asociados || [])
+          .some(producto =>
+            productoIds.has(producto.producto_id)
+          ) ||
+        (material.subproductos_asociados || [])
+          .some(subproducto =>
+            subproductoIds.has(
+              subproducto.subproducto_id
+            ) ||
+            productoIds.has(
+              subproducto.producto_id
+            )
+          )
+      );
+    },
+    [contextoMaterialesFormulario]
+  );
+
+  const materialesParaBase = useCallback(
+    materialActualId =>
+      materialesActivos.filter(
+        material =>
+          materialCoincideConContexto(material) ||
+          material.id === materialActualId
+      ),
+    [
+      materialCoincideConContexto,
+      materialesActivos
+    ]
   );
 
   const cargar = useCallback(async () => {
@@ -1405,8 +1493,26 @@ function CatalogoPiezasV2({
                 marginTop: 6
               }}>
                 Agrega uno o varios MP/RF que componen
-                esta pieza.
+                esta pieza. Si ya seleccionaste producto
+                o subproducto, el listado se filtra por
+                materiales vinculados a esa ingeniería.
               </p>
+              {contextoMaterialesFormulario
+                .tieneContexto &&
+                materialesParaBase("").length === 0 && (
+                  <p style={{
+                    color: "#B45309",
+                    background: "#FFFBEB",
+                    padding: 10,
+                    borderRadius: 8,
+                    fontSize: 13
+                  }}>
+                    No hay materiales vinculados al
+                    producto/subproducto seleccionado.
+                    Revisa las asociaciones en Catálogo
+                    de materiales V2.
+                  </p>
+                )}
 
               {materialesBaseFormulario.map(
                 (materialBase, indice) => (
@@ -1436,7 +1542,9 @@ function CatalogoPiezasV2({
                       <option value="">
                         Sin material base
                       </option>
-                      {materialesActivos.map(
+                      {materialesParaBase(
+                        materialBase.material_id
+                      ).map(
                         material => (
                           <option
                             key={material.id}
