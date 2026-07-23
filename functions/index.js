@@ -388,8 +388,25 @@ exports.activarUsuarioPendiente = onCall(
       });
     }
 
+    let correoResetEnviado = false;
+    let correoResetError = "";
+
     if (enviarCorreo) {
-      await enviarResetPassword(usuario.email);
+      try {
+        await enviarResetPassword(usuario.email);
+        correoResetEnviado = true;
+      } catch (error) {
+        correoResetError =
+          error.message ||
+          "No se pudo enviar el correo de contraseña.";
+        console.error(
+          "No se pudo enviar correo de contraseña",
+          {
+            email: usuario.email,
+            error: correoResetError
+          }
+        );
+      }
     }
 
     await db
@@ -403,7 +420,9 @@ exports.activarUsuarioPendiente = onCall(
         empresa_id: usuario.empresa_id,
         planta_ids: usuario.planta_ids,
         auth_creado: cuenta.created,
-        correo_reset_enviado: enviarCorreo,
+        correo_reset_solicitado: enviarCorreo,
+        correo_reset_enviado: correoResetEnviado,
+        correo_reset_error: correoResetError,
         ejecutado_por_id: solicitante.uid,
         ejecutado_por_nombre: solicitante.nombre,
         creado_en: now
@@ -414,7 +433,9 @@ exports.activarUsuarioPendiente = onCall(
       uid,
       email: usuario.email,
       auth_creado: cuenta.created,
-      correo_reset_enviado: enviarCorreo,
+      correo_reset_solicitado: enviarCorreo,
+      correo_reset_enviado: correoResetEnviado,
+      correo_reset_error: correoResetError,
       reemplazo_ficha: usuarioDocId !== uid
     };
   }

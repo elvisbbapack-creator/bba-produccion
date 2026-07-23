@@ -228,8 +228,8 @@ export default function GestionUsuariosV2({
     if (
       !window.confirm(
         `¿Activar Firebase Auth para ${usuario.nombre}? ` +
-          "Se creará/vinculará la cuenta, se asignarán claims " +
-          "y se enviará correo para definir contraseña."
+          "Se creará/vinculará la cuenta y se asignarán claims. " +
+          "Luego enviaremos/restableceremos la contraseña desde Firebase Auth."
       )
     ) {
       return;
@@ -243,7 +243,10 @@ export default function GestionUsuariosV2({
       const resultado =
         await activarUsuarioAuthPendiente(
           firebaseFunctions,
-          usuario.id
+          usuario.id,
+          {
+            enviarCorreo: false
+          }
         );
       await cargar();
       setMensaje(
@@ -251,7 +254,7 @@ export default function GestionUsuariosV2({
           (
             resultado?.correo_reset_enviado
               ? "Correo de contraseña enviado."
-              : "Correo de contraseña no enviado."
+              : "Correo de contraseña no enviado desde la app; envíalo desde Firebase Auth."
           )
       );
     } catch (err) {
