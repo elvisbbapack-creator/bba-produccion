@@ -6,7 +6,8 @@ import {
   orderBy,
   query,
   setDoc,
-  updateDoc
+  updateDoc,
+  where
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 
@@ -90,10 +91,16 @@ export const normalizarUsuario = (
   actualizado_en: data.actualizado_en || null
 });
 
-export const listarUsuariosPermisos = async db => {
+export const listarUsuariosPermisos = async (
+  db,
+  empresaId = ""
+) => {
   const snap = await getDocs(
     query(
       collection(db, "usuarios"),
+      ...(empresaId
+        ? [where("empresa_id", "==", empresaId)]
+        : []),
       orderBy("nombre", "asc")
     )
   );

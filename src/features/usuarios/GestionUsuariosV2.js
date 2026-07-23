@@ -108,7 +108,10 @@ export default function GestionUsuariosV2({
 
     try {
       setUsuarios(
-        await listarUsuariosPermisos(db)
+        await listarUsuariosPermisos(
+          db,
+          perfil.empresa_id
+        )
       );
     } catch (err) {
       console.error(err);
@@ -166,6 +169,14 @@ export default function GestionUsuariosV2({
     });
   };
 
+  const limpiarFiltros = () => {
+    setFiltroRol("");
+    setFiltroPlanta("");
+    setFiltroActivo("activos");
+    setFiltroPermiso("");
+    setFiltroHistorial("operativos");
+  };
+
   const limpiarFormulario = () => {
     setFormulario(estadoInicial);
     setEditandoId("");
@@ -200,6 +211,7 @@ export default function GestionUsuariosV2({
       );
       await cargar();
       limpiarFormulario();
+      limpiarFiltros();
       setMensaje("Usuario guardado correctamente.");
     } catch (err) {
       console.error(err);
