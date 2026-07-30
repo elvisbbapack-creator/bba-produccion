@@ -751,6 +751,25 @@ useEffect(() => {
 
   let cancelarObservador;
   let cancelado = false;
+  let timeoutValidacionSesion = setTimeout(() => {
+    if (cancelado) {
+      return;
+    }
+
+    setUsuarioSeleccionado(null);
+    setPantalla("login");
+    setErrorAcceso(
+      "No se pudo validar la sesión automáticamente. Ingresa tus credenciales nuevamente."
+    );
+    setAutenticacionLista(true);
+  }, 6000);
+
+  const limpiarTimeoutValidacionSesion = () => {
+    if (timeoutValidacionSesion) {
+      clearTimeout(timeoutValidacionSesion);
+      timeoutValidacionSesion = null;
+    }
+  };
 
   import("./auth/servicio").then(({
     mensajeErrorAutenticacion,
@@ -763,6 +782,8 @@ useEffect(() => {
 
     cancelarObservador = observarSesion(
       async usuario => {
+        limpiarTimeoutValidacionSesion();
+
         try {
           if (!usuario) {
             setUsuarioSeleccionado(null);
@@ -794,6 +815,7 @@ useEffect(() => {
         }
       },
       error => {
+        limpiarTimeoutValidacionSesion();
         setErrorAcceso(
           mensajeErrorAutenticacion(error)
         );
@@ -802,6 +824,7 @@ useEffect(() => {
     );
   }).catch(error => {
     if (!cancelado) {
+      limpiarTimeoutValidacionSesion();
       setErrorAcceso(
         "No se pudo cargar el servicio de autenticación."
       );
@@ -812,6 +835,7 @@ useEffect(() => {
 
   return () => {
     cancelado = true;
+    limpiarTimeoutValidacionSesion();
     cancelarObservador?.();
   };
 
