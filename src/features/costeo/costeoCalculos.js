@@ -173,6 +173,18 @@ const contarOperador = (texto, operadorBuscado) =>
     caracter => caracter === operadorBuscado
   ).length;
 
+const contarTerminosCorte = expresion => {
+  const texto = quitarParentesisExternos(
+    expresion || ""
+  );
+
+  if (!texto.trim()) {
+    return 0;
+  }
+
+  return contarOperador(texto, "+") + 1;
+};
+
 const convertirConsumoAUnidadMaterial = (
   valor,
   unidadExpresion,
@@ -219,6 +231,8 @@ export const analizarExpresionConsumoMaterial = ({
       consumo_unitario: 0,
       piezas: 0,
       cortes: 0,
+      cortes_por_subproducto: 0,
+      subproductos: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -233,12 +247,14 @@ export const analizarExpresionConsumoMaterial = ({
       evaluarExpresionNumerica(texto);
     const baseExpresion =
       evaluarExpresionNumerica(base);
-    const piezas = Math.max(
+    const multiplicadorPiezas = Math.max(
       Math.round(multiplicador),
       1
     );
-    const doblecesPorPieza =
-      contarOperador(base, "+");
+    const cortesPorSubproducto =
+      contarTerminosCorte(base);
+    const cortes =
+      cortesPorSubproducto * multiplicadorPiezas;
 
     return {
       valido: true,
@@ -250,11 +266,13 @@ export const analizarExpresionConsumoMaterial = ({
         ),
         4
       ),
-      piezas,
-      cortes: piezas,
-      dobleces_por_pieza: doblecesPorPieza,
-      dobleces_total:
-        doblecesPorPieza * piezas,
+      piezas: cortes,
+      cortes,
+      cortes_por_subproducto:
+        cortesPorSubproducto,
+      subproductos: multiplicadorPiezas,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
       longitud_por_pieza: redondear(
         baseExpresion,
         4
@@ -267,6 +285,8 @@ export const analizarExpresionConsumoMaterial = ({
       consumo_unitario: 0,
       piezas: 0,
       cortes: 0,
+      cortes_por_subproducto: 0,
+      subproductos: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -312,6 +332,8 @@ export const analizarFormulaProceso = ({
       metros_totales: 0,
       piezas: 0,
       cortes: 0,
+      cortes_por_subproducto: 0,
+      subproductos: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -324,6 +346,24 @@ export const analizarFormulaProceso = ({
     unidadExpresion,
     unidadMaterial: "m"
   });
+  const { base, multiplicador } =
+    separarMultiplicadorFinal(texto);
+  const piezasPorFormula = Math.max(
+    Math.round(multiplicador),
+    1
+  );
+  const cortesPorSubproducto =
+    contarTerminosCorte(base);
+  const cortes =
+    tipoFormula === "doblez_cnc_3d"
+      ? piezasPorFormula
+      : cortesPorSubproducto * piezasPorFormula;
+  const doblecesPorPieza =
+    tipoFormula === "doblez_cnc_3d"
+      ? contarOperador(base, "+")
+      : 0;
+  const doblecesTotal =
+    doblecesPorPieza * piezasPorFormula;
 
   if (!analisis.valido) {
     return {
@@ -341,11 +381,11 @@ export const analizarFormulaProceso = ({
     metrosTotales * numero(segundosPorMetro);
   const segundosDobleces =
     tipoFormula === "doblez_cnc_3d"
-      ? numero(analisis.dobleces_total) *
+      ? numero(doblecesTotal) *
         numero(segundosPorDoblez)
       : 0;
   const segundosCortes =
-    numero(analisis.cortes) *
+    numero(cortes) *
     numero(segundosPorCorte);
   const segundosPorProducto =
     segundosAvance +
@@ -364,16 +404,12 @@ export const analizarFormulaProceso = ({
     ),
     unidades_por_hora: redondear(unidadesHora, 2),
     metros_totales: redondear(metrosTotales, 4),
-    piezas: analisis.piezas,
-    cortes: analisis.cortes,
-    dobleces_por_pieza:
-      tipoFormula === "doblez_cnc_3d"
-        ? analisis.dobleces_por_pieza
-        : 0,
-    dobleces_total:
-      tipoFormula === "doblez_cnc_3d"
-        ? analisis.dobleces_total
-        : 0,
+    piezas: piezasPorFormula,
+    cortes,
+    cortes_por_subproducto: cortesPorSubproducto,
+    subproductos: piezasPorFormula,
+    dobleces_por_pieza: doblecesPorPieza,
+    dobleces_total: doblecesTotal,
     longitud_por_pieza:
       analisis.longitud_por_pieza,
     detalle_tiempo: {

@@ -7,22 +7,25 @@ import {
 } from "./costeoCalculos";
 
 describe("costeoRepository", () => {
-  it("interpreta formula de consumo agrupando piezas, cortes y dobleces", () => {
+  it("interpreta formula de consumo de tubo como cortes por subproducto", () => {
     const resultado =
       analizarExpresionConsumoMaterial({
-        expresion: "(100+50+20)*4",
+        expresion:
+          "(131+360+131+389+131+360+131+389+330+330+359+359+71+71)*1",
         unidadExpresion: "mm",
         unidadMaterial: "m"
       });
 
     expect(resultado).toMatchObject({
       valido: true,
-      consumo_unitario: 0.68,
-      piezas: 4,
-      cortes: 4,
-      dobleces_por_pieza: 2,
-      dobleces_total: 8,
-      longitud_por_pieza: 170
+      consumo_unitario: 3.542,
+      piezas: 14,
+      cortes: 14,
+      cortes_por_subproducto: 14,
+      subproductos: 1,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
+      longitud_por_pieza: 3542
     });
   });
 
@@ -79,10 +82,12 @@ describe("costeoRepository", () => {
             unidad: "unidad",
             expresion_consumo: "(100+50+20)*4",
             unidad_expresion_consumo: "mm",
-            piezas_calculadas: 4,
-            cortes_calculados: 4,
-            dobleces_por_pieza: 2,
-            dobleces_total: 8,
+            piezas_calculadas: 12,
+            cortes_calculados: 12,
+            cortes_por_subproducto: 3,
+            subproductos: 4,
+            dobleces_por_pieza: 0,
+            dobleces_total: 0,
             longitud_por_pieza: 170,
             consumo_unitario: 0.25,
             costo_unitario: 6852
@@ -127,8 +132,10 @@ describe("costeoRepository", () => {
         tipo_linea: "material",
         codigo: "MP0012",
         expresion_consumo: "(100+50+20)*4",
-        cortes_calculados: 4,
-        dobleces_total: 8
+        cortes_calculados: 12,
+        cortes_por_subproducto: 3,
+        subproductos: 4,
+        dobleces_total: 0
       },
       {
         tipo_linea: "suministro",

@@ -72,6 +72,10 @@ export const prepararCotizacionTecnica = (
     cortes_calculados: numero(
       material.cortes_calculados
     ),
+    cortes_por_subproducto: numero(
+      material.cortes_por_subproducto
+    ),
+    subproductos: numero(material.subproductos),
     dobleces_por_pieza: numero(
       material.dobleces_por_pieza
     ),

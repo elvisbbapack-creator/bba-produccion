@@ -163,6 +163,8 @@ const materialVacio = {
   unidad_expresion_consumo: "mm",
   piezas_calculadas: 0,
   cortes_calculados: 0,
+  cortes_por_subproducto: 0,
+  subproductos: 0,
   dobleces_por_pieza: 0,
   dobleces_total: 0,
   longitud_por_pieza: 0,
@@ -196,6 +198,8 @@ const aplicarExpresionConsumo = material => {
       ...material,
       piezas_calculadas: 0,
       cortes_calculados: 0,
+      cortes_por_subproducto: 0,
+      subproductos: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -211,6 +215,9 @@ const aplicarExpresionConsumo = material => {
             analisis.consumo_unitario,
           piezas_calculadas: analisis.piezas,
           cortes_calculados: analisis.cortes,
+          cortes_por_subproducto:
+            analisis.cortes_por_subproducto,
+          subproductos: analisis.subproductos,
           dobleces_por_pieza:
             analisis.dobleces_por_pieza,
           dobleces_total: analisis.dobleces_total,
@@ -893,6 +900,10 @@ export default function CotizadorTecnicoV2({
         materialActual?.piezas_calculadas || 0,
       cortes_calculados:
         materialActual?.cortes_calculados || 0,
+      cortes_por_subproducto:
+        materialActual?.cortes_por_subproducto || 0,
+      subproductos:
+        materialActual?.subproductos || 0,
       dobleces_por_pieza:
         materialActual?.dobleces_por_pieza || 0,
       dobleces_total:
@@ -1330,7 +1341,7 @@ export default function CotizadorTecnicoV2({
               <>
                 <CampoConAyuda
                   etiqueta="Fórmula consumo"
-                  ayuda="Opcional. Ej: (100+50+20)*4. Calcula consumo, piezas/cortes y dobleces."
+                  ayuda="Opcional. Ej: (131+360+71)*1. Cada valor es un corte en mm; el multiplicador es la cantidad de subproductos."
                 >
                   <input
                     style={campo}
@@ -1411,7 +1422,7 @@ export default function CotizadorTecnicoV2({
                     fontWeight: "bold"
                   }}>
                     {material.expresion_consumo
-                      ? `Piezas/cortes: ${material.cortes_calculados || 0} | Dobleces: ${material.dobleces_total || 0} | Largo pieza: ${material.longitud_por_pieza || 0} ${material.unidad_expresion_consumo || "mm"}`
+                      ? `Cortes: ${material.cortes_calculados || 0} | Cortes por subproducto: ${material.cortes_por_subproducto || material.cortes_calculados || 0} | Subproductos: ${material.subproductos || 1} | Largo base: ${material.longitud_por_pieza || 0} ${material.unidad_expresion_consumo || "mm"}`
                       : "Sin fórmula"}
                   </div>
                 </CampoConAyuda>
