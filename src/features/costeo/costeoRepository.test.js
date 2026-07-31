@@ -46,6 +46,26 @@ describe("costeoRepository", () => {
     });
   });
 
+  it("calcula tiempo de Corte CNC Recto desde formula de cortes", () => {
+    const resultado = analizarFormulaProceso({
+      tipoFormula: "corte_cnc_recto",
+      expresion: "(30)*4",
+      unidadExpresion: "mm",
+      segundosPorMetro: 5,
+      segundosPorCorte: 1.5
+    });
+
+    expect(resultado).toMatchObject({
+      valido: true,
+      segundos_por_producto: 6.6,
+      unidades_por_hora: 545.45,
+      metros_totales: 0.12,
+      cortes: 4,
+      dobleces_total: 0,
+      longitud_por_pieza: 30
+    });
+  });
+
   it("conserva materiales y suministros en la cotización", () => {
     const cotizacion = prepararCotizacionTecnica(
       {

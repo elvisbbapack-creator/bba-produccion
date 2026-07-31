@@ -238,6 +238,23 @@ const esDoblezCnc3d = proceso => {
   );
 };
 
+const esCorteCncRecto = proceso => {
+  const texto = normalizarComparacion(
+    [
+      proceso?.proceso_nombre,
+      proceso?.estacion_nombre
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    texto.includes("corte") &&
+    texto.includes("cnc") &&
+    texto.includes("recto")
+  );
+};
+
 const valoresFormulaDoblezCnc = proceso => ({
   tipo_formula_tiempo: "doblez_cnc_3d",
   unidad_formula_tiempo:
@@ -249,6 +266,35 @@ const valoresFormulaDoblezCnc = proceso => ({
   segundos_por_corte:
     proceso?.segundos_por_corte || 1.5
 });
+
+const valoresFormulaCorteCncRecto = proceso => ({
+  tipo_formula_tiempo: "corte_cnc_recto",
+  unidad_formula_tiempo:
+    proceso?.unidad_formula_tiempo || "mm",
+  segundos_por_metro:
+    proceso?.segundos_por_metro || 5,
+  segundos_por_doblez: 0,
+  segundos_por_corte:
+    proceso?.segundos_por_corte || 1.5
+});
+
+const valoresPorTipoFormula = (
+  tipoFormula,
+  proceso
+) => {
+  if (tipoFormula === "doblez_cnc_3d") {
+    return valoresFormulaDoblezCnc(proceso);
+  }
+
+  if (tipoFormula === "corte_cnc_recto") {
+    return valoresFormulaCorteCncRecto(proceso);
+  }
+
+  return {
+    tipo_formula_tiempo: "",
+    formula_tiempo: ""
+  };
+};
 
 const aplicarFormulaTiempoProceso = proceso => {
   const analisis = analizarFormulaProceso({
@@ -1005,7 +1051,9 @@ export default function CotizadorTecnicoV2({
           : "manual",
       ...(esDoblezCnc3d(estacion)
         ? valoresFormulaDoblezCnc(procesoActual)
-        : {})
+        : esCorteCncRecto(estacion)
+          ? valoresFormulaCorteCncRecto(procesoActual)
+          : {})
     };
 
     actualizar({
@@ -1839,7 +1887,7 @@ export default function CotizadorTecnicoV2({
               </CampoConAyuda>
               <CampoConAyuda
                 etiqueta="Fórmula tiempo"
-                ayuda="Base para calcular capacidad de la estación. Por ahora disponible: Doblez CNC 3D."
+                ayuda="Base para calcular capacidad de la estación según su lógica técnica."
               >
                 <select
                   style={campo}
@@ -1848,19 +1896,13 @@ export default function CotizadorTecnicoV2({
                   }
                   onChange={e => {
                     const tipoFormula = e.target.value;
-                    const base =
-                      tipoFormula === "doblez_cnc_3d"
-                        ? {
-                            ...proceso,
-                            ...valoresFormulaDoblezCnc(
-                              proceso
-                            )
-                          }
-                        : {
-                            ...proceso,
-                            tipo_formula_tiempo: "",
-                            formula_tiempo: ""
-                          };
+                    const base = {
+                      ...proceso,
+                      ...valoresPorTipoFormula(
+                        tipoFormula,
+                        proceso
+                      )
+                    };
 
                     actualizar({
                       procesos: actualizarItem(
@@ -1881,14 +1923,24 @@ export default function CotizadorTecnicoV2({
                   <option value="doblez_cnc_3d">
                     Doblez CNC 3D
                   </option>
+                  <option value="corte_cnc_recto">
+                    Corte CNC Recto
+                  </option>
                 </select>
               </CampoConAyuda>
-              {proceso.tipo_formula_tiempo ===
-                "doblez_cnc_3d" && (
+              {[
+                "doblez_cnc_3d",
+                "corte_cnc_recto"
+              ].includes(proceso.tipo_formula_tiempo) && (
                 <>
                   <CampoConAyuda
                     etiqueta="Fórmula piezas"
-                    ayuda="Ej: (100+50+20)*4. Calcula avance, dobleces, cortes y unid/hora."
+                    ayuda={
+                      proceso.tipo_formula_tiempo ===
+                      "corte_cnc_recto"
+                        ? "Ej: (30)*4. Se lee como 4 cortes de 30 mm."
+                        : "Ej: (100+50+20)*4. Calcula avance, dobleces, cortes y unid/hora."
+                    }
                   >
                     <input
                       style={campo}
@@ -1961,10 +2013,13 @@ export default function CotizadorTecnicoV2({
                       clave: "segundos_por_metro",
                       etiqueta: "Seg/m avance"
                     },
-                    {
-                      clave: "segundos_por_doblez",
-                      etiqueta: "Seg/doblez"
-                    },
+                    ...(proceso.tipo_formula_tiempo ===
+                    "doblez_cnc_3d"
+                      ? [{
+                          clave: "segundos_por_doblez",
+                          etiqueta: "Seg/doblez"
+                        }]
+                      : []),
                     {
                       clave: "segundos_por_corte",
                       etiqueta: "Seg/corte"
@@ -2015,7 +2070,7 @@ export default function CotizadorTecnicoV2({
                       fontWeight: "bold"
                     }}>
                       {proceso.formula_tiempo
-                        ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} cortes | ${proceso.dobleces_total || 0} dobleces`
+                        ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} cortes${proceso.tipo_formula_tiempo === "doblez_cnc_3d" ? ` | ${proceso.dobleces_total || 0} dobleces` : ""}`
                         : "Ingresa una fórmula para calcular tiempo."}
                     </div>
                   </CampoConAyuda>

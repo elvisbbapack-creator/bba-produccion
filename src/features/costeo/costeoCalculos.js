@@ -283,6 +283,13 @@ export const PARAMETROS_DOBLEZ_CNC_3D = {
   unidad_expresion: "mm"
 };
 
+export const PARAMETROS_CORTE_CNC_RECTO = {
+  segundos_por_metro: 5,
+  segundos_por_doblez: 0,
+  segundos_por_corte: 1.5,
+  unidad_expresion: "mm"
+};
+
 export const analizarFormulaProceso = ({
   tipoFormula = "",
   expresion = "",
@@ -292,8 +299,12 @@ export const analizarFormulaProceso = ({
   segundosPorCorte = 1.5
 } = {}) => {
   const texto = (expresion || "").toString().trim();
+  const formulaSoportada = [
+    "doblez_cnc_3d",
+    "corte_cnc_recto"
+  ].includes(tipoFormula);
 
-  if (!texto || tipoFormula !== "doblez_cnc_3d") {
+  if (!texto || !formulaSoportada) {
     return {
       valido: false,
       segundos_por_producto: 0,
@@ -329,8 +340,10 @@ export const analizarFormulaProceso = ({
   const segundosAvance =
     metrosTotales * numero(segundosPorMetro);
   const segundosDobleces =
-    numero(analisis.dobleces_total) *
-    numero(segundosPorDoblez);
+    tipoFormula === "doblez_cnc_3d"
+      ? numero(analisis.dobleces_total) *
+        numero(segundosPorDoblez)
+      : 0;
   const segundosCortes =
     numero(analisis.cortes) *
     numero(segundosPorCorte);
@@ -354,8 +367,13 @@ export const analizarFormulaProceso = ({
     piezas: analisis.piezas,
     cortes: analisis.cortes,
     dobleces_por_pieza:
-      analisis.dobleces_por_pieza,
-    dobleces_total: analisis.dobleces_total,
+      tipoFormula === "doblez_cnc_3d"
+        ? analisis.dobleces_por_pieza
+        : 0,
+    dobleces_total:
+      tipoFormula === "doblez_cnc_3d"
+        ? analisis.dobleces_total
+        : 0,
     longitud_por_pieza:
       analisis.longitud_por_pieza,
     detalle_tiempo: {
