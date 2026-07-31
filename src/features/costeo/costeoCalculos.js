@@ -10,6 +10,272 @@ const redondear = (valor, decimales = 2) => {
   return Math.round(numero(valor) * factor) / factor;
 };
 
+const evaluarExpresionNumerica = expresion => {
+  const texto = (expresion || "")
+    .toString()
+    .replace(/\s+/g, "")
+    .replace(/,/g, ".");
+  let posicion = 0;
+
+  const leerNumero = () => {
+    let inicio = posicion;
+
+    while (
+      posicion < texto.length &&
+      /[0-9.]/.test(texto[posicion])
+    ) {
+      posicion += 1;
+    }
+
+    if (inicio === posicion) {
+      throw new Error("Número inválido");
+    }
+
+    const valor = Number(
+      texto.slice(inicio, posicion)
+    );
+
+    if (!Number.isFinite(valor)) {
+      throw new Error("Número inválido");
+    }
+
+    return valor;
+  };
+
+  const leerFactor = () => {
+    if (texto[posicion] === "-") {
+      posicion += 1;
+      return -leerFactor();
+    }
+
+    if (texto[posicion] === "(") {
+      posicion += 1;
+      const valor = leerSuma();
+
+      if (texto[posicion] !== ")") {
+        throw new Error("Paréntesis inválido");
+      }
+
+      posicion += 1;
+      return valor;
+    }
+
+    return leerNumero();
+  };
+
+  const leerProducto = () => {
+    let valor = leerFactor();
+
+    while (
+      texto[posicion] === "*" ||
+      texto[posicion] === "/"
+    ) {
+      const operador = texto[posicion];
+      posicion += 1;
+      const siguiente = leerFactor();
+
+      valor =
+        operador === "*"
+          ? valor * siguiente
+          : valor / siguiente;
+    }
+
+    return valor;
+  };
+
+  const leerSuma = () => {
+    let valor = leerProducto();
+
+    while (
+      texto[posicion] === "+" ||
+      texto[posicion] === "-"
+    ) {
+      const operador = texto[posicion];
+      posicion += 1;
+      const siguiente = leerProducto();
+
+      valor =
+        operador === "+"
+          ? valor + siguiente
+          : valor - siguiente;
+    }
+
+    return valor;
+  };
+
+  if (!texto) {
+    return 0;
+  }
+
+  if (
+    [...texto].some(
+      caracter =>
+        !/[0-9.()+\-*/]/.test(caracter)
+    )
+  ) {
+    throw new Error("Caracter inválido");
+  }
+
+  const resultado = leerSuma();
+
+  if (posicion !== texto.length) {
+    throw new Error("Expresión inválida");
+  }
+
+  return resultado;
+};
+
+const quitarParentesisExternos = expresion => {
+  const texto = (expresion || "").trim();
+
+  if (
+    texto.startsWith("(") &&
+    texto.endsWith(")")
+  ) {
+    return texto.slice(1, -1);
+  }
+
+  return texto;
+};
+
+const separarMultiplicadorFinal = expresion => {
+  const texto = (expresion || "").toString().trim();
+  const coincidencia = texto.match(
+    /^(.*?)(?:\)\s*|\s)(?:\*\s*)([0-9]+(?:[.,][0-9]+)?)$/
+  );
+
+  if (!coincidencia) {
+    return {
+      base: texto,
+      multiplicador: 1
+    };
+  }
+
+  const baseTexto = texto.includes(")")
+    ? `${coincidencia[1]})`
+    : coincidencia[1];
+  const multiplicador = Number(
+    coincidencia[2].replace(",", ".")
+  );
+
+  return {
+    base: quitarParentesisExternos(baseTexto),
+    multiplicador:
+      Number.isFinite(multiplicador) &&
+      multiplicador > 0
+        ? multiplicador
+        : 1
+  };
+};
+
+const contarOperador = (texto, operadorBuscado) =>
+  [...(texto || "")].filter(
+    caracter => caracter === operadorBuscado
+  ).length;
+
+const convertirConsumoAUnidadMaterial = (
+  valor,
+  unidadExpresion,
+  unidadMaterial
+) => {
+  const origen = (unidadExpresion || "")
+    .toString()
+    .toLowerCase();
+  const destino = (unidadMaterial || "")
+    .toString()
+    .toLowerCase();
+
+  if (
+    origen === "mm" &&
+    ["m", "mt", "mts", "metro", "metros"].includes(
+      destino
+    )
+  ) {
+    return valor / 1000;
+  }
+
+  if (
+    origen === "cm" &&
+    ["m", "mt", "mts", "metro", "metros"].includes(
+      destino
+    )
+  ) {
+    return valor / 100;
+  }
+
+  return valor;
+};
+
+export const analizarExpresionConsumoMaterial = ({
+  expresion = "",
+  unidadExpresion = "mm",
+  unidadMaterial = "m"
+} = {}) => {
+  const texto = (expresion || "").toString().trim();
+
+  if (!texto) {
+    return {
+      valido: false,
+      consumo_unitario: 0,
+      piezas: 0,
+      cortes: 0,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
+      longitud_por_pieza: 0,
+      error: ""
+    };
+  }
+
+  try {
+    const { base, multiplicador } =
+      separarMultiplicadorFinal(texto);
+    const totalExpresion =
+      evaluarExpresionNumerica(texto);
+    const baseExpresion =
+      evaluarExpresionNumerica(base);
+    const piezas = Math.max(
+      Math.round(multiplicador),
+      1
+    );
+    const doblecesPorPieza =
+      contarOperador(base, "+");
+
+    return {
+      valido: true,
+      consumo_unitario: redondear(
+        convertirConsumoAUnidadMaterial(
+          totalExpresion,
+          unidadExpresion,
+          unidadMaterial
+        ),
+        4
+      ),
+      piezas,
+      cortes: piezas,
+      dobleces_por_pieza: doblecesPorPieza,
+      dobleces_total:
+        doblecesPorPieza * piezas,
+      longitud_por_pieza: redondear(
+        baseExpresion,
+        4
+      ),
+      error: ""
+    };
+  } catch (error) {
+    return {
+      valido: false,
+      consumo_unitario: 0,
+      piezas: 0,
+      cortes: 0,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
+      longitud_por_pieza: 0,
+      error:
+        "Usa solo números, +, -, *, / y paréntesis."
+    };
+  }
+};
+
 export const prepararEscalas = valor => {
   const base = Array.isArray(valor)
     ? valor

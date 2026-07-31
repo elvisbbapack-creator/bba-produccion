@@ -1,8 +1,30 @@
 import {
   prepararCotizacionTecnica
 } from "./costeoRepository";
+import {
+  analizarExpresionConsumoMaterial
+} from "./costeoCalculos";
 
 describe("costeoRepository", () => {
+  it("interpreta formula de consumo agrupando piezas, cortes y dobleces", () => {
+    const resultado =
+      analizarExpresionConsumoMaterial({
+        expresion: "(100+50+20)*4",
+        unidadExpresion: "mm",
+        unidadMaterial: "m"
+      });
+
+    expect(resultado).toMatchObject({
+      valido: true,
+      consumo_unitario: 0.68,
+      piezas: 4,
+      cortes: 4,
+      dobleces_por_pieza: 2,
+      dobleces_total: 8,
+      longitud_por_pieza: 170
+    });
+  });
+
   it("conserva materiales y suministros en la cotización", () => {
     const cotizacion = prepararCotizacionTecnica(
       {
@@ -14,6 +36,13 @@ describe("costeoRepository", () => {
             codigo: "MP0012",
             nombre: "PAI Blanco",
             unidad: "unidad",
+            expresion_consumo: "(100+50+20)*4",
+            unidad_expresion_consumo: "mm",
+            piezas_calculadas: 4,
+            cortes_calculados: 4,
+            dobleces_por_pieza: 2,
+            dobleces_total: 8,
+            longitud_por_pieza: 170,
             consumo_unitario: 0.25,
             costo_unitario: 6852
           },
@@ -36,7 +65,10 @@ describe("costeoRepository", () => {
     expect(cotizacion.materiales).toMatchObject([
       {
         tipo_linea: "material",
-        codigo: "MP0012"
+        codigo: "MP0012",
+        expresion_consumo: "(100+50+20)*4",
+        cortes_calculados: 4,
+        dobleces_total: 8
       },
       {
         tipo_linea: "suministro",

@@ -23,6 +23,7 @@ import {
   listarCostosOperativos
 } from "../costosOperativos/costosOperativosRepository";
 import {
+  analizarExpresionConsumoMaterial,
   calcularCotizacionTecnica
 } from "./costeoCalculos";
 import {
@@ -116,6 +117,13 @@ const materialVacio = {
   codigo: "",
   nombre: "",
   unidad: "un",
+  expresion_consumo: "",
+  unidad_expresion_consumo: "mm",
+  piezas_calculadas: 0,
+  cortes_calculados: 0,
+  dobleces_por_pieza: 0,
+  dobleces_total: 0,
+  longitud_por_pieza: 0,
   consumo_unitario: 1,
   merma_porcentaje: 5,
   costo_unitario: 0,
@@ -132,6 +140,45 @@ const crearLineaMaterial = tipoLinea => ({
   ...materialVacio,
   tipo_linea: tipoLinea
 });
+
+const aplicarExpresionConsumo = material => {
+  const analisis = analizarExpresionConsumoMaterial({
+    expresion: material.expresion_consumo,
+    unidadExpresion:
+      material.unidad_expresion_consumo || "mm",
+    unidadMaterial: material.unidad || "m"
+  });
+
+  if (!material.expresion_consumo) {
+    return {
+      ...material,
+      piezas_calculadas: 0,
+      cortes_calculados: 0,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
+      longitud_por_pieza: 0,
+      expresion_consumo_error: ""
+    };
+  }
+
+  return {
+    ...material,
+    ...(analisis.valido
+      ? {
+          consumo_unitario:
+            analisis.consumo_unitario,
+          piezas_calculadas: analisis.piezas,
+          cortes_calculados: analisis.cortes,
+          dobleces_por_pieza:
+            analisis.dobleces_por_pieza,
+          dobleces_total: analisis.dobleces_total,
+          longitud_por_pieza:
+            analisis.longitud_por_pieza
+        }
+      : {}),
+    expresion_consumo_error: analisis.error
+  };
+};
 
 const procesoVacio = {
   proceso_codigo: "",
@@ -620,6 +667,23 @@ export default function CotizadorTecnicoV2({
         material?.unidad_medida ||
         materialActual?.unidad ||
         "un",
+      expresion_consumo:
+        materialActual?.expresion_consumo || "",
+      unidad_expresion_consumo:
+        materialActual?.unidad_expresion_consumo ||
+        "mm",
+      piezas_calculadas:
+        materialActual?.piezas_calculadas || 0,
+      cortes_calculados:
+        materialActual?.cortes_calculados || 0,
+      dobleces_por_pieza:
+        materialActual?.dobleces_por_pieza || 0,
+      dobleces_total:
+        materialActual?.dobleces_total || 0,
+      longitud_por_pieza:
+        materialActual?.longitud_por_pieza || 0,
+      expresion_consumo_error:
+        materialActual?.expresion_consumo_error || "",
       costo_unitario:
         costoCatalogo ||
         (mismoMaterialActual
@@ -1049,6 +1113,97 @@ export default function CotizadorTecnicoV2({
                 </option>
               </select>
             </CampoConAyuda>
+            {tipoLinea === "material" && (
+              <>
+                <CampoConAyuda
+                  etiqueta="Fórmula consumo"
+                  ayuda="Opcional. Ej: (100+50+20)*4. Calcula consumo, piezas/cortes y dobleces."
+                >
+                  <input
+                    style={campo}
+                    type="text"
+                    placeholder="Ej: (100+50+20)*4"
+                    value={
+                      material.expresion_consumo || ""
+                    }
+                    onChange={e => {
+                      const actualizado =
+                        aplicarExpresionConsumo({
+                          ...material,
+                          expresion_consumo:
+                            e.target.value
+                        });
+
+                      actualizar({
+                        materiales: actualizarItem(
+                          formulario.materiales,
+                          indice,
+                          actualizado
+                        )
+                      });
+                    }}
+                  />
+                  {material.expresion_consumo_error && (
+                    <div style={{
+                      color: "#B71C1C",
+                      fontSize: 12,
+                      marginTop: 4
+                    }}>
+                      {material.expresion_consumo_error}
+                    </div>
+                  )}
+                </CampoConAyuda>
+                <CampoConAyuda
+                  etiqueta="Unidad fórmula"
+                  ayuda="Unidad usada en la fórmula. Si el material está en metros, mm se convierte a m."
+                >
+                  <select
+                    style={campo}
+                    value={
+                      material.unidad_expresion_consumo ||
+                      "mm"
+                    }
+                    onChange={e => {
+                      const actualizado =
+                        aplicarExpresionConsumo({
+                          ...material,
+                          unidad_expresion_consumo:
+                            e.target.value
+                        });
+
+                      actualizar({
+                        materiales: actualizarItem(
+                          formulario.materiales,
+                          indice,
+                          actualizado
+                        )
+                      });
+                    }}
+                  >
+                    <option value="mm">mm</option>
+                    <option value="cm">cm</option>
+                    <option value="m">m</option>
+                    <option value="un">un</option>
+                  </select>
+                </CampoConAyuda>
+                <CampoConAyuda
+                  etiqueta="Lectura técnica"
+                  ayuda="Resumen calculado desde la fórmula para validar rápido el supuesto."
+                >
+                  <div style={{
+                    ...campo,
+                    background: "#EFF6FF",
+                    color: "#1E3A8A",
+                    minHeight: 42,
+                    fontWeight: "bold"
+                  }}>
+                    {material.expresion_consumo
+                      ? `Piezas/cortes: ${material.cortes_calculados || 0} | Dobleces: ${material.dobleces_total || 0} | Largo pieza: ${material.longitud_por_pieza || 0} ${material.unidad_expresion_consumo || "mm"}`
+                      : "Sin fórmula"}
+                  </div>
+                </CampoConAyuda>
+              </>
+            )}
             {CAMPOS_MATERIAL_ESTIMADO.filter(
               campoConfig =>
                 !(
@@ -1094,30 +1249,40 @@ export default function CotizadorTecnicoV2({
                   }
                   placeholder={campoConfig.etiqueta}
                   value={material[campoConfig.clave] || ""}
-                  onChange={e =>
+                  onChange={e => {
+                    const cambiosMaterial = {
+                      [campoConfig.clave]:
+                        e.target.value,
+                      ...(campoConfig.clave === "proveedor"
+                        ? {
+                            proveedor_id: "",
+                            proveedor_codigo: ""
+                          }
+                        : {}),
+                      ...(campoConfig.clave ===
+                      "costo_unitario"
+                        ? {
+                            costo_origen: "manual"
+                          }
+                        : {})
+                    };
+
+                    const materialActualizado =
+                      campoConfig.clave === "unidad"
+                        ? aplicarExpresionConsumo({
+                            ...material,
+                            ...cambiosMaterial
+                          })
+                        : cambiosMaterial;
+
                     actualizar({
                       materiales: actualizarItem(
                         formulario.materiales,
                         indice,
-                        {
-                          [campoConfig.clave]:
-                            e.target.value,
-                          ...(campoConfig.clave === "proveedor"
-                            ? {
-                                proveedor_id: "",
-                                proveedor_codigo: ""
-                              }
-                            : {}),
-                          ...(campoConfig.clave ===
-                          "costo_unitario"
-                            ? {
-                                costo_origen: "manual"
-                              }
-                            : {})
-                        }
+                        materialActualizado
                       )
-                    })
-                  }
+                    });
+                  }}
                 />
               </CampoConAyuda>
             ))}

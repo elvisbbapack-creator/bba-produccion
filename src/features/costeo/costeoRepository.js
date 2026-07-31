@@ -59,6 +59,28 @@ export const prepararCotizacionTecnica = (
     codigo: limpiarTexto(material.codigo),
     nombre: limpiarTexto(material.nombre),
     unidad: limpiarTexto(material.unidad),
+    expresion_consumo: limpiarTexto(
+      material.expresion_consumo
+    ),
+    unidad_expresion_consumo:
+      limpiarTexto(
+        material.unidad_expresion_consumo
+      ) || "mm",
+    piezas_calculadas: numero(
+      material.piezas_calculadas
+    ),
+    cortes_calculados: numero(
+      material.cortes_calculados
+    ),
+    dobleces_por_pieza: numero(
+      material.dobleces_por_pieza
+    ),
+    dobleces_total: numero(
+      material.dobleces_total
+    ),
+    longitud_por_pieza: numero(
+      material.longitud_por_pieza
+    ),
     consumo_unitario: numero(
       material.consumo_unitario
     ),
