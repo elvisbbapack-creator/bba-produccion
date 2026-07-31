@@ -1298,10 +1298,13 @@ export default function CotizadorTecnicoV2({
   const completarCostosBasePendientes = useCallback(procesos => {
     let huboCambios = false;
     const procesosActualizados = procesos.map(proceso => {
+      const costoHoraActual = Number(
+        proceso.costo_hora
+      );
+
       if (
         !procesoRequiereCostoHora(proceso) ||
-        Number(proceso.costo_hora) > 0 ||
-        proceso.costo_hora_origen === "manual"
+        costoHoraActual > 0
       ) {
         return proceso;
       }
