@@ -528,6 +528,57 @@ const mismoTexto = (a, b) =>
   normalizarComparacion(a) ===
     normalizarComparacion(b);
 
+const normalizarClaveFlexible = valor =>
+  normalizarComparacion(valor).replace(/[_-]+/g, " ");
+
+const textosCompatibles = (a, b) => {
+  const textoA = normalizarClaveFlexible(a);
+  const textoB = normalizarClaveFlexible(b);
+
+  return (
+    Boolean(textoA && textoB) &&
+    (textoA === textoB ||
+      textoA.includes(textoB) ||
+      textoB.includes(textoA))
+  );
+};
+
+const plantaCompatible = (
+  plantaCosto,
+  plantaFormulario
+) => {
+  const costo = normalizarClaveFlexible(plantaCosto);
+  const formulario = normalizarClaveFlexible(
+    plantaFormulario
+  );
+
+  return (
+    !costo ||
+    !formulario ||
+    costo === formulario ||
+    costo.includes(formulario) ||
+    formulario.includes(costo)
+  );
+};
+
+const camposDesdeCostoBase = costoBase =>
+  costoBase
+    ? {
+        costo_hora: costoBase.costo_hora_total,
+        costo_base_estacion_id: costoBase.id,
+        costo_hora_origen: "costos_base_estacion",
+        costo_hora_detalle: {
+          maquinista:
+            costoBase.costo_laboral_principal,
+          ayudantes: costoBase.costo_ayudantes,
+          depreciacion:
+            costoBase.depreciacion_hora,
+          energia: costoBase.energia_hora,
+          mantencion: costoBase.mantencion_hora
+        }
+      }
+    : null;
+
 const primerNumeroPositivo = (
   origen,
   campos = []
@@ -1171,13 +1222,11 @@ export default function CotizadorTecnicoV2({
     return absorcion?.porcentaje_absorcion || 0;
   };
 
-  const buscarCostoBaseEstacion = estacion => {
-    const costosPlanta = costosBaseEstacion.filter(
-      item =>
-        !item.planta_id ||
-        item.planta_id === formulario.planta_id
-    );
-    const porCodigo = costosPlanta.find(
+  const buscarCostoCompatible = useCallback((
+    costos,
+    estacion
+  ) => {
+    const porCodigo = costos.find(
       item =>
         item.proceso_codigo === estacion?.proceso_codigo &&
         item.estacion_codigo === estacion?.estacion_codigo
@@ -1187,7 +1236,7 @@ export default function CotizadorTecnicoV2({
       return porCodigo;
     }
 
-    const porNombre = costosPlanta.find(
+    const porNombre = costos.find(
       item =>
         mismoTexto(
           item.proceso_nombre,
@@ -1204,32 +1253,100 @@ export default function CotizadorTecnicoV2({
     }
 
     if (esCortePrensa(estacion)) {
-      return costosPlanta.find(item =>
+      return costos.find(item =>
         esCortePrensa(item)
       );
     }
 
-    return null;
-  };
+    return costos.find(
+      item =>
+        textosCompatibles(
+          item.proceso_nombre,
+          estacion?.proceso_nombre
+        ) &&
+        textosCompatibles(
+          item.estacion_nombre,
+          estacion?.estacion_nombre
+        )
+    );
+  }, []);
 
-  const camposDesdeCostoBase = costoBase =>
-    costoBase
-      ? {
-          costo_hora: costoBase.costo_hora_total,
-          costo_base_estacion_id: costoBase.id,
-          costo_hora_origen:
-            "costos_base_estacion",
-          costo_hora_detalle: {
-            maquinista:
-              costoBase.costo_laboral_principal,
-            ayudantes: costoBase.costo_ayudantes,
-            depreciacion:
-              costoBase.depreciacion_hora,
-            energia: costoBase.energia_hora,
-            mantencion: costoBase.mantencion_hora
-          }
-        }
-      : null;
+  const buscarCostoBaseEstacion = useCallback(estacion => {
+    const costosActivos = costosBaseEstacion.filter(
+      item => item.activo !== false
+    );
+    const costosPlanta = costosActivos.filter(item =>
+      plantaCompatible(
+        item.planta_id,
+        formulario.planta_id
+      )
+    );
+
+    return (
+      buscarCostoCompatible(
+        costosPlanta,
+        estacion
+      ) ||
+      buscarCostoCompatible(costosActivos, estacion)
+    );
+  }, [
+    buscarCostoCompatible,
+    costosBaseEstacion,
+    formulario.planta_id
+  ]);
+
+  const completarCostosBasePendientes = useCallback(procesos => {
+    let huboCambios = false;
+    const procesosActualizados = procesos.map(proceso => {
+      if (
+        !procesoRequiereCostoHora(proceso) ||
+        Number(proceso.costo_hora) > 0 ||
+        proceso.costo_hora_origen === "manual"
+      ) {
+        return proceso;
+      }
+
+      const costoBase =
+        buscarCostoBaseEstacion(proceso);
+      const camposCosto =
+        camposDesdeCostoBase(costoBase);
+
+      if (!camposCosto) {
+        return proceso;
+      }
+
+      huboCambios = true;
+      return aplicarFormulaTiempoProceso({
+        ...proceso,
+        ...camposCosto
+      });
+    });
+
+    return huboCambios ? procesosActualizados : procesos;
+  }, [buscarCostoBaseEstacion]);
+
+  useEffect(() => {
+    if (costosBaseEstacion.length === 0) {
+      return;
+    }
+
+    setFormulario(actual => {
+      const procesosActualizados =
+        completarCostosBasePendientes(
+          actual.procesos
+        );
+
+      return procesosActualizados === actual.procesos
+        ? actual
+        : {
+            ...actual,
+            procesos: procesosActualizados
+          };
+    });
+  }, [
+    completarCostosBasePendientes,
+    costosBaseEstacion.length
+  ]);
 
   const seleccionarEstacion = (
     indice,
