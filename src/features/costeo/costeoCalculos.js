@@ -461,6 +461,19 @@ export const calcularHorasProcesos = (
     0
   );
 
+export const calcularHorasCuelloBotella = (
+  procesos = [],
+  cantidad = 1
+) =>
+  procesos.reduce(
+    (mayor, proceso) =>
+      Math.max(
+        mayor,
+        calcularHorasProceso(proceso, cantidad)
+      ),
+    0
+  );
+
 export const calcularDetalleProcesosCotizacion = (
   procesos = [],
   cantidad = 1,
@@ -523,6 +536,7 @@ export const calcularCotizacionTecnica = ({
   dias_compra = 0,
   dias_ingenieria = 0,
   horas_disponibles_dia = 14,
+  desfase_flujo_horas = 2,
   factor_riesgo_porcentaje = 0
 } = {}) => {
   const escalasPreparadas = prepararEscalas(escalas);
@@ -551,6 +565,20 @@ export const calcularCotizacionTecnica = ({
       procesos,
       cantidad
     );
+    const horasCuelloBotella =
+      calcularHorasCuelloBotella(
+        procesos,
+        cantidad
+      );
+    const procesosConTiempo =
+      detalleProcesos.filter(
+        proceso => numero(proceso.horas) > 0
+      ).length;
+    const horasDesfaseFlujo =
+      Math.max(procesosConTiempo - 1, 0) *
+      Math.max(numero(desfase_flujo_horas), 0);
+    const horasFlujo =
+      horasCuelloBotella + horasDesfaseFlujo;
     const costoOperativo = detalleProcesos.reduce(
       (total, proceso) =>
         total + numero(proceso.costo_operativo),
@@ -575,10 +603,14 @@ export const calcularCotizacionTecnica = ({
         : margen >= 1
           ? costoUnitario
           : costoUnitario / (1 - margen);
-    const leadTimeDias =
+    const leadTimeConservadorDias =
       numero(dias_compra) +
       numero(dias_ingenieria) +
       Math.ceil(horasProduccion / horasDia);
+    const leadTimeFlujoDias =
+      numero(dias_compra) +
+      numero(dias_ingenieria) +
+      Math.ceil(horasFlujo / horasDia);
 
     return {
       cantidad,
@@ -594,8 +626,20 @@ export const calcularCotizacionTecnica = ({
         precioUnitario * cantidad
       ),
       horas_produccion: redondear(horasProduccion, 1),
+      horas_cuello_botella: redondear(
+        horasCuelloBotella,
+        1
+      ),
+      horas_desfase_flujo: redondear(
+        horasDesfaseFlujo,
+        1
+      ),
+      horas_flujo: redondear(horasFlujo, 1),
       detalle_procesos: detalleProcesos,
-      lead_time_dias: leadTimeDias
+      lead_time_dias: leadTimeFlujoDias,
+      lead_time_flujo_dias: leadTimeFlujoDias,
+      lead_time_conservador_dias:
+        leadTimeConservadorDias
     };
   });
 };

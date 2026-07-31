@@ -47,9 +47,50 @@ test("calcula costo, precio y lead time por escala", () => {
     costo_total: 67278.75,
     lead_time_dias: 6
   });
+  expect(resultado[0]).toMatchObject({
+    horas_produccion: 7.3,
+    horas_cuello_botella: 7.3,
+    horas_flujo: 7.3,
+    lead_time_flujo_dias: 6,
+    lead_time_conservador_dias: 6
+  });
   expect(
     resultado[0].precio_unitario_sugerido
   ).toBeGreaterThan(resultado[0].costo_unitario);
+});
+
+test("estima lead time de flujo por cuello de botella y conserva suma total", () => {
+  const resultado = calcularCotizacionTecnica({
+    escalas: [100],
+    procesos: [
+      {
+        unidades_por_hora: 20,
+        eficiencia_esperada: 100
+      },
+      {
+        unidades_por_hora: 10,
+        eficiencia_esperada: 100
+      },
+      {
+        unidades_por_hora: 25,
+        eficiencia_esperada: 100
+      }
+    ],
+    dias_compra: 0,
+    dias_ingenieria: 0,
+    horas_disponibles_dia: 8,
+    desfase_flujo_horas: 2
+  });
+
+  expect(resultado[0]).toMatchObject({
+    horas_produccion: 19,
+    horas_cuello_botella: 10,
+    horas_desfase_flujo: 4,
+    horas_flujo: 14,
+    lead_time_flujo_dias: 2,
+    lead_time_conservador_dias: 3,
+    lead_time_dias: 2
+  });
 });
 
 test("respeta minimo de compra de material", () => {

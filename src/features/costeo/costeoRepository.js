@@ -208,6 +208,9 @@ export const prepararCotizacionTecnica = (
     dias_ingenieria: numero(datos.dias_ingenieria),
     horas_disponibles_dia: numero(
       datos.horas_disponibles_dia
+    ),
+    desfase_flujo_horas: numero(
+      datos.desfase_flujo_horas
     )
   };
   const resultados = calcularCotizacionTecnica({
@@ -354,6 +357,8 @@ export const aFormularioCotizacionTecnica = (
     cotizacion.supuestos?.dias_ingenieria ?? 2,
   horas_disponibles_dia:
     cotizacion.supuestos?.horas_disponibles_dia ?? 14,
+  desfase_flujo_horas:
+    cotizacion.supuestos?.desfase_flujo_horas ?? 2,
   materiales: Array.isArray(cotizacion.materiales)
     ? cotizacion.materiales
     : [],

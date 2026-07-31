@@ -148,6 +148,7 @@ const estadoInicial = {
   dias_compra: 5,
   dias_ingenieria: 2,
   horas_disponibles_dia: 14,
+  desfase_flujo_horas: 2,
   materiales: [],
   procesos: []
 };
@@ -488,6 +489,12 @@ const SUPUESTOS_COTIZACION = [
     etiqueta: "Horas disponibles día",
     ayuda:
       "Horas productivas diarias usadas para estimar plazo. En 2 turnos Chile usar aprox. 14."
+  },
+  {
+    clave: "desfase_flujo_horas",
+    etiqueta: "Desfase flujo horas",
+    ayuda:
+      "Horas estimadas entre arranque de procesos encadenados. Ej: 1 a 2."
   }
 ];
 
@@ -716,7 +723,9 @@ export default function CotizadorTecnicoV2({
         dias_ingenieria:
           formulario.dias_ingenieria,
         horas_disponibles_dia:
-          formulario.horas_disponibles_dia
+          formulario.horas_disponibles_dia,
+        desfase_flujo_horas:
+          formulario.desfase_flujo_horas
       }),
     [formulario]
   );
@@ -2194,8 +2203,10 @@ export default function CotizadorTecnicoV2({
                   "Costo operativo",
                   "Costo total",
                   "Precio total",
-                  "Horas",
-                  "Lead time"
+                  "Horas totales",
+                  "Horas flujo",
+                  "LT flujo",
+                  "LT conservador"
                 ].map(titulo => (
                   <th
                     key={titulo}
@@ -2251,7 +2262,18 @@ export default function CotizadorTecnicoV2({
                     {resultado.horas_produccion}
                   </td>
                   <td style={{ padding: 8 }}>
-                    {resultado.lead_time_dias} días
+                    {resultado.horas_flujo}
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    <b>
+                      {resultado.lead_time_flujo_dias} días
+                    </b>
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    {
+                      resultado.lead_time_conservador_dias
+                    }{" "}
+                    días
                   </td>
                 </tr>
               ))}
@@ -2404,8 +2426,10 @@ export default function CotizadorTecnicoV2({
                     primeraEscala.precio_unitario_sugerido,
                     item.moneda || "CLP"
                   )}{" "}
-                  unitario / lead time{" "}
-                  {primeraEscala.lead_time_dias} días
+                  unitario / lead time flujo{" "}
+                  {primeraEscala.lead_time_flujo_dias ||
+                    primeraEscala.lead_time_dias}{" "}
+                  días
                 </div>
               )}
               <div style={{
