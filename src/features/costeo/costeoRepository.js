@@ -164,6 +164,22 @@ export const prepararCotizacionTecnica = (
       metros_por_minuto: numero(
         proceso.metros_por_minuto
       ),
+      puntos_mig: numero(proceso.puntos_mig),
+      cordones_simples: numero(
+        proceso.cordones_simples
+      ),
+      cordones_perimetrales: numero(
+        proceso.cordones_perimetrales
+      ),
+      segundos_por_punto_mig: numero(
+        proceso.segundos_por_punto_mig
+      ),
+      segundos_por_cordon_simple: numero(
+        proceso.segundos_por_cordon_simple
+      ),
+      segundos_por_cordon_perimetral: numero(
+        proceso.segundos_por_cordon_perimetral
+      ),
       segundos_por_doblez: numero(
         proceso.segundos_por_doblez
       ),

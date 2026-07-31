@@ -349,6 +349,23 @@ const esLaserCorte = proceso => {
   );
 };
 
+const esSoldaduraMig = proceso => {
+  const texto = normalizarComparacion(
+    [
+      proceso?.proceso_nombre,
+      proceso?.estacion_nombre
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    texto.includes("mig") ||
+    texto.includes("smig") ||
+    texto.includes("soldadora")
+  );
+};
+
 const valoresFormulaDoblezCnc = proceso => ({
   tipo_formula_tiempo: "doblez_cnc_3d",
   formula_material_indice: "",
@@ -412,6 +429,30 @@ const valoresFormulaLaser = proceso => {
   };
 };
 
+const valoresFormulaSoldaduraMig = proceso => ({
+  tipo_formula_tiempo: "soldadura_mig",
+  formula_tiempo: "soldadura_mig",
+  formula_material_indice: "",
+  formula_material_id: "",
+  formula_material_codigo: "",
+  formula_material_nombre: "",
+  unidad_formula_tiempo: "un",
+  puntos_mig: proceso?.puntos_mig || 0,
+  cordones_simples:
+    proceso?.cordones_simples || 0,
+  cordones_perimetrales:
+    proceso?.cordones_perimetrales || 0,
+  segundos_por_punto_mig:
+    proceso?.segundos_por_punto_mig || 3,
+  segundos_por_cordon_simple:
+    proceso?.segundos_por_cordon_simple || 12,
+  segundos_por_cordon_perimetral:
+    proceso?.segundos_por_cordon_perimetral || 45,
+  segundos_por_metro: 0,
+  segundos_por_doblez: 0,
+  segundos_por_corte: 0
+});
+
 const valoresPorTipoFormula = (
   tipoFormula,
   proceso
@@ -430,6 +471,10 @@ const valoresPorTipoFormula = (
 
   if (tipoFormula === "laser_metros_minuto") {
     return valoresFormulaLaser(proceso);
+  }
+
+  if (tipoFormula === "soldadura_mig") {
+    return valoresFormulaSoldaduraMig(proceso);
   }
 
   return {
@@ -455,12 +500,25 @@ const aplicarFormulaTiempoProceso = proceso => {
     segundosPorCorte:
       proceso.segundos_por_corte || 1.5,
     metrosPorMinuto:
-      proceso.metros_por_minuto || 0
+      proceso.metros_por_minuto || 0,
+    puntosMig: proceso.puntos_mig || 0,
+    cordonesSimples:
+      proceso.cordones_simples || 0,
+    cordonesPerimetrales:
+      proceso.cordones_perimetrales || 0,
+    segundosPorPuntoMig:
+      proceso.segundos_por_punto_mig || 3,
+    segundosPorCordonSimple:
+      proceso.segundos_por_cordon_simple || 12,
+    segundosPorCordonPerimetral:
+      proceso.segundos_por_cordon_perimetral || 45
   });
 
   if (
     !proceso.tipo_formula_tiempo ||
-    !proceso.formula_tiempo
+    (!proceso.formula_tiempo &&
+      proceso.tipo_formula_tiempo !==
+        "soldadura_mig")
   ) {
     return {
       ...proceso,
@@ -535,6 +593,12 @@ const procesoVacio = {
   cortes_calculados: 0,
   golpes_calculados: 0,
   metros_por_minuto: 0,
+  puntos_mig: 0,
+  cordones_simples: 0,
+  cordones_perimetrales: 0,
+  segundos_por_punto_mig: 3,
+  segundos_por_cordon_simple: 12,
+  segundos_por_cordon_perimetral: 45,
   dobleces_por_pieza: 0,
   dobleces_total: 0,
   longitud_por_pieza: 0,
@@ -1453,6 +1517,10 @@ export default function CotizadorTecnicoV2({
             ? valoresFormulaCortePrensa(procesoActual)
             : esLaserCorte(estacion)
               ? valoresFormulaLaser(procesoActual)
+              : esSoldaduraMig(estacion)
+                ? valoresFormulaSoldaduraMig(
+                    procesoActual
+                  )
           : {})
     };
 
@@ -2282,6 +2350,9 @@ export default function CotizadorTecnicoV2({
           const esFormulaCortePrensa =
             proceso.tipo_formula_tiempo ===
             "corte_prensa";
+          const esFormulaSoldaduraMig =
+            proceso.tipo_formula_tiempo ===
+            "soldadura_mig";
           const materialesFormulaProceso =
             esFormulaDoblezCnc
               ? materialesConFormulaAlambre
@@ -2378,13 +2449,17 @@ export default function CotizadorTecnicoV2({
                   <option value="laser_metros_minuto">
                     Laser Fibra / CO2
                   </option>
+                  <option value="soldadura_mig">
+                    Soldadura MIG
+                  </option>
                 </select>
               </CampoConAyuda>
               {[
                 "doblez_cnc_3d",
                 "corte_cnc_recto",
                 "corte_prensa",
-                "laser_metros_minuto"
+                "laser_metros_minuto",
+                "soldadura_mig"
               ].includes(proceso.tipo_formula_tiempo) && (
                 <>
                   {(esFormulaDoblezCnc ||
@@ -2473,99 +2548,165 @@ export default function CotizadorTecnicoV2({
                       </select>
                     </CampoConAyuda>
                   )}
-                  <CampoConAyuda
-                    etiqueta={
-                      proceso.tipo_formula_tiempo ===
-                      "corte_prensa"
-                        ? "Fórmula golpes"
-                        : proceso.tipo_formula_tiempo ===
+                  {!esFormulaSoldaduraMig && (
+                    <>
+                      <CampoConAyuda
+                        etiqueta={
+                          proceso.tipo_formula_tiempo ===
+                          "corte_prensa"
+                            ? "Fórmula golpes"
+                            : proceso.tipo_formula_tiempo ===
+                              "laser_metros_minuto"
+                              ? "Fórmula metros corte"
+                            : "Fórmula piezas"
+                        }
+                        ayuda={
+                          proceso.tipo_formula_tiempo ===
+                          "corte_prensa"
+                            ? "Ej: (131+360+71)*1. Cada medida del tubo equivale a un golpe/corte de prensa."
+                            : proceso.tipo_formula_tiempo ===
                           "laser_metros_minuto"
-                          ? "Fórmula metros corte"
-                        : "Fórmula piezas"
-                    }
-                    ayuda={
-                      proceso.tipo_formula_tiempo ===
-                      "corte_prensa"
-                        ? "Ej: (131+360+71)*1. Cada medida del tubo equivale a un golpe/corte de prensa."
-                        : proceso.tipo_formula_tiempo ===
-                      "laser_metros_minuto"
-                        ? "Ej: (100+250+100)*4. Calcula metros totales de corte y cantidad de inicios/cortes."
-                        : proceso.tipo_formula_tiempo ===
-                      "corte_cnc_recto"
-                        ? "Ej: (30)*4. Se lee como 4 cortes de 30 mm."
-                        : "Ej: (100+50+20)*4. Calcula avance, dobleces, cortes y unid/hora."
-                    }
-                  >
-                    <input
-                      style={campo}
-                      type="text"
-                      placeholder="Ej: (100+50+20)*4"
-                      value={
-                        proceso.formula_tiempo || ""
-                      }
-                      onChange={e => {
-                        const actualizado =
-                          aplicarFormulaTiempoProceso({
-                            ...proceso,
-                            formula_tiempo:
-                              e.target.value,
-                            formula_material_indice: "",
-                            formula_material_id: "",
-                            formula_material_codigo: "",
-                            formula_material_nombre: ""
-                          });
+                            ? "Ej: (100+250+100)*4. Calcula metros totales de corte y cantidad de inicios/cortes."
+                            : proceso.tipo_formula_tiempo ===
+                          "corte_cnc_recto"
+                            ? "Ej: (30)*4. Se lee como 4 cortes de 30 mm."
+                            : "Ej: (100+50+20)*4. Calcula avance, dobleces, cortes y unid/hora."
+                        }
+                      >
+                        <input
+                          style={campo}
+                          type="text"
+                          placeholder="Ej: (100+50+20)*4"
+                          value={
+                            proceso.formula_tiempo || ""
+                          }
+                          onChange={e => {
+                            const actualizado =
+                              aplicarFormulaTiempoProceso({
+                                ...proceso,
+                                formula_tiempo:
+                                  e.target.value,
+                                formula_material_indice: "",
+                                formula_material_id: "",
+                                formula_material_codigo: "",
+                                formula_material_nombre: ""
+                              });
 
-                        actualizar({
-                          procesos: actualizarItem(
-                            formulario.procesos,
-                            indice,
-                            actualizado
-                          )
-                        });
-                      }}
-                    />
-                    {proceso.formula_tiempo_error && (
-                      <div style={{
-                        color: "#B71C1C",
-                        fontSize: 12,
-                        marginTop: 4
-                      }}>
-                        {proceso.formula_tiempo_error}
-                      </div>
-                    )}
-                  </CampoConAyuda>
-                  <CampoConAyuda
-                    etiqueta="Unidad fórmula"
-                    ayuda="Unidad usada en la fórmula. Normalmente mm para alambre."
-                  >
-                    <select
-                      style={campo}
-                      value={
-                        proceso.unidad_formula_tiempo ||
-                        "mm"
-                      }
-                      onChange={e => {
-                        const actualizado =
-                          aplicarFormulaTiempoProceso({
-                            ...proceso,
-                            unidad_formula_tiempo:
-                              e.target.value
-                          });
+                            actualizar({
+                              procesos: actualizarItem(
+                                formulario.procesos,
+                                indice,
+                                actualizado
+                              )
+                            });
+                          }}
+                        />
+                        {proceso.formula_tiempo_error && (
+                          <div style={{
+                            color: "#B71C1C",
+                            fontSize: 12,
+                            marginTop: 4
+                          }}>
+                            {proceso.formula_tiempo_error}
+                          </div>
+                        )}
+                      </CampoConAyuda>
+                      <CampoConAyuda
+                        etiqueta="Unidad fórmula"
+                        ayuda="Unidad usada en la fórmula. Normalmente mm para alambre."
+                      >
+                        <select
+                          style={campo}
+                          value={
+                            proceso.unidad_formula_tiempo ||
+                            "mm"
+                          }
+                          onChange={e => {
+                            const actualizado =
+                              aplicarFormulaTiempoProceso({
+                                ...proceso,
+                                unidad_formula_tiempo:
+                                  e.target.value
+                              });
 
-                        actualizar({
-                          procesos: actualizarItem(
-                            formulario.procesos,
-                            indice,
-                            actualizado
-                          )
-                        });
-                      }}
+                            actualizar({
+                              procesos: actualizarItem(
+                                formulario.procesos,
+                                indice,
+                                actualizado
+                              )
+                            });
+                          }}
+                        >
+                          <option value="mm">mm</option>
+                          <option value="cm">cm</option>
+                          <option value="m">m</option>
+                        </select>
+                      </CampoConAyuda>
+                    </>
+                  )}
+                  {esFormulaSoldaduraMig && [
+                    {
+                      clave: "puntos_mig",
+                      etiqueta: "Puntos MIG"
+                    },
+                    {
+                      clave: "cordones_simples",
+                      etiqueta: "Cordones simples"
+                    },
+                    {
+                      clave: "cordones_perimetrales",
+                      etiqueta: "Cordones perimetrales"
+                    },
+                    {
+                      clave: "segundos_por_punto_mig",
+                      etiqueta: "Seg/punto"
+                    },
+                    {
+                      clave: "segundos_por_cordon_simple",
+                      etiqueta: "Seg/cordón simple"
+                    },
+                    {
+                      clave:
+                        "segundos_por_cordon_perimetral",
+                      etiqueta: "Seg/cordón perimetral"
+                    }
+                  ].map(parametro => (
+                    <CampoConAyuda
+                      key={parametro.clave}
+                      etiqueta={parametro.etiqueta}
+                      ayuda="Dato tomado del plano o estándar editable si mejora la eficiencia."
                     >
-                      <option value="mm">mm</option>
-                      <option value="cm">cm</option>
-                      <option value="m">m</option>
-                    </select>
-                  </CampoConAyuda>
+                      <input
+                        style={campo}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        value={
+                          proceso[parametro.clave] || ""
+                        }
+                        onChange={e => {
+                          const actualizado =
+                            aplicarFormulaTiempoProceso({
+                              ...proceso,
+                              formula_tiempo:
+                                "soldadura_mig",
+                              [parametro.clave]:
+                                e.target.value
+                            });
+
+                          actualizar({
+                            procesos: actualizarItem(
+                              formulario.procesos,
+                              indice,
+                              actualizado
+                            )
+                          });
+                        }}
+                      />
+                    </CampoConAyuda>
+                  ))}
                   {[
                     ...(proceso.tipo_formula_tiempo ===
                     "laser_metros_minuto"
@@ -2577,7 +2718,9 @@ export default function CotizadorTecnicoV2({
                     ...(proceso.tipo_formula_tiempo ===
                     "corte_prensa" ||
                     proceso.tipo_formula_tiempo ===
-                      "laser_metros_minuto"
+                      "laser_metros_minuto" ||
+                    proceso.tipo_formula_tiempo ===
+                      "soldadura_mig"
                       ? []
                       : [{
                           clave: "segundos_por_metro",
@@ -2590,17 +2733,20 @@ export default function CotizadorTecnicoV2({
                           etiqueta: "Seg/doblez"
                         }]
                       : []),
-                    {
-                      clave: "segundos_por_corte",
-                      etiqueta:
-                        proceso.tipo_formula_tiempo ===
-                        "corte_prensa"
-                          ? "Seg/golpe"
-                          : proceso.tipo_formula_tiempo ===
-                            "laser_metros_minuto"
-                            ? "Seg/inicio"
-                          : "Seg/corte"
-                    }
+                    ...(proceso.tipo_formula_tiempo ===
+                    "soldadura_mig"
+                      ? []
+                      : [{
+                          clave: "segundos_por_corte",
+                          etiqueta:
+                            proceso.tipo_formula_tiempo ===
+                            "corte_prensa"
+                              ? "Seg/golpe"
+                              : proceso.tipo_formula_tiempo ===
+                                "laser_metros_minuto"
+                                ? "Seg/inicio"
+                              : "Seg/corte"
+                        }])
                   ].map(parametro => (
                     <CampoConAyuda
                       key={parametro.clave}
@@ -2665,6 +2811,9 @@ export default function CotizadorTecnicoV2({
                         ? proceso.tipo_formula_tiempo ===
                           "corte_prensa"
                           ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | Golpes por producto: ${proceso.golpes_calculados || proceso.cortes_calculados || 0}${proceso.formula_material_codigo ? ` | Desde material: ${proceso.formula_material_codigo}` : ""}`
+                          : proceso.tipo_formula_tiempo ===
+                            "soldadura_mig"
+                            ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | Puntos: ${proceso.puntos_mig || 0} | Cordones simples: ${proceso.cordones_simples || 0} | Perimetrales: ${proceso.cordones_perimetrales || 0}`
                           : proceso.tipo_formula_tiempo ===
                             "laser_metros_minuto"
                             ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} inicios/cortes | ${proceso.metros_por_minuto || 0} m/min`

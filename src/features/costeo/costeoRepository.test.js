@@ -167,6 +167,31 @@ describe("costeoRepository", () => {
     });
   });
 
+  it("calcula tiempo de Soldadura MIG por puntos y cordones", () => {
+    const resultado = analizarFormulaProceso({
+      tipoFormula: "soldadura_mig",
+      puntosMig: 10,
+      cordonesSimples: 2,
+      cordonesPerimetrales: 1,
+      segundosPorPuntoMig: 3,
+      segundosPorCordonSimple: 12,
+      segundosPorCordonPerimetral: 45
+    });
+
+    expect(resultado).toMatchObject({
+      valido: true,
+      segundos_por_producto: 99,
+      unidades_por_hora: 36.36,
+      piezas: 13,
+      cortes: 0,
+      detalle_tiempo: {
+        puntos_mig: 30,
+        cordones_simples: 24,
+        cordones_perimetrales: 45
+      }
+    });
+  });
+
   it("conserva materiales y suministros en la cotización", () => {
     const cotizacion = prepararCotizacionTecnica(
       {

@@ -445,6 +445,12 @@ export const PARAMETROS_LASER_METROS_MINUTO = {
   unidad_expresion: "mm"
 };
 
+export const PARAMETROS_SOLDADURA_MIG = {
+  segundos_por_punto_mig: 3,
+  segundos_por_cordon_simple: 12,
+  segundos_por_cordon_perimetral: 45
+};
+
 export const analizarFormulaProceso = ({
   tipoFormula = "",
   expresion = "",
@@ -452,17 +458,106 @@ export const analizarFormulaProceso = ({
   segundosPorMetro = 5,
   segundosPorDoblez = 3,
   segundosPorCorte = 1.5,
-  metrosPorMinuto = 0
+  metrosPorMinuto = 0,
+  puntosMig = 0,
+  cordonesSimples = 0,
+  cordonesPerimetrales = 0,
+  segundosPorPuntoMig = 3,
+  segundosPorCordonSimple = 12,
+  segundosPorCordonPerimetral = 45
 } = {}) => {
   const texto = (expresion || "").toString().trim();
   const formulaSoportada = [
     "doblez_cnc_3d",
     "corte_cnc_recto",
     "corte_prensa",
-    "laser_metros_minuto"
+    "laser_metros_minuto",
+    "soldadura_mig"
   ].includes(tipoFormula);
 
-  if (!texto || !formulaSoportada) {
+  if (!formulaSoportada) {
+    return {
+      valido: false,
+      segundos_por_producto: 0,
+      unidades_por_hora: 0,
+      metros_totales: 0,
+      piezas: 0,
+      cortes: 0,
+      cortes_por_subproducto: 0,
+      subproductos: 0,
+      fraccion_por_pieza: 0,
+      consumo_pieza_formula: 0,
+      consumo_total_formula: 0,
+      cortes_por_pieza: 0,
+      cortes_por_producto: 0,
+      dobleces_por_producto: 0,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
+      longitud_por_pieza: 0,
+      error: ""
+    };
+  }
+
+  if (tipoFormula === "soldadura_mig") {
+    const puntos = numero(puntosMig);
+    const simples = numero(cordonesSimples);
+    const perimetrales = numero(cordonesPerimetrales);
+    const segundosPuntos =
+      puntos * numero(segundosPorPuntoMig);
+    const segundosSimples =
+      simples * numero(segundosPorCordonSimple);
+    const segundosPerimetrales =
+      perimetrales *
+      numero(segundosPorCordonPerimetral);
+    const segundosPorProducto =
+      segundosPuntos +
+      segundosSimples +
+      segundosPerimetrales;
+    const unidadesHora =
+      segundosPorProducto > 0
+        ? 3600 / segundosPorProducto
+        : 0;
+
+    return {
+      valido: true,
+      segundos_por_producto: redondear(
+        segundosPorProducto,
+        2
+      ),
+      unidades_por_hora: redondear(unidadesHora, 2),
+      metros_totales: 0,
+      piezas: redondear(
+        puntos + simples + perimetrales
+      ),
+      cortes: 0,
+      golpes: 0,
+      cortes_por_subproducto: 0,
+      subproductos: 0,
+      fraccion_por_pieza: 0,
+      consumo_pieza_formula: 0,
+      consumo_total_formula: 0,
+      cortes_por_pieza: 0,
+      cortes_por_producto: 0,
+      dobleces_por_producto: 0,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
+      longitud_por_pieza: 0,
+      detalle_tiempo: {
+        puntos_mig: redondear(segundosPuntos, 2),
+        cordones_simples: redondear(
+          segundosSimples,
+          2
+        ),
+        cordones_perimetrales: redondear(
+          segundosPerimetrales,
+          2
+        )
+      },
+      error: ""
+    };
+  }
+
+  if (!texto) {
     return {
       valido: false,
       segundos_por_producto: 0,
@@ -707,6 +802,13 @@ export const calcularDetalleProcesosCotizacion = (
       metros_por_minuto: redondear(
         proceso.metros_por_minuto,
         2
+      ),
+      puntos_mig: redondear(proceso.puntos_mig),
+      cordones_simples: redondear(
+        proceso.cordones_simples
+      ),
+      cordones_perimetrales: redondear(
+        proceso.cordones_perimetrales
       ),
       segundos_por_producto: redondear(
         proceso.segundos_por_producto,
