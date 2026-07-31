@@ -306,6 +306,14 @@ const aplicarFormulaTiempoProceso = proceso => {
   };
 };
 
+const procesoRequiereCostoHora = proceso =>
+  Boolean(
+    proceso?.proceso_nombre ||
+      proceso?.estacion_nombre ||
+      proceso?.proceso_codigo ||
+      proceso?.estacion_codigo
+  ) && Number(proceso?.costo_hora || 0) <= 0;
+
 const procesoVacio = {
   proceso_codigo: "",
   proceso_nombre: "",
@@ -511,7 +519,8 @@ const CAMPOS_PROCESO_ESTIMADO = [
   {
     clave: "costo_hora",
     etiqueta: "Costo hora",
-    ayuda: "Costo estimado por hora del proceso o estación."
+    ayuda:
+      "Necesario para costear. Debe venir de Costos Base Estación o completarse manualmente."
   },
   {
     clave: "porcentaje_costo_operativo",
@@ -664,6 +673,19 @@ export default function CotizadorTecnicoV2({
           formulario.horas_disponibles_dia
       }),
     [formulario]
+  );
+
+  const procesosSinCostoHora = useMemo(
+    () =>
+      formulario.procesos
+        .map((proceso, indice) => ({
+          proceso,
+          indice
+        }))
+        .filter(item =>
+          procesoRequiereCostoHora(item.proceso)
+        ),
+    [formulario.procesos]
   );
 
   const aplicarCostoOperativoPlanta = useCallback(
@@ -1751,9 +1773,32 @@ export default function CotizadorTecnicoV2({
         <h3 style={tituloCard}>
           Procesos estimados
         </h3>
+        {procesosSinCostoHora.length > 0 && (
+          <div style={{
+            background: "#FFF7ED",
+            border: "1px solid #FDBA74",
+            color: "#9A3412",
+            borderRadius: 12,
+            padding: 12,
+            marginBottom: 12,
+            fontWeight: "bold"
+          }}>
+            Falta costo hora en{" "}
+            {procesosSinCostoHora.length} proceso
+            {procesosSinCostoHora.length === 1
+              ? ""
+              : "s"}
+            . La cotización calcula tiempo, pero el
+            costo de proceso quedará subvalorado hasta
+            completar Costos Base Estación o ingresar el
+            costo hora manualmente.
+          </div>
+        )}
         {formulario.procesos.map((proceso, indice) => {
           const claveEstacion =
             `${proceso.proceso_codigo}__${proceso.estacion_codigo}`;
+          const faltaCostoHora =
+            procesoRequiereCostoHora(proceso);
 
           return (
             <div
@@ -1983,7 +2028,17 @@ export default function CotizadorTecnicoV2({
                   ayuda={campoConfig.ayuda}
                 >
                   <input
-                    style={campo}
+                    style={{
+                      ...campo,
+                      ...(campoConfig.clave ===
+                        "costo_hora" &&
+                      faltaCostoHora
+                        ? {
+                            borderColor: "#F97316",
+                            background: "#FFF7ED"
+                          }
+                        : {})
+                    }}
                     type={
                       [
                         "unidades_por_hora",
@@ -2026,6 +2081,20 @@ export default function CotizadorTecnicoV2({
                       })
                     }
                   />
+                  {campoConfig.clave === "costo_hora" &&
+                    faltaCostoHora && (
+                    <div style={{
+                      color: "#C2410C",
+                      fontSize: 12,
+                      fontWeight: "bold",
+                      marginTop: 4
+                    }}>
+                      Falta costo hora de estación. Revisa
+                      Costos Base Estación o ingrésalo
+                      manualmente antes de enviar esta
+                      cotización.
+                    </div>
+                  )}
                 </CampoConAyuda>
               ))}
             </div>
