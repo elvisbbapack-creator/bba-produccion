@@ -23,6 +23,7 @@ const estadoInicial = {
 };
 
 const estacionInicial = {
+  proceso_id: "",
   codigo: "",
   nombre: "",
   activo: true
@@ -46,6 +47,8 @@ function CatalogoProcesosEstacionesV2({
     useState([]);
   const [formulario, setFormulario] =
     useState(estadoInicial);
+  const [formularioEstacion, setFormularioEstacion] =
+    useState(estacionInicial);
   const [editandoId, setEditandoId] =
     useState("");
   const [cargando, setCargando] =
@@ -102,11 +105,12 @@ function CatalogoProcesosEstacionesV2({
 
   const crearEstacionInicial = useCallback(
     (estacionesExtra = []) => ({
-      ...estacionInicial,
       codigo: siguienteCodigoEstacion(
         procesos,
         estacionesExtra
-      )
+      ),
+      nombre: "",
+      activo: true
     }),
     [procesos]
   );
@@ -119,34 +123,21 @@ function CatalogoProcesosEstacionesV2({
     const siguienteCodigo =
       siguienteCodigoProceso(procesos);
 
-    setFormulario(actual => {
-      const estaciones =
-        actual.estaciones.length > 0
-          ? actual.estaciones
-          : [crearEstacionInicial()];
-
-      return {
-        ...actual,
-        codigo: siguienteCodigo,
-        estaciones: estaciones.map(
-          (estacion, indice) =>
-            estacion.codigo
-              ? estacion
-              : {
-                  ...estacion,
-                  codigo: siguienteCodigoEstacion(
-                    procesos,
-                    estaciones.slice(0, indice)
-                  )
-                }
-        )
-      };
-    });
+    setFormulario(actual => ({
+      ...actual,
+      codigo: siguienteCodigo
+    }));
   }, [
-    crearEstacionInicial,
     editandoId,
     procesos
   ]);
+
+  useEffect(() => {
+    setFormularioEstacion(actual => ({
+      ...actual,
+      codigo: siguienteCodigoEstacion(procesos)
+    }));
+  }, [procesos]);
 
   const actualizar = (nombre, valor) => {
     setFormulario(actual => ({
@@ -158,9 +149,7 @@ function CatalogoProcesosEstacionesV2({
   };
 
   const estacionesFormulario =
-    formulario.estaciones.length > 0
-      ? formulario.estaciones
-      : [crearEstacionInicial()];
+    formulario.estaciones || [];
 
   const actualizarEstacion = (
     indice,
@@ -226,11 +215,18 @@ function CatalogoProcesosEstacionesV2({
     setFormulario({
       ...estadoInicial,
       codigo: siguienteCodigoProceso(procesos),
-      estaciones: [crearEstacionInicial()]
+      estaciones: []
     });
     setEditandoId("");
     setError("");
     setMensaje("");
+  };
+
+  const limpiarFormularioEstacion = () => {
+    setFormularioEstacion({
+      ...estacionInicial,
+      codigo: siguienteCodigoEstacion(procesos)
+    });
   };
 
   const editar = proceso => {
@@ -285,6 +281,76 @@ function CatalogoProcesosEstacionesV2({
     }
   };
 
+  const guardarEstacion = async evento => {
+    evento.preventDefault();
+
+    const proceso = procesos.find(
+      item => item.id === formularioEstacion.proceso_id
+    );
+
+    if (!proceso) {
+      setError(
+        "Selecciona el proceso al que pertenece la estación."
+      );
+      return;
+    }
+
+    const nuevaEstacion = {
+      codigo:
+        formularioEstacion.codigo ||
+        siguienteCodigoEstacion(procesos),
+      nombre: formularioEstacion.nombre,
+      activo: formularioEstacion.activo !== false
+    };
+    const actualizado = {
+      ...proceso,
+      estaciones: [
+        ...(proceso.estaciones || []),
+        nuevaEstacion
+      ]
+    };
+    const errores = validarProceso(
+      prepararProceso(
+        actualizado,
+        perfil.empresa_id,
+        proceso.id
+      ),
+      procesos
+    );
+
+    if (errores.length > 0) {
+      setError(errores.join(" "));
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      setError("");
+      setMensaje("");
+      await actualizarProceso(
+        db,
+        perfil.empresa_id,
+        proceso.id,
+        actualizado,
+        procesos
+      );
+      await cargar();
+      setMensaje("Estación creada.");
+      limpiarFormularioEstacion();
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo guardar la estación."
+      );
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const procesoSeleccionadoEstacion = procesos.find(
+    item => item.id === formularioEstacion.proceso_id
+  );
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -319,6 +385,11 @@ function CatalogoProcesosEstacionesV2({
           </p>
 
           <form onSubmit={guardar}>
+            <h2 style={{ marginTop: 0 }}>
+              {editandoId
+                ? "Editar proceso"
+                : "Crear proceso"}
+            </h2>
             <div style={{
               display: "grid",
               gridTemplateColumns:
@@ -386,108 +457,114 @@ function CatalogoProcesosEstacionesV2({
               display: "grid",
               gap: 10
             }}>
-              <strong>Estaciones de trabajo</strong>
-              {estacionesFormulario.map(
-                (estacion, indice) => (
-                  <div
-                    key={indice}
+              {editandoId && (
+                <>
+                  <strong>
+                    Estaciones de trabajo del proceso
+                  </strong>
+                  {estacionesFormulario.map(
+                    (estacion, indice) => (
+                      <div
+                        key={indice}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns:
+                            "130px 1fr 120px 42px",
+                          gap: 8,
+                          alignItems: "end"
+                        }}
+                      >
+                        <label>
+                          Código
+                          <input
+                            value={estacion.codigo}
+                            placeholder="ET0001"
+                            disabled
+                            style={{
+                              ...campo,
+                              background: "#F8FAFC"
+                            }}
+                          />
+                          <small style={{
+                            display: "block",
+                            color: "#64748B",
+                            marginTop: 5
+                          }}>
+                            Automático
+                          </small>
+                        </label>
+                        <label>
+                          Nombre estación
+                          <input
+                            value={estacion.nombre}
+                            onChange={evento =>
+                              actualizarEstacion(
+                                indice,
+                                "nombre",
+                                evento.target.value
+                              )
+                            }
+                            placeholder="Laser fibra tubo"
+                            style={campo}
+                          />
+                        </label>
+                        <label>
+                          Estado
+                          <select
+                            value={
+                              estacion.activo !== false
+                                ? "true"
+                                : "false"
+                            }
+                            onChange={evento =>
+                              actualizarEstacion(
+                                indice,
+                                "activo",
+                                evento.target.value
+                              )
+                            }
+                            style={campo}
+                          >
+                            <option value="true">
+                              Activa
+                            </option>
+                            <option value="false">
+                              Inactiva
+                            </option>
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            quitarEstacion(indice)
+                          }
+                          style={{
+                            ...campo,
+                            color: "#B91C1C",
+                            background: "white",
+                            cursor: "pointer"
+                          }}
+                        >
+                          -
+                        </button>
+                      </div>
+                    )
+                  )}
+                  <button
+                    type="button"
+                    onClick={agregarEstacion}
                     style={{
-                      display: "grid",
-                      gridTemplateColumns:
-                        "130px 1fr 120px 42px",
-                      gap: 8,
-                      alignItems: "end"
+                      ...campo,
+                      width: "fit-content",
+                      background: "#EFF6FF",
+                      color: "#1D4ED8",
+                      cursor: "pointer"
                     }}
                   >
-                    <label>
-                      Código
-                      <input
-                        value={estacion.codigo}
-                        placeholder="ET0001"
-                        disabled
-                        style={{
-                          ...campo,
-                          background: "#F8FAFC"
-                        }}
-                      />
-                      <small style={{
-                        display: "block",
-                        color: "#64748B",
-                        marginTop: 5
-                      }}>
-                        Automático
-                      </small>
-                    </label>
-                    <label>
-                      Nombre estación
-                      <input
-                        value={estacion.nombre}
-                        onChange={evento =>
-                          actualizarEstacion(
-                            indice,
-                            "nombre",
-                            evento.target.value
-                          )
-                        }
-                        placeholder="Laser fibra tubo"
-                        style={campo}
-                      />
-                    </label>
-                    <label>
-                      Estado
-                      <select
-                        value={
-                          estacion.activo !== false
-                            ? "true"
-                            : "false"
-                        }
-                        onChange={evento =>
-                          actualizarEstacion(
-                            indice,
-                            "activo",
-                            evento.target.value
-                          )
-                        }
-                        style={campo}
-                      >
-                        <option value="true">
-                          Activa
-                        </option>
-                        <option value="false">
-                          Inactiva
-                        </option>
-                      </select>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        quitarEstacion(indice)
-                      }
-                      style={{
-                        ...campo,
-                        color: "#B91C1C",
-                        background: "white",
-                        cursor: "pointer"
-                      }}
-                    >
-                      -
-                    </button>
-                  </div>
-                )
+                    + Agregar estación
+                  </button>
+                </>
               )}
-              <button
-                type="button"
-                onClick={agregarEstacion}
-                style={{
-                  ...campo,
-                  width: "fit-content",
-                  background: "#EFF6FF",
-                  color: "#1D4ED8",
-                  cursor: "pointer"
-                }}
-              >
-                + Agregar estación
-              </button>
             </div>
 
             {error && (
@@ -545,6 +622,164 @@ function CatalogoProcesosEstacionesV2({
                 </button>
               )}
             </div>
+          </form>
+        </section>
+
+        <section style={{
+          background: "white",
+          padding: 20,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 10px rgba(15,23,42,0.08)"
+        }}>
+          <h2 style={{ marginTop: 0 }}>
+            Crear estación de trabajo
+          </h2>
+          <p style={{ color: "#64748B" }}>
+            Selecciona primero el proceso. El código de
+            proceso se completa desde el catálogo y el código
+            ET se propone automáticamente con el siguiente
+            disponible.
+          </p>
+          <form onSubmit={guardarEstacion}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(190px, 1fr))",
+              gap: 12,
+              alignItems: "end"
+            }}>
+              <label>
+                Proceso
+                <select
+                  value={formularioEstacion.proceso_id}
+                  onChange={evento =>
+                    setFormularioEstacion(actual => ({
+                      ...actual,
+                      proceso_id:
+                        evento.target.value
+                    }))
+                  }
+                  style={campo}
+                >
+                  <option value="">
+                    Seleccionar proceso
+                  </option>
+                  {procesos.map(proceso => (
+                    <option
+                      key={proceso.id}
+                      value={proceso.id}
+                    >
+                      {proceso.codigo} -{" "}
+                      {proceso.nombre}
+                    </option>
+                  ))}
+                </select>
+                <small style={{
+                  display: "block",
+                  color: "#64748B",
+                  marginTop: 5
+                }}>
+                  Lista desplegable de procesos guardados.
+                </small>
+              </label>
+              <label>
+                Código proceso
+                <input
+                  value={
+                    procesoSeleccionadoEstacion?.codigo ||
+                    ""
+                  }
+                  disabled
+                  placeholder="PR0001"
+                  style={{
+                    ...campo,
+                    background: "#F8FAFC"
+                  }}
+                />
+                <small style={{
+                  display: "block",
+                  color: "#64748B",
+                  marginTop: 5
+                }}>
+                  Cambia automáticamente al seleccionar el
+                  proceso.
+                </small>
+              </label>
+              <label>
+                Código estación
+                <input
+                  value={formularioEstacion.codigo}
+                  disabled
+                  placeholder="ET0001"
+                  style={{
+                    ...campo,
+                    background: "#F8FAFC"
+                  }}
+                />
+                <small style={{
+                  display: "block",
+                  color: "#64748B",
+                  marginTop: 5
+                }}>
+                  Siguiente ET disponible. No se digita.
+                </small>
+              </label>
+              <label>
+                Nombre estación
+                <input
+                  value={formularioEstacion.nombre}
+                  onChange={evento =>
+                    setFormularioEstacion(actual => ({
+                      ...actual,
+                      nombre: evento.target.value
+                    }))
+                  }
+                  placeholder="Prensa"
+                  style={campo}
+                />
+              </label>
+              <label>
+                Estado
+                <select
+                  value={
+                    formularioEstacion.activo !== false
+                      ? "true"
+                      : "false"
+                  }
+                  onChange={evento =>
+                    setFormularioEstacion(actual => ({
+                      ...actual,
+                      activo:
+                        evento.target.value ===
+                        "true"
+                    }))
+                  }
+                  style={campo}
+                >
+                  <option value="true">Activa</option>
+                  <option value="false">
+                    Inactiva
+                  </option>
+                </select>
+              </label>
+            </div>
+            <button
+              type="submit"
+              disabled={guardando}
+              style={{
+                ...campo,
+                width: "fit-content",
+                marginTop: 14,
+                border: "none",
+                background: "#2563EB",
+                color: "white",
+                fontWeight: "bold",
+                cursor: guardando ? "wait" : "pointer"
+              }}
+            >
+              Crear estación
+            </button>
           </form>
         </section>
 
