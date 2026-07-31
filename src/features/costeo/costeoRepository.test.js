@@ -119,6 +119,31 @@ describe("costeoRepository", () => {
     });
   });
 
+  it("calcula tiempo de Corte / Prensa reutilizando formula de MP tubo", () => {
+    const resultado = analizarFormulaProceso({
+      tipoFormula: "corte_prensa",
+      expresion:
+        "(131+360+131+389+131+360+131+389+330+330+359+359+71+71)*1",
+      unidadExpresion: "mm",
+      segundosPorMetro: 5,
+      segundosPorCorte: 2
+    });
+
+    expect(resultado).toMatchObject({
+      valido: true,
+      segundos_por_producto: 28,
+      unidades_por_hora: 128.57,
+      metros_totales: 3.542,
+      cortes: 14,
+      golpes: 14,
+      dobleces_total: 0,
+      detalle_tiempo: {
+        avance: 0,
+        cortes: 28
+      }
+    });
+  });
+
   it("conserva materiales y suministros en la cotización", () => {
     const cotizacion = prepararCotizacionTecnica(
       {

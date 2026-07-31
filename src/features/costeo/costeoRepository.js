@@ -143,6 +143,17 @@ export const prepararCotizacionTecnica = (
       formula_tiempo: limpiarTexto(
         proceso.formula_tiempo
       ),
+      formula_material_indice: limpiarTexto(
+        proceso.formula_material_indice
+      ),
+      formula_material_id:
+        proceso.formula_material_id || "",
+      formula_material_codigo: limpiarTexto(
+        proceso.formula_material_codigo
+      ),
+      formula_material_nombre: limpiarTexto(
+        proceso.formula_material_nombre
+      ),
       unidad_formula_tiempo:
         limpiarTexto(
           proceso.unidad_formula_tiempo
@@ -167,6 +178,9 @@ export const prepararCotizacionTecnica = (
       ),
       cortes_calculados: numero(
         proceso.cortes_calculados
+      ),
+      golpes_calculados: numero(
+        proceso.golpes_calculados
       ),
       dobleces_por_pieza: numero(
         proceso.dobleces_por_pieza

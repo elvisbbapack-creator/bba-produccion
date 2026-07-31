@@ -316,8 +316,28 @@ const esCorteCncRecto = proceso => {
   );
 };
 
+const esCortePrensa = proceso => {
+  const texto = normalizarComparacion(
+    [
+      proceso?.proceso_nombre,
+      proceso?.estacion_nombre
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    texto.includes("corte") &&
+    texto.includes("prensa")
+  );
+};
+
 const valoresFormulaDoblezCnc = proceso => ({
   tipo_formula_tiempo: "doblez_cnc_3d",
+  formula_material_indice: "",
+  formula_material_id: "",
+  formula_material_codigo: "",
+  formula_material_nombre: "",
   unidad_formula_tiempo:
     proceso?.unidad_formula_tiempo || "mm",
   segundos_por_metro:
@@ -330,6 +350,10 @@ const valoresFormulaDoblezCnc = proceso => ({
 
 const valoresFormulaCorteCncRecto = proceso => ({
   tipo_formula_tiempo: "corte_cnc_recto",
+  formula_material_indice: "",
+  formula_material_id: "",
+  formula_material_codigo: "",
+  formula_material_nombre: "",
   unidad_formula_tiempo:
     proceso?.unidad_formula_tiempo || "mm",
   segundos_por_metro:
@@ -337,6 +361,16 @@ const valoresFormulaCorteCncRecto = proceso => ({
   segundos_por_doblez: 0,
   segundos_por_corte:
     proceso?.segundos_por_corte || 1.5
+});
+
+const valoresFormulaCortePrensa = proceso => ({
+  tipo_formula_tiempo: "corte_prensa",
+  unidad_formula_tiempo:
+    proceso?.unidad_formula_tiempo || "mm",
+  segundos_por_metro: 0,
+  segundos_por_doblez: 0,
+  segundos_por_corte:
+    proceso?.segundos_por_corte || 2
 });
 
 const valoresPorTipoFormula = (
@@ -351,9 +385,17 @@ const valoresPorTipoFormula = (
     return valoresFormulaCorteCncRecto(proceso);
   }
 
+  if (tipoFormula === "corte_prensa") {
+    return valoresFormulaCortePrensa(proceso);
+  }
+
   return {
     tipo_formula_tiempo: "",
-    formula_tiempo: ""
+    formula_tiempo: "",
+    formula_material_indice: "",
+    formula_material_id: "",
+    formula_material_codigo: "",
+    formula_material_nombre: ""
   };
 };
 
@@ -381,6 +423,7 @@ const aplicarFormulaTiempoProceso = proceso => {
       metros_totales_calculados: 0,
       piezas_calculadas: 0,
       cortes_calculados: 0,
+      golpes_calculados: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -400,6 +443,11 @@ const aplicarFormulaTiempoProceso = proceso => {
             analisis.metros_totales,
           piezas_calculadas: analisis.piezas,
           cortes_calculados: analisis.cortes,
+          golpes_calculados:
+            proceso.tipo_formula_tiempo ===
+            "corte_prensa"
+              ? analisis.golpes || analisis.cortes
+              : 0,
           dobleces_por_pieza:
             analisis.dobleces_por_pieza,
           dobleces_total: analisis.dobleces_total,
@@ -428,6 +476,10 @@ const procesoVacio = {
   estacion_nombre: "",
   tipo_formula_tiempo: "",
   formula_tiempo: "",
+  formula_material_indice: "",
+  formula_material_id: "",
+  formula_material_codigo: "",
+  formula_material_nombre: "",
   unidad_formula_tiempo: "mm",
   segundos_por_metro: 5,
   segundos_por_doblez: 3,
@@ -436,6 +488,7 @@ const procesoVacio = {
   metros_totales_calculados: 0,
   piezas_calculadas: 0,
   cortes_calculados: 0,
+  golpes_calculados: 0,
   dobleces_por_pieza: 0,
   dobleces_total: 0,
   longitud_por_pieza: 0,
@@ -803,6 +856,19 @@ export default function CotizadorTecnicoV2({
     [formulario.procesos]
   );
 
+  const materialesConFormulaCortes = useMemo(
+    () =>
+      formulario.materiales.filter(
+        material =>
+          (material.tipo_linea || "material") ===
+            "material" &&
+          material.expresion_consumo &&
+          obtenerTipoLecturaConsumoMaterial(material) ===
+            TIPOS_LECTURA_CONSUMO.CORTES_LINEALES
+      ),
+    [formulario.materiales]
+  );
+
   const aplicarCostoOperativoPlanta = useCallback(
     plantaId => {
       const costo = costosOperativos.find(
@@ -1138,6 +1204,8 @@ export default function CotizadorTecnicoV2({
         ? valoresFormulaDoblezCnc(procesoActual)
         : esCorteCncRecto(estacion)
           ? valoresFormulaCorteCncRecto(procesoActual)
+          : esCortePrensa(estacion)
+            ? valoresFormulaCortePrensa(procesoActual)
           : {})
     };
 
@@ -2053,17 +2121,109 @@ export default function CotizadorTecnicoV2({
                   <option value="corte_cnc_recto">
                     Corte CNC Recto
                   </option>
+                  <option value="corte_prensa">
+                    Corte / Prensa
+                  </option>
                 </select>
               </CampoConAyuda>
               {[
                 "doblez_cnc_3d",
-                "corte_cnc_recto"
+                "corte_cnc_recto",
+                "corte_prensa"
               ].includes(proceso.tipo_formula_tiempo) && (
                 <>
+                  {proceso.tipo_formula_tiempo ===
+                    "corte_prensa" && (
+                    <CampoConAyuda
+                      etiqueta="Usar fórmula desde material"
+                      ayuda="Reutiliza la fórmula del MP Tubo ya ingresada en Materiales estimados para calcular golpes de prensa."
+                    >
+                      <select
+                        style={campo}
+                        value={
+                          proceso.formula_material_indice ??
+                          ""
+                        }
+                        onChange={e => {
+                          const materialIndice =
+                            e.target.value;
+                          const material =
+                            materialIndice === ""
+                              ? null
+                              : materialesConFormulaCortes[
+                                  Number(
+                                    materialIndice
+                                  )
+                                ];
+                          const actualizado =
+                            aplicarFormulaTiempoProceso({
+                              ...proceso,
+                              formula_material_indice:
+                                materialIndice,
+                              formula_material_id:
+                                material?.material_id ||
+                                "",
+                              formula_material_codigo:
+                                material?.codigo || "",
+                              formula_material_nombre:
+                                material?.nombre || "",
+                              formula_tiempo:
+                                material
+                                  ?.expresion_consumo ||
+                                proceso.formula_tiempo ||
+                                "",
+                              unidad_formula_tiempo:
+                                material
+                                  ?.unidad_expresion_consumo ||
+                                proceso
+                                  .unidad_formula_tiempo ||
+                                "mm"
+                            });
+
+                          actualizar({
+                            procesos: actualizarItem(
+                              formulario.procesos,
+                              indice,
+                              actualizado
+                            )
+                          });
+                        }}
+                      >
+                        <option value="">
+                          Seleccionar material con fórmula
+                        </option>
+                        {materialesConFormulaCortes.map(
+                          (material, materialIndice) => (
+                            <option
+                              key={`${materialIndice}-${material.codigo}`}
+                              value={materialIndice}
+                            >
+                              {material.codigo ||
+                                "Material"}{" "}
+                              - {material.nombre ||
+                                "sin nombre"}{" "}
+                              |{" "}
+                              {
+                                material.expresion_consumo
+                              }
+                            </option>
+                          )
+                        )}
+                      </select>
+                    </CampoConAyuda>
+                  )}
                   <CampoConAyuda
-                    etiqueta="Fórmula piezas"
+                    etiqueta={
+                      proceso.tipo_formula_tiempo ===
+                      "corte_prensa"
+                        ? "Fórmula golpes"
+                        : "Fórmula piezas"
+                    }
                     ayuda={
                       proceso.tipo_formula_tiempo ===
+                      "corte_prensa"
+                        ? "Ej: (131+360+71)*1. Cada medida del tubo equivale a un golpe/corte de prensa."
+                        : proceso.tipo_formula_tiempo ===
                       "corte_cnc_recto"
                         ? "Ej: (30)*4. Se lee como 4 cortes de 30 mm."
                         : "Ej: (100+50+20)*4. Calcula avance, dobleces, cortes y unid/hora."
@@ -2081,7 +2241,11 @@ export default function CotizadorTecnicoV2({
                           aplicarFormulaTiempoProceso({
                             ...proceso,
                             formula_tiempo:
-                              e.target.value
+                              e.target.value,
+                            formula_material_indice: "",
+                            formula_material_id: "",
+                            formula_material_codigo: "",
+                            formula_material_nombre: ""
                           });
 
                         actualizar({
@@ -2136,10 +2300,13 @@ export default function CotizadorTecnicoV2({
                     </select>
                   </CampoConAyuda>
                   {[
-                    {
-                      clave: "segundos_por_metro",
-                      etiqueta: "Seg/m avance"
-                    },
+                    ...(proceso.tipo_formula_tiempo ===
+                    "corte_prensa"
+                      ? []
+                      : [{
+                          clave: "segundos_por_metro",
+                          etiqueta: "Seg/m avance"
+                        }]),
                     ...(proceso.tipo_formula_tiempo ===
                     "doblez_cnc_3d"
                       ? [{
@@ -2149,7 +2316,11 @@ export default function CotizadorTecnicoV2({
                       : []),
                     {
                       clave: "segundos_por_corte",
-                      etiqueta: "Seg/corte"
+                      etiqueta:
+                        proceso.tipo_formula_tiempo ===
+                        "corte_prensa"
+                          ? "Seg/golpe"
+                          : "Seg/corte"
                     }
                   ].map(parametro => (
                     <CampoConAyuda
@@ -2197,7 +2368,10 @@ export default function CotizadorTecnicoV2({
                       fontWeight: "bold"
                     }}>
                       {proceso.formula_tiempo
-                        ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} cortes${proceso.tipo_formula_tiempo === "doblez_cnc_3d" ? ` | ${proceso.dobleces_total || 0} dobleces` : ""}`
+                        ? proceso.tipo_formula_tiempo ===
+                          "corte_prensa"
+                          ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | Golpes por producto: ${proceso.golpes_calculados || proceso.cortes_calculados || 0}${proceso.formula_material_codigo ? ` | Desde material: ${proceso.formula_material_codigo}` : ""}`
+                          : `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} cortes${proceso.tipo_formula_tiempo === "doblez_cnc_3d" ? ` | ${proceso.dobleces_total || 0} dobleces` : ""}`
                         : "Ingresa una fórmula para calcular tiempo."}
                     </div>
                   </CampoConAyuda>

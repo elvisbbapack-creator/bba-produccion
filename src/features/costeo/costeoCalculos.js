@@ -238,6 +238,7 @@ export const analizarExpresionConsumoMaterial = ({
       consumo_unitario: 0,
       piezas: 0,
       cortes: 0,
+      golpes: 0,
       cortes_por_subproducto: 0,
       subproductos: 0,
       fraccion_por_pieza: 0,
@@ -429,6 +430,13 @@ export const PARAMETROS_CORTE_CNC_RECTO = {
   unidad_expresion: "mm"
 };
 
+export const PARAMETROS_CORTE_PRENSA = {
+  segundos_por_metro: 0,
+  segundos_por_doblez: 0,
+  segundos_por_corte: 2,
+  unidad_expresion: "mm"
+};
+
 export const analizarFormulaProceso = ({
   tipoFormula = "",
   expresion = "",
@@ -440,7 +448,8 @@ export const analizarFormulaProceso = ({
   const texto = (expresion || "").toString().trim();
   const formulaSoportada = [
     "doblez_cnc_3d",
-    "corte_cnc_recto"
+    "corte_cnc_recto",
+    "corte_prensa"
   ].includes(tipoFormula);
 
   if (!texto || !formulaSoportada) {
@@ -503,7 +512,9 @@ export const analizarFormulaProceso = ({
     analisis.consumo_unitario
   );
   const segundosAvance =
-    metrosTotales * numero(segundosPorMetro);
+    tipoFormula === "corte_prensa"
+      ? 0
+      : metrosTotales * numero(segundosPorMetro);
   const segundosDobleces =
     tipoFormula === "doblez_cnc_3d"
       ? numero(doblecesTotal) *
@@ -531,6 +542,8 @@ export const analizarFormulaProceso = ({
     metros_totales: redondear(metrosTotales, 4),
     piezas: piezasPorFormula,
     cortes,
+    golpes:
+      tipoFormula === "corte_prensa" ? cortes : 0,
     cortes_por_subproducto: cortesPorSubproducto,
     subproductos: piezasPorFormula,
     fraccion_por_pieza: 0,
@@ -667,6 +680,12 @@ export const calcularDetalleProcesosCotizacion = (
       tipo_formula_tiempo:
         proceso.tipo_formula_tiempo || "",
       formula_tiempo: proceso.formula_tiempo || "",
+      formula_material_id:
+        proceso.formula_material_id || "",
+      formula_material_codigo:
+        proceso.formula_material_codigo || "",
+      formula_material_nombre:
+        proceso.formula_material_nombre || "",
       segundos_por_producto: redondear(
         proceso.segundos_por_producto,
         2
@@ -681,6 +700,9 @@ export const calcularDetalleProcesosCotizacion = (
       ),
       cortes_calculados: redondear(
         proceso.cortes_calculados
+      ),
+      golpes_calculados: redondear(
+        proceso.golpes_calculados
       ),
       dobleces_total: redondear(
         proceso.dobleces_total
