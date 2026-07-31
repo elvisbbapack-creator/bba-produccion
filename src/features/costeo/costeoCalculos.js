@@ -276,6 +276,97 @@ export const analizarExpresionConsumoMaterial = ({
   }
 };
 
+export const PARAMETROS_DOBLEZ_CNC_3D = {
+  segundos_por_metro: 5,
+  segundos_por_doblez: 3,
+  segundos_por_corte: 1.5,
+  unidad_expresion: "mm"
+};
+
+export const analizarFormulaProceso = ({
+  tipoFormula = "",
+  expresion = "",
+  unidadExpresion = "mm",
+  segundosPorMetro = 5,
+  segundosPorDoblez = 3,
+  segundosPorCorte = 1.5
+} = {}) => {
+  const texto = (expresion || "").toString().trim();
+
+  if (!texto || tipoFormula !== "doblez_cnc_3d") {
+    return {
+      valido: false,
+      segundos_por_producto: 0,
+      unidades_por_hora: 0,
+      metros_totales: 0,
+      piezas: 0,
+      cortes: 0,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
+      longitud_por_pieza: 0,
+      error: ""
+    };
+  }
+
+  const analisis = analizarExpresionConsumoMaterial({
+    expresion: texto,
+    unidadExpresion,
+    unidadMaterial: "m"
+  });
+
+  if (!analisis.valido) {
+    return {
+      ...analisis,
+      segundos_por_producto: 0,
+      unidades_por_hora: 0,
+      metros_totales: 0
+    };
+  }
+
+  const metrosTotales = numero(
+    analisis.consumo_unitario
+  );
+  const segundosAvance =
+    metrosTotales * numero(segundosPorMetro);
+  const segundosDobleces =
+    numero(analisis.dobleces_total) *
+    numero(segundosPorDoblez);
+  const segundosCortes =
+    numero(analisis.cortes) *
+    numero(segundosPorCorte);
+  const segundosPorProducto =
+    segundosAvance +
+    segundosDobleces +
+    segundosCortes;
+  const unidadesHora =
+    segundosPorProducto > 0
+      ? 3600 / segundosPorProducto
+      : 0;
+
+  return {
+    valido: true,
+    segundos_por_producto: redondear(
+      segundosPorProducto,
+      2
+    ),
+    unidades_por_hora: redondear(unidadesHora, 2),
+    metros_totales: redondear(metrosTotales, 4),
+    piezas: analisis.piezas,
+    cortes: analisis.cortes,
+    dobleces_por_pieza:
+      analisis.dobleces_por_pieza,
+    dobleces_total: analisis.dobleces_total,
+    longitud_por_pieza:
+      analisis.longitud_por_pieza,
+    detalle_tiempo: {
+      avance: redondear(segundosAvance, 2),
+      dobleces: redondear(segundosDobleces, 2),
+      cortes: redondear(segundosCortes, 2)
+    },
+    error: ""
+  };
+};
+
 export const prepararEscalas = valor => {
   const base = Array.isArray(valor)
     ? valor
@@ -373,6 +464,27 @@ export const calcularDetalleProcesosCotizacion = (
       proceso_nombre: proceso.proceso_nombre || "",
       estacion_codigo: proceso.estacion_codigo || "",
       estacion_nombre: proceso.estacion_nombre || "",
+      tipo_formula_tiempo:
+        proceso.tipo_formula_tiempo || "",
+      formula_tiempo: proceso.formula_tiempo || "",
+      segundos_por_producto: redondear(
+        proceso.segundos_por_producto,
+        2
+      ),
+      unidades_por_hora: redondear(
+        proceso.unidades_por_hora,
+        2
+      ),
+      metros_totales_calculados: redondear(
+        proceso.metros_totales_calculados,
+        4
+      ),
+      cortes_calculados: redondear(
+        proceso.cortes_calculados
+      ),
+      dobleces_total: redondear(
+        proceso.dobleces_total
+      ),
       horas: redondear(horas, 2),
       costo_proceso: redondear(costoProceso),
       porcentaje_costo_operativo: redondear(

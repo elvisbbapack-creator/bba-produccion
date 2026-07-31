@@ -24,6 +24,7 @@ import {
 } from "../costosOperativos/costosOperativosRepository";
 import {
   analizarExpresionConsumoMaterial,
+  analizarFormulaProceso,
   calcularCotizacionTecnica
 } from "./costeoCalculos";
 import {
@@ -220,11 +221,110 @@ const aplicarExpresionConsumo = material => {
   };
 };
 
+const esDoblezCnc3d = proceso => {
+  const texto = normalizarComparacion(
+    [
+      proceso?.proceso_nombre,
+      proceso?.estacion_nombre
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    texto.includes("doblez") &&
+    (texto.includes("cnc 3d") ||
+      texto.includes("3d"))
+  );
+};
+
+const valoresFormulaDoblezCnc = proceso => ({
+  tipo_formula_tiempo: "doblez_cnc_3d",
+  unidad_formula_tiempo:
+    proceso?.unidad_formula_tiempo || "mm",
+  segundos_por_metro:
+    proceso?.segundos_por_metro || 5,
+  segundos_por_doblez:
+    proceso?.segundos_por_doblez || 3,
+  segundos_por_corte:
+    proceso?.segundos_por_corte || 1.5
+});
+
+const aplicarFormulaTiempoProceso = proceso => {
+  const analisis = analizarFormulaProceso({
+    tipoFormula: proceso.tipo_formula_tiempo,
+    expresion: proceso.formula_tiempo,
+    unidadExpresion:
+      proceso.unidad_formula_tiempo || "mm",
+    segundosPorMetro:
+      proceso.segundos_por_metro || 5,
+    segundosPorDoblez:
+      proceso.segundos_por_doblez || 3,
+    segundosPorCorte:
+      proceso.segundos_por_corte || 1.5
+  });
+
+  if (
+    !proceso.tipo_formula_tiempo ||
+    !proceso.formula_tiempo
+  ) {
+    return {
+      ...proceso,
+      segundos_por_producto: 0,
+      metros_totales_calculados: 0,
+      piezas_calculadas: 0,
+      cortes_calculados: 0,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0,
+      longitud_por_pieza: 0,
+      formula_tiempo_error: ""
+    };
+  }
+
+  return {
+    ...proceso,
+    ...(analisis.valido
+      ? {
+          unidades_por_hora:
+            analisis.unidades_por_hora,
+          segundos_por_producto:
+            analisis.segundos_por_producto,
+          metros_totales_calculados:
+            analisis.metros_totales,
+          piezas_calculadas: analisis.piezas,
+          cortes_calculados: analisis.cortes,
+          dobleces_por_pieza:
+            analisis.dobleces_por_pieza,
+          dobleces_total: analisis.dobleces_total,
+          longitud_por_pieza:
+            analisis.longitud_por_pieza,
+          formula_tiempo_detalle:
+            analisis.detalle_tiempo || null
+        }
+      : {}),
+    formula_tiempo_error: analisis.error
+  };
+};
+
 const procesoVacio = {
   proceso_codigo: "",
   proceso_nombre: "",
   estacion_codigo: "",
   estacion_nombre: "",
+  tipo_formula_tiempo: "",
+  formula_tiempo: "",
+  unidad_formula_tiempo: "mm",
+  segundos_por_metro: 5,
+  segundos_por_doblez: 3,
+  segundos_por_corte: 1.5,
+  segundos_por_producto: 0,
+  metros_totales_calculados: 0,
+  piezas_calculadas: 0,
+  cortes_calculados: 0,
+  dobleces_por_pieza: 0,
+  dobleces_total: 0,
+  longitud_por_pieza: 0,
+  formula_tiempo_error: "",
   unidades_por_hora: 10,
   eficiencia_esperada: 75,
   costo_hora: 0,
@@ -863,26 +963,35 @@ export default function CotizadorTecnicoV2({
     );
     const porcentajeCostoOperativo =
       obtenerAbsorcionOperativa(estacion);
+    const procesoActual =
+      formulario.procesos[indice] || {};
+    const datosBase = {
+      ...procesoActual,
+      proceso_codigo:
+        estacion?.proceso_codigo || "",
+      proceso_nombre:
+        estacion?.proceso_nombre || "",
+      estacion_codigo:
+        estacion?.estacion_codigo || "",
+      estacion_nombre:
+        estacion?.estacion_nombre || "",
+      porcentaje_costo_operativo:
+        porcentajeCostoOperativo,
+      costo_operativo_origen:
+        porcentajeCostoOperativo > 0
+          ? "costos_operativos_planta"
+          : "manual",
+      ...(esDoblezCnc3d(estacion)
+        ? valoresFormulaDoblezCnc(procesoActual)
+        : {})
+    };
 
     actualizar({
       procesos: actualizarItem(
         formulario.procesos,
         indice,
-        {
-          proceso_codigo:
-            estacion?.proceso_codigo || "",
-          proceso_nombre:
-            estacion?.proceso_nombre || "",
-          estacion_codigo:
-            estacion?.estacion_codigo || "",
-          estacion_nombre:
-            estacion?.estacion_nombre || "",
-          porcentaje_costo_operativo:
-            porcentajeCostoOperativo,
-          costo_operativo_origen:
-            porcentajeCostoOperativo > 0
-              ? "costos_operativos_planta"
-              : "manual",
+        aplicarFormulaTiempoProceso({
+          ...datosBase,
           ...(costoBase
             ? {
                 costo_hora: costoBase.costo_hora_total,
@@ -906,7 +1015,7 @@ export default function CotizadorTecnicoV2({
                 costo_hora_origen: "manual",
                 costo_hora_detalle: null
               })
-        }
+        })
       )
     });
   };
@@ -1683,6 +1792,190 @@ export default function CotizadorTecnicoV2({
                   ))}
                 </select>
               </CampoConAyuda>
+              <CampoConAyuda
+                etiqueta="Fórmula tiempo"
+                ayuda="Base para calcular capacidad de la estación. Por ahora disponible: Doblez CNC 3D."
+              >
+                <select
+                  style={campo}
+                  value={
+                    proceso.tipo_formula_tiempo || ""
+                  }
+                  onChange={e => {
+                    const tipoFormula = e.target.value;
+                    const base =
+                      tipoFormula === "doblez_cnc_3d"
+                        ? {
+                            ...proceso,
+                            ...valoresFormulaDoblezCnc(
+                              proceso
+                            )
+                          }
+                        : {
+                            ...proceso,
+                            tipo_formula_tiempo: "",
+                            formula_tiempo: ""
+                          };
+
+                    actualizar({
+                      procesos: actualizarItem(
+                        formulario.procesos,
+                        indice,
+                        aplicarFormulaTiempoProceso({
+                          ...base,
+                          tipo_formula_tiempo:
+                            tipoFormula
+                        })
+                      )
+                    });
+                  }}
+                >
+                  <option value="">
+                    Sin fórmula técnica
+                  </option>
+                  <option value="doblez_cnc_3d">
+                    Doblez CNC 3D
+                  </option>
+                </select>
+              </CampoConAyuda>
+              {proceso.tipo_formula_tiempo ===
+                "doblez_cnc_3d" && (
+                <>
+                  <CampoConAyuda
+                    etiqueta="Fórmula piezas"
+                    ayuda="Ej: (100+50+20)*4. Calcula avance, dobleces, cortes y unid/hora."
+                  >
+                    <input
+                      style={campo}
+                      type="text"
+                      placeholder="Ej: (100+50+20)*4"
+                      value={
+                        proceso.formula_tiempo || ""
+                      }
+                      onChange={e => {
+                        const actualizado =
+                          aplicarFormulaTiempoProceso({
+                            ...proceso,
+                            formula_tiempo:
+                              e.target.value
+                          });
+
+                        actualizar({
+                          procesos: actualizarItem(
+                            formulario.procesos,
+                            indice,
+                            actualizado
+                          )
+                        });
+                      }}
+                    />
+                    {proceso.formula_tiempo_error && (
+                      <div style={{
+                        color: "#B71C1C",
+                        fontSize: 12,
+                        marginTop: 4
+                      }}>
+                        {proceso.formula_tiempo_error}
+                      </div>
+                    )}
+                  </CampoConAyuda>
+                  <CampoConAyuda
+                    etiqueta="Unidad fórmula"
+                    ayuda="Unidad usada en la fórmula. Normalmente mm para alambre."
+                  >
+                    <select
+                      style={campo}
+                      value={
+                        proceso.unidad_formula_tiempo ||
+                        "mm"
+                      }
+                      onChange={e => {
+                        const actualizado =
+                          aplicarFormulaTiempoProceso({
+                            ...proceso,
+                            unidad_formula_tiempo:
+                              e.target.value
+                          });
+
+                        actualizar({
+                          procesos: actualizarItem(
+                            formulario.procesos,
+                            indice,
+                            actualizado
+                          )
+                        });
+                      }}
+                    >
+                      <option value="mm">mm</option>
+                      <option value="cm">cm</option>
+                      <option value="m">m</option>
+                    </select>
+                  </CampoConAyuda>
+                  {[
+                    {
+                      clave: "segundos_por_metro",
+                      etiqueta: "Seg/m avance"
+                    },
+                    {
+                      clave: "segundos_por_doblez",
+                      etiqueta: "Seg/doblez"
+                    },
+                    {
+                      clave: "segundos_por_corte",
+                      etiqueta: "Seg/corte"
+                    }
+                  ].map(parametro => (
+                    <CampoConAyuda
+                      key={parametro.clave}
+                      etiqueta={parametro.etiqueta}
+                      ayuda="Editable si el estándar real de la estación cambia."
+                    >
+                      <input
+                        style={campo}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        value={
+                          proceso[parametro.clave] || ""
+                        }
+                        onChange={e => {
+                          const actualizado =
+                            aplicarFormulaTiempoProceso({
+                              ...proceso,
+                              [parametro.clave]:
+                                e.target.value
+                            });
+
+                          actualizar({
+                            procesos: actualizarItem(
+                              formulario.procesos,
+                              indice,
+                              actualizado
+                            )
+                          });
+                        }}
+                      />
+                    </CampoConAyuda>
+                  ))}
+                  <CampoConAyuda
+                    etiqueta="Lectura tiempo"
+                    ayuda="Resultado técnico usado para calcular horas y costo del proceso."
+                  >
+                    <div style={{
+                      ...campo,
+                      background: "#ECFDF5",
+                      color: "#065F46",
+                      minHeight: 58,
+                      fontWeight: "bold"
+                    }}>
+                      {proceso.formula_tiempo
+                        ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} cortes | ${proceso.dobleces_total || 0} dobleces`
+                        : "Ingresa una fórmula para calcular tiempo."}
+                    </div>
+                  </CampoConAyuda>
+                </>
+              )}
               {CAMPOS_PROCESO_ESTIMADO.map(campoConfig => (
                 <CampoConAyuda
                   key={campoConfig.clave}
@@ -1865,6 +2158,8 @@ export default function CotizadorTecnicoV2({
                     {[
                       "Proceso",
                       "Estación",
+                      "Fórmula",
+                      "Seg/prod.",
                       "Horas",
                       "% fijo",
                       "Costo operativo"
@@ -1892,6 +2187,13 @@ export default function CotizadorTecnicoV2({
                         </td>
                         <td style={{ padding: 8 }}>
                           {detalle.estacion_nombre || "-"}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {detalle.formula_tiempo || "-"}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          {detalle.segundos_por_producto ||
+                            "-"}
                         </td>
                         <td style={{ padding: 8 }}>
                           {detalle.horas}

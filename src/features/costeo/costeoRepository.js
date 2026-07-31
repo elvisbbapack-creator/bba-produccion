@@ -115,6 +115,48 @@ export const prepararCotizacionTecnica = (
       estacion_nombre: limpiarTexto(
         proceso.estacion_nombre
       ),
+      tipo_formula_tiempo: limpiarTexto(
+        proceso.tipo_formula_tiempo
+      ),
+      formula_tiempo: limpiarTexto(
+        proceso.formula_tiempo
+      ),
+      unidad_formula_tiempo:
+        limpiarTexto(
+          proceso.unidad_formula_tiempo
+        ) || "mm",
+      segundos_por_metro: numero(
+        proceso.segundos_por_metro
+      ),
+      segundos_por_doblez: numero(
+        proceso.segundos_por_doblez
+      ),
+      segundos_por_corte: numero(
+        proceso.segundos_por_corte
+      ),
+      segundos_por_producto: numero(
+        proceso.segundos_por_producto
+      ),
+      metros_totales_calculados: numero(
+        proceso.metros_totales_calculados
+      ),
+      piezas_calculadas: numero(
+        proceso.piezas_calculadas
+      ),
+      cortes_calculados: numero(
+        proceso.cortes_calculados
+      ),
+      dobleces_por_pieza: numero(
+        proceso.dobleces_por_pieza
+      ),
+      dobleces_total: numero(
+        proceso.dobleces_total
+      ),
+      longitud_por_pieza: numero(
+        proceso.longitud_por_pieza
+      ),
+      formula_tiempo_detalle:
+        proceso.formula_tiempo_detalle || null,
       costo_base_estacion_id:
         proceso.costo_base_estacion_id || "",
       costo_hora_origen: limpiarTexto(
