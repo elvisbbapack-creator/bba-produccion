@@ -72,6 +72,46 @@ const etiquetaCampo = {
   marginBottom: 5
 };
 
+const cardCotizador = {
+  background: "white",
+  padding: 20,
+  borderRadius: 16,
+  border: "2px solid #CBD5E1",
+  boxShadow:
+    "0 10px 24px rgba(15,23,42,0.10)",
+  marginBottom: 22,
+  position: "relative",
+  overflow: "hidden"
+};
+
+const franjaCard = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  height: 6,
+  background:
+    "linear-gradient(90deg, #1976D2, #60A5FA)"
+};
+
+const tituloCard = {
+  marginTop: 8,
+  marginBottom: 8
+};
+
+const lineaCotizador = {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 10,
+  padding: 14,
+  background: "#F8FAFC",
+  borderRadius: 14,
+  border: "1px solid #CBD5E1",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)",
+  marginBottom: 12
+};
+
 const CampoConAyuda = ({
   etiqueta,
   ayuda,
@@ -984,15 +1024,9 @@ export default function CotizadorTecnicoV2({
       );
 
     return (
-      <section style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 14,
-        boxShadow:
-          "0 2px 8px rgba(15,23,42,0.08)",
-        marginBottom: 18
-      }}>
-        <h3>{titulo}</h3>
+      <section style={cardCotizador}>
+        <div style={franjaCard} />
+        <h3 style={tituloCard}>{titulo}</h3>
         <p style={{
           color: "#64748B",
           marginTop: -4,
@@ -1014,16 +1048,7 @@ export default function CotizadorTecnicoV2({
         {lineas.map(({ material, indice }) => (
           <div
             key={indice}
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(150px, 1fr))",
-              gap: 10,
-              padding: 12,
-              background: "#F8FAFC",
-              borderRadius: 12,
-              marginBottom: 10
-            }}
+            style={lineaCotizador}
           >
             <CampoConAyuda
               etiqueta={etiquetaSelector}
@@ -1356,15 +1381,9 @@ export default function CotizadorTecnicoV2({
         </div>
       )}
 
-      <section style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 14,
-        boxShadow:
-          "0 2px 8px rgba(15,23,42,0.08)",
-        marginBottom: 18
-      }}>
-        <h3>
+      <section style={cardCotizador}>
+        <div style={franjaCard} />
+        <h3 style={tituloCard}>
           Producto prototipo{" "}
           {editandoId ? "(editando)" : ""}
         </h3>
@@ -1478,15 +1497,11 @@ export default function CotizadorTecnicoV2({
         />
       </section>
 
-      <section style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 14,
-        boxShadow:
-          "0 2px 8px rgba(15,23,42,0.08)",
-        marginBottom: 18
-      }}>
-        <h3>Supuestos comerciales y lead time</h3>
+      <section style={cardCotizador}>
+        <div style={franjaCard} />
+        <h3 style={tituloCard}>
+          Supuestos comerciales y lead time
+        </h3>
         <div style={{
           display: "grid",
           gridTemplateColumns:
@@ -1622,15 +1637,11 @@ export default function CotizadorTecnicoV2({
         textoBoton: "+ Agregar suministro"
       })}
 
-      <section style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 14,
-        boxShadow:
-          "0 2px 8px rgba(15,23,42,0.08)",
-        marginBottom: 18
-      }}>
-        <h3>Procesos estimados</h3>
+      <section style={cardCotizador}>
+        <div style={franjaCard} />
+        <h3 style={tituloCard}>
+          Procesos estimados
+        </h3>
         {formulario.procesos.map((proceso, indice) => {
           const claveEstacion =
             `${proceso.proceso_codigo}__${proceso.estacion_codigo}`;
@@ -1639,14 +1650,11 @@ export default function CotizadorTecnicoV2({
             <div
               key={indice}
               style={{
+                ...lineaCotizador,
                 display: "grid",
                 gridTemplateColumns:
                   "repeat(auto-fit, minmax(170px, 1fr))",
-                gap: 10,
-                padding: 12,
-                background: "#F8FAFC",
-                borderRadius: 12,
-                marginBottom: 10
+                gap: 10
               }}
             >
               <CampoConAyuda
@@ -1747,12 +1755,14 @@ export default function CotizadorTecnicoV2({
       </section>
 
       <section style={{
+        ...cardCotizador,
         background: "#EFF6FF",
-        padding: 18,
-        borderRadius: 14,
-        marginBottom: 18
+        borderColor: "#93C5FD"
       }}>
-        <h3>Resultado por escala</h3>
+        <div style={franjaCard} />
+        <h3 style={tituloCard}>
+          Resultado por escala
+        </h3>
         <div style={{ overflowX: "auto" }}>
           <table style={{
             width: "100%",
@@ -1836,7 +1846,10 @@ export default function CotizadorTecnicoV2({
             marginTop: 16,
             background: "white",
             borderRadius: 12,
-            padding: 12
+            padding: 12,
+            border: "1px solid #BFDBFE",
+            boxShadow:
+              "0 4px 12px rgba(37,99,235,0.08)"
           }}>
             <h4 style={{ marginTop: 0 }}>
               Detalle costo operativo por proceso ·{" "}
@@ -1931,14 +1944,11 @@ export default function CotizadorTecnicoV2({
         </button>
       </div>
 
-      <section style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 14,
-        boxShadow:
-          "0 2px 8px rgba(15,23,42,0.08)"
-      }}>
-        <h3>Últimas cotizaciones</h3>
+      <section style={cardCotizador}>
+        <div style={franjaCard} />
+        <h3 style={tituloCard}>
+          Últimas cotizaciones
+        </h3>
         {cargando && <div>Cargando...</div>}
         {historial.slice(0, 8).map(item => {
           const primeraEscala = item.resultados?.[0];
@@ -1946,8 +1956,11 @@ export default function CotizadorTecnicoV2({
             <div
               key={item.id}
               style={{
-                borderBottom: "1px solid #E2E8F0",
-                padding: "10px 0"
+                border: "1px solid #CBD5E1",
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 10,
+                background: "#F8FAFC"
               }}
             >
               <b>{item.nombre_producto}</b>{" "}
