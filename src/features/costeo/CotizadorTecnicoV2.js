@@ -229,6 +229,13 @@ const aplicarExpresionConsumo = material => {
   };
 };
 
+const recalcularMaterialesConFormula = materiales =>
+  (materiales || []).map(material =>
+    material?.expresion_consumo
+      ? aplicarExpresionConsumo(material)
+      : material
+  );
+
 const esDoblezCnc3d = proceso => {
   const texto = normalizarComparacion(
     [
@@ -1135,7 +1142,9 @@ export default function CotizadorTecnicoV2({
 
     setFormulario({
       ...formularioCotizacion,
-      materiales: materialesEnriquecidos
+      materiales: recalcularMaterialesConFormula(
+        materialesEnriquecidos
+      )
     });
     setEditandoId(cotizacion.id);
     setMensaje(
@@ -1154,7 +1163,10 @@ export default function CotizadorTecnicoV2({
     setFormulario({
       ...base,
       version: `${base.version || "V1"} copia`,
-      estado: "borrador"
+      estado: "borrador",
+      materiales: recalcularMaterialesConFormula(
+        base.materiales
+      )
     });
     setEditandoId("");
     setMensaje(
@@ -1172,12 +1184,18 @@ export default function CotizadorTecnicoV2({
       setGuardando(true);
       setError("");
       setMensaje("");
+      const formularioPreparado = {
+        ...formulario,
+        materiales: recalcularMaterialesConFormula(
+          formulario.materiales
+        )
+      };
       if (editandoId) {
         await actualizarCotizacionTecnica(
           db,
           perfil,
           editandoId,
-          formulario
+          formularioPreparado
         );
         setMensaje(
           "Cotización técnica actualizada."
@@ -1186,7 +1204,7 @@ export default function CotizadorTecnicoV2({
         await guardarCotizacionTecnica(
           db,
           perfil,
-          formulario
+          formularioPreparado
         );
         setMensaje("Cotización técnica guardada.");
       }
@@ -1244,7 +1262,13 @@ export default function CotizadorTecnicoV2({
             Todavía no hay líneas en esta sección.
           </div>
         )}
-        {lineas.map(({ material, indice }) => (
+        {lineas.map(({ material, indice }) => {
+          const lecturaMaterial =
+            material.expresion_consumo
+              ? aplicarExpresionConsumo(material)
+              : material;
+
+          return (
           <div
             key={indice}
             style={lineaCotizador}
@@ -1422,7 +1446,7 @@ export default function CotizadorTecnicoV2({
                     fontWeight: "bold"
                   }}>
                     {material.expresion_consumo
-                      ? `Cortes: ${material.cortes_calculados || 0} | Cortes por subproducto: ${material.cortes_por_subproducto || material.cortes_calculados || 0} | Subproductos: ${material.subproductos || 1} | Largo base: ${material.longitud_por_pieza || 0} ${material.unidad_expresion_consumo || "mm"}`
+                      ? `Cortes: ${lecturaMaterial.cortes_calculados || 0} | Cortes por subproducto: ${lecturaMaterial.cortes_por_subproducto || lecturaMaterial.cortes_calculados || 0} | Subproductos: ${lecturaMaterial.subproductos || 1} | Largo base: ${lecturaMaterial.longitud_por_pieza || 0} ${lecturaMaterial.unidad_expresion_consumo || "mm"}`
                       : "Sin fórmula"}
                   </div>
                 </CampoConAyuda>
@@ -1511,7 +1535,8 @@ export default function CotizadorTecnicoV2({
               </CampoConAyuda>
             ))}
           </div>
-        ))}
+          );
+        })}
         <button
           type="button"
           style={botonSecundario}
