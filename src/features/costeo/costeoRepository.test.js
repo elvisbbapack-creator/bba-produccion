@@ -53,6 +53,32 @@ describe("costeoRepository", () => {
     });
   });
 
+  it("interpreta formula de alambre como pieza doblada", () => {
+    const resultado =
+      analizarExpresionConsumoMaterial({
+        expresion: "(12+117+360+117+12)*2",
+        unidadExpresion: "mm",
+        unidadMaterial: "m",
+        tipoLectura:
+          TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO
+      });
+
+    expect(resultado).toMatchObject({
+      valido: true,
+      consumo_unitario: 1.236,
+      piezas: 2,
+      dobleces_por_pieza: 4,
+      cortes_por_pieza: 1,
+      dobleces_por_producto: 8,
+      cortes_por_producto: 2,
+      dobleces_total: 8,
+      cortes: 2,
+      consumo_pieza_formula: 618,
+      consumo_total_formula: 1236,
+      longitud_por_pieza: 618
+    });
+  });
+
   it("calcula tiempo de Doblez CNC 3D desde formula de piezas", () => {
     const resultado = analizarFormulaProceso({
       tipoFormula: "doblez_cnc_3d",

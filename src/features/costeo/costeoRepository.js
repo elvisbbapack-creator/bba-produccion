@@ -79,6 +79,21 @@ export const prepararCotizacionTecnica = (
     fraccion_por_pieza: numero(
       material.fraccion_por_pieza
     ),
+    consumo_pieza_formula: numero(
+      material.consumo_pieza_formula
+    ),
+    consumo_total_formula: numero(
+      material.consumo_total_formula
+    ),
+    cortes_por_pieza: numero(
+      material.cortes_por_pieza
+    ),
+    cortes_por_producto: numero(
+      material.cortes_por_producto
+    ),
+    dobleces_por_producto: numero(
+      material.dobleces_por_producto
+    ),
     dobleces_por_pieza: numero(
       material.dobleces_por_pieza
     ),

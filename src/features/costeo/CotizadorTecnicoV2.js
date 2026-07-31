@@ -167,6 +167,11 @@ const materialVacio = {
   cortes_por_subproducto: 0,
   subproductos: 0,
   fraccion_por_pieza: 0,
+  consumo_pieza_formula: 0,
+  consumo_total_formula: 0,
+  cortes_por_pieza: 0,
+  cortes_por_producto: 0,
+  dobleces_por_producto: 0,
   dobleces_por_pieza: 0,
   dobleces_total: 0,
   longitud_por_pieza: 0,
@@ -195,9 +200,15 @@ const obtenerTipoLecturaConsumoMaterial = material => {
     ].join(" ")
   );
 
-  return /\bpai\b/.test(texto)
-    ? TIPOS_LECTURA_CONSUMO.FRACCION_MP
-    : TIPOS_LECTURA_CONSUMO.CORTES_LINEALES;
+  if (/\bpai\b/.test(texto)) {
+    return TIPOS_LECTURA_CONSUMO.FRACCION_MP;
+  }
+
+  if (/\balambre\b/.test(texto)) {
+    return TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO;
+  }
+
+  return TIPOS_LECTURA_CONSUMO.CORTES_LINEALES;
 };
 
 const aplicarExpresionConsumo = material => {
@@ -218,6 +229,11 @@ const aplicarExpresionConsumo = material => {
       cortes_por_subproducto: 0,
       subproductos: 0,
       fraccion_por_pieza: 0,
+      consumo_pieza_formula: 0,
+      consumo_total_formula: 0,
+      cortes_por_pieza: 0,
+      cortes_por_producto: 0,
+      dobleces_por_producto: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -238,6 +254,16 @@ const aplicarExpresionConsumo = material => {
           subproductos: analisis.subproductos,
           fraccion_por_pieza:
             analisis.fraccion_por_pieza || 0,
+          consumo_pieza_formula:
+            analisis.consumo_pieza_formula || 0,
+          consumo_total_formula:
+            analisis.consumo_total_formula || 0,
+          cortes_por_pieza:
+            analisis.cortes_por_pieza || 0,
+          cortes_por_producto:
+            analisis.cortes_por_producto || 0,
+          dobleces_por_producto:
+            analisis.dobleces_por_producto || 0,
           dobleces_por_pieza:
             analisis.dobleces_por_pieza,
           dobleces_total: analisis.dobleces_total,
@@ -933,6 +959,16 @@ export default function CotizadorTecnicoV2({
         materialActual?.subproductos || 0,
       fraccion_por_pieza:
         materialActual?.fraccion_por_pieza || 0,
+      consumo_pieza_formula:
+        materialActual?.consumo_pieza_formula || 0,
+      consumo_total_formula:
+        materialActual?.consumo_total_formula || 0,
+      cortes_por_pieza:
+        materialActual?.cortes_por_pieza || 0,
+      cortes_por_producto:
+        materialActual?.cortes_por_producto || 0,
+      dobleces_por_producto:
+        materialActual?.dobleces_por_producto || 0,
       dobleces_por_pieza:
         materialActual?.dobleces_por_pieza || 0,
       dobleces_total:
@@ -1293,6 +1329,10 @@ export default function CotizadorTecnicoV2({
             obtenerTipoLecturaConsumoMaterial(
               material
             ) === TIPOS_LECTURA_CONSUMO.FRACCION_MP;
+          const lecturaAlambre =
+            obtenerTipoLecturaConsumoMaterial(
+              material
+            ) === TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO;
 
           return (
           <div
@@ -1394,6 +1434,8 @@ export default function CotizadorTecnicoV2({
                   ayuda={
                     lecturaFraccionaria
                       ? "Opcional. Ej: (1/96)*3. La división es la fracción de MP por pieza; el multiplicador es la cantidad de piezas del producto."
+                      : lecturaAlambre
+                        ? "Opcional. Ej: (12+117+360+117+12)*2. La suma es una pieza doblada; el multiplicador es la cantidad de piezas del producto."
                       : "Opcional. Ej: (131+360+71)*1. Cada valor es un corte en mm; el multiplicador es la cantidad de subproductos."
                   }
                 >
@@ -1403,6 +1445,8 @@ export default function CotizadorTecnicoV2({
                     placeholder={
                       lecturaFraccionaria
                         ? "Ej: (1/96)*3"
+                        : lecturaAlambre
+                          ? "Ej: (12+117+360+117+12)*2"
                         : "Ej: (131+360+71)*1"
                     }
                     value={
@@ -1482,6 +1526,8 @@ export default function CotizadorTecnicoV2({
                     {material.expresion_consumo
                       ? lecturaFraccionaria
                         ? `Fracción MP por pieza: ${lecturaMaterial.fraccion_por_pieza || 0} | Piezas producto: ${lecturaMaterial.subproductos || 1} | Consumo total: ${lecturaMaterial.consumo_unitario || 0} ${material.unidad || "unidad"}`
+                        : lecturaAlambre
+                          ? `Doblez por pieza: ${lecturaMaterial.dobleces_por_pieza || 0} | Cortes por pieza: ${lecturaMaterial.cortes_por_pieza || 0} | Doblez por producto: ${lecturaMaterial.dobleces_por_producto || 0} | Cortes por producto: ${lecturaMaterial.cortes_por_producto || 0} | Consumo pieza: ${lecturaMaterial.consumo_pieza_formula || lecturaMaterial.longitud_por_pieza || 0} ${lecturaMaterial.unidad_expresion_consumo || "mm"} | Consumo total: ${lecturaMaterial.consumo_total_formula || 0} ${lecturaMaterial.unidad_expresion_consumo || "mm"}`
                         : `Cortes: ${lecturaMaterial.cortes_calculados || 0} | Cortes por subproducto: ${lecturaMaterial.cortes_por_subproducto || lecturaMaterial.cortes_calculados || 0} | Subproductos: ${lecturaMaterial.subproductos || 1} | Largo base: ${lecturaMaterial.longitud_por_pieza || 0} ${lecturaMaterial.unidad_expresion_consumo || "mm"}`
                       : "Sin fórmula"}
                   </div>

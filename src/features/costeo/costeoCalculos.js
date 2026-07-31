@@ -220,7 +220,8 @@ const convertirConsumoAUnidadMaterial = (
 
 export const TIPOS_LECTURA_CONSUMO = {
   CORTES_LINEALES: "cortes_lineales",
-  FRACCION_MP: "fraccion_mp"
+  FRACCION_MP: "fraccion_mp",
+  ALAMBRE_DOBLADO: "alambre_doblado"
 };
 
 export const analizarExpresionConsumoMaterial = ({
@@ -240,6 +241,11 @@ export const analizarExpresionConsumoMaterial = ({
       cortes_por_subproducto: 0,
       subproductos: 0,
       fraccion_por_pieza: 0,
+      consumo_pieza_formula: 0,
+      consumo_total_formula: 0,
+      cortes_por_pieza: 0,
+      cortes_por_producto: 0,
+      dobleces_por_producto: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -281,11 +287,71 @@ export const analizarExpresionConsumoMaterial = ({
           baseExpresion,
           6
         ),
+        consumo_pieza_formula: redondear(
+          baseExpresion,
+          6
+        ),
+        consumo_total_formula: redondear(
+          totalExpresion,
+          6
+        ),
+        cortes_por_pieza: 0,
+        cortes_por_producto: 0,
+        dobleces_por_producto: 0,
         dobleces_por_pieza: 0,
         dobleces_total: 0,
         longitud_por_pieza: redondear(
           baseExpresion,
           6
+        ),
+        error: ""
+      };
+    }
+
+    if (
+      tipoLectura ===
+      TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO
+    ) {
+      const doblecesPorPieza =
+        contarOperador(base, "+");
+      const cortesPorPieza = base.trim() ? 1 : 0;
+      const cortesPorProducto =
+        cortesPorPieza * multiplicadorPiezas;
+      const doblecesPorProducto =
+        doblecesPorPieza * multiplicadorPiezas;
+
+      return {
+        valido: true,
+        consumo_unitario: redondear(
+          convertirConsumoAUnidadMaterial(
+            totalExpresion,
+            unidadExpresion,
+            unidadMaterial
+          ),
+          4
+        ),
+        piezas: multiplicadorPiezas,
+        cortes: cortesPorProducto,
+        cortes_por_subproducto: cortesPorPieza,
+        subproductos: multiplicadorPiezas,
+        fraccion_por_pieza: 0,
+        consumo_pieza_formula: redondear(
+          baseExpresion,
+          4
+        ),
+        consumo_total_formula: redondear(
+          totalExpresion,
+          4
+        ),
+        cortes_por_pieza: cortesPorPieza,
+        cortes_por_producto: cortesPorProducto,
+        dobleces_por_pieza: doblecesPorPieza,
+        dobleces_por_producto:
+          doblecesPorProducto,
+        dobleces_total: doblecesPorProducto,
+        longitud_por_pieza: redondear(
+          baseExpresion,
+          4
         ),
         error: ""
       };
@@ -307,6 +373,17 @@ export const analizarExpresionConsumoMaterial = ({
         cortesPorSubproducto,
       subproductos: multiplicadorPiezas,
       fraccion_por_pieza: 0,
+      consumo_pieza_formula: redondear(
+        baseExpresion,
+        4
+      ),
+      consumo_total_formula: redondear(
+        totalExpresion,
+        4
+      ),
+      cortes_por_pieza: 0,
+      cortes_por_producto: 0,
+      dobleces_por_producto: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: redondear(
@@ -324,6 +401,11 @@ export const analizarExpresionConsumoMaterial = ({
       cortes_por_subproducto: 0,
       subproductos: 0,
       fraccion_por_pieza: 0,
+      consumo_pieza_formula: 0,
+      consumo_total_formula: 0,
+      cortes_por_pieza: 0,
+      cortes_por_producto: 0,
+      dobleces_por_producto: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -372,6 +454,11 @@ export const analizarFormulaProceso = ({
       cortes_por_subproducto: 0,
       subproductos: 0,
       fraccion_por_pieza: 0,
+      consumo_pieza_formula: 0,
+      consumo_total_formula: 0,
+      cortes_por_pieza: 0,
+      cortes_por_producto: 0,
+      dobleces_por_producto: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -447,6 +534,13 @@ export const analizarFormulaProceso = ({
     cortes_por_subproducto: cortesPorSubproducto,
     subproductos: piezasPorFormula,
     fraccion_por_pieza: 0,
+    consumo_pieza_formula:
+      analisis.consumo_pieza_formula || 0,
+    consumo_total_formula:
+      analisis.consumo_total_formula || 0,
+    cortes_por_pieza: 0,
+    cortes_por_producto: 0,
+    dobleces_por_producto: doblecesTotal,
     dobleces_por_pieza: doblecesPorPieza,
     dobleces_total: doblecesTotal,
     longitud_por_pieza:
