@@ -523,6 +523,11 @@ const actualizarItem = (
       : item
   );
 
+const mismoTexto = (a, b) =>
+  Boolean(a && b) &&
+  normalizarComparacion(a) ===
+    normalizarComparacion(b);
+
 const primerNumeroPositivo = (
   origen,
   campos = []
@@ -1166,6 +1171,66 @@ export default function CotizadorTecnicoV2({
     return absorcion?.porcentaje_absorcion || 0;
   };
 
+  const buscarCostoBaseEstacion = estacion => {
+    const costosPlanta = costosBaseEstacion.filter(
+      item =>
+        !item.planta_id ||
+        item.planta_id === formulario.planta_id
+    );
+    const porCodigo = costosPlanta.find(
+      item =>
+        item.proceso_codigo === estacion?.proceso_codigo &&
+        item.estacion_codigo === estacion?.estacion_codigo
+    );
+
+    if (porCodigo) {
+      return porCodigo;
+    }
+
+    const porNombre = costosPlanta.find(
+      item =>
+        mismoTexto(
+          item.proceso_nombre,
+          estacion?.proceso_nombre
+        ) &&
+        mismoTexto(
+          item.estacion_nombre,
+          estacion?.estacion_nombre
+        )
+    );
+
+    if (porNombre) {
+      return porNombre;
+    }
+
+    if (esCortePrensa(estacion)) {
+      return costosPlanta.find(item =>
+        esCortePrensa(item)
+      );
+    }
+
+    return null;
+  };
+
+  const camposDesdeCostoBase = costoBase =>
+    costoBase
+      ? {
+          costo_hora: costoBase.costo_hora_total,
+          costo_base_estacion_id: costoBase.id,
+          costo_hora_origen:
+            "costos_base_estacion",
+          costo_hora_detalle: {
+            maquinista:
+              costoBase.costo_laboral_principal,
+            ayudantes: costoBase.costo_ayudantes,
+            depreciacion:
+              costoBase.depreciacion_hora,
+            energia: costoBase.energia_hora,
+            mantencion: costoBase.mantencion_hora
+          }
+        }
+      : null;
+
   const seleccionarEstacion = (
     indice,
     clave
@@ -1175,11 +1240,8 @@ export default function CotizadorTecnicoV2({
         `${item.proceso_codigo}__${item.estacion_codigo}` ===
         clave
     );
-    const costoBase = costosBaseEstacion.find(
-      item =>
-        item.proceso_codigo === estacion?.proceso_codigo &&
-        item.estacion_codigo === estacion?.estacion_codigo
-    );
+    const costoBase =
+      buscarCostoBaseEstacion(estacion);
     const porcentajeCostoOperativo =
       obtenerAbsorcionOperativa(estacion);
     const procesoActual =
@@ -1215,29 +1277,16 @@ export default function CotizadorTecnicoV2({
         indice,
         aplicarFormulaTiempoProceso({
           ...datosBase,
-          ...(costoBase
-            ? {
-                costo_hora: costoBase.costo_hora_total,
-                costo_base_estacion_id: costoBase.id,
-                costo_hora_origen: "costos_base_estacion",
-                costo_hora_detalle: {
-                  maquinista:
-                    costoBase.costo_laboral_principal,
-                  ayudantes:
-                    costoBase.costo_ayudantes,
-                  depreciacion:
-                    costoBase.depreciacion_hora,
-                  energia: costoBase.energia_hora,
-                  mantencion:
-                    costoBase.mantencion_hora
-                }
-              }
-            : {
-                costo_hora: 0,
-                costo_base_estacion_id: "",
-                costo_hora_origen: "manual",
-                costo_hora_detalle: null
-              })
+          ...(camposDesdeCostoBase(costoBase) || {
+            costo_hora:
+              procesoActual.costo_hora || 0,
+            costo_base_estacion_id: "",
+            costo_hora_origen:
+              procesoActual.costo_hora
+                ? "manual"
+                : "",
+            costo_hora_detalle: null
+          })
         })
       )
     });
@@ -2098,6 +2147,8 @@ export default function CotizadorTecnicoV2({
                         proceso
                       )
                     };
+                    const costoBase =
+                      buscarCostoBaseEstacion(base);
 
                     actualizar({
                       procesos: actualizarItem(
@@ -2106,7 +2157,10 @@ export default function CotizadorTecnicoV2({
                         aplicarFormulaTiempoProceso({
                           ...base,
                           tipo_formula_tiempo:
-                            tipoFormula
+                            tipoFormula,
+                          ...(camposDesdeCostoBase(
+                            costoBase
+                          ) || {})
                         })
                       )
                     });
