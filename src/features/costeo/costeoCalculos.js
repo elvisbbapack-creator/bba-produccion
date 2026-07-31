@@ -218,10 +218,16 @@ const convertirConsumoAUnidadMaterial = (
   return valor;
 };
 
+export const TIPOS_LECTURA_CONSUMO = {
+  CORTES_LINEALES: "cortes_lineales",
+  FRACCION_MP: "fraccion_mp"
+};
+
 export const analizarExpresionConsumoMaterial = ({
   expresion = "",
   unidadExpresion = "mm",
-  unidadMaterial = "m"
+  unidadMaterial = "m",
+  tipoLectura = TIPOS_LECTURA_CONSUMO.CORTES_LINEALES
 } = {}) => {
   const texto = (expresion || "").toString().trim();
 
@@ -233,6 +239,7 @@ export const analizarExpresionConsumoMaterial = ({
       cortes: 0,
       cortes_por_subproducto: 0,
       subproductos: 0,
+      fraccion_por_pieza: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -256,6 +263,34 @@ export const analizarExpresionConsumoMaterial = ({
     const cortes =
       cortesPorSubproducto * multiplicadorPiezas;
 
+    if (
+      tipoLectura ===
+      TIPOS_LECTURA_CONSUMO.FRACCION_MP
+    ) {
+      return {
+        valido: true,
+        consumo_unitario: redondear(
+          totalExpresion,
+          4
+        ),
+        piezas: multiplicadorPiezas,
+        cortes: 0,
+        cortes_por_subproducto: 0,
+        subproductos: multiplicadorPiezas,
+        fraccion_por_pieza: redondear(
+          baseExpresion,
+          6
+        ),
+        dobleces_por_pieza: 0,
+        dobleces_total: 0,
+        longitud_por_pieza: redondear(
+          baseExpresion,
+          6
+        ),
+        error: ""
+      };
+    }
+
     return {
       valido: true,
       consumo_unitario: redondear(
@@ -271,6 +306,7 @@ export const analizarExpresionConsumoMaterial = ({
       cortes_por_subproducto:
         cortesPorSubproducto,
       subproductos: multiplicadorPiezas,
+      fraccion_por_pieza: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: redondear(
@@ -287,6 +323,7 @@ export const analizarExpresionConsumoMaterial = ({
       cortes: 0,
       cortes_por_subproducto: 0,
       subproductos: 0,
+      fraccion_por_pieza: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -334,6 +371,7 @@ export const analizarFormulaProceso = ({
       cortes: 0,
       cortes_por_subproducto: 0,
       subproductos: 0,
+      fraccion_por_pieza: 0,
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 0,
@@ -408,6 +446,7 @@ export const analizarFormulaProceso = ({
     cortes,
     cortes_por_subproducto: cortesPorSubproducto,
     subproductos: piezasPorFormula,
+    fraccion_por_pieza: 0,
     dobleces_por_pieza: doblecesPorPieza,
     dobleces_total: doblecesTotal,
     longitud_por_pieza:

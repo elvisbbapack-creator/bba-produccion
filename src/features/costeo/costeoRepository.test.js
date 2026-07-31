@@ -3,7 +3,8 @@ import {
 } from "./costeoRepository";
 import {
   analizarExpresionConsumoMaterial,
-  analizarFormulaProceso
+  analizarFormulaProceso,
+  TIPOS_LECTURA_CONSUMO
 } from "./costeoCalculos";
 
 describe("costeoRepository", () => {
@@ -26,6 +27,29 @@ describe("costeoRepository", () => {
       dobleces_por_pieza: 0,
       dobleces_total: 0,
       longitud_por_pieza: 3542
+    });
+  });
+
+  it("interpreta formula de PAI como fracción de materia prima por pieza", () => {
+    const resultado =
+      analizarExpresionConsumoMaterial({
+        expresion: "(1/96)*3",
+        unidadExpresion: "un",
+        unidadMaterial: "unidad",
+        tipoLectura:
+          TIPOS_LECTURA_CONSUMO.FRACCION_MP
+      });
+
+    expect(resultado).toMatchObject({
+      valido: true,
+      consumo_unitario: 0.0313,
+      piezas: 3,
+      cortes: 0,
+      cortes_por_subproducto: 0,
+      subproductos: 3,
+      fraccion_por_pieza: 0.010417,
+      dobleces_por_pieza: 0,
+      dobleces_total: 0
     });
   });
 
@@ -86,6 +110,7 @@ describe("costeoRepository", () => {
             cortes_calculados: 12,
             cortes_por_subproducto: 3,
             subproductos: 4,
+            fraccion_por_pieza: 0,
             dobleces_por_pieza: 0,
             dobleces_total: 0,
             longitud_por_pieza: 170,
@@ -135,6 +160,7 @@ describe("costeoRepository", () => {
         cortes_calculados: 12,
         cortes_por_subproducto: 3,
         subproductos: 4,
+        fraccion_por_pieza: 0,
         dobleces_total: 0
       },
       {
