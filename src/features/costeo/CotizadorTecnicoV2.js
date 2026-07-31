@@ -332,6 +332,23 @@ const esCortePrensa = proceso => {
   );
 };
 
+const esLaserCorte = proceso => {
+  const texto = normalizarComparacion(
+    [
+      proceso?.proceso_nombre,
+      proceso?.estacion_nombre
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    texto.includes("laser") ||
+    texto.includes("fibra") ||
+    texto.includes("co2")
+  );
+};
+
 const valoresFormulaDoblezCnc = proceso => ({
   tipo_formula_tiempo: "doblez_cnc_3d",
   formula_material_indice: "",
@@ -373,6 +390,28 @@ const valoresFormulaCortePrensa = proceso => ({
     proceso?.segundos_por_corte || 2
 });
 
+const valoresFormulaLaser = proceso => {
+  const metrosPorMinuto =
+    proceso?.metros_por_minuto || 8;
+
+  return {
+    tipo_formula_tiempo: "laser_metros_minuto",
+    formula_material_indice: "",
+    formula_material_id: "",
+    formula_material_codigo: "",
+    formula_material_nombre: "",
+    unidad_formula_tiempo:
+      proceso?.unidad_formula_tiempo || "mm",
+    metros_por_minuto: metrosPorMinuto,
+    segundos_por_metro:
+      proceso?.segundos_por_metro ||
+      60 / metrosPorMinuto,
+    segundos_por_doblez: 0,
+    segundos_por_corte:
+      proceso?.segundos_por_corte || 0.5
+  };
+};
+
 const valoresPorTipoFormula = (
   tipoFormula,
   proceso
@@ -387,6 +426,10 @@ const valoresPorTipoFormula = (
 
   if (tipoFormula === "corte_prensa") {
     return valoresFormulaCortePrensa(proceso);
+  }
+
+  if (tipoFormula === "laser_metros_minuto") {
+    return valoresFormulaLaser(proceso);
   }
 
   return {
@@ -410,7 +453,9 @@ const aplicarFormulaTiempoProceso = proceso => {
     segundosPorDoblez:
       proceso.segundos_por_doblez || 3,
     segundosPorCorte:
-      proceso.segundos_por_corte || 1.5
+      proceso.segundos_por_corte || 1.5,
+    metrosPorMinuto:
+      proceso.metros_por_minuto || 0
   });
 
   if (
@@ -489,6 +534,7 @@ const procesoVacio = {
   piezas_calculadas: 0,
   cortes_calculados: 0,
   golpes_calculados: 0,
+  metros_por_minuto: 0,
   dobleces_por_pieza: 0,
   dobleces_total: 0,
   longitud_por_pieza: 0,
@@ -1405,6 +1451,8 @@ export default function CotizadorTecnicoV2({
           ? valoresFormulaCorteCncRecto(procesoActual)
           : esCortePrensa(estacion)
             ? valoresFormulaCortePrensa(procesoActual)
+            : esLaserCorte(estacion)
+              ? valoresFormulaLaser(procesoActual)
           : {})
     };
 
@@ -2327,12 +2375,16 @@ export default function CotizadorTecnicoV2({
                   <option value="corte_prensa">
                     Corte / Prensa
                   </option>
+                  <option value="laser_metros_minuto">
+                    Laser Fibra / CO2
+                  </option>
                 </select>
               </CampoConAyuda>
               {[
                 "doblez_cnc_3d",
                 "corte_cnc_recto",
-                "corte_prensa"
+                "corte_prensa",
+                "laser_metros_minuto"
               ].includes(proceso.tipo_formula_tiempo) && (
                 <>
                   {(esFormulaDoblezCnc ||
@@ -2426,12 +2478,18 @@ export default function CotizadorTecnicoV2({
                       proceso.tipo_formula_tiempo ===
                       "corte_prensa"
                         ? "Fórmula golpes"
+                        : proceso.tipo_formula_tiempo ===
+                          "laser_metros_minuto"
+                          ? "Fórmula metros corte"
                         : "Fórmula piezas"
                     }
                     ayuda={
                       proceso.tipo_formula_tiempo ===
                       "corte_prensa"
                         ? "Ej: (131+360+71)*1. Cada medida del tubo equivale a un golpe/corte de prensa."
+                        : proceso.tipo_formula_tiempo ===
+                      "laser_metros_minuto"
+                        ? "Ej: (100+250+100)*4. Calcula metros totales de corte y cantidad de inicios/cortes."
                         : proceso.tipo_formula_tiempo ===
                       "corte_cnc_recto"
                         ? "Ej: (30)*4. Se lee como 4 cortes de 30 mm."
@@ -2510,7 +2568,16 @@ export default function CotizadorTecnicoV2({
                   </CampoConAyuda>
                   {[
                     ...(proceso.tipo_formula_tiempo ===
-                    "corte_prensa"
+                    "laser_metros_minuto"
+                      ? [{
+                          clave: "metros_por_minuto",
+                          etiqueta: "m/min corte"
+                        }]
+                      : []),
+                    ...(proceso.tipo_formula_tiempo ===
+                    "corte_prensa" ||
+                    proceso.tipo_formula_tiempo ===
+                      "laser_metros_minuto"
                       ? []
                       : [{
                           clave: "segundos_por_metro",
@@ -2529,6 +2596,9 @@ export default function CotizadorTecnicoV2({
                         proceso.tipo_formula_tiempo ===
                         "corte_prensa"
                           ? "Seg/golpe"
+                          : proceso.tipo_formula_tiempo ===
+                            "laser_metros_minuto"
+                            ? "Seg/inicio"
                           : "Seg/corte"
                     }
                   ].map(parametro => (
@@ -2547,11 +2617,26 @@ export default function CotizadorTecnicoV2({
                           proceso[parametro.clave] || ""
                         }
                         onChange={e => {
+                          const valor = e.target.value;
+                          const metrosPorMinuto =
+                            parametro.clave ===
+                            "metros_por_minuto"
+                              ? Number(valor)
+                              : 0;
                           const actualizado =
                             aplicarFormulaTiempoProceso({
                               ...proceso,
                               [parametro.clave]:
-                                e.target.value
+                                valor,
+                              ...(parametro.clave ===
+                                "metros_por_minuto" &&
+                              metrosPorMinuto > 0
+                                ? {
+                                    segundos_por_metro:
+                                      60 /
+                                      metrosPorMinuto
+                                  }
+                                : {})
                             });
 
                           actualizar({
@@ -2580,6 +2665,9 @@ export default function CotizadorTecnicoV2({
                         ? proceso.tipo_formula_tiempo ===
                           "corte_prensa"
                           ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | Golpes por producto: ${proceso.golpes_calculados || proceso.cortes_calculados || 0}${proceso.formula_material_codigo ? ` | Desde material: ${proceso.formula_material_codigo}` : ""}`
+                          : proceso.tipo_formula_tiempo ===
+                            "laser_metros_minuto"
+                            ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} inicios/cortes | ${proceso.metros_por_minuto || 0} m/min`
                           : `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} cortes${proceso.tipo_formula_tiempo === "doblez_cnc_3d" ? ` | ${proceso.dobleces_total || 0} dobleces` : ""}`
                         : "Ingresa una fórmula para calcular tiempo."}
                     </div>

@@ -161,6 +161,9 @@ export const prepararCotizacionTecnica = (
       segundos_por_metro: numero(
         proceso.segundos_por_metro
       ),
+      metros_por_minuto: numero(
+        proceso.metros_por_minuto
+      ),
       segundos_por_doblez: numero(
         proceso.segundos_por_doblez
       ),

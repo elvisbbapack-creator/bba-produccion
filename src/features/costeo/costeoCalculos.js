@@ -437,19 +437,29 @@ export const PARAMETROS_CORTE_PRENSA = {
   unidad_expresion: "mm"
 };
 
+export const PARAMETROS_LASER_METROS_MINUTO = {
+  metros_por_minuto: 8,
+  segundos_por_metro: 7.5,
+  segundos_por_doblez: 0,
+  segundos_por_corte: 0.5,
+  unidad_expresion: "mm"
+};
+
 export const analizarFormulaProceso = ({
   tipoFormula = "",
   expresion = "",
   unidadExpresion = "mm",
   segundosPorMetro = 5,
   segundosPorDoblez = 3,
-  segundosPorCorte = 1.5
+  segundosPorCorte = 1.5,
+  metrosPorMinuto = 0
 } = {}) => {
   const texto = (expresion || "").toString().trim();
   const formulaSoportada = [
     "doblez_cnc_3d",
     "corte_cnc_recto",
-    "corte_prensa"
+    "corte_prensa",
+    "laser_metros_minuto"
   ].includes(tipoFormula);
 
   if (!texto || !formulaSoportada) {
@@ -511,10 +521,18 @@ export const analizarFormulaProceso = ({
   const metrosTotales = numero(
     analisis.consumo_unitario
   );
+  const metrosMinuto = numero(metrosPorMinuto);
+  const segundosPorMetroLaser =
+    metrosMinuto > 0
+      ? 60 / metrosMinuto
+      : numero(segundosPorMetro);
   const segundosAvance =
     tipoFormula === "corte_prensa"
       ? 0
-      : metrosTotales * numero(segundosPorMetro);
+      : metrosTotales *
+        (tipoFormula === "laser_metros_minuto"
+          ? segundosPorMetroLaser
+          : numero(segundosPorMetro));
   const segundosDobleces =
     tipoFormula === "doblez_cnc_3d"
       ? numero(doblecesTotal) *
@@ -686,6 +704,10 @@ export const calcularDetalleProcesosCotizacion = (
         proceso.formula_material_codigo || "",
       formula_material_nombre:
         proceso.formula_material_nombre || "",
+      metros_por_minuto: redondear(
+        proceso.metros_por_minuto,
+        2
+      ),
       segundos_por_producto: redondear(
         proceso.segundos_por_producto,
         2

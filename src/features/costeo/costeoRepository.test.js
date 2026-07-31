@@ -144,6 +144,29 @@ describe("costeoRepository", () => {
     });
   });
 
+  it("calcula tiempo de Laser Fibra o CO2 por metros por minuto", () => {
+    const resultado = analizarFormulaProceso({
+      tipoFormula: "laser_metros_minuto",
+      expresion: "(100+250+100)*4",
+      unidadExpresion: "mm",
+      metrosPorMinuto: 6,
+      segundosPorCorte: 0.5
+    });
+
+    expect(resultado).toMatchObject({
+      valido: true,
+      segundos_por_producto: 24,
+      unidades_por_hora: 150,
+      metros_totales: 1.8,
+      cortes: 12,
+      dobleces_total: 0,
+      detalle_tiempo: {
+        avance: 18,
+        cortes: 6
+      }
+    });
+  });
+
   it("conserva materiales y suministros en la cotización", () => {
     const cotizacion = prepararCotizacionTecnica(
       {
