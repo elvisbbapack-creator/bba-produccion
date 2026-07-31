@@ -925,6 +925,23 @@ export default function CotizadorTecnicoV2({
     [formulario.materiales]
   );
 
+  const materialesConFormulaAlambre = useMemo(
+    () =>
+      formulario.materiales.filter(
+        material =>
+          (material.tipo_linea || "material") ===
+            "material" &&
+          (material.codigo || "")
+            .toString()
+            .toUpperCase()
+            .startsWith("MP") &&
+          material.expresion_consumo &&
+          obtenerTipoLecturaConsumoMaterial(material) ===
+            TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO
+      ),
+    [formulario.materiales]
+  );
+
   const aplicarCostoOperativoPlanta = useCallback(
     plantaId => {
       const costo = costosOperativos.find(
@@ -2211,6 +2228,18 @@ export default function CotizadorTecnicoV2({
             `${proceso.proceso_codigo}__${proceso.estacion_codigo}`;
           const faltaCostoHora =
             procesoRequiereCostoHora(proceso);
+          const esFormulaDoblezCnc =
+            proceso.tipo_formula_tiempo ===
+            "doblez_cnc_3d";
+          const esFormulaCortePrensa =
+            proceso.tipo_formula_tiempo ===
+            "corte_prensa";
+          const materialesFormulaProceso =
+            esFormulaDoblezCnc
+              ? materialesConFormulaAlambre
+              : esFormulaCortePrensa
+                ? materialesConFormulaCortes
+                : [];
 
           return (
             <div
@@ -2306,11 +2335,15 @@ export default function CotizadorTecnicoV2({
                 "corte_prensa"
               ].includes(proceso.tipo_formula_tiempo) && (
                 <>
-                  {proceso.tipo_formula_tiempo ===
-                    "corte_prensa" && (
+                  {(esFormulaDoblezCnc ||
+                    esFormulaCortePrensa) && (
                     <CampoConAyuda
                       etiqueta="Usar fórmula desde material"
-                      ayuda="Reutiliza la fórmula del MP Tubo ya ingresada en Materiales estimados para calcular golpes de prensa."
+                      ayuda={
+                        esFormulaDoblezCnc
+                          ? "Reutiliza la fórmula del MP Alambre ya ingresada en Materiales estimados para calcular avance, dobleces y cortes."
+                          : "Reutiliza la fórmula del MP Tubo ya ingresada en Materiales estimados para calcular golpes de prensa."
+                      }
                     >
                       <select
                         style={campo}
@@ -2324,7 +2357,7 @@ export default function CotizadorTecnicoV2({
                           const material =
                             materialIndice === ""
                               ? null
-                              : materialesConFormulaCortes[
+                              : materialesFormulaProceso[
                                   Number(
                                     materialIndice
                                   )
@@ -2364,9 +2397,11 @@ export default function CotizadorTecnicoV2({
                         }}
                       >
                         <option value="">
-                          Seleccionar material con fórmula
+                          {esFormulaDoblezCnc
+                            ? "Seleccionar MP Alambre con fórmula"
+                            : "Seleccionar MP Tubo con fórmula"}
                         </option>
-                        {materialesConFormulaCortes.map(
+                        {materialesFormulaProceso.map(
                           (material, materialIndice) => (
                             <option
                               key={`${materialIndice}-${material.codigo}`}
