@@ -67,7 +67,7 @@ service cloud.firestore {
     }
 
     match /usuarios/{userId} {
-      allow read: if authenticated() &&
+      allow get: if authenticated() &&
         (
           userId == request.auth.uid ||
           (
@@ -76,12 +76,15 @@ service cloud.firestore {
           )
         ) &&
         resource.data.empresa_id is string;
+      allow list: if isManagement();
       allow write: if role() == 'gerencia' &&
         belongsToCompany(request.resource.data);
     }
 
     match /operarios/{operarioId} {
-      allow read: if belongsToPlant(resource.data);
+      allow get: if isManagement() ||
+        belongsToPlant(resource.data);
+      allow list: if isManagement();
       allow create: if isManagement() &&
         belongsToPlant(request.resource.data);
       allow update: if isManagement() &&
@@ -184,6 +187,10 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
+          'estandares',
+          'config_procesos',
+          'config_productos',
+          'operaciones_maestras',
           'catalogo_piezas',
           'catalogo_subproductos',
           'catalogo_procesos_estaciones',
@@ -201,6 +208,7 @@ service cloud.firestore {
               /databases/$(database)/documents/$(catalogo)/$(documentId)
             )
           ) ||
+          isManagement() ||
           belongsToCompany(resource.data)
         );
 
@@ -210,6 +218,10 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
+          'estandares',
+          'config_procesos',
+          'config_productos',
+          'operaciones_maestras',
           'catalogo_piezas',
           'catalogo_subproductos',
           'catalogo_procesos_estaciones',
@@ -220,7 +232,7 @@ service cloud.firestore {
           'clientes',
           'proveedores'
         ] &&
-        belongsToCompany(resource.data);
+        isManagement();
 
       allow create: if catalogo in [
           'materiales',
@@ -228,6 +240,10 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
+          'estandares',
+          'config_procesos',
+          'config_productos',
+          'operaciones_maestras',
           'catalogo_piezas',
           'catalogo_subproductos',
           'catalogo_procesos_estaciones',
@@ -247,6 +263,10 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
+          'estandares',
+          'config_procesos',
+          'config_productos',
+          'operaciones_maestras',
           'catalogo_piezas',
           'catalogo_subproductos',
           'catalogo_procesos_estaciones',
@@ -262,6 +282,26 @@ service cloud.firestore {
         belongsToCompany(request.resource.data) &&
         request.resource.data.empresa_id ==
           resource.data.empresa_id;
+
+      allow delete: if false;
+    }
+
+    match /{legacyDashboard}/{documentId} {
+      allow read: if legacyDashboard in [
+          'registros_produccion',
+          'produccion_activa',
+          'paros_produccion',
+          'ajustes_produccion'
+        ] &&
+        authenticated();
+
+      allow create, update: if legacyDashboard in [
+          'registros_produccion',
+          'produccion_activa',
+          'paros_produccion',
+          'ajustes_produccion'
+        ] &&
+        isPlantOperator();
 
       allow delete: if false;
     }
