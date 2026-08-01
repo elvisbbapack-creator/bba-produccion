@@ -1428,7 +1428,9 @@ const cargarTodosLosParos = async () => {
                 try {
                   setIngresando(true);
                   setErrorAcceso("");
-                  setMensajeAcceso("");
+                  setMensajeAcceso(
+                    "Validando acceso con Firebase..."
+                  );
                   const {
                     iniciarSesion
                   } = await import(

@@ -18,6 +18,43 @@ import {
 } from "./perfil";
 
 const auth = getAuth(app);
+const TIEMPO_MAXIMO_PERFIL_MS = 10000;
+
+const crearErrorAutenticacion = (
+  mensaje,
+  codigo
+) => {
+  const error = new Error(mensaje);
+  error.code = codigo;
+  return error;
+};
+
+const conTimeout = (
+  promesa,
+  milisegundos,
+  codigo,
+  mensaje
+) => {
+  let timeoutId;
+
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(
+        crearErrorAutenticacion(
+          mensaje,
+          codigo
+        )
+      );
+    }, milisegundos);
+  });
+
+  return Promise.race([
+    promesa,
+    timeout
+  ]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+};
 
 export const iniciarSesion = async (
   email,
@@ -54,8 +91,11 @@ export const obtenerPerfilFirebase = async (
     token.claims
   );
 
-  const perfilSnap = await getDoc(
-    doc(db, "usuarios", usuario.uid)
+  const perfilSnap = await conTimeout(
+    getDoc(doc(db, "usuarios", usuario.uid)),
+    TIEMPO_MAXIMO_PERFIL_MS,
+    "perfil/timeout",
+    "La contraseña fue aceptada, pero la app no pudo leer tu perfil en Firestore a tiempo."
   );
 
   const datosPerfil =
@@ -151,6 +191,27 @@ export const mensajeErrorAutenticacion = (
   if (codigo === "auth/network-request-failed") {
     return conCodigo(
       "No se pudo conectar con Firebase."
+    );
+  }
+
+  if (codigo === "permission-denied") {
+    return conCodigo(
+      "La contraseña fue aceptada, pero Firestore no permitió leer tu perfil de usuario."
+    );
+  }
+
+  if (
+    codigo === "unavailable" ||
+    codigo === "deadline-exceeded"
+  ) {
+    return conCodigo(
+      "La contraseña fue aceptada, pero Firestore no respondió al validar tu perfil."
+    );
+  }
+
+  if (codigo === "perfil/timeout") {
+    return conCodigo(
+      "La contraseña fue aceptada, pero la validación del perfil demoró demasiado."
     );
   }
 
