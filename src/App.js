@@ -1432,14 +1432,32 @@ const cargarTodosLosParos = async () => {
                     "Validando acceso con Firebase..."
                   );
                   const {
-                    iniciarSesion
+                    iniciarSesion,
+                    obtenerPerfilFirebase
                   } = await import(
                     "./auth/servicio"
                   );
-                  await iniciarSesion(
-                    emailAcceso,
-                    passwordAcceso
+                  const credencial =
+                    await iniciarSesion(
+                      emailAcceso,
+                      passwordAcceso
+                    );
+                  const perfil =
+                    await obtenerPerfilFirebase(
+                      credencial.user
+                    );
+
+                  setUsuarioSeleccionado(perfil);
+                  setPasswordAcceso("");
+                  setErrorAcceso("");
+                  setMensajeAcceso("");
+                  setPantalla(
+                    interfazV2Activa &&
+                    perfil.rol === "tv"
+                      ? "dashboardV2"
+                      : "home"
                   );
+                  setAutenticacionLista(true);
                 } catch (error) {
                   const {
                     mensajeErrorAutenticacion
