@@ -70,9 +70,12 @@ service cloud.firestore {
       allow read: if authenticated() &&
         (
           userId == request.auth.uid ||
-          isManagement()
+          (
+            isManagement() &&
+            belongsToCompany(resource.data)
+          )
         ) &&
-        belongsToCompany(resource.data);
+        resource.data.empresa_id is string;
       allow write: if role() == 'gerencia' &&
         belongsToCompany(request.resource.data);
     }
