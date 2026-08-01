@@ -115,23 +115,48 @@ export const mensajeErrorAutenticacion = (
   error
 ) => {
   const codigo = error?.code || "";
+  const conCodigo = mensaje =>
+    codigo
+      ? `${mensaje} Código: ${codigo}.`
+      : mensaje;
 
   if (
     codigo === "auth/invalid-credential" ||
     codigo === "auth/wrong-password" ||
     codigo === "auth/user-not-found"
   ) {
-    return "Correo o contraseña incorrectos.";
+    return conCodigo(
+      "Correo o contraseña incorrectos."
+    );
   }
 
   if (codigo === "auth/too-many-requests") {
-    return "Demasiados intentos. Espera unos minutos.";
+    return conCodigo(
+      "Demasiados intentos. Espera unos minutos."
+    );
+  }
+
+  if (codigo === "auth/configuration-not-found") {
+    return conCodigo(
+      "Firebase Auth no tiene habilitado el proveedor de correo y contraseña en este proyecto."
+    );
+  }
+
+  if (codigo === "auth/unauthorized-domain") {
+    return conCodigo(
+      "Este dominio no está autorizado en Firebase Auth."
+    );
   }
 
   if (codigo === "auth/network-request-failed") {
-    return "No se pudo conectar con Firebase.";
+    return conCodigo(
+      "No se pudo conectar con Firebase."
+    );
   }
 
-  return error?.message ||
+  const mensaje =
+    error?.message ||
     "No se pudo iniciar sesión.";
+
+  return conCodigo(mensaje);
 };

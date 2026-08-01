@@ -247,6 +247,7 @@ function App() {
   const [errorAcceso, setErrorAcceso] = useState("");
   const [mensajeAcceso, setMensajeAcceso] = useState("");
   const [ingresando, setIngresando] = useState(false);
+  const [mostrarPasswordAcceso, setMostrarPasswordAcceso] = useState(false);
   const [enviandoReset, setEnviandoReset] =
     useState(false);
   const [contextoCapacidadV2,
@@ -1344,17 +1345,51 @@ const cargarTodosLosParos = async () => {
               style={estiloInput}
             />
 
-            <input
-              type="password"
-              placeholder="Contraseña"
-              autoComplete="current-password"
-              value={passwordAcceso}
-              onChange={(e) => {
-                setPasswordAcceso(e.target.value);
-                setMensajeAcceso("");
-              }}
-              style={estiloInput}
-            />
+            <div style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 10
+            }}>
+              <input
+                type={mostrarPasswordAcceso
+                  ? "text"
+                  : "password"}
+                placeholder="Contraseña"
+                autoComplete="current-password"
+                value={passwordAcceso}
+                onChange={(e) => {
+                  setPasswordAcceso(e.target.value);
+                  setMensajeAcceso("");
+                }}
+                style={{
+                  ...estiloInput,
+                  marginBottom: 0
+                }}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setMostrarPasswordAcceso(
+                    previo => !previo
+                  )
+                }
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #1976D2",
+                  background: "white",
+                  color: "#1976D2",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {mostrarPasswordAcceso
+                  ? "Ocultar"
+                  : "Ver"}
+              </button>
+            </div>
 
             {mensajeAcceso && (
               <div style={{
