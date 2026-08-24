@@ -119,7 +119,7 @@ const OrdenCompraPublica = ({ db }) => {
               fontSize: 22,
               color: "#163B7A"
             }}>
-              Orden de Compra BBA
+              BBA
             </h1>
             <p style={{
               margin: "4px 0 0",
