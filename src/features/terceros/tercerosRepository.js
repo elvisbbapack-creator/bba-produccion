@@ -87,6 +87,9 @@ export const prepararTercero = (
   condicion_pago: limpiarTexto(
     datos.condicion_pago
   ),
+  requiere_cotizacion_previa:
+    tipo === TIPOS_TERCERO.PROVEEDOR &&
+    datos.requiere_cotizacion_previa === true,
   observacion: limpiarTexto(datos.observacion),
   activo: datos.activo !== false
 });
@@ -198,6 +201,8 @@ export const guardarTercero = async (
       email: tercero.email,
       telefono: tercero.telefono,
       condicion_pago: tercero.condicion_pago,
+      requiere_cotizacion_previa:
+        tercero.requiere_cotizacion_previa,
       observacion: tercero.observacion,
       activo: tercero.activo,
       actualizado_por_id: perfil.uid || "",

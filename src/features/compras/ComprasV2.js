@@ -26,13 +26,18 @@ import {
   crearEnlaceCorreoAvisoContabilidad,
   crearEnlaceCorreoAvisoSolicitantes,
   crearEnlaceCorreoOrdenCompra,
+  crearEnlaceCorreoSolicitudCotizacionCompra,
   crearEnlaceWhatsappOrdenCompra,
+  crearEnlaceWhatsappSolicitudCotizacionCompra,
   crearSolicitudCompra,
   generarOrdenCompraDesdeSolicitudes,
+  generarSolicitudCotizacionDesdeSolicitudes,
   listarOrdenesCompra,
+  listarSolicitudesCotizacionCompra,
   listarSolicitudesCompra,
   publicarOrdenCompraCompartida,
   proveedorDesdeMaterial,
+  siguienteCodigoSolicitudCotizacion,
   recibirOrdenCompraCompleta,
   siguienteCodigoOrdenCompra,
   construirUrlPublicaOrdenCompra
@@ -94,6 +99,23 @@ const formatoNumero = valor =>
 
 const formatoMoneda = (valor, moneda = "CLP") =>
   `${moneda} ${Math.round(Number(valor || 0)).toLocaleString("es-CL")}`;
+
+const totalLineaSolicitud = solicitud =>
+  Number(solicitud?.cantidad || 0) *
+  Number(solicitud?.costo_unitario_referencial || 0);
+
+const totalLineaItem = item =>
+  Number(item?.total_linea || 0) ||
+  Number(item?.cantidad || 0) *
+    Number(item?.costo_unitario || 0);
+
+const textoPrecioUnitario = (
+  valor,
+  moneda = "CLP"
+) =>
+  Number(valor || 0) > 0
+    ? formatoMoneda(valor, moneda)
+    : "Sin precio ref.";
 
 const codigoSolicitudInterna = fecha => {
   const fechaTexto = fecha
@@ -377,6 +399,10 @@ function ComprasV2({
   const [materiales, setMateriales] = useState([]);
   const [proveedores, setProveedores] = useState([]);
   const [solicitudes, setSolicitudes] = useState([]);
+  const [
+    solicitudesCotizacion,
+    setSolicitudesCotizacion
+  ] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
   const [materialId, setMaterialId] = useState("");
   const [cantidad, setCantidad] = useState("");
@@ -413,6 +439,7 @@ function ComprasV2({
         materialesDatos,
         proveedoresDatos,
         solicitudesDatos,
+        solicitudesCotizacionDatos,
         ordenesDatos
       ] = await Promise.all([
         listarMateriales(db, perfil.empresa_id),
@@ -422,6 +449,11 @@ function ComprasV2({
           TIPOS_TERCERO.PROVEEDOR
         ),
         listarSolicitudesCompra(
+          db,
+          perfil.empresa_id,
+          plantaId
+        ),
+        listarSolicitudesCotizacionCompra(
           db,
           perfil.empresa_id,
           plantaId
@@ -440,6 +472,9 @@ function ComprasV2({
         )
       );
       setSolicitudes(solicitudesDatos);
+      setSolicitudesCotizacion(
+        solicitudesCotizacionDatos
+      );
       setOrdenes(ordenesDatos);
     } catch (err) {
       setError(
@@ -485,6 +520,14 @@ function ComprasV2({
   const codigoSiguiente = useMemo(
     () => siguienteCodigoOrdenCompra(ordenes),
     [ordenes]
+  );
+
+  const codigoSiguienteCotizacion = useMemo(
+    () =>
+      siguienteCodigoSolicitudCotizacion(
+        solicitudesCotizacion
+      ),
+    [solicitudesCotizacion]
   );
 
   const limpiarLineaSolicitud = () => {
@@ -634,6 +677,36 @@ function ComprasV2({
     }
   };
 
+  const generarSolicitudCotizacion = async grupo => {
+    setProcesando(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      await generarSolicitudCotizacionDesdeSolicitudes({
+        db,
+        perfil,
+        plantaId,
+        codigo: codigoSiguienteCotizacion,
+        proveedor: grupo,
+        solicitudes: grupo.solicitudes,
+        observacion:
+          "Solicitud de cotización/proforma generada desde solicitudes internas agrupadas por proveedor."
+      });
+      setMensaje(
+        `Solicitud ${codigoSiguienteCotizacion} generada para ${grupo.proveedor_nombre}. Las solicitudes internas siguen pendientes hasta emitir OC.`
+      );
+      await cargar();
+    } catch (err) {
+      setError(
+        err?.message ||
+          "No se pudo generar la solicitud de cotización."
+      );
+    } finally {
+      setProcesando(false);
+    }
+  };
+
   const marcarEnviada = async orden => {
     setProcesando(true);
     setError("");
@@ -773,6 +846,7 @@ function ComprasV2({
         marginTop: 0
       }}>
         Crea solicitudes, agrúpalas por proveedor,
+        solicita cotización/proforma cuando aplique,
         genera OC y recibe compras conectadas a stock.
       </p>
 
@@ -1132,6 +1206,9 @@ function ComprasV2({
           <p style={{
             color: "#64748B"
           }}>
+            Siguiente cotización/proforma:{" "}
+            <b>{codigoSiguienteCotizacion}</b>
+            {" | "}
             Siguiente OC sugerida: <b>{codigoSiguiente}</b>
           </p>
           {cargando && <p>Cargando compras...</p>}
@@ -1159,6 +1236,39 @@ function ComprasV2({
                     : ""}
                   {grupo.proveedor_nombre}
                 </h3>
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 10
+                }}>
+                  {grupo.proveedor_requiere_cotizacion_previa && (
+                    <span style={{
+                      display: "inline-flex",
+                      padding: "5px 9px",
+                      borderRadius: 999,
+                      background: "#FEF3C7",
+                      color: "#92400E",
+                      fontWeight: 800,
+                      fontSize: 13
+                    }}>
+                      Requiere cotización/proforma antes de OC
+                    </span>
+                  )}
+                  {grupo.condicion_pago && (
+                    <span style={{
+                      display: "inline-flex",
+                      padding: "5px 9px",
+                      borderRadius: 999,
+                      background: "#E0F2FE",
+                      color: "#075985",
+                      fontWeight: 800,
+                      fontSize: 13
+                    }}>
+                      {grupo.condicion_pago}
+                    </span>
+                  )}
+                </div>
                 <ul style={{
                   paddingLeft: 18,
                   color: "#334155"
@@ -1180,22 +1290,168 @@ function ComprasV2({
                       {solicitud.motivo_solicitud_nombre
                         ? ` | ${solicitud.motivo_solicitud_nombre}`
                         : ""}
+                      {" | "}
+                      PU ref:{" "}
+                      <b>
+                        {textoPrecioUnitario(
+                          solicitud.costo_unitario_referencial,
+                          solicitud.moneda
+                        )}
+                      </b>
+                      {totalLineaSolicitud(solicitud) > 0
+                        ? ` | Total linea: ${formatoMoneda(
+                            totalLineaSolicitud(solicitud),
+                            solicitud.moneda
+                          )}`
+                        : ""}
+                      {solicitud.solicitud_cotizacion_codigo
+                        ? ` | Cotizacion solicitada: ${solicitud.solicitud_cotizacion_codigo}`
+                        : ""}
                     </li>
                   ))}
                 </ul>
-                <button
-                  type="button"
-                  disabled={procesando}
-                  onClick={() => generarOC(grupo)}
-                  style={botonPrimario}
-                >
-                  Generar OC para este proveedor
-                </button>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: 10
+                }}>
+                  <button
+                    type="button"
+                    disabled={procesando}
+                    onClick={() =>
+                      generarSolicitudCotizacion(grupo)
+                    }
+                    style={{
+                      ...botonPrimario,
+                      background: "#F97316"
+                    }}
+                  >
+                    Solicitar cotización / proforma
+                  </button>
+                  <button
+                    type="button"
+                    disabled={procesando}
+                    onClick={() => generarOC(grupo)}
+                    style={botonPrimario}
+                  >
+                    Generar OC para este proveedor
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </section>
       </div>
+
+      <section style={{
+        ...card,
+        marginTop: 18
+      }}>
+        <h2>Solicitudes de cotización / proforma</h2>
+        <p style={{
+          color: "#64748B",
+          marginTop: -4
+        }}>
+          Úsalas para proveedores que primero confirman
+          precio, disponibilidad o plazo. No reemplazan la
+          OC: dejan la solicitud interna pendiente hasta
+          que Compras reciba la proforma y emita la orden.
+        </p>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(320px, 1fr))",
+          gap: 14
+        }}>
+          {solicitudesCotizacion.slice(0, 30).map(solicitud => (
+            <article
+              key={solicitud.id}
+              style={{
+                border: "1px solid #FED7AA",
+                borderRadius: 16,
+                padding: 16,
+                background: "#FFF7ED"
+              }}
+            >
+              <h3 style={{
+                margin: "0 0 6px"
+              }}>
+                {solicitud.codigo} | {solicitud.estado}
+              </h3>
+              <p style={{
+                margin: "0 0 8px",
+                color: "#7C2D12"
+              }}>
+                {solicitud.proveedor_nombre}
+              </p>
+              <p style={{
+                margin: "0 0 8px",
+                fontWeight: 800
+              }}>
+                Referencia interna:{" "}
+                {formatoMoneda(
+                  solicitud.total_referencial,
+                  solicitud.moneda
+                )}
+              </p>
+              <ul style={{
+                paddingLeft: 18,
+                minHeight: 70
+              }}>
+                {solicitud.items?.map(item => (
+                  <li
+                    key={`${solicitud.id}-${item.solicitud_compra_id}-${item.material_id}`}
+                  >
+                    {item.material_codigo}:{" "}
+                    {formatoNumero(item.cantidad)}{" "}
+                    {item.unidad_medida}
+                    {item.fecha_requerida
+                      ? ` | Requerida: ${item.fecha_requerida}`
+                      : ""}
+                    {item.solicitud_interna_codigo
+                      ? ` | Req ${item.solicitud_interna_codigo}`
+                      : ""}
+                  </li>
+                ))}
+              </ul>
+              <div style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8
+              }}>
+                <a
+                  href={crearEnlaceCorreoSolicitudCotizacionCompra(
+                    solicitud
+                  )}
+                  style={botonSecundario}
+                >
+                  Correo cotización
+                </a>
+                <a
+                  href={crearEnlaceWhatsappSolicitudCotizacionCompra(
+                    solicitud
+                  )}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    ...botonSecundario,
+                    color: "#166534"
+                  }}
+                >
+                  WhatsApp cotización
+                </a>
+              </div>
+            </article>
+          ))}
+          {solicitudesCotizacion.length === 0 &&
+            !cargando && (
+              <p style={{ color: "#64748B" }}>
+                Aún no hay solicitudes de cotización.
+              </p>
+            )}
+        </div>
+      </section>
 
       <section style={{
         ...card,
@@ -1271,11 +1527,30 @@ function ComprasV2({
               }}>
                 {orden.items?.map(item => (
                   <li
-                    key={`${orden.id}-${item.material_id}`}
+                    key={`${orden.id}-${item.solicitud_compra_id || item.material_id}`}
                   >
                     {item.material_codigo}:{" "}
                     {formatoNumero(item.cantidad)}{" "}
                     {item.unidad_medida}
+                    {" | "}
+                    PU:{" "}
+                    <b>
+                      {textoPrecioUnitario(
+                        item.costo_unitario,
+                        item.moneda || orden.moneda
+                      )}
+                    </b>
+                    {" | "}
+                    Total linea:{" "}
+                    <b>
+                      {formatoMoneda(
+                        totalLineaItem(item),
+                        item.moneda || orden.moneda
+                      )}
+                    </b>
+                    {item.solicitud_interna_codigo
+                      ? ` | Req ${item.solicitud_interna_codigo}`
+                      : ""}
                   </li>
                 ))}
               </ul>

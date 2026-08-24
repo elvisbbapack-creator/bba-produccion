@@ -10,15 +10,20 @@ import {
   calcularTotalesOrdenCompra,
   construirTextoAvisoInternoOrdenCompra,
   construirTextoOrdenCompra,
+  construirTextoSolicitudCotizacionCompra,
   construirUrlPublicaOrdenCompra,
   crearEnlaceCorreoAvisoContabilidad,
   crearEnlaceCorreoAvisoSolicitantes,
   crearEnlaceCorreoOrdenCompra,
+  crearEnlaceCorreoSolicitudCotizacionCompra,
   crearEnlaceWhatsappOrdenCompra,
+  crearEnlaceWhatsappSolicitudCotizacionCompra,
   prepararSolicitudCompra,
   prepararOrdenCompra,
+  prepararSolicitudCotizacionCompra,
   proveedorDesdeMaterial,
-  siguienteCodigoOrdenCompra
+  siguienteCodigoOrdenCompra,
+  siguienteCodigoSolicitudCotizacion
 } from "./comprasRepository";
 
 describe("comprasRepository", () => {
@@ -128,7 +133,8 @@ describe("comprasRepository", () => {
           nombre: "Acero Chile",
           email: "ventas@acero.cl",
           telefono: "+56911112222",
-          condicion_pago: "Factura 30"
+          condicion_pago: "Factura 30",
+          requiere_cotizacion_previa: true
         }
       ]
     );
@@ -137,7 +143,8 @@ describe("comprasRepository", () => {
       proveedor_id: "p1",
       proveedor_codigo: "PRV001",
       proveedor_email: "ventas@acero.cl",
-      condicion_pago: "Factura 30"
+      condicion_pago: "Factura 30",
+      proveedor_requiere_cotizacion_previa: true
     });
   });
 
@@ -219,6 +226,10 @@ describe("comprasRepository", () => {
       .toContain("Producción | Consumo por OT");
     expect(construirTextoOrdenCompra(orden))
       .toContain("Req REQ20260824-12345");
+    expect(construirTextoOrdenCompra(orden))
+      .toContain("PU CLP 2.500");
+    expect(construirTextoOrdenCompra(orden))
+      .toContain("Total línea CLP 25.000");
     expect(crearEnlaceCorreoOrdenCompra(orden))
       .toContain("mailto:ventas%40acero.cl");
     expect(crearEnlaceWhatsappOrdenCompra(orden))
@@ -262,6 +273,76 @@ describe("comprasRepository", () => {
         correoContabilidad: "contabilidad@bbapack.com"
       }
     )).toContain("mailto:contabilidad@bbapack.com");
+  });
+
+  test("prepara solicitud de cotizacion sin exponer precios internos", () => {
+    expect(
+      siguienteCodigoSolicitudCotizacion([
+        { codigo: "SC0001" },
+        { codigo: "SC0003" }
+      ])
+    ).toBe("SC0002");
+
+    const solicitudCotizacion =
+      prepararSolicitudCotizacionCompra({
+        empresaId: "bba",
+        plantaId: "chile",
+        codigo: "SC0002",
+        proveedor: {
+          proveedor_id: "p1",
+          proveedor_codigo: "PRV001",
+          proveedor_nombre: "Acero",
+          proveedor_email: "ventas@acero.cl",
+          proveedor_telefono: "+56911112222"
+        },
+        solicitudes: [
+          {
+            id: "s1",
+            material_id: "m1",
+            material_codigo: "MP0001",
+            material_nombre: "Tubo",
+            material_tipo: "MP",
+            unidad_medida: "m",
+            cantidad: 10,
+            costo_unitario_referencial: 2500,
+            moneda: "CLP",
+            area_solicitante_nombre: "Producción",
+            motivo_solicitud_nombre: "Consumo por OT",
+            solicitud_interna_codigo: "REQ20260824-12345",
+            fecha_requerida: "2026-08-30"
+          }
+        ],
+        usuario: {
+          uid: "u1",
+          nombre: "Elvis"
+        }
+      });
+
+    expect(solicitudCotizacion).toMatchObject({
+      codigo: "SC0002",
+      estado: "solicitada",
+      total_referencial: 25000
+    });
+
+    const texto =
+      construirTextoSolicitudCotizacionCompra(
+        solicitudCotizacion
+      );
+
+    expect(texto)
+      .toContain("Solicitud de cotización SC0002");
+    expect(texto)
+      .toContain("precio unitario");
+    expect(texto)
+      .toContain("Fecha requerida 2026-08-30");
+    expect(texto)
+      .not.toContain("2.500");
+    expect(crearEnlaceCorreoSolicitudCotizacionCompra(
+      solicitudCotizacion
+    )).toContain("mailto:ventas%40acero.cl");
+    expect(crearEnlaceWhatsappSolicitudCotizacionCompra(
+      solicitudCotizacion
+    )).toContain("https://wa.me/56911112222");
   });
 
   test("construye documento imprimible de OC con IVA y condiciones", () => {
