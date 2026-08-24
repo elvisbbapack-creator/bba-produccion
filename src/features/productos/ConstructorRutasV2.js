@@ -1792,7 +1792,7 @@ function ConstructorRutasV2({
         </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
-          Productos y rutas V2
+          Productos y rutas
         </h1>
         <p style={{
           color: "#475569",
@@ -1920,7 +1920,7 @@ function ConstructorRutasV2({
                 <p>Cargando...</p>
               ) : productos.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
-                  No hay productos V2.
+                  No hay productos.
                 </p>
               ) : (
                 <div style={{

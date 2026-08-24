@@ -14,6 +14,7 @@ import {
   obtenerOrigenMovimientoAlmacen,
   priorizarOrdenesPorMaterial,
   prepararConteoFisico,
+  prepararDocumentoStockMaterial,
   prepararMovimientoAlmacen,
   prepararPoliticaStock,
   prepararSolicitudReposicion,
@@ -72,6 +73,47 @@ test("recepcion aumenta stock actual y disponible", () => {
     stock_actual: 60,
     stock_reservado: 3,
     stock_disponible: 57
+  });
+});
+
+test("documento de stock conserva politica al registrar movimientos", () => {
+  const documento =
+    prepararDocumentoStockMaterial({
+      perfil: {
+        ...usuario,
+        empresa_id: "bba"
+      },
+      plantaId: "chile",
+      material,
+      stockActual: {
+        stock_actual: 10,
+        stock_reservado: 2,
+        stock_disponible: 8,
+        stock_minimo: 50,
+        punto_reposicion: 70,
+        stock_objetivo: 120,
+        lead_time_dias: 14
+      },
+      siguienteStock: {
+        stock_actual: 60,
+        stock_reservado: 2,
+        stock_disponible: 58
+      },
+      actualizadoEn: "fecha-test"
+    });
+
+  expect(documento).toMatchObject({
+    empresa_id: "bba",
+    planta_id: "chile",
+    material_id: "bba__MP0001",
+    stock_actual: 60,
+    stock_reservado: 2,
+    stock_disponible: 58,
+    stock_minimo: 50,
+    punto_reposicion: 70,
+    stock_objetivo: 120,
+    lead_time_dias: 14,
+    actualizado_en: "fecha-test"
   });
 });
 

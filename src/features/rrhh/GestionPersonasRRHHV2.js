@@ -349,7 +349,7 @@ export default function GestionPersonasRRHHV2({
               )
             ) {
               advertenciasHabilidades.push(
-                `Persona ${persona.nombre}: habilidad ${habilidadId} no existe en estaciones V2 y se importará sin etiqueta visible.`
+                `Persona ${persona.nombre}: habilidad ${habilidadId} no existe en estaciones y se importará sin etiqueta visible.`
               );
             }
           });

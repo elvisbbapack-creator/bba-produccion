@@ -821,7 +821,7 @@ function CatalogoDetallesV2({
               }}>
                 Se usa para ordenar la operación en
                 ingeniería. La ruta final se define en
-                Productos y Rutas V2.
+                Productos y Rutas.
               </small>
             </label>
 

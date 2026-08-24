@@ -39,6 +39,7 @@ import {
 import {
   interfazV2Activa,
   puedeAdministrarV2,
+  puedeGestionarComprasV2,
   puedeGestionarCosteoV2,
   puedeGestionarRRHHV2,
   puedeGestionarUsuariosV2,
@@ -71,6 +72,10 @@ import HistorialDecisionesPlanificadorV2 from
   "./features/planificacion/HistorialDecisionesPlanificadorV2";
 import AlmacenV2 from
   "./features/almacen/AlmacenV2";
+import ComprasV2 from
+  "./features/compras/ComprasV2";
+import OrdenCompraPublica from
+  "./features/compras/OrdenCompraPublica";
 import CatalogoDetallesV2 from
   "./features/detalles/CatalogoDetallesV2";
 import CatalogoPiezasV2 from
@@ -94,7 +99,7 @@ import CostosBaseProduccionV2 from
 import CostosOperativosFijosV2 from
   "./features/costosOperativos/CostosOperativosFijosV2";
 
-function App() {
+function AppPrincipal() {
   const esMobile =
     window.innerWidth < 768;
   /* eslint-disable no-unused-vars */
@@ -1681,7 +1686,7 @@ const cargarTodosLosParos = async () => {
         "Operación diaria, OTs y ejecución en planta.",
       items: [
         {
-          titulo: "Dashboard y Ranking (V2)",
+          titulo: "Dashboard y Ranking",
           visible: puedeVerDashboard,
           accion: () => setPantalla("dashboardV2")
         },
@@ -1691,7 +1696,7 @@ const cargarTodosLosParos = async () => {
           accion: abrirDashboardLegacy
         },
         {
-          titulo: "Órdenes de Trabajo (V2)",
+          titulo: "Órdenes de Trabajo",
           visible: puedeAdministrar,
           accion: () => setPantalla("ordenesV2")
         },
@@ -1701,7 +1706,7 @@ const cargarTodosLosParos = async () => {
           accion: () => setPantalla("crearOT")
         },
         {
-          titulo: "Ejecutar Producción (V2)",
+          titulo: "Ejecutar Producción",
           visible: puedeOperar,
           accion: () => setPantalla("ejecucionV2")
         },
@@ -1723,46 +1728,36 @@ const cargarTodosLosParos = async () => {
         "Producto, rutas, piezas, procesos y carga masiva.",
       items: [
         {
-          titulo: "Ingeniería de Producto (V2)",
+          titulo: "Ingeniería de Producto",
           visible: puedeAdministrar,
           accion: () => setPantalla("rutasV2")
         },
         {
-          titulo: "Catálogo de Procesos y Estaciones (V2)",
+          titulo: "Catálogo de Procesos y Estaciones",
           visible: puedeAdministrar,
           accion: () =>
             setPantalla("procesosEstacionesV2")
         },
         {
-          titulo: "Catálogo de Piezas (V2)",
+          titulo: "Catálogo de Piezas",
           visible: puedeAdministrar,
           accion: () => setPantalla("piezasV2")
         },
         {
-          titulo: "Catálogo de Subproductos (V2)",
+          titulo: "Catálogo de Subproductos",
           visible: puedeAdministrar,
           accion: () => setPantalla("subproductosV2")
         },
         {
-          titulo: "Catálogo de Operaciones (V2)",
+          titulo: "Catálogo de Operaciones",
           visible: puedeAdministrar,
           accion: () => setPantalla("detallesV2")
         },
         {
-          titulo: "Importar Ingeniería Excel (V2)",
+          titulo: "Importar Ingeniería Excel",
           visible: puedeAdministrar,
           accion: () =>
             setPantalla("importadorIngenieriaV2")
-        },
-        {
-          titulo: "Configuración Producción clásica",
-          visible: true,
-          accion: () => setPantalla("configProduccion")
-        },
-        {
-          titulo: "Configuración Productos clásica",
-          visible: true,
-          accion: () => setPantalla("configProductos")
         },
         {
           titulo: "Operaciones Maestras clásicas",
@@ -1778,28 +1773,28 @@ const cargarTodosLosParos = async () => {
         "Cuellos de botella, capacidad, turnos y decisiones.",
       items: [
         {
-          titulo: "Planificador de Prioridades (V2)",
+          titulo: "Planificador de Prioridades",
           visible: puedeAdministrar,
           accion: () => setPantalla("planificadorV2")
         },
         {
-          titulo: "Gestión de Estándares (V2)",
+          titulo: "Gestión de Estándares",
           visible: puedeAdministrar,
           accion: () =>
             setPantalla("gestionEstandaresV2")
         },
         {
-          titulo: "Capacidad por Estación (V2)",
+          titulo: "Capacidad por Estación",
           visible: puedeAdministrar,
           accion: limpiarContextoCapacidad
         },
         {
-          titulo: "Turnos y Dotación (V2)",
+          titulo: "Turnos y Dotación",
           visible: puedeAdministrar,
           accion: limpiarContextoTurnos
         },
         {
-          titulo: "Historial de decisiones (V2)",
+          titulo: "Historial de decisiones",
           visible: puedeAdministrar,
           accion: () =>
             setPantalla(
@@ -1814,7 +1809,7 @@ const cargarTodosLosParos = async () => {
         "Personas de planta, equipos y habilidades.",
       items: [
         {
-          titulo: "Personas y Operarios (V2)",
+          titulo: "Personas y Operarios",
           visible:
             puedeGestionarRRHHV2(
               usuarioSeleccionado
@@ -1826,17 +1821,25 @@ const cargarTodosLosParos = async () => {
     {
       titulo: "Materiales",
       descripcion:
-        "MP, RF, inventario y almacén.",
+        "MP, RF, inventario, almacén y compras.",
       items: [
         {
-          titulo: "Catálogo MP / RF (V2)",
+          titulo: "Catálogo MP / RF",
           visible: puedeAdministrar,
           accion: () => setPantalla("materialesV2")
         },
         {
-          titulo: "Almacén (V2)",
+          titulo: "Almacén",
           visible: puedeAdministrar,
           accion: () => setPantalla("almacenV2")
+        },
+        {
+          titulo: "Compras",
+          visible:
+            puedeGestionarComprasV2(
+              usuarioSeleccionado
+            ),
+          accion: () => setPantalla("comprasV2")
         }
       ]
     },
@@ -1846,7 +1849,7 @@ const cargarTodosLosParos = async () => {
         "Costeo, cotización y lead time de productos nuevos.",
       items: [
         {
-          titulo: "Costeo y Cotización Técnica (V2)",
+          titulo: "Costeo y Cotización Técnica",
           visible:
             puedeGestionarCosteoV2(
               usuarioSeleccionado
@@ -1855,7 +1858,7 @@ const cargarTodosLosParos = async () => {
             setPantalla("cotizadorTecnicoV2")
         },
         {
-          titulo: "Clientes y Proveedores (V2)",
+          titulo: "Clientes y Proveedores",
           visible:
             puedeGestionarCosteoV2(
               usuarioSeleccionado
@@ -1864,7 +1867,7 @@ const cargarTodosLosParos = async () => {
             setPantalla("tercerosV2")
         },
         {
-          titulo: "Costos Base Producción (V2)",
+          titulo: "Costos Base Producción",
           visible:
             puedeGestionarCosteoV2(
               usuarioSeleccionado
@@ -1873,7 +1876,7 @@ const cargarTodosLosParos = async () => {
             setPantalla("costosBaseProduccionV2")
         },
         {
-          titulo: "Costos Operativos Fijos (V2)",
+          titulo: "Costos Operativos Fijos",
           visible:
             puedeGestionarCosteoV2(
               usuarioSeleccionado
@@ -1889,17 +1892,17 @@ const cargarTodosLosParos = async () => {
         "Calidad, paros y ajustes.",
       items: [
         {
-          titulo: "Calidad y Reprocesos (V2)",
+          titulo: "Calidad y Reprocesos",
           visible: puedeAdministrar,
           accion: () => setPantalla("calidadV2")
         },
         {
-          titulo: "Motivos de Paro (V2)",
+          titulo: "Motivos de Paro",
           visible: puedeAdministrar,
           accion: () => setPantalla("parosV2")
         },
         {
-          titulo: "Usuarios / Control de Acceso (V2)",
+          titulo: "Usuarios / Control de Acceso",
           visible:
             puedeGestionarUsuariosV2(
               usuarioSeleccionado
@@ -2262,6 +2265,21 @@ if (
 ) {
   return (
     <AlmacenV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "comprasV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarComprasV2(usuarioSeleccionado)
+) {
+  return (
+    <ComprasV2
       db={db}
       perfil={usuarioSeleccionado}
       onVolver={() => setPantalla("home")}
@@ -12205,6 +12223,17 @@ produccionActiva.forEach(p => {
     </>
     );
 }
+}
+
+function App() {
+  const esOrdenCompraPublica =
+    window.location.pathname.startsWith(
+      "/oc-publica/"
+    );
+
+  return esOrdenCompraPublica
+    ? <OrdenCompraPublica db={db} />
+    : <AppPrincipal />;
 }
 
 export default App;

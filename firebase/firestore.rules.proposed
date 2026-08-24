@@ -42,6 +42,15 @@ service cloud.firestore {
         );
     }
 
+    function belongsToTransferPlant(data) {
+      return belongsToCompany(data) &&
+        (
+          role() == 'gerencia' ||
+          data.planta_origen_id in plantIds() ||
+          data.planta_destino_id in plantIds()
+        );
+    }
+
     function unchangedScope() {
       return request.resource.data.empresa_id ==
           resource.data.empresa_id &&
@@ -127,6 +136,198 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /traspasos_almacen/{traspasoId} {
+      allow read: if belongsToTransferPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.tipo_operacion ==
+          'traspaso_interno' &&
+        request.resource.data.planta_id ==
+          request.resource.data.planta_origen_id &&
+        request.resource.data.estado == 'en_transito' &&
+        request.resource.data.creado_por_id ==
+          request.auth.uid;
+      allow update: if isManagement() &&
+        belongsToTransferPlant(resource.data) &&
+        belongsToTransferPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.tipo_operacion ==
+          resource.data.tipo_operacion &&
+        request.resource.data.planta_origen_id ==
+          resource.data.planta_origen_id &&
+        request.resource.data.planta_destino_id ==
+          resource.data.planta_destino_id &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.estado == 'recibido' &&
+        request.resource.data.recibido_por_id ==
+          request.auth.uid &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'cantidad_recibida',
+            'recibido_por_id',
+            'recibido_por_nombre',
+            'recibido_en',
+            'movimiento_recepcion_id',
+            'actualizado_en'
+          ]);
+      allow delete: if false;
+    }
+
+    match /conteos_fisicos/{conteoId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.contado_por_id ==
+          request.auth.uid &&
+        request.resource.data.stock_contado >= 0 &&
+        (
+          request.resource.data.diferencia == 0 ||
+          (
+            request.resource.data.observacion is string &&
+            request.resource.data.observacion.size() > 0
+          )
+        );
+      allow update, delete: if false;
+    }
+
+    match /solicitudes_reposicion/{solicitudId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.solicitado_por_id ==
+          request.auth.uid &&
+        request.resource.data.estado == 'pendiente' &&
+        request.resource.data.cantidad_sugerida > 0 &&
+        request.resource.data.tipo_sugerido in [
+          'compra',
+          'reposicion_interna'
+        ];
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.estado in [
+          'en_revision',
+          'aprobada',
+          'cerrada',
+          'anulada'
+        ] &&
+        request.resource.data.resuelto_por_id ==
+          request.auth.uid &&
+        request.resource.data.observacion_resolucion is string &&
+        request.resource.data.observacion_resolucion.size() > 0 &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'observacion_resolucion',
+            'resuelto_por_id',
+            'resuelto_por_nombre',
+            'resuelto_en',
+            'actualizado_en'
+          ]);
+      allow delete: if false;
+    }
+
+    match /solicitudes_compra/{solicitudId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.solicitado_por_id ==
+          request.auth.uid &&
+        request.resource.data.estado == 'pendiente' &&
+        request.resource.data.cantidad > 0;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.estado in [
+          'en_oc',
+          'cerrada',
+          'anulada'
+        ] &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'orden_compra_id',
+            'orden_compra_codigo',
+            'actualizado_en'
+          ]);
+      allow delete: if false;
+    }
+
+    match /ordenes_compra/{ordenId} {
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/ordenes_compra/$(ordenId)
+          )
+        ) ||
+        belongsToPlant(resource.data);
+      allow list: if isManagement();
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.creado_por_id ==
+          request.auth.uid &&
+        request.resource.data.estado == 'borrador' &&
+        request.resource.data.items is list &&
+        request.resource.data.items.size() > 0;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.codigo ==
+          resource.data.codigo &&
+        request.resource.data.estado in [
+          'aprobada',
+          'enviada',
+          'parcial_recibida',
+          'recibida',
+          'anulada'
+        ] &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'actualizado_por_id',
+            'actualizado_por_nombre',
+            'actualizado_en',
+            'enviada_en',
+            'enviada_por_id',
+            'enviada_por_nombre'
+          ]);
+      allow delete: if false;
+    }
+
+    match /ordenes_compra_publicas/{token} {
+      allow get: if resource.data.compartir_activo == true &&
+        resource.data.token_compartir == token;
+      allow list: if false;
+      allow create, update: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.token_compartir == token &&
+        request.resource.data.compartir_activo == true;
+      allow delete: if false;
+    }
+
     match /configuracion_capacidad/{configId} {
       allow get: if (
           isManagement() &&
@@ -199,7 +400,10 @@ service cloud.firestore {
           'catalogo_causas',
           'catalogo_motivos_paro',
           'clientes',
-          'proveedores'
+          'proveedores',
+          'cotizaciones_tecnicas',
+          'costos_base_estacion',
+          'costos_operativos_planta'
         ] &&
         (
           (
@@ -230,7 +434,10 @@ service cloud.firestore {
           'catalogo_causas',
           'catalogo_motivos_paro',
           'clientes',
-          'proveedores'
+          'proveedores',
+          'cotizaciones_tecnicas',
+          'costos_base_estacion',
+          'costos_operativos_planta'
         ] &&
         isManagement();
 
@@ -252,7 +459,10 @@ service cloud.firestore {
           'catalogo_causas',
           'catalogo_motivos_paro',
           'clientes',
-          'proveedores'
+          'proveedores',
+          'cotizaciones_tecnicas',
+          'costos_base_estacion',
+          'costos_operativos_planta'
         ] &&
         isManagement() &&
         belongsToCompany(request.resource.data);
@@ -275,7 +485,10 @@ service cloud.firestore {
           'catalogo_causas',
           'catalogo_motivos_paro',
           'clientes',
-          'proveedores'
+          'proveedores',
+          'cotizaciones_tecnicas',
+          'costos_base_estacion',
+          'costos_operativos_planta'
         ] &&
         isManagement() &&
         belongsToCompany(resource.data) &&

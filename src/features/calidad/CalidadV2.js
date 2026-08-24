@@ -76,7 +76,7 @@ function CalidadV2({ db, perfil, onVolver }) {
     } catch (fallo) {
       setError(
         fallo?.message ||
-        "No se pudo cargar Calidad V2."
+        "No se pudo cargar Calidad."
       );
     }
   }, [db, perfil.empresa_id, plantaId]);
@@ -182,7 +182,7 @@ function CalidadV2({ db, perfil, onVolver }) {
         >
           Volver
         </BotonVolver>
-        <h1>Calidad V2</h1>
+        <h1>Calidad</h1>
         <p style={{ color: "#475569" }}>
           Catálogos de calidad, merma y reprocesos
           pendientes por planta.

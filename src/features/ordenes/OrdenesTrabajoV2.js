@@ -410,7 +410,7 @@ function OrdenesTrabajoV2({
       } catch (fallo) {
         setError(
           fallo?.message ||
-          "No se pudieron cargar las OT V2."
+          "No se pudieron cargar las OT."
         );
       } finally {
         setCargando(false);
@@ -694,7 +694,7 @@ function OrdenesTrabajoV2({
         </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
-          Órdenes de trabajo V2
+          Órdenes de trabajo
         </h1>
         <p style={{
           color: "#475569",
@@ -744,7 +744,7 @@ function OrdenesTrabajoV2({
               style={tarjeta}
             >
               <h2 style={{ marginTop: 0 }}>
-                Nueva OT V2
+                Nueva OT
               </h2>
 
               <div style={{
@@ -947,7 +947,7 @@ function OrdenesTrabajoV2({
                 <p>Cargando...</p>
               ) : ordenes.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
-                  No hay OT V2 en esta planta.
+                  No hay OT en esta planta.
                 </p>
               ) : (
                 <div style={{

@@ -255,7 +255,7 @@ function GestionEstandaresV2({
         </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
-          Gestión de Estándares V2
+          Gestión de Estándares
         </h1>
         <p style={{
           color: "#475569",

@@ -99,7 +99,7 @@ function ParosV2({ db, perfil, onVolver }) {
         >
           Volver
         </BotonVolver>
-        <h1>Motivos de paro V2</h1>
+        <h1>Motivos de paro</h1>
         <p style={{ color: "#475569" }}>
           Catálogo común para Chile y Perú. Cada
           pausa conservará motivo, duración y sesión.

@@ -1,5 +1,6 @@
 import { TIPOS_MATERIAL } from "../../domain/produccionV2";
 import {
+  APLICACIONES_CORTE_LASER,
   normalizarCodigoMaterial,
   prepararMaterial,
   siguienteCodigoMaterial,
@@ -20,6 +21,11 @@ test("normaliza el codigo y los textos del material", () => {
         unidad_medida: " metro ",
         es_comprado: true,
         costo_unitario_referencial: "1250.5",
+        peso_kg_por_unidad: "0.85",
+        aplicacion_corte_laser:
+          APLICACIONES_CORTE_LASER.AMBOS,
+        velocidad_laser_fibra_m_min: "8",
+        velocidad_laser_co2_m_min: "5.5",
         moneda: "CLP",
         minimo_compra: "6",
         proveedor_preferente_id: "prov-1",
@@ -45,6 +51,11 @@ test("normaliza el codigo y los textos del material", () => {
     nombre: "Tubo 15x15",
     unidad_medida: "metro",
     costo_unitario_referencial: 1250.5,
+    peso_kg_por_unidad: 0.85,
+    aplicacion_corte_laser:
+      APLICACIONES_CORTE_LASER.AMBOS,
+    velocidad_laser_fibra_m_min: 8,
+    velocidad_laser_co2_m_min: 5.5,
     moneda: "CLP",
     minimo_compra: 6,
     proveedor_preferente_id: "prov-1",
@@ -54,6 +65,52 @@ test("normaliza el codigo y los textos del material", () => {
     es_comprado: true,
     activo: true
   });
+});
+
+test("limpia velocidad CO2 si el material solo aplica a laser fibra", () => {
+  const material = prepararMaterial(
+    {
+      codigo: "MP0002",
+      tipo: TIPOS_MATERIAL.MATERIA_PRIMA,
+      nombre: "Plancha LAF 1.5 mm",
+      unidad_medida: "unidad",
+      aplicacion_corte_laser:
+        APLICACIONES_CORTE_LASER.FIBRA,
+      velocidad_laser_fibra_m_min: "8",
+      velocidad_laser_co2_m_min: "6"
+    },
+    "bba",
+    "material-fibra"
+  );
+
+  expect(material.aplicacion_corte_laser).toBe(
+    APLICACIONES_CORTE_LASER.FIBRA
+  );
+  expect(material.velocidad_laser_fibra_m_min).toBe(8);
+  expect(material.velocidad_laser_co2_m_min).toBe(0);
+});
+
+test("limpia velocidades laser si no aplica corte laser", () => {
+  const material = prepararMaterial(
+    {
+      codigo: "MP0003",
+      tipo: TIPOS_MATERIAL.MATERIA_PRIMA,
+      nombre: "Alambre 3 mm",
+      unidad_medida: "metro",
+      aplicacion_corte_laser:
+        APLICACIONES_CORTE_LASER.NO_APLICA,
+      velocidad_laser_fibra_m_min: "8",
+      velocidad_laser_co2_m_min: "6"
+    },
+    "bba",
+    "material-sin-laser"
+  );
+
+  expect(material.aplicacion_corte_laser).toBe(
+    APLICACIONES_CORTE_LASER.NO_APLICA
+  );
+  expect(material.velocidad_laser_fibra_m_min).toBe(0);
+  expect(material.velocidad_laser_co2_m_min).toBe(0);
 });
 
 test("RF nunca queda marcado como comprado", () => {

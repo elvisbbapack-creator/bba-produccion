@@ -26,6 +26,50 @@ const numero = valor => {
     : 0;
 };
 
+export const APLICACIONES_CORTE_LASER = {
+  NO_APLICA: "no_aplica",
+  FIBRA: "fibra",
+  CO2: "co2",
+  AMBOS: "ambos"
+};
+
+export const normalizarAplicacionCorteLaser = (
+  datos = {}
+) => {
+  const valor = limpiarTexto(
+    datos.aplicacion_corte_laser
+  );
+
+  if (
+    Object.values(APLICACIONES_CORTE_LASER).includes(
+      valor
+    )
+  ) {
+    return valor;
+  }
+
+  const velocidadFibra = numero(
+    datos.velocidad_laser_fibra_m_min
+  );
+  const velocidadCo2 = numero(
+    datos.velocidad_laser_co2_m_min
+  );
+
+  if (velocidadFibra > 0 && velocidadCo2 > 0) {
+    return APLICACIONES_CORTE_LASER.AMBOS;
+  }
+
+  if (velocidadFibra > 0) {
+    return APLICACIONES_CORTE_LASER.FIBRA;
+  }
+
+  if (velocidadCo2 > 0) {
+    return APLICACIONES_CORTE_LASER.CO2;
+  }
+
+  return APLICACIONES_CORTE_LASER.NO_APLICA;
+};
+
 export const normalizarCodigoMaterial = (valor) =>
   limpiarTexto(valor)
     .toUpperCase()
@@ -146,6 +190,19 @@ export const prepararMaterial = (
   id
 ) => {
   const tipo = datos.tipo;
+  const esMateriaPrima =
+    tipo === TIPOS_MATERIAL.MATERIA_PRIMA;
+  const aplicacionCorteLaser = esMateriaPrima
+    ? normalizarAplicacionCorteLaser(datos)
+    : APLICACIONES_CORTE_LASER.NO_APLICA;
+  const usaLaserFibra = [
+    APLICACIONES_CORTE_LASER.FIBRA,
+    APLICACIONES_CORTE_LASER.AMBOS
+  ].includes(aplicacionCorteLaser);
+  const usaLaserCo2 = [
+    APLICACIONES_CORTE_LASER.CO2,
+    APLICACIONES_CORTE_LASER.AMBOS
+  ].includes(aplicacionCorteLaser);
 
   return {
     id,
@@ -221,6 +278,19 @@ export const prepararMaterial = (
     costo_unitario_referencial: numero(
       datos.costo_unitario_referencial
     ),
+    peso_kg_por_unidad: [
+      TIPOS_MATERIAL.MATERIA_PRIMA,
+      TIPOS_MATERIAL.SUMINISTRO
+    ].includes(tipo)
+      ? numero(datos.peso_kg_por_unidad)
+      : 0,
+    aplicacion_corte_laser: aplicacionCorteLaser,
+    velocidad_laser_fibra_m_min: usaLaserFibra
+      ? numero(datos.velocidad_laser_fibra_m_min)
+      : 0,
+    velocidad_laser_co2_m_min: usaLaserCo2
+      ? numero(datos.velocidad_laser_co2_m_min)
+      : 0,
     moneda: limpiarTexto(datos.moneda) || "CLP",
     minimo_compra: numero(datos.minimo_compra),
     proveedor_preferente_id:
@@ -371,6 +441,14 @@ export const actualizarMaterial = async (
       unidad_medida: material.unidad_medida,
       costo_unitario_referencial:
         material.costo_unitario_referencial,
+      peso_kg_por_unidad:
+        material.peso_kg_por_unidad,
+      aplicacion_corte_laser:
+        material.aplicacion_corte_laser,
+      velocidad_laser_fibra_m_min:
+        material.velocidad_laser_fibra_m_min,
+      velocidad_laser_co2_m_min:
+        material.velocidad_laser_co2_m_min,
       moneda: material.moneda,
       minimo_compra: material.minimo_compra,
       proveedor_preferente_id:

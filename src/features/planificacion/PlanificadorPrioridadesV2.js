@@ -534,7 +534,7 @@ function PlanificadorPrioridadesV2({
         }}>
           <div>
             <h1 style={{ marginBottom: 4 }}>
-              Planificador de prioridades V2
+              Planificador de prioridades
             </h1>
             <p style={{
               color: "#475569",

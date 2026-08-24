@@ -526,7 +526,7 @@ function EjecucionProduccionV2({
       } catch (fallo) {
         setError(
           fallo?.message ||
-          "No se pudo cargar la producción V2."
+          "No se pudo cargar la producción."
         );
       } finally {
         setCargando(false);
@@ -982,7 +982,7 @@ function EjecucionProduccionV2({
         </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
-          Ejecución productiva V2
+          Ejecución productiva
         </h1>
         <p style={{
           color: "#475569",

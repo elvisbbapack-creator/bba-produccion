@@ -1093,6 +1093,29 @@ export const calcularStockTrasMovimiento = (
   };
 };
 
+export const prepararDocumentoStockMaterial = ({
+  perfil,
+  plantaId,
+  material,
+  stockActual = {},
+  siguienteStock = {},
+  actualizadoEn = serverTimestamp()
+}) => ({
+  ...stockActual,
+  empresa_id: perfil.empresa_id,
+  planta_id: plantaId,
+  material_id: material.id,
+  material_codigo: material.codigo,
+  material_nombre: material.nombre,
+  material_tipo: material.tipo,
+  unidad_medida: material.unidad_medida,
+  ...siguienteStock,
+  actualizado_por_id: perfil.uid,
+  actualizado_por_nombre: perfil.nombre || "",
+  actualizado_en: actualizadoEn,
+  modelo_version: 2
+});
+
 export const calcularRequerimientosMaterialesOT = (
   operaciones = [],
   stocks = []
@@ -1779,21 +1802,16 @@ export const registrarMovimientoAlmacen =
           movimiento
         );
 
-      transaccion.set(stockRef, {
-        empresa_id: perfil.empresa_id,
-        planta_id: plantaId,
-        material_id: material.id,
-        material_codigo: material.codigo,
-        material_nombre: material.nombre,
-        material_tipo: material.tipo,
-        unidad_medida: material.unidad_medida,
-        ...siguiente,
-        actualizado_por_id: perfil.uid,
-        actualizado_por_nombre:
-          perfil.nombre || "",
-        actualizado_en: serverTimestamp(),
-        modelo_version: 2
-      });
+      transaccion.set(
+        stockRef,
+        prepararDocumentoStockMaterial({
+          perfil,
+          plantaId,
+          material,
+          stockActual,
+          siguienteStock: siguiente
+        })
+      );
       transaccion.set(movimientoRef, {
         ...movimiento,
         origen:
@@ -1931,21 +1949,16 @@ export const registrarConteoFisico =
           movimiento
         );
 
-      transaccion.set(stockRef, {
-        empresa_id: perfil.empresa_id,
-        planta_id: plantaId,
-        material_id: material.id,
-        material_codigo: material.codigo,
-        material_nombre: material.nombre,
-        material_tipo: material.tipo,
-        unidad_medida: material.unidad_medida,
-        ...siguiente,
-        actualizado_por_id: perfil.uid,
-        actualizado_por_nombre:
-          perfil.nombre || "",
-        actualizado_en: serverTimestamp(),
-        modelo_version: 2
-      });
+      transaccion.set(
+        stockRef,
+        prepararDocumentoStockMaterial({
+          perfil,
+          plantaId,
+          material,
+          stockActual,
+          siguienteStock: siguiente
+        })
+      );
       transaccion.set(movimientoRef, {
         ...movimiento,
         origen: "ajuste_autorizado",
@@ -2289,21 +2302,16 @@ export const registrarTraspasoSalida =
           movimiento
         );
 
-      transaccion.set(stockOrigenRef, {
-        empresa_id: perfil.empresa_id,
-        planta_id: plantaOrigenId,
-        material_id: material.id,
-        material_codigo: material.codigo,
-        material_nombre: material.nombre,
-        material_tipo: material.tipo,
-        unidad_medida: material.unidad_medida,
-        ...siguiente,
-        actualizado_por_id: perfil.uid,
-        actualizado_por_nombre:
-          perfil.nombre || "",
-        actualizado_en: serverTimestamp(),
-        modelo_version: 2
-      });
+      transaccion.set(
+        stockOrigenRef,
+        prepararDocumentoStockMaterial({
+          perfil,
+          plantaId: plantaOrigenId,
+          material,
+          stockActual,
+          siguienteStock: siguiente
+        })
+      );
       transaccion.set(movimientoRef, {
         ...movimiento,
         origen: "traspaso",
@@ -2431,27 +2439,26 @@ export const registrarTraspasoRecepcion =
           movimiento
         );
 
-      transaccion.set(stockDestinoRef, {
-        empresa_id: perfil.empresa_id,
-        planta_id:
-          traspasoActual.planta_destino_id,
-        material_id:
-          traspasoActual.material_id,
-        material_codigo:
-          traspasoActual.material_codigo,
-        material_nombre:
-          traspasoActual.material_nombre,
-        material_tipo:
-          traspasoActual.material_tipo,
-        unidad_medida:
-          traspasoActual.unidad_medida,
-        ...siguiente,
-        actualizado_por_id: perfil.uid,
-        actualizado_por_nombre:
-          perfil.nombre || "",
-        actualizado_en: serverTimestamp(),
-        modelo_version: 2
-      });
+      transaccion.set(
+        stockDestinoRef,
+        prepararDocumentoStockMaterial({
+          perfil,
+          plantaId:
+            traspasoActual.planta_destino_id,
+          material: {
+            id: traspasoActual.material_id,
+            codigo:
+              traspasoActual.material_codigo,
+            nombre:
+              traspasoActual.material_nombre,
+            tipo: traspasoActual.material_tipo,
+            unidad_medida:
+              traspasoActual.unidad_medida
+          },
+          stockActual,
+          siguienteStock: siguiente
+        })
+      );
       transaccion.set(movimientoRef, {
         ...movimiento,
         origen: "traspaso",

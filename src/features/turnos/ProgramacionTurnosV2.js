@@ -271,7 +271,7 @@ function ProgramacionTurnosV2({
         </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
-          Programación de turnos V2
+          Programación de turnos
         </h1>
         <p style={{
           color: "#475569",

@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from "react";
 import BotonVolver from "../../components/BotonVolver";
@@ -53,6 +54,472 @@ const campo = {
   boxSizing: "border-box",
   fontSize: 15
 };
+
+const normalizarTexto = valor =>
+  String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+const etiquetaMaterial = material =>
+  material
+    ? `${material.codigo || "Sin codigo"} - ${material.nombre || "Sin nombre"}`
+    : "";
+
+const valoresDirectosMaterial = material =>
+  Object.values(material || {}).filter(valor =>
+    ["string", "number", "boolean"].includes(
+      typeof valor
+    )
+  );
+
+const textoBusquedaMaterial = material => normalizarTexto([
+  ...valoresDirectosMaterial(material),
+  material.codigo,
+  material.nombre,
+  material.tipo,
+  material.unidad_medida,
+  material.proveedor_preferente_nombre,
+  material.proveedor_nombre,
+  material.producto_codigo,
+  material.producto_nombre,
+  material.subproducto_codigo,
+  material.subproducto_nombre,
+  material.descripcion,
+  material.categoria,
+  ...(material.productos_asociados || []).flatMap(producto => [
+    producto.producto_codigo,
+    producto.producto_nombre,
+    producto.codigo,
+    producto.nombre
+  ]),
+  ...(material.subproductos_asociados || []).flatMap(subproducto => [
+    subproducto.subproducto_codigo,
+    subproducto.subproducto_nombre,
+    subproducto.codigo,
+    subproducto.nombre
+  ])
+].join(" "));
+
+const referenciasFrecuentesMovimiento = [
+  "OC proveedor",
+  "Guía de despacho",
+  "Factura proveedor",
+  "Recepción compra",
+  "Consumo por OT",
+  "Reserva OT",
+  "Liberación reserva OT",
+  "Merma",
+  "Daño",
+  "Ajuste autorizado",
+  "Diferencia de recepción"
+];
+
+const referenciasFrecuentesConteo = [
+  "Inventario cíclico",
+  "Auditoría interna",
+  "Conteo físico",
+  "Regularización de stock",
+  "Diferencia de inventario"
+];
+
+const referenciasFrecuentesTraspaso = [
+  "Guía interna",
+  "Solicitud interna",
+  "Traslado interno",
+  "Reposición entre almacenes",
+  "Movimiento entre bodegas"
+];
+
+const unirReferencias = (...listas) => Array.from(
+  new Set(
+    listas
+      .flat()
+      .map(referencia => String(referencia || "").trim())
+      .filter(Boolean)
+  )
+).sort((a, b) => a.localeCompare(b));
+
+function SelectorMaterial({
+  materiales,
+  materialId,
+  onChange,
+  placeholder = "Escribe código o nombre para filtrar"
+}) {
+  const materialSeleccionado = useMemo(
+    () => materiales.find(
+      material => material.id === materialId
+    ) || null,
+    [materialId, materiales]
+  );
+  const [busqueda, setBusqueda] = useState("");
+  const [abierto, setAbierto] = useState(false);
+  const [editandoBusqueda, setEditandoBusqueda] =
+    useState(false);
+  const contenedorRef = useRef(null);
+
+  useEffect(() => {
+    if (materialSeleccionado) {
+      setBusqueda(
+        etiquetaMaterial(materialSeleccionado)
+      );
+      setEditandoBusqueda(false);
+      return;
+    }
+
+    if (!editandoBusqueda) {
+      setBusqueda("");
+    }
+  }, [materialSeleccionado, editandoBusqueda]);
+
+  const materialesFiltrados = useMemo(() => {
+    const termino = normalizarTexto(busqueda);
+    const lista = termino
+      ? materiales
+        .filter(material =>
+          textoBusquedaMaterial(material).includes(termino)
+        )
+        .sort((a, b) => {
+          const aClave = normalizarTexto(etiquetaMaterial(a));
+          const bClave = normalizarTexto(etiquetaMaterial(b));
+          const aEmpieza = aClave.startsWith(termino) ? 0 : 1;
+          const bEmpieza = bClave.startsWith(termino) ? 0 : 1;
+          if (aEmpieza !== bEmpieza) {
+            return aEmpieza - bEmpieza;
+          }
+          return aClave.localeCompare(bClave);
+        })
+      : materiales;
+
+    return lista.slice(0, 25);
+  }, [busqueda, materiales]);
+
+  useEffect(() => {
+    if (!abierto) {
+      return undefined;
+    }
+
+    const cerrarSiClickFuera = evento => {
+      if (
+        contenedorRef.current &&
+        !contenedorRef.current.contains(evento.target)
+      ) {
+        setAbierto(false);
+      }
+    };
+
+    document.addEventListener("mousedown", cerrarSiClickFuera);
+    document.addEventListener("touchstart", cerrarSiClickFuera);
+
+    return () => {
+      document.removeEventListener("mousedown", cerrarSiClickFuera);
+      document.removeEventListener("touchstart", cerrarSiClickFuera);
+    };
+  }, [abierto]);
+
+  return (
+    <div
+      ref={contenedorRef}
+      style={{
+        position: "relative",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        marginTop: 6,
+        marginBottom: 14
+      }}
+    >
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: materialId
+          ? "minmax(0, 1fr) auto"
+          : "minmax(0, 1fr)",
+        gap: 8,
+        width: "100%",
+        minWidth: 0
+      }}>
+        <input
+          type="text"
+          value={busqueda}
+          onChange={evento => {
+            setEditandoBusqueda(true);
+            setBusqueda(evento.target.value);
+            if (materialId) {
+              onChange("");
+            }
+            setAbierto(true);
+          }}
+          onFocus={() => setAbierto(true)}
+          placeholder={placeholder}
+          style={{
+            ...campo,
+            minWidth: 0
+          }}
+        />
+        {materialId && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditandoBusqueda(false);
+              onChange("");
+              setBusqueda("");
+              setAbierto(true);
+            }}
+            style={{
+              width: 44,
+              minWidth: 44,
+              border: "1px solid #CBD5E1",
+              borderRadius: 8,
+              background: "#F8FAFC",
+              color: "#334155",
+              padding: "0 12px",
+              fontWeight: 800,
+              cursor: "pointer"
+            }}
+            aria-label="Limpiar material seleccionado"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {abierto && (
+        <div
+          style={{
+            position: "absolute",
+            zIndex: 20,
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            width: "100%",
+            maxWidth: "100%",
+            boxSizing: "border-box",
+            maxHeight: 260,
+            overflowY: "auto",
+            overflowX: "hidden",
+            background: "white",
+            border: "1px solid #CBD5E1",
+            borderRadius: 10,
+            boxShadow:
+              "0 12px 30px rgba(15,23,42,0.18)"
+          }}
+        >
+          {materialesFiltrados.length === 0 ? (
+            <div style={{
+              padding: 12,
+              color: "#64748B",
+              fontSize: 14
+            }}>
+              {materiales.length === 0 ? (
+                "No hay materiales cargados para esta empresa o no tienes permiso para leerlos."
+              ) : (
+                <>
+                  No encontramos materiales con "{busqueda}" entre {materiales.length} materiales cargados.
+                  <button
+                    type="button"
+                    onMouseDown={evento => {
+                      evento.preventDefault();
+                      setBusqueda("");
+                    }}
+                    style={{
+                      display: "block",
+                      marginTop: 8,
+                      border: "1px solid #BFDBFE",
+                      borderRadius: 8,
+                      background: "#EFF6FF",
+                      color: "#1D4ED8",
+                      padding: "8px 10px",
+                      fontWeight: 800,
+                      cursor: "pointer"
+                    }}
+                  >
+                    Ver primeros materiales
+                  </button>
+                </>
+              )}
+            </div>
+          ) : materialesFiltrados.map(material => (
+            <button
+              key={material.id}
+              type="button"
+              onMouseDown={evento => {
+                evento.preventDefault();
+                setEditandoBusqueda(false);
+                onChange(material.id);
+                setBusqueda(etiquetaMaterial(material));
+                setAbierto(false);
+              }}
+              style={{
+                width: "100%",
+                display: "grid",
+                minWidth: 0,
+                gap: 3,
+                textAlign: "left",
+                padding: "10px 12px",
+                border: 0,
+                borderBottom: "1px solid #E2E8F0",
+                background:
+                  material.id === materialId
+                    ? "#EFF6FF"
+                    : "white",
+                color: "#0F172A",
+                cursor: "pointer"
+              }}
+            >
+              <strong>
+                {material.codigo}
+                {" - "}
+                {material.nombre}
+              </strong>
+              <span style={{
+                color: "#64748B",
+                fontSize: 13
+              }}>
+                {material.tipo || "Material"}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SelectorReferencia({
+  value,
+  onChange,
+  opciones,
+  placeholder
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const contenedorRef = useRef(null);
+  const termino = normalizarTexto(value);
+  const opcionesFiltradas = useMemo(() => {
+    const lista = termino
+      ? opciones.filter(opcion =>
+        normalizarTexto(opcion).includes(termino)
+      )
+      : opciones;
+
+    return lista.slice(0, 18);
+  }, [opciones, termino]);
+
+  useEffect(() => {
+    if (!abierto) {
+      return undefined;
+    }
+
+    const cerrarSiClickFuera = evento => {
+      if (
+        contenedorRef.current &&
+        !contenedorRef.current.contains(evento.target)
+      ) {
+        setAbierto(false);
+      }
+    };
+
+    document.addEventListener("mousedown", cerrarSiClickFuera);
+    document.addEventListener("touchstart", cerrarSiClickFuera);
+
+    return () => {
+      document.removeEventListener("mousedown", cerrarSiClickFuera);
+      document.removeEventListener("touchstart", cerrarSiClickFuera);
+    };
+  }, [abierto]);
+
+  return (
+    <div
+      ref={contenedorRef}
+      style={{
+        position: "relative",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        marginTop: 6,
+        marginBottom: 14
+      }}
+    >
+      <input
+        value={value}
+        onChange={evento => {
+          onChange(evento.target.value);
+          setAbierto(true);
+        }}
+        onFocus={() => setAbierto(true)}
+        placeholder={placeholder}
+        style={{
+          ...campo,
+          minWidth: 0
+        }}
+      />
+
+      {abierto && (
+        <div
+          style={{
+            position: "absolute",
+            zIndex: 18,
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            width: "100%",
+            maxWidth: "100%",
+            boxSizing: "border-box",
+            maxHeight: 220,
+            overflowY: "auto",
+            overflowX: "hidden",
+            background: "white",
+            border: "1px solid #CBD5E1",
+            borderRadius: 10,
+            boxShadow:
+              "0 12px 30px rgba(15,23,42,0.16)"
+          }}
+        >
+          {opcionesFiltradas.length === 0 ? (
+            <div style={{
+              padding: 12,
+              color: "#64748B",
+              fontSize: 14
+            }}>
+              No hay referencias relacionadas con esa búsqueda.
+            </div>
+          ) : opcionesFiltradas.map(opcion => (
+            <button
+              key={opcion}
+              type="button"
+              onMouseDown={evento => {
+                evento.preventDefault();
+                onChange(opcion);
+                setAbierto(false);
+              }}
+              style={{
+                width: "100%",
+                display: "block",
+                textAlign: "left",
+                overflowWrap: "anywhere",
+                padding: "10px 12px",
+                border: 0,
+                borderBottom: "1px solid #E2E8F0",
+                background:
+                  opcion === value
+                    ? "#EFF6FF"
+                    : "white",
+                color: "#0F172A",
+                cursor: "pointer",
+                fontWeight:
+                  opcion === value
+                    ? 800
+                    : 500
+              }}
+            >
+              {opcion}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const estadoInicial = {
   material_id: "",
@@ -209,8 +676,39 @@ function AlmacenV2({
     recibiendoTraspasoId,
     setRecibiendoTraspasoId
   ] = useState("");
+  const [
+    esPantallaPequena,
+    setEsPantallaPequena
+  ] = useState(
+    typeof window !== "undefined"
+      ? window.innerWidth <= 760
+      : false
+  );
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    const actualizarTamano = () =>
+      setEsPantallaPequena(
+        window.innerWidth <= 760
+      );
+
+    actualizarTamano();
+    window.addEventListener(
+      "resize",
+      actualizarTamano
+    );
+
+    return () =>
+      window.removeEventListener(
+        "resize",
+        actualizarTamano
+      );
+  }, []);
 
   const plantas = perfil?.planta_ids?.length
     ? perfil.planta_ids
@@ -360,6 +858,42 @@ function AlmacenV2({
   const conteosRecientes = useMemo(
     () => conteos.slice(0, 10),
     [conteos]
+  );
+  const referenciasMovimiento = useMemo(
+    () => unirReferencias(
+      referenciasFrecuentesMovimiento,
+      movimientos.map(
+        movimiento => movimiento.referencia
+      ),
+      conteos.map(conteo => conteo.referencia)
+    ),
+    [conteos, movimientos]
+  );
+  const referenciasConteo = useMemo(
+    () => unirReferencias(
+      referenciasFrecuentesConteo,
+      conteos.map(conteo => conteo.referencia),
+      movimientos
+        .filter(
+          movimiento =>
+            movimiento.origen ===
+            "ajuste_autorizado"
+        )
+        .map(movimiento => movimiento.referencia)
+    ),
+    [conteos, movimientos]
+  );
+  const referenciasTraspaso = useMemo(
+    () => unirReferencias(
+      referenciasFrecuentesTraspaso,
+      traspasos.map(traspaso => traspaso.referencia),
+      movimientos
+        .filter(
+          movimiento => movimiento.origen === "traspaso"
+        )
+        .map(movimiento => movimiento.referencia)
+    ),
+    [movimientos, traspasos]
   );
   const alertasStock = useMemo(
     () => calcularAlertasStock({
@@ -641,7 +1175,7 @@ function AlmacenV2({
       ]);
       setMateriales(
         materialesData.filter(
-          material => material.activo
+          material => material.activo !== false
         )
       );
       setStocks(stocksData);
@@ -1107,14 +1641,64 @@ function AlmacenV2({
   };
 
   return (
-    <div style={{
+    <div
+      className="almacen-v2"
+      style={{
       minHeight: "100vh",
       background: "#F1F5F9",
-      padding: 24,
-      fontFamily: "Arial"
+      padding: esPantallaPequena ? 12 : 24,
+      fontFamily: "Arial",
+      overflowX: "hidden"
     }}>
+      <style>
+        {`
+          .almacen-v2,
+          .almacen-v2 * {
+            box-sizing: border-box;
+          }
+
+          .almacen-v2 select,
+          .almacen-v2 input,
+          .almacen-v2 textarea {
+            max-width: 100%;
+          }
+
+          @media (max-width: 760px) {
+            .almacen-v2 h1 {
+              font-size: 30px;
+              line-height: 1.1;
+            }
+
+            .almacen-v2 h2 {
+              font-size: 21px;
+              line-height: 1.18;
+            }
+
+            .almacen-v2 article > div:first-child {
+              flex-wrap: wrap;
+              align-items: flex-start !important;
+            }
+
+            .almacen-v2 article strong,
+            .almacen-v2 td,
+            .almacen-v2 th {
+              overflow-wrap: anywhere;
+            }
+
+            .almacen-v2 button {
+              min-height: 44px;
+            }
+
+            .almacen-v2 article button {
+              width: 100%;
+            }
+          }
+        `}
+      </style>
       <div style={{
         maxWidth: 1200,
+        width: "100%",
+        minWidth: 0,
         margin: "0 auto"
       }}>
         <BotonVolver
@@ -1125,7 +1709,7 @@ function AlmacenV2({
         </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
-          Almacén V2
+          Almacén
         </h1>
         <p style={{
           color: "#475569",
@@ -1138,7 +1722,9 @@ function AlmacenV2({
 
         <div style={{
           marginBottom: 18,
-          maxWidth: 260
+          maxWidth: esPantallaPequena
+            ? "100%"
+            : 260
         }}>
           <label>
             Planta
@@ -1172,19 +1758,22 @@ function AlmacenV2({
         <div style={{
           display: "grid",
           gridTemplateColumns:
-            "minmax(320px, 0.95fr) minmax(360px, 1.3fr)",
-          gap: 22,
+            esPantallaPequena
+              ? "minmax(0, 1fr)"
+              : "minmax(320px, 0.95fr) minmax(360px, 1.3fr)",
+          gap: esPantallaPequena ? 14 : 22,
           alignItems: "start"
         }}>
           <div style={{
             display: "grid",
-            gap: 18
+            gap: esPantallaPequena ? 14 : 18,
+            minWidth: 0
           }}>
           <form
             onSubmit={guardar}
             style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -1196,34 +1785,13 @@ function AlmacenV2({
 
             <label>
               Material
-              <select
-                value={formulario.material_id}
-                onChange={evento =>
-                  actualizar(
-                    "material_id",
-                    evento.target.value
-                  )
+              <SelectorMaterial
+                materiales={materiales}
+                materialId={formulario.material_id}
+                onChange={valor =>
+                  actualizar("material_id", valor)
                 }
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
-              >
-                <option value="">
-                  Seleccionar material
-                </option>
-                {materiales.map(material => (
-                  <option
-                    key={material.id}
-                    value={material.id}
-                  >
-                    {material.codigo}
-                    {" - "}
-                    {material.nombre}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             <label>
@@ -1543,20 +2111,16 @@ function AlmacenV2({
 
             <label>
               Referencia
-              <input
+              <SelectorReferencia
                 value={formulario.referencia}
-                onChange={evento =>
+                onChange={valor =>
                   actualizar(
                     "referencia",
-                    evento.target.value
+                    valor
                   )
                 }
+                opciones={referenciasMovimiento}
                 placeholder="OC, guía, ajuste, conteo..."
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
               />
             </label>
 
@@ -1665,7 +2229,7 @@ function AlmacenV2({
             onSubmit={guardarConteo}
             style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)",
@@ -1687,34 +2251,18 @@ function AlmacenV2({
 
             <label>
               Material
-              <select
-                value={formularioConteo.material_id}
-                onChange={evento =>
+              <SelectorMaterial
+                materiales={materiales}
+                materialId={
+                  formularioConteo.material_id
+                }
+                onChange={valor =>
                   actualizarConteo(
                     "material_id",
-                    evento.target.value
+                    valor
                   )
                 }
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
-              >
-                <option value="">
-                  Seleccionar material
-                </option>
-                {materiales.map(material => (
-                  <option
-                    key={material.id}
-                    value={material.id}
-                  >
-                    {material.codigo}
-                    {" - "}
-                    {material.nombre}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             <label>
@@ -1784,20 +2332,16 @@ function AlmacenV2({
 
             <label>
               Referencia
-              <input
+              <SelectorReferencia
                 value={formularioConteo.referencia}
-                onChange={evento =>
+                onChange={valor =>
                   actualizarConteo(
                     "referencia",
-                    evento.target.value
+                    valor
                   )
                 }
+                opciones={referenciasConteo}
                 placeholder="Inventario cíclico, auditoría, conteo..."
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
               />
             </label>
 
@@ -1853,7 +2397,7 @@ function AlmacenV2({
             onSubmit={guardarPolitica}
             style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)",
@@ -1874,39 +2418,23 @@ function AlmacenV2({
 
             <label>
               Material
-              <select
-                value={formularioPolitica.material_id}
-                onChange={evento =>
-                  seleccionarMaterialPolitica(
-                    evento.target.value
-                  )
+              <SelectorMaterial
+                materiales={materiales}
+                materialId={
+                  formularioPolitica.material_id
                 }
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
-              >
-                <option value="">
-                  Seleccionar material
-                </option>
-                {materiales.map(material => (
-                  <option
-                    key={material.id}
-                    value={material.id}
-                  >
-                    {material.codigo}
-                    {" - "}
-                    {material.nombre}
-                  </option>
-                ))}
-              </select>
+                onChange={
+                  seleccionarMaterialPolitica
+                }
+              />
             </label>
 
             <div style={{
               display: "grid",
               gridTemplateColumns:
-                "repeat(2, minmax(0, 1fr))",
+                esPantallaPequena
+                  ? "minmax(0, 1fr)"
+                  : "repeat(2, minmax(0, 1fr))",
               gap: 10
             }}>
               <label>
@@ -2057,7 +2585,7 @@ function AlmacenV2({
             onSubmit={guardarTraspaso}
             style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)",
@@ -2128,36 +2656,18 @@ function AlmacenV2({
 
             <label>
               Material
-              <select
-                value={
+              <SelectorMaterial
+                materiales={materiales}
+                materialId={
                   formularioTraspaso.material_id
                 }
-                onChange={evento =>
+                onChange={valor =>
                   actualizarTraspaso(
                     "material_id",
-                    evento.target.value
+                    valor
                   )
                 }
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
-              >
-                <option value="">
-                  Seleccionar material
-                </option>
-                {materiales.map(material => (
-                  <option
-                    key={material.id}
-                    value={material.id}
-                  >
-                    {material.codigo}
-                    {" - "}
-                    {material.nombre}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             <label>
@@ -2214,22 +2724,18 @@ function AlmacenV2({
 
             <label>
               Referencia
-              <input
+              <SelectorReferencia
                 value={
                   formularioTraspaso.referencia
                 }
-                onChange={evento =>
+                onChange={valor =>
                   actualizarTraspaso(
                     "referencia",
-                    evento.target.value
+                    valor
                   )
                 }
+                opciones={referenciasTraspaso}
                 placeholder="Guía interna, solicitud, traslado interno..."
-                style={{
-                  ...campo,
-                  marginTop: 6,
-                  marginBottom: 14
-                }}
               />
             </label>
 
@@ -2281,11 +2787,12 @@ function AlmacenV2({
 
           <div style={{
             display: "grid",
-            gap: 18
+            gap: esPantallaPequena ? 14 : 18,
+            minWidth: 0
           }}>
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -2443,7 +2950,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -2621,7 +3128,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -2819,7 +3326,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -3072,7 +3579,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -3271,7 +3778,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -3391,7 +3898,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -3495,7 +4002,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -3628,7 +4135,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"
@@ -3994,7 +4501,7 @@ function AlmacenV2({
 
             <section style={{
               background: "white",
-              padding: 22,
+              padding: esPantallaPequena ? 16 : 22,
               borderRadius: 14,
               boxShadow:
                 "0 2px 10px rgba(15,23,42,0.08)"

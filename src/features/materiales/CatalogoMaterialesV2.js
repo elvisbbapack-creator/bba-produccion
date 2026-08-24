@@ -19,10 +19,12 @@ import {
   listarSubproductos
 } from "../subproductos/subproductosRepository";
 import {
+  APLICACIONES_CORTE_LASER,
   actualizarMaterial,
   cambiarEstadoMaterial,
   crearMaterial,
   listarMateriales,
+  normalizarAplicacionCorteLaser,
   prepararMaterial,
   siguienteCodigoMaterial,
   validarNuevoMaterial
@@ -42,13 +44,19 @@ const estadoInicial = {
   nombre: "",
   unidad_medida: "unidad",
   costo_unitario_referencial: 0,
+  peso_kg_por_unidad: 0,
+  aplicacion_corte_laser:
+    APLICACIONES_CORTE_LASER.NO_APLICA,
+  velocidad_laser_fibra_m_min: 0,
+  velocidad_laser_co2_m_min: 0,
   moneda: "CLP",
   minimo_compra: 0,
   proveedor_preferente_id: "",
   proveedor_preferente_codigo: "",
   proveedor_preferente_nombre: "",
   costo_origen: "catalogo_material",
-  es_comprado: true
+  es_comprado: true,
+  activo: true
 };
 
 const productoAsociadoInicial = {
@@ -76,6 +84,34 @@ const estiloCampo = {
 };
 
 const FILTRO_SIN_VINCULAR = "__sin_vincular__";
+
+const usaLaserFibra = aplicacion =>
+  [
+    APLICACIONES_CORTE_LASER.FIBRA,
+    APLICACIONES_CORTE_LASER.AMBOS
+  ].includes(aplicacion);
+
+const usaLaserCo2 = aplicacion =>
+  [
+    APLICACIONES_CORTE_LASER.CO2,
+    APLICACIONES_CORTE_LASER.AMBOS
+  ].includes(aplicacion);
+
+const etiquetaAplicacionLaser = aplicacion => {
+  if (aplicacion === APLICACIONES_CORTE_LASER.FIBRA) {
+    return "Laser Fibra";
+  }
+
+  if (aplicacion === APLICACIONES_CORTE_LASER.CO2) {
+    return "Laser CO2";
+  }
+
+  if (aplicacion === APLICACIONES_CORTE_LASER.AMBOS) {
+    return "Laser Fibra y CO2";
+  }
+
+  return "";
+};
 
 function CatalogoMaterialesV2({
   db,
@@ -669,6 +705,9 @@ function CatalogoMaterialesV2({
   };
 
   const editar = material => {
+    const aplicacionCorteLaser =
+      normalizarAplicacionCorteLaser(material);
+
     setEditandoId(material.id);
     setFormulario({
       tipo: material.tipo,
@@ -717,6 +756,20 @@ function CatalogoMaterialesV2({
       unidad_medida: material.unidad_medida,
       costo_unitario_referencial:
         material.costo_unitario_referencial || 0,
+      peso_kg_por_unidad:
+        material.peso_kg_por_unidad || 0,
+      aplicacion_corte_laser:
+        material.tipo === TIPOS_MATERIAL.MATERIA_PRIMA
+          ? aplicacionCorteLaser
+          : APLICACIONES_CORTE_LASER.NO_APLICA,
+      velocidad_laser_fibra_m_min:
+        usaLaserFibra(aplicacionCorteLaser)
+          ? material.velocidad_laser_fibra_m_min || 0
+          : 0,
+      velocidad_laser_co2_m_min:
+        usaLaserCo2(aplicacionCorteLaser)
+          ? material.velocidad_laser_co2_m_min || 0
+          : 0,
       moneda: material.moneda || "CLP",
       minimo_compra: material.minimo_compra || 0,
       proveedor_preferente_id:
@@ -841,7 +894,7 @@ function CatalogoMaterialesV2({
         </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
-          Catálogo de materiales V2
+          Catálogo de materiales
         </h1>
         <p style={{
           color: "#475569",
@@ -920,6 +973,18 @@ function CatalogoMaterialesV2({
                       tipo === TIPOS_MATERIAL.RECURSO_FABRICACION
                         ? actual.subproductos_asociados
                         : [],
+                    aplicacion_corte_laser:
+                      tipo === TIPOS_MATERIAL.MATERIA_PRIMA
+                        ? actual.aplicacion_corte_laser
+                        : APLICACIONES_CORTE_LASER.NO_APLICA,
+                    velocidad_laser_fibra_m_min:
+                      tipo === TIPOS_MATERIAL.MATERIA_PRIMA
+                        ? actual.velocidad_laser_fibra_m_min
+                        : 0,
+                    velocidad_laser_co2_m_min:
+                      tipo === TIPOS_MATERIAL.MATERIA_PRIMA
+                        ? actual.velocidad_laser_co2_m_min
+                        : 0,
                     es_comprado:
                       [
                         TIPOS_MATERIAL.MATERIA_PRIMA,
@@ -980,6 +1045,31 @@ function CatalogoMaterialesV2({
                 según el siguiente correlativo
                 disponible.
               </span>
+            </label>
+
+            <label>
+              Estado
+              <select
+                value={formulario.activo ? "activo" : "inactivo"}
+                onChange={evento =>
+                  actualizarCampo(
+                    "activo",
+                    evento.target.value === "activo"
+                  )
+                }
+                style={{
+                  ...estiloCampo,
+                  marginTop: 6,
+                  marginBottom: 14
+                }}
+              >
+                <option value="activo">
+                  Activo
+                </option>
+                <option value="inactivo">
+                  Inactivo
+                </option>
+              </select>
             </label>
 
             {formulario.tipo ===
@@ -1326,6 +1416,163 @@ function CatalogoMaterialesV2({
               />
             </label>
 
+            {formulario.tipo ===
+              TIPOS_MATERIAL.MATERIA_PRIMA && (
+              <div style={{
+                border: "1px solid #DBEAFE",
+                borderRadius: 10,
+                padding: 12,
+                marginBottom: 14,
+                background: "#EFF6FF"
+              }}>
+                <strong>
+                  Parámetros técnicos de corte láser
+                </strong>
+                <p style={{
+                  color: "#475569",
+                  fontSize: 13,
+                  marginTop: 6
+                }}>
+                  Indica si esta materia prima pasa por
+                  láser. Alambre, tubos u otros materiales
+                  sin corte láser deben quedar como No
+                  aplica. Planchas metálicas normalmente
+                  usan Laser Fibra; planchas no metálicas
+                  como PAI, acrílico o MDF usan Laser CO2.
+                </p>
+                <label>
+                  Aplicación corte láser
+                  <select
+                    value={
+                      formulario.aplicacion_corte_laser ||
+                      APLICACIONES_CORTE_LASER.NO_APLICA
+                    }
+                    onChange={evento => {
+                      const aplicacion =
+                        evento.target.value;
+                      setFormulario(actual => ({
+                        ...actual,
+                        aplicacion_corte_laser:
+                          aplicacion,
+                        velocidad_laser_fibra_m_min:
+                          usaLaserFibra(aplicacion)
+                            ? actual
+                                .velocidad_laser_fibra_m_min
+                            : 0,
+                        velocidad_laser_co2_m_min:
+                          usaLaserCo2(aplicacion)
+                            ? actual
+                                .velocidad_laser_co2_m_min
+                            : 0
+                      }));
+                      setError("");
+                      setMensaje("");
+                    }}
+                    style={{
+                      ...estiloCampo,
+                      marginTop: 6,
+                      marginBottom: 10,
+                      background: "white"
+                    }}
+                  >
+                    <option
+                      value={
+                        APLICACIONES_CORTE_LASER.NO_APLICA
+                      }
+                    >
+                      No aplica
+                    </option>
+                    <option
+                      value={
+                        APLICACIONES_CORTE_LASER.FIBRA
+                      }
+                    >
+                      Solo Laser Fibra
+                    </option>
+                    <option
+                      value={
+                        APLICACIONES_CORTE_LASER.CO2
+                      }
+                    >
+                      Solo Laser CO2
+                    </option>
+                    <option
+                      value={
+                        APLICACIONES_CORTE_LASER.AMBOS
+                      }
+                    >
+                      Laser Fibra y CO2
+                    </option>
+                  </select>
+                </label>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: 10
+                }}>
+                  {usaLaserFibra(
+                    formulario.aplicacion_corte_laser
+                  ) && (
+                    <label>
+                      m/min Laser Fibra
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        value={
+                          formulario
+                            .velocidad_laser_fibra_m_min ||
+                          ""
+                        }
+                        onChange={evento =>
+                          actualizarCampo(
+                            "velocidad_laser_fibra_m_min",
+                            evento.target.value
+                          )
+                        }
+                        placeholder="Ej. plancha metálica: 8"
+                        style={{
+                          ...estiloCampo,
+                          marginTop: 6
+                        }}
+                      />
+                    </label>
+                  )}
+                  {usaLaserCo2(
+                    formulario.aplicacion_corte_laser
+                  ) && (
+                    <label>
+                      m/min Laser CO2
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        value={
+                          formulario
+                            .velocidad_laser_co2_m_min ||
+                          ""
+                        }
+                        onChange={evento =>
+                          actualizarCampo(
+                            "velocidad_laser_co2_m_min",
+                            evento.target.value
+                          )
+                        }
+                        placeholder="Ej. PAI/acrílico/MDF: 6"
+                        style={{
+                          ...estiloCampo,
+                          marginTop: 6
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div style={{
               display: "grid",
               gridTemplateColumns:
@@ -1379,6 +1626,35 @@ function CatalogoMaterialesV2({
                   <option value="USD">USD</option>
                 </select>
               </label>
+
+              {["MP", "SUM"].includes(
+                formulario.tipo
+              ) && (
+                <label>
+                  Peso kg por unidad
+                  <input
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    inputMode="decimal"
+                    value={
+                      formulario.peso_kg_por_unidad || ""
+                    }
+                    onChange={evento =>
+                      actualizarCampo(
+                        "peso_kg_por_unidad",
+                        evento.target.value
+                      )
+                    }
+                    placeholder="Ej. kg por plancha, metro, litro o unidad"
+                    style={{
+                      ...estiloCampo,
+                      marginTop: 6,
+                      marginBottom: 14
+                    }}
+                  />
+                </label>
+              )}
             </div>
 
             <label>
@@ -1681,6 +1957,24 @@ function CatalogoMaterialesV2({
                             {" - "}
                             {material.nombre}
                           </strong>
+                          <span style={{
+                            display: "inline-block",
+                            marginLeft: 8,
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: 800,
+                            color: material.activo
+                              ? "#166534"
+                              : "#991B1B",
+                            background: material.activo
+                              ? "#DCFCE7"
+                              : "#FEE2E2"
+                          }}>
+                            {material.activo
+                              ? "Activo"
+                              : "Inactivo"}
+                          </span>
                           <div style={{
                             color: "#475569",
                             fontSize: 14,
@@ -1709,6 +2003,31 @@ function CatalogoMaterialesV2({
                                     material.moneda || "CLP",
                                   maximumFractionDigits: 0
                                 })}`
+                              : ""}
+                            {material.peso_kg_por_unidad
+                              ? ` · peso ${Number(
+                                  material.peso_kg_por_unidad
+                                ).toLocaleString("es-CL", {
+                                  maximumFractionDigits: 4
+                                })} kg/${material.unidad_medida || "un"}`
+                              : ""}
+                            {material.tipo === "MP" &&
+                            etiquetaAplicacionLaser(
+                              normalizarAplicacionCorteLaser(
+                                material
+                              )
+                            )
+                              ? ` · corte ${etiquetaAplicacionLaser(
+                                  normalizarAplicacionCorteLaser(
+                                    material
+                                  )
+                                )}`
+                              : ""}
+                            {material.velocidad_laser_fibra_m_min
+                              ? ` · Fibra ${material.velocidad_laser_fibra_m_min} m/min`
+                              : ""}
+                            {material.velocidad_laser_co2_m_min
+                              ? ` · CO2 ${material.velocidad_laser_co2_m_min} m/min`
                               : ""}
                             {material.proveedor_preferente_nombre
                               ? ` · prov. ${material.proveedor_preferente_nombre}`

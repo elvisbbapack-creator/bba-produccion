@@ -424,7 +424,7 @@ function CapacidadProcesosV2({
         </BotonVolver>
 
         <h1 style={{ marginBottom: 4 }}>
-          Capacidad por proceso V2
+          Capacidad por proceso
         </h1>
         <p style={{
           color: "#475569",
@@ -611,7 +611,7 @@ function CapacidadProcesosV2({
                     color: "#B45309",
                     marginTop: 5
                   }}>
-                    La OT no contiene subprocesos V2.
+                    La OT no contiene subprocesos.
                   </small>
                 )}
               </label>

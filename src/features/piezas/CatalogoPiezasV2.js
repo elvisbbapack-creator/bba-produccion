@@ -1519,7 +1519,7 @@ function CatalogoPiezasV2({
                     No hay materiales vinculados ni sin
                     vincular para el contexto
                     seleccionado. Revisa el Catálogo de
-                    materiales V2.
+                    materiales.
                   </p>
                 )}
 

@@ -52,77 +52,119 @@ export const prepararCotizacionTecnica = (
   const escalas = prepararEscalas(datos.escalas);
   const materiales = normalizarLista(
     datos.materiales
-  ).map(material => ({
-    tipo_linea:
-      limpiarTexto(material.tipo_linea) || "material",
-    material_id: material.material_id || "",
-    codigo: limpiarTexto(material.codigo),
-    nombre: limpiarTexto(material.nombre),
-    unidad: limpiarTexto(material.unidad),
-    expresion_consumo: limpiarTexto(
+  ).map(material => {
+    const expresionConsumo = limpiarTexto(
       material.expresion_consumo
-    ),
-    unidad_expresion_consumo:
-      limpiarTexto(
-        material.unidad_expresion_consumo
-      ) || "mm",
-    piezas_calculadas: numero(
-      material.piezas_calculadas
-    ),
-    cortes_calculados: numero(
-      material.cortes_calculados
-    ),
-    cortes_por_subproducto: numero(
-      material.cortes_por_subproducto
-    ),
-    subproductos: numero(material.subproductos),
-    fraccion_por_pieza: numero(
-      material.fraccion_por_pieza
-    ),
-    consumo_pieza_formula: numero(
-      material.consumo_pieza_formula
-    ),
-    consumo_total_formula: numero(
-      material.consumo_total_formula
-    ),
-    cortes_por_pieza: numero(
-      material.cortes_por_pieza
-    ),
-    cortes_por_producto: numero(
-      material.cortes_por_producto
-    ),
-    dobleces_por_producto: numero(
-      material.dobleces_por_producto
-    ),
-    dobleces_por_pieza: numero(
-      material.dobleces_por_pieza
-    ),
-    dobleces_total: numero(
-      material.dobleces_total
-    ),
-    longitud_por_pieza: numero(
-      material.longitud_por_pieza
-    ),
-    consumo_unitario: numero(
-      material.consumo_unitario
-    ),
-    merma_porcentaje: numero(
-      material.merma_porcentaje
-    ),
-    costo_unitario: numero(material.costo_unitario),
-    costo_origen: limpiarTexto(material.costo_origen),
-    minimo_compra: numero(material.minimo_compra),
-    politica_minimo_compra:
-      material.politica_minimo_compra === "consumo_real"
-        ? "consumo_real"
-        : "cobrar_minimo",
-    proveedor: limpiarTexto(material.proveedor),
-    proveedor_id: material.proveedor_id || "",
-    proveedor_codigo: limpiarTexto(
-      material.proveedor_codigo
-    ),
-    moneda: limpiarTexto(material.moneda) || "CLP"
-  }));
+    );
+    const politicaFormulaConsumoReal =
+      expresionConsumo &&
+      (numero(material.piezas_por_plancha) > 0 ||
+        numero(material.fraccion_por_pieza) > 0);
+
+    return {
+      tipo_linea:
+        limpiarTexto(material.tipo_linea) || "material",
+      material_id: material.material_id || "",
+      codigo: limpiarTexto(material.codigo),
+      nombre: limpiarTexto(material.nombre),
+      unidad: limpiarTexto(material.unidad),
+      expresion_consumo: expresionConsumo,
+      unidad_expresion_consumo:
+        limpiarTexto(
+          material.unidad_expresion_consumo
+        ) || "mm",
+      piezas_calculadas: numero(
+        material.piezas_calculadas
+      ),
+      cortes_calculados: numero(
+        material.cortes_calculados
+      ),
+      cortes_por_subproducto: numero(
+        material.cortes_por_subproducto
+      ),
+      subproductos: numero(material.subproductos),
+      fraccion_por_pieza: numero(
+        material.fraccion_por_pieza
+      ),
+      consumo_pieza_formula: numero(
+        material.consumo_pieza_formula
+      ),
+      consumo_total_formula: numero(
+        material.consumo_total_formula
+      ),
+      cortes_por_pieza: numero(
+        material.cortes_por_pieza
+      ),
+      cortes_por_producto: numero(
+        material.cortes_por_producto
+      ),
+      dobleces_por_producto: numero(
+        material.dobleces_por_producto
+      ),
+      dobleces_por_pieza: numero(
+        material.dobleces_por_pieza
+      ),
+      dobleces_total: numero(
+        material.dobleces_total
+      ),
+      longitud_por_pieza: numero(
+        material.longitud_por_pieza
+      ),
+      piezas_por_plancha: numero(
+        material.piezas_por_plancha
+      ),
+      piezas_por_producto: numero(
+        material.piezas_por_producto
+      ),
+      consumo_unitario: numero(
+        material.consumo_unitario
+      ),
+      merma_porcentaje: numero(
+        material.merma_porcentaje
+      ),
+      costo_unitario: numero(material.costo_unitario),
+      peso_kg_por_unidad: numero(
+        material.peso_kg_por_unidad
+      ),
+      tipo_formula_consumo: limpiarTexto(
+        material.tipo_formula_consumo
+      ),
+      formula_material_indice: limpiarTexto(
+        material.formula_material_indice
+      ),
+      formula_material_id:
+        material.formula_material_id || "",
+      formula_material_codigo: limpiarTexto(
+        material.formula_material_codigo
+      ),
+      formula_material_nombre: limpiarTexto(
+        material.formula_material_nombre
+      ),
+      area_m2_por_producto: numero(
+        material.area_m2_por_producto
+      ),
+      consumo_tinta_ml_por_m2: numero(
+        material.consumo_tinta_ml_por_m2
+      ),
+      consumo_tinta_ml_total: numero(
+        material.consumo_tinta_ml_total
+      ),
+      costo_origen: limpiarTexto(material.costo_origen),
+      minimo_compra: numero(material.minimo_compra),
+      politica_minimo_compra:
+        material.politica_minimo_compra ===
+          "consumo_real" ||
+        politicaFormulaConsumoReal
+          ? "consumo_real"
+          : "cobrar_minimo",
+      proveedor: limpiarTexto(material.proveedor),
+      proveedor_id: material.proveedor_id || "",
+      proveedor_codigo: limpiarTexto(
+        material.proveedor_codigo
+      ),
+      moneda: limpiarTexto(material.moneda) || "CLP"
+    };
+  });
   const procesos = normalizarLista(datos.procesos)
     .map(proceso => ({
       proceso_codigo: limpiarTexto(
@@ -239,6 +281,10 @@ export const prepararCotizacionTecnica = (
       proceso.estacion_nombre
     );
   const supuestos = {
+    moneda: limpiarTexto(datos.moneda) || "CLP",
+    tipo_cambio_clp_usd: numero(
+      datos.tipo_cambio_clp_usd
+    ),
     indirectos_porcentaje: numero(
       datos.indirectos_porcentaje
     ),
@@ -266,7 +312,59 @@ export const prepararCotizacionTecnica = (
     ),
     desfase_flujo_horas: numero(
       datos.desfase_flujo_horas
-    )
+    ),
+    exportacion: {
+      incoterm:
+        limpiarTexto(datos.incoterm).toUpperCase() ||
+        "EXW",
+      destino: limpiarTexto(
+        datos.destino_internacional
+      ),
+      pais_destino: limpiarTexto(datos.pais_destino),
+      modalidad_carga:
+        limpiarTexto(datos.modalidad_carga) || "auto",
+      unidades_por_caja: numero(
+        datos.unidades_por_caja
+      ),
+      largo_caja_cm: numero(datos.largo_caja_cm),
+      ancho_caja_cm: numero(datos.ancho_caja_cm),
+      alto_caja_cm: numero(datos.alto_caja_cm),
+      factor_estiba: numero(datos.factor_estiba) || 1,
+      capacidad_camion_m3: numero(
+        datos.capacidad_camion_m3
+      ),
+      capacidad_camion_kg: numero(
+        datos.capacidad_camion_kg
+      ),
+      flete_internacional: numero(
+        datos.flete_internacional
+      ),
+      costo_ltl_m3: numero(datos.costo_ltl_m3),
+      costo_ltl_minimo: numero(
+        datos.costo_ltl_minimo
+      ),
+      seguro_porcentaje: numero(
+        datos.seguro_porcentaje
+      ),
+      seguro_sobre_porcentaje: numero(
+        datos.seguro_sobre_porcentaje
+      ),
+      gastos_exportacion: numero(
+        datos.gastos_exportacion
+      ),
+      otros_costos_exportacion: numero(
+        datos.otros_costos_exportacion
+      ),
+      dias_preparacion_exportacion: numero(
+        datos.dias_preparacion_exportacion
+      ),
+      dias_transito: numero(datos.dias_transito),
+      destinos_comparacion: Array.isArray(
+        datos.destinos_exportacion_comparacion
+      )
+        ? datos.destinos_exportacion_comparacion
+        : []
+    }
   };
   const resultados = calcularCotizacionTecnica({
     escalas,
@@ -386,6 +484,8 @@ export const aFormularioCotizacionTecnica = (
   nivel_confianza:
     cotizacion.nivel_confianza || "media",
   moneda: cotizacion.moneda || "CLP",
+  tipo_cambio_clp_usd:
+    cotizacion.supuestos?.tipo_cambio_clp_usd ?? 915,
   descripcion: cotizacion.descripcion || "",
   riesgos: cotizacion.riesgos || "",
   escalas: Array.isArray(cotizacion.escalas)
@@ -414,6 +514,74 @@ export const aFormularioCotizacionTecnica = (
     cotizacion.supuestos?.horas_disponibles_dia ?? 14,
   desfase_flujo_horas:
     cotizacion.supuestos?.desfase_flujo_horas ?? 2,
+  incoterm:
+    cotizacion.supuestos?.exportacion?.incoterm ||
+    "EXW",
+  destino_internacional:
+    cotizacion.supuestos?.exportacion?.destino || "",
+  pais_destino:
+    cotizacion.supuestos?.exportacion?.pais_destino ||
+    "",
+  modalidad_carga:
+    cotizacion.supuestos?.exportacion?.modalidad_carga ||
+    "auto",
+  unidades_por_caja:
+    cotizacion.supuestos?.exportacion
+      ?.unidades_por_caja ?? 1,
+  largo_caja_cm:
+    cotizacion.supuestos?.exportacion
+      ?.largo_caja_cm ?? 0,
+  ancho_caja_cm:
+    cotizacion.supuestos?.exportacion
+      ?.ancho_caja_cm ?? 0,
+  alto_caja_cm:
+    cotizacion.supuestos?.exportacion?.alto_caja_cm ?? 0,
+  factor_estiba:
+    cotizacion.supuestos?.exportacion?.factor_estiba ??
+    1,
+  capacidad_camion_m3:
+    cotizacion.supuestos?.exportacion
+      ?.capacidad_camion_m3 ?? 90,
+  capacidad_camion_kg:
+    cotizacion.supuestos?.exportacion
+      ?.capacidad_camion_kg ?? 25000,
+  flete_internacional:
+    cotizacion.supuestos?.exportacion
+      ?.flete_internacional ?? 0,
+  costo_ltl_m3:
+    cotizacion.supuestos?.exportacion?.costo_ltl_m3 ??
+    0,
+  costo_ltl_minimo:
+    cotizacion.supuestos?.exportacion
+      ?.costo_ltl_minimo ?? 0,
+  seguro_porcentaje:
+    cotizacion.supuestos?.exportacion
+      ?.seguro_porcentaje ?? 0.3,
+  seguro_sobre_porcentaje:
+    cotizacion.supuestos?.exportacion
+      ?.seguro_sobre_porcentaje ?? 110,
+  gastos_exportacion:
+    cotizacion.supuestos?.exportacion
+      ?.gastos_exportacion ?? 0,
+  otros_costos_exportacion:
+    cotizacion.supuestos?.exportacion
+      ?.otros_costos_exportacion ?? 0,
+  dias_preparacion_exportacion:
+    cotizacion.supuestos?.exportacion
+      ?.dias_preparacion_exportacion ?? 0,
+  dias_transito:
+    cotizacion.supuestos?.exportacion?.dias_transito ??
+    0,
+  destinos_exportacion_comparacion:
+    Array.isArray(
+      cotizacion.supuestos?.exportacion
+        ?.destinos_comparacion
+    ) &&
+    cotizacion.supuestos.exportacion.destinos_comparacion
+      .length > 0
+      ? cotizacion.supuestos.exportacion
+          .destinos_comparacion
+      : ["Argentina", "Paraguay", "Uruguay"],
   materiales: Array.isArray(cotizacion.materiales)
     ? cotizacion.materiales
     : [],
@@ -424,13 +592,14 @@ export const aFormularioCotizacionTecnica = (
 
 export const listarCotizacionesTecnicas = async (
   db,
-  empresaId
+  empresaId,
+  limite = 200
 ) => {
   const snapshot = await getDocs(
     query(
       collection(db, COLECCION),
       where("empresa_id", "==", empresaId),
-      limit(30)
+      limit(limite)
     )
   );
 

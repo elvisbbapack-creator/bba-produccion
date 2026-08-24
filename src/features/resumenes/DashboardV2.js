@@ -279,7 +279,7 @@ function DashboardV2({
               margin: 0,
               fontSize: modoTv ? 34 : 30
             }}>
-              Dashboard Productivo V2
+              Dashboard Productivo
             </h1>
             <div style={{
               color: "#94A3B8",
