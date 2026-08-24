@@ -14,6 +14,7 @@ import {
   query,
   orderBy,
   limit,
+  where,
 } from "firebase/firestore";
 import {
   BarChart,
@@ -35,8 +36,70 @@ import {
 import {
   autenticacionFirebaseActiva
 } from "./auth/config";
+import {
+  interfazV2Activa,
+  puedeAdministrarV2,
+  puedeGestionarComprasV2,
+  puedeGestionarCosteoV2,
+  puedeGestionarRRHHV2,
+  puedeGestionarUsuariosV2,
+  puedeOperarV2,
+  puedeVerDashboardV2
+} from "./features/v2/config";
+import CatalogoMaterialesV2 from
+  "./features/materiales/CatalogoMaterialesV2";
+import ProgramacionTurnosV2 from
+  "./features/turnos/ProgramacionTurnosV2";
+import CapacidadProcesosV2 from
+  "./features/capacidad/CapacidadProcesosV2";
+import ConstructorRutasV2 from
+  "./features/productos/ConstructorRutasV2";
+import OrdenesTrabajoV2 from
+  "./features/ordenes/OrdenesTrabajoV2";
+import EjecucionProduccionV2 from
+  "./features/ejecucion/EjecucionProduccionV2";
+import GestionEstandaresV2 from
+  "./features/estandares/GestionEstandaresV2";
+import DashboardV2 from
+  "./features/resumenes/DashboardV2";
+import CalidadV2 from
+  "./features/calidad/CalidadV2";
+import ParosV2 from
+  "./features/paros/ParosV2";
+import PlanificadorPrioridadesV2 from
+  "./features/planificacion/PlanificadorPrioridadesV2";
+import HistorialDecisionesPlanificadorV2 from
+  "./features/planificacion/HistorialDecisionesPlanificadorV2";
+import AlmacenV2 from
+  "./features/almacen/AlmacenV2";
+import ComprasV2 from
+  "./features/compras/ComprasV2";
+import OrdenCompraPublica from
+  "./features/compras/OrdenCompraPublica";
+import CatalogoDetallesV2 from
+  "./features/detalles/CatalogoDetallesV2";
+import CatalogoPiezasV2 from
+  "./features/piezas/CatalogoPiezasV2";
+import CatalogoProcesosEstacionesV2 from
+  "./features/procesos/CatalogoProcesosEstacionesV2";
+import CatalogoSubproductosV2 from
+  "./features/subproductos/CatalogoSubproductosV2";
+import ImportadorIngenieriaV2 from
+  "./features/importacion/ImportadorIngenieriaV2";
+import GestionUsuariosV2 from
+  "./features/usuarios/GestionUsuariosV2";
+import GestionPersonasRRHHV2 from
+  "./features/rrhh/GestionPersonasRRHHV2";
+import CotizadorTecnicoV2 from
+  "./features/costeo/CotizadorTecnicoV2";
+import TercerosV2 from
+  "./features/terceros/TercerosV2";
+import CostosBaseProduccionV2 from
+  "./features/costosBase/CostosBaseProduccionV2";
+import CostosOperativosFijosV2 from
+  "./features/costosOperativos/CostosOperativosFijosV2";
 
-function App() {
+function AppPrincipal() {
   const esMobile =
     window.innerWidth < 768;
   /* eslint-disable no-unused-vars */
@@ -77,6 +140,23 @@ function App() {
       ? null
       : fecha;
   };
+  const fechaParaInputLocal = fecha => {
+    const fechaValida =
+      fecha instanceof Date
+        ? fecha
+        : new Date(fecha);
+
+    if (Number.isNaN(fechaValida.getTime())) {
+      return "";
+    }
+
+    const offsetMs =
+      fechaValida.getTimezoneOffset() * 60000;
+
+    return new Date(
+      fechaValida.getTime() - offsetMs
+    ).toISOString().slice(0, 10);
+  };
   const calcularEstadoEficiencia = eficiencia => {
     if (eficiencia < 70) return "🔴";
     if (eficiencia < 90) return "🟡";
@@ -97,6 +177,26 @@ function App() {
       normalizar(s.nombre) ===
       normalizar(nombreSubproceso)
     )?.detalles || [];
+  const normalizarListaHabilidades = valor => {
+    const base = Array.isArray(valor)
+      ? valor
+      : (valor || "")
+          .toString()
+          .split(/[,;\n]/);
+
+    return [
+      ...new Set(
+        base
+          .map(item =>
+            item.toString().trim()
+          )
+          .filter(Boolean)
+      )
+    ];
+  };
+  const textoHabilidades = valor =>
+    normalizarListaHabilidades(valor)
+      .join(", ");
   const registroFueAjustado = (
     registroId
   ) => {
@@ -124,6 +224,32 @@ function App() {
   const [usuarios, setUsuarios] = useState([]);
   const [operarios, setOperarios] = useState([]);
   const [operarioSeleccionado, setOperarioSeleccionado] = useState("");
+  const [nuevoOperarioNombre, setNuevoOperarioNombre] =
+    useState("");
+  const [nuevoOperarioEquipo, setNuevoOperarioEquipo] =
+    useState("");
+  const [nuevoOperarioActivo, setNuevoOperarioActivo] =
+    useState(true);
+  const [
+    nuevoOperarioHabilidades,
+    setNuevoOperarioHabilidades
+  ] = useState("");
+  const [
+    filtroEquipoOperarios,
+    setFiltroEquipoOperarios
+  ] = useState("");
+  const [
+    filtroHabilidadOperarios,
+    setFiltroHabilidadOperarios
+  ] = useState("");
+  const [
+    filtroActivoOperarios,
+    setFiltroActivoOperarios
+  ] = useState("activos");
+  const [
+    edicionesOperarios,
+    setEdicionesOperarios
+  ] = useState({});
 
   const [otSeleccionada, setOtSeleccionada] = useState("");
   const [procesoSeleccionado, setProcesoSeleccionado] = useState("");
@@ -133,7 +259,19 @@ function App() {
   const [emailAcceso, setEmailAcceso] = useState("");
   const [passwordAcceso, setPasswordAcceso] = useState("");
   const [errorAcceso, setErrorAcceso] = useState("");
+  const [mensajeAcceso, setMensajeAcceso] = useState("");
   const [ingresando, setIngresando] = useState(false);
+  const [mostrarPasswordAcceso, setMostrarPasswordAcceso] = useState(false);
+  const [enviandoReset, setEnviandoReset] =
+    useState(false);
+  const [contextoCapacidadV2,
+    setContextoCapacidadV2] = useState(null);
+  const [contextoTurnosV2,
+    setContextoTurnosV2] = useState(null);
+  const [retornoPlanificadorV2,
+    setRetornoPlanificadorV2] = useState(null);
+  const [contextoEjecucionV2,
+    setContextoEjecucionV2] = useState(null);
   const sesionCargaId =
     autenticacionFirebaseActiva
       ? usuarioSeleccionado?.id || ""
@@ -150,6 +288,18 @@ function App() {
 
   const [estandares, setEstandares] = useState([]);
   const [dashboard, setDashboard] = useState([]);
+  const [
+    registrosEvolucionOperario,
+    setRegistrosEvolucionOperario
+  ] = useState([]);
+  const [
+    operarioEvolucionSeleccionado,
+    setOperarioEvolucionSeleccionado
+  ] = useState("");
+  const [
+    cargandoEvolucionOperario,
+    setCargandoEvolucionOperario
+  ] = useState(false);
 
   const [clienteOT, setClienteOT] = useState("");
   const [productoOT, setProductoOT] = useState("");
@@ -229,6 +379,12 @@ const [unidadesHoraOperacionProducto,
   const [responsableAjuste, setResponsableAjuste] = useState("");
 
   const [registroAjuste, setRegistroAjuste] = useState(null);
+  const [fechaAjusteGerencial, setFechaAjusteGerencial] =
+    useState(() => fechaParaInputLocal(new Date()));
+  const [
+    cargandoRegistrosAjuste,
+    setCargandoRegistrosAjuste
+  ] = useState(false);
   const [nuevaHoraInicio, setNuevaHoraInicio] = useState("");
   const [nuevaHoraFin, setNuevaHoraFin] = useState("");
   const [nuevaCantidad, setNuevaCantidad] = useState("");
@@ -347,18 +503,80 @@ const [unidadesHoraOperacionProducto,
     transition: "0.25s"
   };
 
+const cargarOrdenesTrabajo = useCallback(async () => {
+  if (
+    !autenticacionFirebaseActiva ||
+    !usuarioSeleccionado
+  ) {
+    const otSnap = await getDocs(
+      collection(db, "ordenes_trabajo")
+    );
+
+    return otSnap.docs.map(doc =>
+      normalizarOrdenTrabajo(doc.id, doc.data())
+    );
+  }
+
+  const filtrosBase = [
+    where(
+      "empresa_id",
+      "==",
+      usuarioSeleccionado.empresa_id
+    ),
+    where("modelo_version", "==", 2)
+  ];
+  const plantasPermitidas =
+    usuarioSeleccionado.rol === "gerencia"
+      ? []
+      : (usuarioSeleccionado.planta_ids || []);
+  if (
+    usuarioSeleccionado.rol !== "gerencia" &&
+    plantasPermitidas.length === 0
+  ) {
+    return [];
+  }
+
+  const consultas = plantasPermitidas.length > 0
+    ? plantasPermitidas.map(plantaId =>
+      query(
+        collection(db, "ordenes_trabajo"),
+        ...filtrosBase,
+        where("planta_id", "==", plantaId)
+      )
+    )
+    : [
+      query(
+        collection(db, "ordenes_trabajo"),
+        ...filtrosBase
+      )
+    ];
+  const snaps = await Promise.all(
+    consultas.map(consulta => getDocs(consulta))
+  );
+  const ordenesPorId = new Map();
+
+  snaps.forEach(snap => {
+    snap.docs.forEach(documento => {
+      ordenesPorId.set(
+        documento.id,
+        normalizarOrdenTrabajo(
+          documento.id,
+          documento.data()
+        )
+      );
+    });
+  });
+
+  return [...ordenesPorId.values()];
+}, [usuarioSeleccionado]);
+
 const cargarDatos = useCallback(async () => {
 
   try {
 
     await cargarProduccionActiva();
 
-    const otSnap = await getDocs(collection(db, "ordenes_trabajo"));
-    setOts(
-      otSnap.docs.map(doc =>
-        normalizarOrdenTrabajo(doc.id, doc.data())
-      )
-    );
+    setOts(await cargarOrdenesTrabajo());
 
     const procSnap = await getDocs(collection(db, "procesos"));
     setProcesos(procSnap.docs.map(doc => doc.data()));
@@ -369,7 +587,13 @@ const cargarDatos = useCallback(async () => {
     const operSnap = await getDocs(collection(db, "operarios"));
 
     setOperarios(
-      operSnap.docs.map(doc => doc.data())
+      operSnap.docs.map(doc => ({
+        id: doc.id,
+        activo: true,
+        equipo: "",
+        habilidades: [],
+        ...doc.data()
+      }))
     );
 
     const subSnap = await getDocs(collection(db, "subprocesos"));
@@ -480,6 +704,103 @@ try {
 
   } catch (error) {
     console.error("ERROR:", error);
+  }
+
+}, [cargarOrdenesTrabajo]);
+
+const cargarRegistrosAjustePorFecha = useCallback(async (
+  fechaSeleccionada = fechaAjusteGerencial
+) => {
+
+  if (!fechaSeleccionada) {
+    setRegistros([]);
+    return;
+  }
+
+  const inicioDia =
+    new Date(`${fechaSeleccionada}T00:00:00`);
+
+  const finDia =
+    new Date(inicioDia);
+
+  finDia.setDate(
+    finDia.getDate() + 1
+  );
+
+  if (
+    Number.isNaN(inicioDia.getTime()) ||
+    Number.isNaN(finDia.getTime())
+  ) {
+    setRegistros([]);
+    return;
+  }
+
+  setCargandoRegistrosAjuste(true);
+
+  try {
+    const registrosQuery = query(
+      collection(db, "registros_produccion"),
+      where("fecha", ">=", inicioDia),
+      where("fecha", "<", finDia),
+      orderBy("fecha", "desc")
+    );
+
+    const registrosSnap =
+      await getDocs(registrosQuery);
+
+    setRegistros(
+      registrosSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    );
+  } catch (error) {
+    console.error(error);
+    alert(
+      "Error cargando registros de la fecha seleccionada"
+    );
+  } finally {
+    setCargandoRegistrosAjuste(false);
+  }
+
+}, [fechaAjusteGerencial]);
+
+const cargarEvolucionOperarios = useCallback(async () => {
+
+  const inicio =
+    new Date();
+
+  inicio.setHours(0, 0, 0, 0);
+  inicio.setDate(
+    inicio.getDate() - 29
+  );
+
+  setCargandoEvolucionOperario(true);
+
+  try {
+    const registrosQuery = query(
+      collection(db, "registros_produccion"),
+      where("fecha", ">=", inicio),
+      orderBy("fecha", "desc"),
+      limit(2500)
+    );
+
+    const registrosSnap =
+      await getDocs(registrosQuery);
+
+    setRegistrosEvolucionOperario(
+      registrosSnap.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+    );
+  } catch (error) {
+    console.error(error);
+    alert(
+      "Error cargando evolución de eficiencia"
+    );
+  } finally {
+    setCargandoEvolucionOperario(false);
   }
 
 }, []);
@@ -654,6 +975,25 @@ useEffect(() => {
 
   let cancelarObservador;
   let cancelado = false;
+  let timeoutValidacionSesion = setTimeout(() => {
+    if (cancelado) {
+      return;
+    }
+
+    setUsuarioSeleccionado(null);
+    setPantalla("login");
+    setErrorAcceso(
+      "No se pudo validar la sesión automáticamente. Ingresa tus credenciales nuevamente."
+    );
+    setAutenticacionLista(true);
+  }, 6000);
+
+  const limpiarTimeoutValidacionSesion = () => {
+    if (timeoutValidacionSesion) {
+      clearTimeout(timeoutValidacionSesion);
+      timeoutValidacionSesion = null;
+    }
+  };
 
   import("./auth/servicio").then(({
     mensajeErrorAutenticacion,
@@ -666,6 +1006,8 @@ useEffect(() => {
 
     cancelarObservador = observarSesion(
       async usuario => {
+        limpiarTimeoutValidacionSesion();
+
         try {
           if (!usuario) {
             setUsuarioSeleccionado(null);
@@ -678,8 +1020,14 @@ useEffect(() => {
             await obtenerPerfilFirebase(usuario);
 
           setUsuarioSeleccionado(perfil);
+          setPasswordAcceso("");
           setErrorAcceso("");
-          setPantalla("home");
+          setPantalla(
+            interfazV2Activa &&
+            perfil.rol === "tv"
+              ? "dashboardV2"
+              : "home"
+          );
           setAutenticacionLista(true);
         } catch (error) {
           setUsuarioSeleccionado(null);
@@ -691,6 +1039,7 @@ useEffect(() => {
         }
       },
       error => {
+        limpiarTimeoutValidacionSesion();
         setErrorAcceso(
           mensajeErrorAutenticacion(error)
         );
@@ -699,6 +1048,7 @@ useEffect(() => {
     );
   }).catch(error => {
     if (!cancelado) {
+      limpiarTimeoutValidacionSesion();
       setErrorAcceso(
         "No se pudo cargar el servicio de autenticación."
       );
@@ -709,6 +1059,7 @@ useEffect(() => {
 
   return () => {
     cancelado = true;
+    limpiarTimeoutValidacionSesion();
     cancelarObservador?.();
   };
 
@@ -733,6 +1084,53 @@ useEffect(() => {
   autenticacionLista,
   cargarDatos,
   sesionCargaId
+]);
+
+useEffect(() => {
+
+  if (pantalla !== "ajusteGerencial") {
+    return;
+  }
+
+  cargarRegistrosAjustePorFecha();
+
+}, [
+  pantalla,
+  cargarRegistrosAjustePorFecha
+]);
+
+useEffect(() => {
+
+  if (pantalla !== "evolucionOperario") {
+    return;
+  }
+
+  cargarEvolucionOperarios();
+
+}, [
+  pantalla,
+  cargarEvolucionOperarios
+]);
+
+useEffect(() => {
+
+  if (pantalla !== "evolucionOperario") {
+    return;
+  }
+
+  if (
+    !operarioEvolucionSeleccionado &&
+    operarios.length > 0
+  ) {
+    setOperarioEvolucionSeleccionado(
+      operarios[0].nombre || ""
+    );
+  }
+
+}, [
+  pantalla,
+  operarioEvolucionSeleccionado,
+  operarios
 ]);
   
 useEffect(() => {
@@ -1163,22 +1561,68 @@ const cargarTodosLosParos = async () => {
               placeholder="Correo"
               autoComplete="username"
               value={emailAcceso}
-              onChange={(e) =>
-                setEmailAcceso(e.target.value)
-              }
+              onChange={(e) => {
+                setEmailAcceso(e.target.value);
+                setMensajeAcceso("");
+              }}
               style={estiloInput}
             />
 
-            <input
-              type="password"
-              placeholder="Contraseña"
-              autoComplete="current-password"
-              value={passwordAcceso}
-              onChange={(e) =>
-                setPasswordAcceso(e.target.value)
-              }
-              style={estiloInput}
-            />
+            <div style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              marginBottom: 10
+            }}>
+              <input
+                type={mostrarPasswordAcceso
+                  ? "text"
+                  : "password"}
+                placeholder="Contraseña"
+                autoComplete="current-password"
+                value={passwordAcceso}
+                onChange={(e) => {
+                  setPasswordAcceso(e.target.value);
+                  setMensajeAcceso("");
+                }}
+                style={{
+                  ...estiloInput,
+                  marginBottom: 0
+                }}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setMostrarPasswordAcceso(
+                    previo => !previo
+                  )
+                }
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: "1px solid #1976D2",
+                  background: "white",
+                  color: "#1976D2",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                {mostrarPasswordAcceso
+                  ? "Ocultar"
+                  : "Ver"}
+              </button>
+            </div>
+
+            {mensajeAcceso && (
+              <div style={{
+                color: "#2E7D32",
+                marginBottom: 12,
+                fontSize: 14
+              }}>
+                {mensajeAcceso}
+              </div>
+            )}
 
             {errorAcceso && (
               <div style={{
@@ -1200,21 +1644,43 @@ const cargarTodosLosParos = async () => {
                   setErrorAcceso(
                     "Ingresa correo y contraseña."
                   );
+                  setMensajeAcceso("");
                   return;
                 }
 
                 try {
                   setIngresando(true);
                   setErrorAcceso("");
+                  setMensajeAcceso(
+                    "Validando acceso con Firebase..."
+                  );
                   const {
-                    iniciarSesion
+                    iniciarSesion,
+                    obtenerPerfilFirebase
                   } = await import(
                     "./auth/servicio"
                   );
-                  await iniciarSesion(
-                    emailAcceso,
-                    passwordAcceso
+                  const credencial =
+                    await iniciarSesion(
+                      emailAcceso,
+                      passwordAcceso
+                    );
+                  const perfil =
+                    await obtenerPerfilFirebase(
+                      credencial.user
+                    );
+
+                  setUsuarioSeleccionado(perfil);
+                  setPasswordAcceso("");
+                  setErrorAcceso("");
+                  setMensajeAcceso("");
+                  setPantalla(
+                    interfazV2Activa &&
+                    perfil.rol === "tv"
+                      ? "dashboardV2"
+                      : "home"
                   );
+                  setAutenticacionLista(true);
                 } catch (error) {
                   const {
                     mensajeErrorAutenticacion
@@ -1243,6 +1709,66 @@ const cargarTodosLosParos = async () => {
               {ingresando
                 ? "Ingresando..."
                 : "Ingresar"}
+            </button>
+
+            <button
+              disabled={enviandoReset}
+              onClick={async () => {
+                const email =
+                  emailAcceso.trim();
+
+                if (!email) {
+                  setErrorAcceso(
+                    "Ingresa tu correo para restablecer la contraseña."
+                  );
+                  setMensajeAcceso("");
+                  return;
+                }
+
+                try {
+                  setEnviandoReset(true);
+                  setErrorAcceso("");
+                  setMensajeAcceso("");
+                  const {
+                    enviarCorreoRestablecerPassword
+                  } = await import(
+                    "./auth/servicio"
+                  );
+                  await enviarCorreoRestablecerPassword(
+                    email
+                  );
+                  setMensajeAcceso(
+                    "Correo de restablecimiento enviado. Revisa tu email."
+                  );
+                } catch (error) {
+                  const {
+                    mensajeErrorAutenticacion
+                  } = await import(
+                    "./auth/servicio"
+                  );
+                  setErrorAcceso(
+                    mensajeErrorAutenticacion(error)
+                  );
+                } finally {
+                  setEnviandoReset(false);
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 8,
+                border: "1px solid #1976D2",
+                background: "white",
+                color: "#1976D2",
+                fontWeight: "bold",
+                cursor: "pointer",
+                fontSize: 14,
+                marginTop: 10
+              }}
+            >
+              {enviandoReset
+                ? "Enviando correo..."
+                : "Olvidé mi contraseña"}
             </button>
           </>
         ) : (
@@ -1303,6 +1829,329 @@ const cargarTodosLosParos = async () => {
 }
 
   if (pantalla === "home") {
+  const accesoV2 =
+    interfazV2Activa &&
+    autenticacionFirebaseActiva;
+  const puedeAdministrar =
+    accesoV2 &&
+    puedeAdministrarV2(usuarioSeleccionado);
+  const puedeOperar =
+    accesoV2 &&
+    puedeOperarV2(usuarioSeleccionado);
+  const puedeVerDashboard =
+    accesoV2 &&
+    puedeVerDashboardV2(usuarioSeleccionado);
+  const abrirDashboardLegacy = () => {
+    setPantalla("dashboard");
+    cargarDashboard();
+  };
+  const limpiarContextoTurnos = () => {
+    setContextoTurnosV2(null);
+    setPantalla("turnosV2");
+  };
+  const limpiarContextoCapacidad = () => {
+    setContextoCapacidadV2(null);
+    setPantalla("capacidadV2");
+  };
+  const tarjetaMenu = {
+    border: "1px solid #E2E8F0",
+    borderRadius: 14,
+    background: "white",
+    color: "#0F172A",
+    padding: "14px 16px",
+    textAlign: "left",
+    cursor: "pointer",
+    fontWeight: "bold",
+    boxShadow:
+      "0 2px 8px rgba(15,23,42,0.06)"
+  };
+  const tarjetaRapida = {
+    ...tarjetaMenu,
+    background: "#0F172A",
+    color: "white",
+    border: "none"
+  };
+  const accionesRapidas = [
+    {
+      titulo: "Dashboard",
+      accion: puedeVerDashboard
+        ? () => setPantalla("dashboardV2")
+        : abrirDashboardLegacy
+    },
+    {
+      titulo: "Crear OT",
+      accion: puedeAdministrar
+        ? () => setPantalla("ordenesV2")
+        : () => setPantalla("crearOT")
+    },
+    {
+      titulo: "Ejecutar producción",
+      accion: puedeOperar
+        ? () => setPantalla("ejecucionV2")
+        : () => setPantalla("registro")
+    },
+    {
+      titulo: "Ingeniería de producto",
+      accion: puedeAdministrar
+        ? () => setPantalla("rutasV2")
+        : () => setPantalla("configProductos")
+    }
+  ];
+  const seccionesHome = [
+    {
+      titulo: "Producción",
+      descripcion:
+        "Operación diaria, OTs y ejecución en planta.",
+      items: [
+        {
+          titulo: "Dashboard y Ranking",
+          visible: puedeVerDashboard,
+          accion: () => setPantalla("dashboardV2")
+        },
+        {
+          titulo: "Dashboard clásico",
+          visible: true,
+          accion: abrirDashboardLegacy
+        },
+        {
+          titulo: "Órdenes de Trabajo",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("ordenesV2")
+        },
+        {
+          titulo: "Crear OT clásico",
+          visible: true,
+          accion: () => setPantalla("crearOT")
+        },
+        {
+          titulo: "Ejecutar Producción",
+          visible: puedeOperar,
+          accion: () => setPantalla("ejecucionV2")
+        },
+        {
+          titulo: "Registrar Producción clásico",
+          visible: true,
+          accion: () => setPantalla("registro")
+        },
+        {
+          titulo: "Ver OTs clásico",
+          visible: true,
+          accion: () => setPantalla("ot")
+        }
+      ]
+    },
+    {
+      titulo: "Ingeniería",
+      descripcion:
+        "Producto, rutas, piezas, procesos y carga masiva.",
+      items: [
+        {
+          titulo: "Ingeniería de Producto",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("rutasV2")
+        },
+        {
+          titulo: "Catálogo de Procesos y Estaciones",
+          visible: puedeAdministrar,
+          accion: () =>
+            setPantalla("procesosEstacionesV2")
+        },
+        {
+          titulo: "Catálogo de Piezas",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("piezasV2")
+        },
+        {
+          titulo: "Catálogo de Subproductos",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("subproductosV2")
+        },
+        {
+          titulo: "Catálogo de Operaciones",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("detallesV2")
+        },
+        {
+          titulo: "Importar Ingeniería Excel",
+          visible: puedeAdministrar,
+          accion: () =>
+            setPantalla("importadorIngenieriaV2")
+        },
+        {
+          titulo: "Operaciones Maestras clásicas",
+          visible: true,
+          accion: () =>
+            setPantalla("operacionesMaestras")
+        }
+      ]
+    },
+    {
+      titulo: "Planificación",
+      descripcion:
+        "Cuellos de botella, capacidad, turnos y decisiones.",
+      items: [
+        {
+          titulo: "Planificador de Prioridades",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("planificadorV2")
+        },
+        {
+          titulo: "Gestión de Estándares",
+          visible: puedeAdministrar,
+          accion: () =>
+            setPantalla("gestionEstandaresV2")
+        },
+        {
+          titulo: "Capacidad por Estación",
+          visible: puedeAdministrar,
+          accion: limpiarContextoCapacidad
+        },
+        {
+          titulo: "Turnos y Dotación",
+          visible: puedeAdministrar,
+          accion: limpiarContextoTurnos
+        },
+        {
+          titulo: "Historial de decisiones",
+          visible: puedeAdministrar,
+          accion: () =>
+            setPantalla(
+              "historialDecisionesPlanificadorV2"
+            )
+        },
+      ]
+    },
+    {
+      titulo: "RRHH",
+      descripcion:
+        "Personas de planta, equipos y habilidades.",
+      items: [
+        {
+          titulo: "Personas y Operarios",
+          visible:
+            puedeGestionarRRHHV2(
+              usuarioSeleccionado
+            ),
+          accion: () => setPantalla("rrhhPersonasV2")
+        }
+      ]
+    },
+    {
+      titulo: "Materiales",
+      descripcion:
+        "MP, RF, inventario, almacén y compras.",
+      items: [
+        {
+          titulo: "Catálogo MP / RF",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("materialesV2")
+        },
+        {
+          titulo: "Almacén",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("almacenV2")
+        },
+        {
+          titulo: "Compras",
+          visible:
+            puedeGestionarComprasV2(
+              usuarioSeleccionado
+            ),
+          accion: () => setPantalla("comprasV2")
+        }
+      ]
+    },
+    {
+      titulo: "Comercial Técnico",
+      descripcion:
+        "Costeo, cotización y lead time de productos nuevos.",
+      items: [
+        {
+          titulo: "Costeo y Cotización Técnica",
+          visible:
+            puedeGestionarCosteoV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("cotizadorTecnicoV2")
+        },
+        {
+          titulo: "Clientes y Proveedores",
+          visible:
+            puedeGestionarCosteoV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("tercerosV2")
+        },
+        {
+          titulo: "Costos Base Producción",
+          visible:
+            puedeGestionarCosteoV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("costosBaseProduccionV2")
+        },
+        {
+          titulo: "Costos Operativos Fijos",
+          visible:
+            puedeGestionarCosteoV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("costosOperativosFijosV2")
+        }
+      ]
+    },
+    {
+      titulo: "Control",
+      descripcion:
+        "Calidad, paros y ajustes.",
+      items: [
+        {
+          titulo: "Calidad y Reprocesos",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("calidadV2")
+        },
+        {
+          titulo: "Motivos de Paro",
+          visible: puedeAdministrar,
+          accion: () => setPantalla("parosV2")
+        },
+        {
+          titulo: "Usuarios / Control de Acceso",
+          visible:
+            puedeGestionarUsuariosV2(
+              usuarioSeleccionado
+            ),
+          accion: () =>
+            setPantalla("usuariosV2")
+        },
+        {
+          titulo: "Historial de Paros",
+          visible: true,
+          accion: () => setPantalla("historialParos")
+        },
+        {
+          titulo: "Evolución Eficiencia Operario",
+          visible: true,
+          accion: () => setPantalla("evolucionOperario")
+        },
+        {
+          titulo: "Ajuste Gerencial",
+          visible: true,
+          accion: () => {
+            setFechaAjusteGerencial(
+              fechaParaInputLocal(new Date())
+            );
+            setPantalla("ajusteGerencial");
+          }
+        }
+      ]
+    }
+  ];
+
   return (
     <div style={{
       padding: 30,
@@ -1317,9 +2166,9 @@ const cargarTodosLosParos = async () => {
 
       {/* LOGO */}
       <div style={{ textAlign: "center", marginBottom: 10 }}>
-        <img 
-          src="/logo-bba.png" 
-          alt="BBA" 
+        <img
+          src="/logo-bba.png"
+          alt="BBA"
           style={{ width: 120 }}
         />
         <h1 style={{ marginTop: 10 }}>BBA Producción</h1>
@@ -1333,6 +2182,8 @@ const cargarTodosLosParos = async () => {
                 "./auth/servicio"
               );
               await cerrarSesion();
+              setEmailAcceso("");
+              setPasswordAcceso("");
             }}
             style={{
               border: "none",
@@ -1504,220 +2355,540 @@ const cargarTodosLosParos = async () => {
 
 </div>     
 
-      <div style={{
-
-        display: "grid",
-
-        gridTemplateColumns:
-          esMobile
-            ? "1fr"
-            : "1.4fr 1fr 1fr 1fr",
-
-        gap: 40,
-
-        marginTop: 40,
-
-        alignItems: "start"
-
+      <section style={{
+        background: "white",
+        borderRadius: 22,
+        padding: 22,
+        boxShadow:
+          "0 4px 14px rgba(15,23,42,0.08)",
+        marginBottom: 26
       }}>
-
-      <div>
-
-        <h3 style={{
-          marginTop: 30,
-          marginBottom: 15,
-          color: "#555"
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 14,
+          alignItems: "center",
+          flexWrap: "wrap"
         }}>
-          📊 Operación
-        </h3>
+          <div>
+            <h2 style={{
+              margin: 0,
+              color: "#0F172A"
+            }}>
+              Accesos diarios
+            </h2>
+            <p style={{
+              margin: "6px 0 0",
+              color: "#64748B"
+            }}>
+              Lo que se usa con más frecuencia en planta.
+            </p>
+          </div>
+        </div>
 
         <div style={{
-
           display: "grid",
-
-          gridTemplateColumns:
-            esMobile
-              ? "1fr"
-              : "repeat(2, 1fr)",
-
-          gap: 22,
-
-          marginTop: 38,
-
-          marginBottom: 30
-
+          gridTemplateColumns: esMobile
+            ? "1fr"
+            : "repeat(4, 1fr)",
+          gap: 14,
+          marginTop: 18
         }}>
-
-        <button
-          onClick={() => {
-            setPantalla("dashboard");
-            cargarDashboard();
-          }}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          📊 Ver Dashboard
-        </button>
-
-        <button
-          onClick={() => setPantalla("crearOT")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          📋 Crear OT
-        </button>
-
-        <button
-          onClick={() => setPantalla("registro")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          🏭 Registrar Producción
-        </button>
-
-         <button
-          onClick={() => setPantalla("ot")}
-          style={{
-            ...cardHome,
-            background: "#1976D2"
-          }}
-        >
-          📋 Ver Órdenes de Trabajo 
-        </button>
-
+          {accionesRapidas.map(accion => (
+            <button
+              key={accion.titulo}
+              type="button"
+              onClick={accion.accion}
+              style={tarjetaRapida}
+            >
+              {accion.titulo}
+            </button>
+          ))}
         </div>
-</div>
+      </section>
 
-<div style={{
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: esMobile
+          ? "1fr"
+          : "repeat(2, minmax(0, 1fr))",
+        gap: 18,
+        alignItems: "start"
+      }}>
+        {seccionesHome.map(seccion => {
+          const items = seccion.items.filter(
+            item => item.visible
+          );
 
-  display: "flex",
+          if (items.length === 0) {
+            return null;
+          }
 
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
-        <h3 style={{
-          marginTop: 30,
-          marginBottom: 15,
-          color: "#555"
-        }}>
-
-          ⚠️ Control
-
-        </h3>
-
-        <button
-          onClick={() => setPantalla("historialParos")}
-          style={{
-            ...cardHome,
-            background: "#F57C00"
-          }}
-        >
-          📋 Historial de Paros
-        </button>
-
-          <button
-            onClick={() => setPantalla("ajusteGerencial")}
-            style={{
-              ...cardHome,
-              background: "#EF6C00"
-            }}
-          >
-            🛠 Ajuste Gerencial
-          </button>
-</div>
-
-<div style={{
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
-          <h3 style={{
-            marginTop: 30,
-            marginBottom: 15,
-            color: "#555"
-          }}>
-
-            ⚙️ Ingeniería
-
-          </h3>
-
-          <button
-            onClick={() => setPantalla("configProduccion")}
-            style={{
-              ...cardHome,
-              background: "#455A64"
-            }}
-          >
-            ⚙️ Configuración Producción
-          </button>
-
-          <button
-            onClick={() => setPantalla("configProductos")}
-            style={{
-              ...cardHome,
-              background: "#546E7A"
-            }}
-          >
-            📦 Configuración Productos
-          </button>
-
-          <button
-            onClick={() => setPantalla("operacionesMaestras")}
-            style={{
-              ...cardHome,
-              background: "#607D8B"
-            }}
-          >
-            ⚙️ Operaciones Maestras
-          </button>
-</div>
-
-<div style={{
-
-  display: "flex",
-
-  flexDirection: "column",
-
-  gap: 20
-
-}}>
-          <h3 style={{
-            marginTop: 30,
-            marginBottom: 15,
-            color: "#555"
-          }}>
-
-            📦 Almacén
-
-          </h3>
-
-          <button
-            onClick={() => {
-              setPantalla("almacen");
-              cargarMovimientosAlmacen();
-            }}
-            style={{
-              ...cardHome,
-              background: "#00695C"
-            }}
-          >
-            📦 Movimientos y Stock
-          </button>
-</div>
+          return (
+            <section
+              key={seccion.titulo}
+              style={{
+                background: "white",
+                borderRadius: 18,
+                padding: 18,
+                boxShadow:
+                  "0 2px 10px rgba(15,23,42,0.07)",
+                border: "1px solid #E2E8F0"
+              }}
+            >
+              <h3 style={{
+                margin: 0,
+                color: "#0F172A"
+              }}>
+                {seccion.titulo}
+              </h3>
+              <p style={{
+                margin: "6px 0 14px",
+                color: "#64748B",
+                fontSize: 14
+              }}>
+                {seccion.descripcion}
+              </p>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: esMobile
+                  ? "1fr"
+                  : "repeat(2, minmax(0, 1fr))",
+                gap: 10
+              }}>
+                {items.map(item => (
+                  <button
+                    key={item.titulo}
+                    type="button"
+                    onClick={item.accion}
+                    style={tarjetaMenu}
+                  >
+                    {item.titulo}
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
+  );
+}
+
+if (
+  pantalla === "almacenV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <AlmacenV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "comprasV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarComprasV2(usuarioSeleccionado)
+) {
+  return (
+    <ComprasV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "rrhhPersonasV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarRRHHV2(usuarioSeleccionado)
+) {
+  return (
+    <GestionPersonasRRHHV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "cotizadorTecnicoV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarCosteoV2(usuarioSeleccionado)
+) {
+  return (
+    <CotizadorTecnicoV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "tercerosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarCosteoV2(usuarioSeleccionado)
+) {
+  return (
+    <TercerosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+  if (
+    pantalla === "costosBaseProduccionV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarCosteoV2(usuarioSeleccionado)
+) {
+  return (
+    <CostosBaseProduccionV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "procesosEstacionesV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoProcesosEstacionesV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "piezasV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoPiezasV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "importadorIngenieriaV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <ImportadorIngenieriaV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "subproductosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoSubproductosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "detallesV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoDetallesV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "materialesV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CatalogoMaterialesV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "turnosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <ProgramacionTurnosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      contextoInicial={contextoTurnosV2}
+      textoVolver={
+        contextoTurnosV2
+          ? "Volver al Planificador"
+          : "Volver a Ingeniería"
+      }
+      onVolver={() => {
+        if (contextoTurnosV2) {
+          setRetornoPlanificadorV2({
+            origen: "turnos",
+            ...contextoTurnosV2
+          });
+        }
+        setPantalla(
+          contextoTurnosV2
+            ? "planificadorV2"
+            : "home"
+        );
+      }}
+    />
+  );
+}
+
+if (
+  pantalla === "capacidadV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CapacidadProcesosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      contextoInicial={contextoCapacidadV2}
+      textoVolver={
+        contextoCapacidadV2
+          ? "Volver al Planificador"
+          : "Volver a Ingeniería"
+      }
+      onVolver={() =>
+        setPantalla(
+          contextoCapacidadV2
+            ? "planificadorV2"
+            : "home"
+        )
+      }
+    />
+  );
+}
+
+if (
+  pantalla === "rutasV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <ConstructorRutasV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "ordenesV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <OrdenesTrabajoV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "planificadorV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <PlanificadorPrioridadesV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      contextoRetorno={retornoPlanificadorV2}
+      onContextoRetornoConsumido={() =>
+        setRetornoPlanificadorV2(null)
+      }
+      onVolver={() => setPantalla("home")}
+      onConfigurarCapacidad={contexto => {
+        setContextoCapacidadV2(contexto);
+        setPantalla("capacidadV2");
+      }}
+      onProgramarTurnos={contexto => {
+        setContextoTurnosV2(contexto);
+        setPantalla("turnosV2");
+      }}
+    />
+  );
+}
+
+if (
+  pantalla ===
+    "gestionEstandaresV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <GestionEstandaresV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla ===
+    "historialDecisionesPlanificadorV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <HistorialDecisionesPlanificadorV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+      onRevisarEstandar={contexto => {
+        setContextoEjecucionV2(contexto);
+        setPantalla("ejecucionV2");
+      }}
+    />
+  );
+}
+
+if (
+  pantalla === "ejecucionV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeOperarV2(usuarioSeleccionado)
+) {
+  return (
+    <EjecucionProduccionV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      contextoInicial={contextoEjecucionV2}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "dashboardV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeVerDashboardV2(usuarioSeleccionado)
+) {
+  return (
+    <DashboardV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+      onCerrarSesion={async () => {
+        const {
+          cerrarSesion
+        } = await import("./auth/servicio");
+        await cerrarSesion();
+        setEmailAcceso("");
+        setPasswordAcceso("");
+      }}
+    />
+  );
+}
+
+if (
+  pantalla === "calidadV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <CalidadV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "parosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeAdministrarV2(usuarioSeleccionado)
+) {
+  return (
+    <ParosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
+  );
+}
+
+if (
+  pantalla === "usuariosV2" &&
+  interfazV2Activa &&
+  autenticacionFirebaseActiva &&
+  puedeGestionarUsuariosV2(usuarioSeleccionado)
+) {
+  return (
+    <GestionUsuariosV2
+      db={db}
+      perfil={usuarioSeleccionado}
+      onVolver={() => setPantalla("home")}
+    />
   );
 }
 
@@ -2727,7 +3898,12 @@ return (
 
               fecha: new Date(),
 
-              iniciado_por: p.iniciado_por
+              iniciado_por: p.iniciado_por,
+
+              finalizado_por:
+                usuarioSeleccionado?.nombre ||
+                p.iniciado_por ||
+                "SIN USUARIO"
             }
           );
 
@@ -5035,6 +6211,21 @@ const avanceProceso =
     );
   }
 
+  if (
+    pantalla === "costosOperativosFijosV2" &&
+    interfazV2Activa &&
+    autenticacionFirebaseActiva &&
+    puedeGestionarCosteoV2(usuarioSeleccionado)
+  ) {
+    return (
+      <CostosOperativosFijosV2
+        db={db}
+        perfil={usuarioSeleccionado}
+        onVolver={() => setPantalla("home")}
+      />
+    );
+  }
+
   if (pantalla === "historialAjustes") {
 
     const ajustes =
@@ -5599,7 +6790,7 @@ const avanceProceso =
                   <td style={{ padding: 10 }}>
                     {a.subproceso}
                   </td>
-  
+
                   <td style={{ padding: 10 }}>
                     {a.detalle}
                   </td>
@@ -5624,7 +6815,7 @@ const avanceProceso =
                   </td>
 
                 </tr>
- 
+
               ))}
 
             </tbody>
@@ -5645,6 +6836,1228 @@ const avanceProceso =
 
           ← Volver
 
+        </button>
+
+      </div>
+
+    );
+
+  }
+
+  if (pantalla === "gestionOperarios") {
+
+    const equiposBase = [
+      "Alexis",
+      "Pablo"
+    ];
+
+    const habilidadesDisponibles = [
+      ...new Set(
+        operarios.flatMap(o =>
+          normalizarListaHabilidades(
+            o.habilidades
+          )
+        )
+      )
+    ].sort((a, b) =>
+      a.localeCompare(b)
+    );
+
+    const operariosGestion =
+      operarios
+        .slice()
+        .sort((a, b) =>
+          (a.nombre || "")
+            .localeCompare(b.nombre || "")
+        );
+
+    const operariosFiltrados =
+      operariosGestion.filter(o => {
+        const activo =
+          o.activo !== false;
+
+        const pasaActivo =
+          filtroActivoOperarios === "todos" ||
+          (
+            filtroActivoOperarios === "activos" &&
+            activo
+          ) ||
+          (
+            filtroActivoOperarios === "inactivos" &&
+            !activo
+          );
+
+        const pasaEquipo =
+          !filtroEquipoOperarios ||
+          normalizar(o.equipo) ===
+            normalizar(
+              filtroEquipoOperarios
+            );
+
+        const habilidades =
+          normalizarListaHabilidades(
+            o.habilidades
+          );
+
+        const pasaHabilidad =
+          !filtroHabilidadOperarios ||
+          habilidades.some(h =>
+            normalizar(h) ===
+            normalizar(
+              filtroHabilidadOperarios
+            )
+          );
+
+        return (
+          pasaActivo &&
+          pasaEquipo &&
+          pasaHabilidad
+        );
+      });
+
+    const resumenEquipo = equipo => {
+      const miembros =
+        operariosGestion.filter(o =>
+          normalizar(o.equipo) ===
+          normalizar(equipo)
+        );
+
+      const activos =
+        miembros.filter(o =>
+          o.activo !== false
+        );
+
+      const habilidades =
+        new Set(
+          activos.flatMap(o =>
+            normalizarListaHabilidades(
+              o.habilidades
+            )
+          )
+        );
+
+      return {
+        equipo,
+        total: miembros.length,
+        activos: activos.length,
+        inactivos:
+          miembros.length - activos.length,
+        habilidades:
+          habilidades.size
+      };
+    };
+
+    const resumenEquipos =
+      equiposBase.map(resumenEquipo);
+
+    const sinEquipo =
+      operariosGestion.filter(o =>
+        !o.equipo
+      );
+
+    const brechasHabilidades =
+      habilidadesDisponibles
+        .map(habilidad => {
+          const alexis =
+            operariosGestion.filter(o =>
+              o.activo !== false &&
+              normalizar(o.equipo) ===
+                "alexis" &&
+              normalizarListaHabilidades(
+                o.habilidades
+              ).some(h =>
+                normalizar(h) ===
+                normalizar(habilidad)
+              )
+            ).length;
+
+          const pablo =
+            operariosGestion.filter(o =>
+              o.activo !== false &&
+              normalizar(o.equipo) ===
+                "pablo" &&
+              normalizarListaHabilidades(
+                o.habilidades
+              ).some(h =>
+                normalizar(h) ===
+                normalizar(habilidad)
+              )
+            ).length;
+
+          return {
+            habilidad,
+            Alexis: alexis,
+            Pablo: pablo,
+            diferencia:
+              Math.abs(alexis - pablo)
+          };
+        })
+        .filter(item =>
+          item.diferencia > 0 ||
+          item.Alexis === 0 ||
+          item.Pablo === 0
+        )
+        .sort((a, b) =>
+          b.diferencia - a.diferencia
+        );
+
+    const guardarOperario = async operario => {
+      const borrador =
+        edicionesOperarios[operario.id] || {};
+
+      const nombre =
+        (
+          borrador.nombre ??
+          operario.nombre ??
+          ""
+        ).toString().trim();
+
+      if (!nombre) {
+        alert("Ingresa nombre del operario.");
+        return;
+      }
+
+      try {
+        await updateDoc(
+          doc(db, "operarios", operario.id),
+          {
+            nombre,
+            activo:
+              borrador.activo ??
+              (operario.activo !== false),
+            equipo:
+              borrador.equipo ??
+              operario.equipo ??
+              "",
+            habilidades:
+              normalizarListaHabilidades(
+                borrador.habilidades ??
+                operario.habilidades
+              ),
+            actualizado_por:
+              usuarioSeleccionado?.nombre ||
+              "SISTEMA",
+            actualizado_en:
+              new Date()
+          }
+        );
+
+        setEdicionesOperarios(prev => {
+          const siguiente = { ...prev };
+          delete siguiente[operario.id];
+          return siguiente;
+        });
+
+        await cargarDatos();
+
+        alert("Operario actualizado ✅");
+      } catch (error) {
+        console.error(error);
+        alert("Error actualizando operario");
+      }
+    };
+
+    const agregarOperario = async () => {
+      const nombre =
+        nuevoOperarioNombre.trim();
+
+      if (!nombre) {
+        alert("Ingresa nombre del operario.");
+        return;
+      }
+
+      try {
+        await addDoc(
+          collection(db, "operarios"),
+          {
+            nombre,
+            activo: nuevoOperarioActivo,
+            equipo: nuevoOperarioEquipo,
+            habilidades:
+              normalizarListaHabilidades(
+                nuevoOperarioHabilidades
+              ),
+            creado_por:
+              usuarioSeleccionado?.nombre ||
+              "SISTEMA",
+            creado_en:
+              new Date()
+          }
+        );
+
+        setNuevoOperarioNombre("");
+        setNuevoOperarioEquipo("");
+        setNuevoOperarioActivo(true);
+        setNuevoOperarioHabilidades("");
+
+        await cargarDatos();
+
+        alert("Operario agregado ✅");
+      } catch (error) {
+        console.error(error);
+        alert("Error agregando operario");
+      }
+    };
+
+    return (
+
+      <div style={{
+        padding: 20,
+        maxWidth: 1150,
+        margin: "0 auto"
+      }}>
+
+        <h2>
+          👥 Gestión de Operarios
+        </h2>
+
+        <p style={{
+          color: "#555",
+          lineHeight: 1.5
+        }}>
+          Administra estado activo, equipo y
+          habilidades para balancear los grupos
+          de Alexis y Pablo. Esta base queda lista
+          para futuras sugerencias de IA sobre
+          dotación y habilidades faltantes.
+        </p>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            esMobile ? "1fr" : "repeat(3, 1fr)",
+          gap: 12,
+          marginBottom: 18
+        }}>
+
+          {resumenEquipos.map(resumen => (
+            <div
+              key={resumen.equipo}
+              style={{
+                background: "white",
+                padding: 16,
+                borderRadius: 14,
+                boxShadow:
+                  "0 2px 8px rgba(0,0,0,0.08)"
+              }}
+            >
+              <b>Equipo {resumen.equipo}</b>
+              <h2 style={{
+                color: "#1976D2",
+                marginBottom: 4
+              }}>
+                {resumen.activos}
+                {" "}
+                activos
+              </h2>
+              <div>
+                Total: {resumen.total}
+              </div>
+              <div>
+                Inactivos: {resumen.inactivos}
+              </div>
+              <div>
+                Habilidades cubiertas:
+                {" "}
+                {resumen.habilidades}
+              </div>
+            </div>
+          ))}
+
+          <div style={{
+            background: "#FFF8E1",
+            color: "#5D4037",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Sin equipo asignado</b>
+            <h2 style={{
+              marginBottom: 4
+            }}>
+              {sinEquipo.length}
+            </h2>
+            <div>
+              Conviene asignarlos para que el
+              balance sea real.
+            </div>
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "white",
+          padding: 18,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,0.08)",
+          marginBottom: 18
+        }}>
+
+          <h3>
+            ➕ Agregar Operario
+          </h3>
+
+          <input
+            style={estiloInput}
+            placeholder="Nombre del operario"
+            value={nuevoOperarioNombre}
+            onChange={(e) =>
+              setNuevoOperarioNombre(
+                e.target.value
+              )
+            }
+          />
+
+          <select
+            style={estiloInput}
+            value={nuevoOperarioEquipo}
+            onChange={(e) =>
+              setNuevoOperarioEquipo(
+                e.target.value
+              )
+            }
+          >
+            <option value="">
+              Sin equipo
+            </option>
+            {equiposBase.map(equipo => (
+              <option
+                key={equipo}
+                value={equipo}
+              >
+                Equipo {equipo}
+              </option>
+            ))}
+          </select>
+
+          <select
+            style={estiloInput}
+            value={
+              nuevoOperarioActivo
+                ? "true"
+                : "false"
+            }
+            onChange={(e) =>
+              setNuevoOperarioActivo(
+                e.target.value === "true"
+              )
+            }
+          >
+            <option value="true">
+              Activo
+            </option>
+            <option value="false">
+              Inactivo
+            </option>
+          </select>
+
+          <textarea
+            style={{
+              ...estiloInput,
+              minHeight: 80
+            }}
+            placeholder="Habilidades separadas por coma. Ej: Soldadura Mig, Doblez, Corte"
+            value={nuevoOperarioHabilidades}
+            onChange={(e) =>
+              setNuevoOperarioHabilidades(
+                e.target.value
+              )
+            }
+          />
+
+          <button
+            style={botonVerde}
+            onClick={agregarOperario}
+          >
+            ✅ Agregar Operario
+          </button>
+
+        </div>
+
+        <div style={{
+          background: "white",
+          padding: 18,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,0.08)",
+          marginBottom: 18
+        }}>
+
+          <h3>
+            🔎 Filtros
+          </h3>
+
+          <div style={{
+            display: "grid",
+            gridTemplateColumns:
+              esMobile
+                ? "1fr"
+                : "repeat(3, 1fr)",
+            gap: 12
+          }}>
+
+            <select
+              style={estiloInput}
+              value={filtroEquipoOperarios}
+              onChange={(e) =>
+                setFiltroEquipoOperarios(
+                  e.target.value
+                )
+              }
+            >
+              <option value="">
+                Todos los equipos
+              </option>
+              {equiposBase.map(equipo => (
+                <option
+                  key={equipo}
+                  value={equipo}
+                >
+                  Equipo {equipo}
+                </option>
+              ))}
+            </select>
+
+            <select
+              style={estiloInput}
+              value={filtroHabilidadOperarios}
+              onChange={(e) =>
+                setFiltroHabilidadOperarios(
+                  e.target.value
+                )
+              }
+            >
+              <option value="">
+                Todas las habilidades
+              </option>
+              {habilidadesDisponibles.map(h => (
+                <option
+                  key={h}
+                  value={h}
+                >
+                  {h}
+                </option>
+              ))}
+            </select>
+
+            <select
+              style={estiloInput}
+              value={filtroActivoOperarios}
+              onChange={(e) =>
+                setFiltroActivoOperarios(
+                  e.target.value
+                )
+              }
+            >
+              <option value="activos">
+                Solo activos
+              </option>
+              <option value="inactivos">
+                Solo inactivos
+              </option>
+              <option value="todos">
+                Todos
+              </option>
+            </select>
+
+          </div>
+
+          <div style={{
+            color: "#555",
+            fontWeight: "bold"
+          }}>
+            Operarios encontrados:
+            {" "}
+            {operariosFiltrados.length}
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "#E3F2FD",
+          color: "#0D47A1",
+          padding: 16,
+          borderRadius: 14,
+          marginBottom: 18
+        }}>
+          <b>Lectura para IA y balance:</b>
+          {" "}
+          {brechasHabilidades.length === 0
+            ? "Los equipos se ven balanceados por habilidades registradas."
+            : "Hay habilidades con cobertura desigual entre Alexis y Pablo."}
+          {brechasHabilidades
+            .slice(0, 6)
+            .map(item => (
+              <div key={item.habilidad}>
+                {item.habilidad}
+                {": Alexis "}
+                {item.Alexis}
+                {" / Pablo "}
+                {item.Pablo}
+              </div>
+            ))}
+        </div>
+
+        {operariosFiltrados.map(operario => {
+          const borrador =
+            edicionesOperarios[operario.id] || {};
+
+          const nombre =
+            borrador.nombre ??
+            operario.nombre ??
+            "";
+
+          const activo =
+            borrador.activo ??
+            (operario.activo !== false);
+
+          const equipo =
+            borrador.equipo ??
+            operario.equipo ??
+            "";
+
+          const habilidades =
+            borrador.habilidades ??
+            textoHabilidades(
+              operario.habilidades
+            );
+
+          return (
+            <div
+              key={operario.id || operario.nombre}
+              style={{
+                background: "white",
+                padding: 16,
+                borderRadius: 14,
+                boxShadow:
+                  "0 2px 8px rgba(0,0,0,0.08)",
+                marginBottom: 14,
+                borderLeft:
+                  activo
+                    ? "6px solid #2E7D32"
+                    : "6px solid #C62828"
+              }}
+            >
+
+              <input
+                style={estiloInput}
+                value={nombre}
+                onChange={(e) =>
+                  setEdicionesOperarios(prev => ({
+                    ...prev,
+                    [operario.id]: {
+                      ...prev[operario.id],
+                      nombre: e.target.value
+                    }
+                  }))
+                }
+              />
+
+              <div style={{
+                display: "grid",
+                gridTemplateColumns:
+                  esMobile
+                    ? "1fr"
+                    : "1fr 1fr",
+                gap: 12
+              }}>
+
+                <select
+                  style={estiloInput}
+                  value={activo ? "true" : "false"}
+                  onChange={(e) =>
+                    setEdicionesOperarios(prev => ({
+                      ...prev,
+                      [operario.id]: {
+                        ...prev[operario.id],
+                        activo:
+                          e.target.value === "true"
+                      }
+                    }))
+                  }
+                >
+                  <option value="true">
+                    Activo
+                  </option>
+                  <option value="false">
+                    Inactivo
+                  </option>
+                </select>
+
+                <select
+                  style={estiloInput}
+                  value={equipo}
+                  onChange={(e) =>
+                    setEdicionesOperarios(prev => ({
+                      ...prev,
+                      [operario.id]: {
+                        ...prev[operario.id],
+                        equipo: e.target.value
+                      }
+                    }))
+                  }
+                >
+                  <option value="">
+                    Sin equipo
+                  </option>
+                  {equiposBase.map(item => (
+                    <option
+                      key={item}
+                      value={item}
+                    >
+                      Equipo {item}
+                    </option>
+                  ))}
+                </select>
+
+              </div>
+
+              <textarea
+                style={{
+                  ...estiloInput,
+                  minHeight: 80
+                }}
+                value={habilidades}
+                onChange={(e) =>
+                  setEdicionesOperarios(prev => ({
+                    ...prev,
+                    [operario.id]: {
+                      ...prev[operario.id],
+                      habilidades: e.target.value
+                    }
+                  }))
+                }
+                placeholder="Habilidades separadas por coma"
+              />
+
+              <div style={{
+                marginBottom: 10
+              }}>
+                {normalizarListaHabilidades(
+                  habilidades
+                ).map(h => (
+                  <span
+                    key={h}
+                    style={{
+                      display: "inline-block",
+                      background: "#F1F8E9",
+                      color: "#33691E",
+                      padding: "4px 8px",
+                      borderRadius: 20,
+                      marginRight: 6,
+                      marginBottom: 6,
+                      fontSize: 12,
+                      fontWeight: "bold"
+                    }}
+                  >
+                    {h}
+                  </span>
+                ))}
+              </div>
+
+              <button
+                style={botonAzul}
+                onClick={() =>
+                  guardarOperario(operario)
+                }
+              >
+                💾 Guardar Cambios
+              </button>
+
+            </div>
+          );
+        })}
+
+        <button
+          style={{
+            ...botonVerde,
+            marginTop: 8
+          }}
+          onClick={cargarDatos}
+        >
+          🔄 Recargar Operarios
+        </button>
+
+        <button
+          onClick={() =>
+            setPantalla("home")
+          }
+          style={botonAzul}
+        >
+          ← Volver
+        </button>
+
+      </div>
+
+    );
+
+  }
+
+  if (pantalla === "evolucionOperario") {
+
+    const colorEficiencia = eficiencia => {
+      if (eficiencia === null) return "#E0E0E0";
+      if (eficiencia >= 90) return "#2E7D32";
+      if (eficiencia >= 70) return "#F9A825";
+      return "#C62828";
+    };
+
+    const diasEvolucion = Array.from(
+      { length: 30 },
+      (_, index) => {
+        const fecha = new Date();
+        fecha.setHours(0, 0, 0, 0);
+        fecha.setDate(
+          fecha.getDate() - 29 + index
+        );
+
+        return {
+          fecha,
+          key: fechaParaInputLocal(fecha),
+          label: fecha.toLocaleDateString(
+            "es-CL",
+            {
+              day: "2-digit",
+              month: "2-digit"
+            }
+          )
+        };
+      }
+    );
+
+    const registrosOperario =
+      registrosEvolucionOperario
+        .filter(r => !r.anulado)
+        .filter(r =>
+          normalizar(r.operario) ===
+          normalizar(
+            operarioEvolucionSeleccionado
+          )
+        )
+        .filter(r =>
+          r.tipo !== "ajuste_gerencial"
+        )
+        .filter(r =>
+          Number.isFinite(
+            Number(r.eficiencia)
+          )
+        );
+
+    const registrosPorDia =
+      registrosOperario.reduce((acc, r) => {
+        const fecha =
+          fechaDesdeValor(r.fecha);
+
+        if (!fecha) return acc;
+
+        const key =
+          fechaParaInputLocal(fecha);
+
+        if (!acc[key]) {
+          acc[key] = {
+            suma: 0,
+            cantidad: 0
+          };
+        }
+
+        acc[key].suma +=
+          Number(r.eficiencia || 0);
+        acc[key].cantidad += 1;
+
+        return acc;
+      }, {});
+
+    const datosEvolucion =
+      diasEvolucion.map(dia => {
+        const dataDia =
+          registrosPorDia[dia.key];
+
+        const promedio =
+          dataDia?.cantidad
+            ? Number(
+                (
+                  dataDia.suma /
+                  dataDia.cantidad
+                ).toFixed(1)
+              )
+            : null;
+
+        return {
+          fecha: dia.label,
+          fechaCompleta: dia.key,
+          eficiencia:
+            promedio === null ? 0 : promedio,
+          promedio,
+          registros:
+            dataDia?.cantidad || 0,
+          color:
+            colorEficiencia(promedio)
+        };
+      });
+
+    const diasConDatos =
+      datosEvolucion.filter(d =>
+        d.promedio !== null
+      );
+
+    const promedioLista = lista => {
+      const validos =
+        lista.filter(d =>
+          d.promedio !== null
+        );
+
+      if (validos.length === 0) {
+        return null;
+      }
+
+      return Number(
+        (
+          validos.reduce(
+            (acc, d) =>
+              acc + d.promedio,
+            0
+          ) / validos.length
+        ).toFixed(1)
+      );
+    };
+
+    const promedio30 =
+      promedioLista(datosEvolucion);
+    const promedioUltimos7 =
+      promedioLista(
+        datosEvolucion.slice(-7)
+      );
+    const promedioPrevios7 =
+      promedioLista(
+        datosEvolucion.slice(-14, -7)
+      );
+
+    const tendencia =
+      promedioUltimos7 !== null &&
+      promedioPrevios7 !== null
+        ? Number(
+            (
+              promedioUltimos7 -
+              promedioPrevios7
+            ).toFixed(1)
+          )
+        : null;
+
+    const mejorDia =
+      diasConDatos
+        .slice()
+        .sort(
+          (a, b) =>
+            b.promedio - a.promedio
+        )[0];
+
+    const peorDia =
+      diasConDatos
+        .slice()
+        .sort(
+          (a, b) =>
+            a.promedio - b.promedio
+        )[0];
+
+    const mensajeTendencia =
+      tendencia === null
+        ? "Aun no hay suficientes datos comparables."
+        : tendencia >= 5
+        ? `Mejora clara: +${tendencia}% vs los 7 dias anteriores.`
+        : tendencia <= -5
+        ? `Atencion: baja ${Math.abs(tendencia)}% vs los 7 dias anteriores.`
+        : "Estable: variacion pequena vs los 7 dias anteriores.";
+
+    return (
+
+      <div style={{
+        padding: 20,
+        maxWidth: 1100,
+        margin: "0 auto"
+      }}>
+
+        <h2>
+          📈 Evolución Eficiencia Operario
+        </h2>
+
+        <p style={{
+          color: "#555",
+          lineHeight: 1.5
+        }}>
+          Vista para reuniones personales:
+          muestra los últimos 30 días, con barras
+          por fecha y color semáforo según la
+          eficiencia promedio diaria.
+        </p>
+
+        <select
+          style={estiloInput}
+          value={operarioEvolucionSeleccionado}
+          onChange={(e) =>
+            setOperarioEvolucionSeleccionado(
+              e.target.value
+            )
+          }
+        >
+
+          <option value="">
+            Seleccionar operario
+          </option>
+
+          {operarios.map((o, i) => (
+            <option
+              key={i}
+              value={o.nombre}
+            >
+              {o.nombre}
+            </option>
+          ))}
+
+        </select>
+
+        {cargandoEvolucionOperario && (
+          <div style={{
+            background: "#E3F2FD",
+            color: "#0D47A1",
+            padding: 14,
+            borderRadius: 12,
+            marginBottom: 16,
+            fontWeight: "bold"
+          }}>
+            Cargando evolución...
+          </div>
+        )}
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            esMobile
+              ? "1fr"
+              : "repeat(4, 1fr)",
+          gap: 12,
+          marginBottom: 20
+        }}>
+
+          <div style={{
+            background: "white",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Promedio 30 días</b>
+            <h2 style={{
+              color:
+                colorEficiencia(promedio30),
+              marginBottom: 0
+            }}>
+              {promedio30 ?? "-"}%
+            </h2>
+          </div>
+
+          <div style={{
+            background: "white",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Últimos 7 días</b>
+            <h2 style={{
+              color:
+                colorEficiencia(
+                  promedioUltimos7
+                ),
+              marginBottom: 0
+            }}>
+              {promedioUltimos7 ?? "-"}%
+            </h2>
+          </div>
+
+          <div style={{
+            background: "white",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Tendencia</b>
+            <h2 style={{
+              color:
+                tendencia === null
+                  ? "#555"
+                  : tendencia >= 0
+                  ? "#2E7D32"
+                  : "#C62828",
+              marginBottom: 0
+            }}>
+              {tendencia === null
+                ? "-"
+                : `${tendencia > 0 ? "+" : ""}${tendencia}%`}
+            </h2>
+          </div>
+
+          <div style={{
+            background: "white",
+            padding: 16,
+            borderRadius: 14,
+            boxShadow:
+              "0 2px 8px rgba(0,0,0,0.08)"
+          }}>
+            <b>Registros evaluados</b>
+            <h2 style={{
+              color: "#1976D2",
+              marginBottom: 0
+            }}>
+              {registrosOperario.length}
+            </h2>
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "white",
+          padding: 18,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 8px rgba(0,0,0,0.08)",
+          marginBottom: 18
+        }}>
+
+          <h3>
+            Línea de tiempo últimos 30 días
+          </h3>
+
+          <div style={{
+            width: "100%",
+            height: esMobile ? 280 : 360
+          }}>
+
+            <ResponsiveContainer>
+
+              <BarChart
+                data={datosEvolucion}
+              >
+
+                <XAxis
+                  dataKey="fecha"
+                />
+
+                <YAxis
+                  domain={[0, 150]}
+                />
+
+                <Tooltip
+                  formatter={(value, name, item) => {
+                    const payload =
+                      item?.payload || {};
+
+                    if (
+                      payload.promedio === null
+                    ) {
+                      return [
+                        "Sin registros",
+                        "Eficiencia"
+                      ];
+                    }
+
+                    return [
+                      `${payload.promedio}% (${payload.registros} reg.)`,
+                      "Eficiencia"
+                    ];
+                  }}
+                />
+
+                <Bar dataKey="eficiencia">
+                  {datosEvolucion.map(
+                    (entry, index) => (
+                      <Cell
+                        key={`eficiencia-${index}`}
+                        fill={entry.color}
+                      />
+                    )
+                  )}
+                </Bar>
+
+              </BarChart>
+
+            </ResponsiveContainer>
+
+          </div>
+
+        </div>
+
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            esMobile
+              ? "1fr"
+              : "1fr 1fr",
+          gap: 12
+        }}>
+
+          <div style={{
+            background: "#E8F5E9",
+            color: "#1B5E20",
+            padding: 16,
+            borderRadius: 14
+          }}>
+            <b>Mejor día</b>
+            <div>
+              {mejorDia
+                ? `${mejorDia.fecha}: ${mejorDia.promedio}%`
+                : "-"}
+            </div>
+          </div>
+
+          <div style={{
+            background: "#FFEBEE",
+            color: "#B71C1C",
+            padding: 16,
+            borderRadius: 14
+          }}>
+            <b>Día más bajo</b>
+            <div>
+              {peorDia
+                ? `${peorDia.fecha}: ${peorDia.promedio}%`
+                : "-"}
+            </div>
+          </div>
+
+        </div>
+
+        <div style={{
+          background: "#FFF8E1",
+          color: "#5D4037",
+          padding: 16,
+          borderRadius: 14,
+          marginTop: 14,
+          fontWeight: "bold"
+        }}>
+          {mensajeTendencia}
+        </div>
+
+        <button
+          onClick={() =>
+            cargarEvolucionOperarios()
+          }
+          style={{
+            ...botonVerde,
+            marginTop: 18
+          }}
+        >
+          🔄 Actualizar datos
+        </button>
+
+        <button
+          onClick={() =>
+            setPantalla("home")
+          }
+          style={botonAzul}
+        >
+          ← Volver
         </button>
 
       </div>
@@ -6839,6 +9252,79 @@ const avanceProceso =
   ✏️ Corrección Registros
 </h3>
 
+<label style={{
+  display: "block",
+  fontWeight: "bold",
+  marginBottom: 6
+}}>
+  Fecha de registros a corregir
+</label>
+
+<input
+  type="date"
+  style={estiloInput}
+  value={fechaAjusteGerencial}
+  onChange={(e) => {
+    setRegistroAjuste(null);
+    setFechaAjusteGerencial(
+      e.target.value
+    );
+  }}
+/>
+
+{cargandoRegistrosAjuste && (
+  <div style={{
+    background: "#E3F2FD",
+    color: "#0D47A1",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontWeight: "bold"
+  }}>
+    Cargando registros...
+  </div>
+)}
+
+{!cargandoRegistrosAjuste && (
+  <div style={{
+    background: "#F5F5F5",
+    color: "#333",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12
+  }}>
+    Registros encontrados:
+    {" "}
+    {
+      registros
+        .filter(r => !r.anulado)
+        .filter(r =>
+
+          (!otSeleccionada ||
+
+            normalizar(r.ot)
+            ===
+            normalizar(
+              otSeleccionada
+            )
+          )
+
+          &&
+
+          (!operarioSeleccionado ||
+
+            normalizar(r.operario)
+            ===
+            normalizar(
+              operarioSeleccionado
+            )
+          )
+
+        ).length
+    }
+  </div>
+)}
+
 <div style={{
   marginTop: 20
 }}>
@@ -6878,8 +9364,6 @@ const avanceProceso =
   a.fecha?.seconds
 
 )
-
-.slice(0, 30)
 
 .map((r, i) => (
 
@@ -6992,6 +9476,25 @@ const avanceProceso =
           {r.cantidad_ok || 0}
         </div>
 
+        <div style={{
+          marginTop: 4,
+          fontWeight: "bold",
+          color:
+            Number(r.eficiencia || 0) >= 90
+              ? "#2E7D32"
+              : Number(r.eficiencia || 0) >= 70
+              ? "#F9A825"
+              : "#C62828"
+        }}>
+          📈 Eficiencia:
+          {" "}
+          {r.estado_eficiencia || calcularEstadoEficiencia(
+            Number(r.eficiencia || 0)
+          )}
+          {" "}
+          {Number(r.eficiencia || 0)}%
+        </div>
+
         <button
 
           style={{
@@ -7084,26 +9587,7 @@ setNuevaHoraFin(
         "Registro anulado ✅"
       );
 
-      const registrosQuery = query(
-        collection(
-          db,
-          "registros_produccion"
-        ),
-        orderBy("fecha", "desc"),
-        limit(100)
-      );
-
-      const registrosSnap =
-        await getDocs(
-          registrosQuery
-        );
-
-      setRegistros(
-        registrosSnap.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-      );
+      await cargarRegistrosAjustePorFecha();
 
       await cargarDashboard();
 
@@ -7492,21 +9976,7 @@ let nuevoSemaforo =
   }
 );
 
-const registrosQuery = query(
-  collection(db, "registros_produccion"),
-  orderBy("fecha", "desc"),
-  limit(100)
-);
-
-const registrosSnap =
-  await getDocs(registrosQuery);
-
-setRegistros(
-  registrosSnap.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }))
-);
+await cargarRegistrosAjustePorFecha();
 
 await cargarDashboard();
 
@@ -9795,6 +12265,81 @@ if (pantalla === "almacen") {
   const top1 = ranking[0];
 
   const alertas = [];
+  const limiteRegistrosPorSupervisor = 12;
+
+  const fechaRegistroMs = registro => {
+    if (registro?.fecha?.toDate) {
+      return registro.fecha.toDate().getTime();
+    }
+
+    const fecha = new Date(registro?.fecha);
+    return Number.isNaN(fecha.getTime())
+      ? 0
+      : fecha.getTime();
+  };
+
+  const supervisorRegistro = registro =>
+    (
+      registro?.finalizado_por ||
+      registro?.registrado_por ||
+      registro?.iniciado_por ||
+      registro?.supervisor ||
+      "Sin supervisor"
+    ).toString().trim() || "Sin supervisor";
+
+  const gruposDashboardSupervisor = Object.values(
+    dashboard.reduce((acc, registro) => {
+      const supervisor =
+        supervisorRegistro(registro);
+
+      if (!acc[supervisor]) {
+        acc[supervisor] = {
+          supervisor,
+          ultimoRegistroMs: 0,
+          registros: []
+        };
+      }
+
+      const fechaMs =
+        fechaRegistroMs(registro);
+      acc[supervisor].ultimoRegistroMs =
+        Math.max(
+          acc[supervisor].ultimoRegistroMs,
+          fechaMs
+        );
+      acc[supervisor].registros.push(registro);
+
+      return acc;
+    }, {})
+  )
+    .map(grupo => ({
+      ...grupo,
+      registros: grupo.registros
+        .slice()
+        .sort(
+          (a, b) =>
+            fechaRegistroMs(b) -
+            fechaRegistroMs(a)
+        )
+        .slice(0, limiteRegistrosPorSupervisor)
+        .sort((a, b) => {
+          const eficiencia =
+            Number(b.eficiencia || 0) -
+            Number(a.eficiencia || 0);
+
+          if (eficiencia !== 0) {
+            return eficiencia;
+          }
+
+          return fechaRegistroMs(b) -
+            fechaRegistroMs(a);
+        })
+    }))
+    .sort(
+      (a, b) =>
+        b.ultimoRegistroMs -
+        a.ultimoRegistroMs
+    );
 
 if (parosActivos.length > 0) {
 
@@ -10330,97 +12875,137 @@ produccionActiva.forEach(p => {
                 <div>%</div>
               </div>
 
-              {dashboard.slice(0, 25).map((r, i) => (
-                <div key={i} style={{
-                  display: "grid",
-                  gridTemplateColumns:
-  esTV
-    ? "120px 65px 80px 150px 110px 170px 130px 85px 55px"
-    : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
-                  padding: 
-                    esTV
-                      ? "2px 4px"
-                      : "3px 6px",
-                  fontSize: esTV ? 11 : 12,
-                  background: "white",
-                  borderRadius: 8,
-                  marginBottom: esTV ? 2 : 6
-                }}>
-                  <div>
-                    {r.fecha?.toDate
-                      ? r.fecha.toDate().toLocaleString()
-                      : "-"}
+              {gruposDashboardSupervisor.map(grupo => (
+                <div
+                  key={grupo.supervisor}
+                  style={{
+                    marginBottom: esTV ? 8 : 14
+                  }}
+                >
+                  <div style={{
+                    background: "#111827",
+                    color: "white",
+                    borderRadius: 8,
+                    padding: esTV
+                      ? "3px 8px"
+                      : "6px 10px",
+                    fontSize: esTV ? 11 : 13,
+                    fontWeight: "bold",
+                    marginBottom: esTV ? 3 : 6
+                  }}>
+                    Supervisor: {grupo.supervisor}
                   </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center"
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: "50%",
-                        background:
-                          r.eficiencia >= 90
-                            ? "#4CAF50"
-                            : r.eficiencia >= 70
-                            ? "#FFC107"
-                            : "#F44336"
-                      }}
-                    />
-                  </div>
-                  <div><b>{r.operario}</b></div>
-                  <div>{r.ot || "-"}</div>
-                  <div>{r.proceso}</div>
-                  <div>{r.subproceso}</div>
-                  <div>{r.detalle || "-"}</div>
-                  <div>{r.cantidad_ok} un</div>
-                  <div>{r.eficiencia}%</div>
+
+                  {grupo.registros
+                    .slice(0, limiteRegistrosPorSupervisor)
+                    .map((r, i) => (
+                      <div key={`${grupo.supervisor}-${r.id || i}`} style={{
+                        display: "grid",
+                        gridTemplateColumns:
+        esTV
+          ? "120px 65px 80px 150px 110px 170px 130px 85px 55px"
+          : "190px 55px 100px 210px 160px 240px 200px 120px 70px",
+                        padding:
+                          esTV
+                            ? "2px 4px"
+                            : "3px 6px",
+                        fontSize: esTV ? 11 : 12,
+                        background: "white",
+                        borderRadius: 8,
+                        marginBottom: esTV ? 2 : 6
+                      }}>
+                        <div>
+                          {r.fecha?.toDate
+                            ? r.fecha.toDate().toLocaleString()
+                            : "-"}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center"
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: "50%",
+                              background:
+                                r.eficiencia >= 90
+                                  ? "#4CAF50"
+                                  : r.eficiencia >= 70
+                                  ? "#FFC107"
+                                  : "#F44336"
+                            }}
+                          />
+                        </div>
+                        <div><b>{r.operario}</b></div>
+                        <div>{r.ot || "-"}</div>
+                        <div>{r.proceso}</div>
+                        <div>{r.subproceso}</div>
+                        <div>{r.detalle || "-"}</div>
+                        <div>{r.cantidad_ok} un</div>
+                        <div>{r.eficiencia}%</div>
+                      </div>
+                    ))}
                 </div>
               ))}
             </>
           )}
 
           {/* MOBILE */}
-          {esMobile && dashboard.slice(0, 10).map((r, i) => (
-            <div key={i} style={{
-              background: "white",
-              padding: 15,
-              borderRadius: 12,
-              marginBottom: 12
-            }}>
+          {esMobile && gruposDashboardSupervisor.map(grupo => (
+            <div key={grupo.supervisor}>
               <div style={{
-                fontSize: 12,
-                color: "#777",
-                marginBottom: 5
+                background: "#111827",
+                color: "white",
+                borderRadius: 10,
+                padding: "8px 10px",
+                fontWeight: "bold",
+                marginBottom: 10
               }}>
-                {r.fecha?.toDate
-                  ? r.fecha.toDate().toLocaleString()
-                  : "-"}
-              </div>
-              <b>{r.estado_eficiencia} {r.operario}</b>
-              <div>
-                {r.proceso}
-                {" → "}
-                {r.subproceso}
+                Supervisor: {grupo.supervisor}
               </div>
 
-              <div style={{
-                fontSize: 13,
-                marginTop: 3
-              }}>
-                📋 OT:
-                {" "}
-                {r.ot || "-"}
-              </div>
-              <div style={{ fontSize: 13 }}>{r.detalle}</div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>{r.cantidad_ok} un</span>
-                <b>{r.eficiencia}%</b>
-              </div>
+              {grupo.registros.slice(0, limiteRegistrosPorSupervisor).map((r, i) => (
+                <div key={`${grupo.supervisor}-${r.id || i}`} style={{
+                  background: "white",
+                  padding: 15,
+                  borderRadius: 12,
+                  marginBottom: 12
+                }}>
+                  <div style={{
+                    fontSize: 12,
+                    color: "#777",
+                    marginBottom: 5
+                  }}>
+                    {r.fecha?.toDate
+                      ? r.fecha.toDate().toLocaleString()
+                      : "-"}
+                  </div>
+                  <b>{r.estado_eficiencia} {r.operario}</b>
+                  <div>
+                    {r.proceso}
+                    {" → "}
+                    {r.subproceso}
+                  </div>
+
+                  <div style={{
+                    fontSize: 13,
+                    marginTop: 3
+                  }}>
+                    📋 OT:
+                    {" "}
+                    {r.ot || "-"}
+                  </div>
+                  <div style={{ fontSize: 13 }}>{r.detalle}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                    <span>{r.cantidad_ok} un</span>
+                    <b>{r.eficiencia}%</b>
+                  </div>
+                </div>
+              ))}
             </div>
           ))}
 
@@ -10496,6 +13081,17 @@ produccionActiva.forEach(p => {
     </>
     );
 }
+}
+
+function App() {
+  const esOrdenCompraPublica =
+    window.location.pathname.startsWith(
+      "/oc-publica/"
+    );
+
+  return esOrdenCompraPublica
+    ? <OrdenCompraPublica db={db} />
+    : <AppPrincipal />;
 }
 
 export default App;

@@ -19,11 +19,16 @@ export const crearPerfilAutenticado = (
     planta_ids: Array.isArray(claims.planta_ids)
       ? claims.planta_ids
       : [],
+    permisos: claims.permisos || {},
     autenticado: true
   };
 };
 
 export const validarPerfilAutenticado = (perfil) => {
+  if (perfil?.activo === false) {
+    return "El usuario está inactivo.";
+  }
+
   if (!perfil?.rol) {
     return "El usuario no tiene un rol asignado.";
   }
@@ -41,4 +46,3 @@ export const validarPerfilAutenticado = (perfil) => {
 
   return "";
 };
-

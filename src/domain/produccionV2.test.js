@@ -1,4 +1,5 @@
 import {
+  autocompletarDependenciasRf,
   calcularDisponibilidadRF,
   congelarRutaParaOT,
   dependenciasCumplidas,
@@ -11,9 +12,19 @@ import {
   rutaPcl0001
 } from "./fixtures/pcl0001";
 
-test("valida materiales MP y RF con codigos estables", () => {
+test("valida materiales MP, RF y SUM con codigos estables", () => {
   expect(
     materialesPcl0001.flatMap(validarMaterial)
+  ).toEqual([]);
+
+  expect(
+    validarMaterial({
+      id: "suministro",
+      codigo: "SUM0001",
+      tipo: "SUM",
+      nombre: "Tinta UV C",
+      unidad_medida: "ml"
+    })
   ).toEqual([]);
 
   expect(
@@ -33,6 +44,25 @@ test("valida la ruta PCL0001 sin errores", () => {
   expect(
     validarRuta(
       rutaPcl0001,
+      materialesPcl0001
+    )
+  ).toEqual([]);
+});
+
+test("permite una ruta nueva con estándar pendiente", () => {
+  expect(
+    validarRuta(
+      {
+        ...rutaPcl0001,
+        operaciones:
+          rutaPcl0001.operaciones.map(
+            (operacion, indice) => ({
+              ...operacion,
+              unidades_por_hora:
+                indice === 0 ? 0 : 80
+            })
+          )
+      },
       materialesPcl0001
     )
   ).toEqual([]);
@@ -58,6 +88,39 @@ test("congela la ruta y calcula 400 unidades para una OT de 100", () => {
     cantidad_requerida: 400,
     estado: "pendiente",
     material_entrada_codigo: "RF0001"
+  });
+});
+
+test("escala operaciones de subproducto con la composición del producto", () => {
+  const operaciones = congelarRutaParaOT({
+    ruta: {
+      ...rutaPcl0001,
+      operaciones: [{
+        ...rutaPcl0001.operaciones[0],
+        subproducto_id: "sub-1",
+        subproducto_codigo: "SUB0001",
+        subproducto_nombre: "Lateral",
+        unidades_por_producto: 2
+      }]
+    },
+    materiales: materialesPcl0001,
+    cantidadProducto: 100,
+    composicionProducto: [{
+      tipo: "SUBPRODUCTO",
+      item_id: "sub-1",
+      item_codigo: "SUB0001",
+      item_nombre: "Lateral",
+      cantidad: 2
+    }]
+  });
+
+  expect(operaciones[0]).toMatchObject({
+    unidades_por_item_base: 2,
+    unidades_por_producto: 4,
+    factor_composicion: 2,
+    item_base_tipo: "SUBPRODUCTO",
+    item_base_codigo: "SUB0001",
+    cantidad_requerida: 400
   });
 });
 
@@ -221,4 +284,67 @@ test("exige dependencia explicita del productor de un RF", () => {
   ).toContain(
     "La operacion DT0005 debe depender de quien produce RF0001."
   );
+});
+
+test("autocompleta dependencias RF faltantes desde la operacion productora", () => {
+  const materiales = [
+    {
+      id: "rf-82",
+      codigo: "RF0082",
+      tipo: "RF",
+      nombre: "Grafica impresa",
+      unidad_medida: "unidad"
+    },
+    {
+      id: "rf-83",
+      codigo: "RF0083",
+      tipo: "RF",
+      nombre: "Grafica cortada",
+      unidad_medida: "unidad"
+    }
+  ];
+  const ruta = {
+    producto_id: "PCL0006",
+    version: 1,
+    operaciones: [
+      {
+        id: "OP0043",
+        operacion_codigo: "OP0043",
+        material_salida_id: "rf-83",
+        dependencias: []
+      },
+      {
+        id: "OP0044",
+        operacion_codigo: "OP0044",
+        materiales_entrada: [{
+          material_id: "rf-83",
+          cantidad: 1
+        }],
+        material_salida_id: "rf-82",
+        dependencias: []
+      }
+    ]
+  };
+
+  const resultado =
+    autocompletarDependenciasRf(
+      ruta,
+      materiales
+    );
+
+  expect(resultado.cambios).toEqual([{
+    operacion_id: "OP0044",
+    operacion_codigo: "OP0044",
+    rf_id: "rf-83",
+    rf_codigo: "RF0083",
+    productora_id: "OP0043",
+    productora_codigo: "OP0043"
+  }]);
+  expect(
+    resultado.operaciones[1].dependencias
+  ).toEqual([{
+    ruta_operacion_id: "OP0043",
+    porcentaje_minimo_avance: 100,
+    requiere_material_disponible: true
+  }]);
 });

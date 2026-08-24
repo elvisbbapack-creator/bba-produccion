@@ -1,0 +1,1702 @@
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+  writeBatch
+} from "firebase/firestore";
+import {
+  validarRuta
+} from "../../domain/produccionV2";
+
+const limpiarTexto = (valor) =>
+  (valor || "").toString().trim();
+
+const numeroDecimal = valor =>
+  Number(limpiarTexto(valor).replace(",", "."));
+
+const normalizarCodigo = (valor) =>
+  limpiarTexto(valor)
+    .toUpperCase()
+    .replace(/\s+/g, "");
+
+export const normalizarCodigoProducto =
+  normalizarCodigo;
+
+export const normalizarCodigoOperacion =
+  normalizarCodigo;
+
+export const siguienteCodigoDisponible = (
+  prefijo,
+  items = [],
+  selectorCodigo = item => item.codigo
+) => {
+  const prefijoNormalizado =
+    normalizarCodigo(prefijo);
+  const usados = new Set(
+    items
+      .map(item =>
+        normalizarCodigo(selectorCodigo(item))
+      )
+      .filter(codigo =>
+        new RegExp(
+          `^${prefijoNormalizado}\\d{4,}$`
+        ).test(codigo)
+      )
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `${prefijoNormalizado}${String(correlativo).padStart(4, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `${prefijoNormalizado}${String(correlativo).padStart(4, "0")}`;
+};
+
+export const siguienteCodigoProducto = (
+  productos = []
+) =>
+  siguienteCodigoDisponible(
+    "PCL",
+    productos
+  );
+
+export const siguienteCodigoOperacionRuta = (
+  operaciones = []
+) =>
+  siguienteCodigoDisponible(
+    "OP",
+    operaciones,
+    operacion =>
+      operacion.operacion_codigo ||
+      operacion.codigo
+  );
+
+const codigoValido = (codigo, prefijo) =>
+  new RegExp(`^${prefijo}\\d{4,}$`).test(
+    codigo
+  );
+
+export const prepararProducto = (
+  datos,
+  empresaId,
+  id
+) => ({
+  id,
+  empresa_id: empresaId,
+  codigo: normalizarCodigoProducto(
+    datos.codigo
+  ),
+  nombre: limpiarTexto(datos.nombre),
+  familia: limpiarTexto(datos.familia),
+  composicion:
+    prepararComposicionProducto(
+      datos.composicion
+    ),
+  activo: datos.activo !== false,
+  version_ruta_activa:
+    datos.version_ruta_activa || null
+});
+
+export const prepararComposicionProducto = (
+  composicion = []
+) =>
+  composicion
+    .map(item => ({
+      tipo: normalizarCodigo(item.tipo),
+      categoria: limpiarTexto(item.categoria),
+      item_id: limpiarTexto(item.item_id),
+      item_codigo: normalizarCodigo(
+        item.item_codigo
+      ),
+      item_nombre: limpiarTexto(
+        item.item_nombre
+      ),
+      cantidad: numeroDecimal(item.cantidad)
+    }))
+    .filter(item =>
+      item.tipo ||
+      item.item_id ||
+      item.item_codigo ||
+      item.item_nombre ||
+      Number.isFinite(item.cantidad)
+    );
+
+export const validarComposicionProducto = (
+  composicion = []
+) => {
+  const errores = [];
+  const usados = new Set();
+
+  composicion.forEach((item, indice) => {
+    const posicion = indice + 1;
+
+    if (
+      !["SUBPRODUCTO", "PIEZA", "MATERIAL"]
+        .includes(item.tipo)
+    ) {
+      errores.push(
+        `El item ${posicion} requiere tipo válido.`
+      );
+    }
+
+    if (!item.item_id) {
+      errores.push(
+        `El item ${posicion} requiere selección.`
+      );
+    }
+
+    if (
+      !Number.isFinite(item.cantidad) ||
+      item.cantidad <= 0
+    ) {
+      errores.push(
+        `El item ${posicion} requiere cantidad mayor que cero.`
+      );
+    }
+
+    const clave = `${item.tipo}:${item.item_id}`;
+    if (item.item_id && usados.has(clave)) {
+      errores.push(
+        `El item ${item.item_codigo || item.item_nombre} está repetido.`
+      );
+    }
+    usados.add(clave);
+  });
+
+  return errores;
+};
+
+export const extraerCatalogoProcesosRuta = (
+  operaciones = [],
+  referencias = []
+) => {
+  const procesos = new Map();
+  const subprocesos = new Map();
+
+  [...operaciones, ...referencias].forEach(item => {
+    const procesoId = normalizarCodigo(
+      item.proceso_id || item.proceso_codigo
+    );
+    const procesoNombre = limpiarTexto(
+      item.proceso_nombre
+    );
+    const subprocesoId = normalizarCodigo(
+      item.estacion_id ||
+        item.estacion_codigo ||
+        item.subproceso_id ||
+        item.subproceso_codigo
+    );
+    const subprocesoNombre = limpiarTexto(
+      item.estacion_nombre ||
+        item.subproceso_nombre
+    );
+
+    if (procesoId && procesoNombre) {
+      procesos.set(procesoId, {
+        codigo: procesoId,
+        nombre: procesoNombre
+      });
+    }
+
+    if (subprocesoId && subprocesoNombre) {
+      subprocesos.set(subprocesoId, {
+        codigo: subprocesoId,
+        nombre: subprocesoNombre,
+        estacion_codigo: subprocesoId,
+        estacion_nombre: subprocesoNombre,
+        proceso_codigo: procesoId,
+        proceso_nombre: procesoNombre
+      });
+    }
+  });
+
+  return {
+    procesos: [...procesos.values()].sort(
+      (a, b) => a.codigo.localeCompare(b.codigo)
+    ),
+    subprocesos: [...subprocesos.values()].sort(
+      (a, b) => a.codigo.localeCompare(b.codigo)
+    )
+  };
+};
+
+export const validarProducto = (
+  producto,
+  existentes = []
+) => {
+  const errores = [];
+
+  if (
+    !codigoValido(producto.codigo, "PCL")
+  ) {
+    errores.push(
+      "El codigo debe usar el formato PCL0001."
+    );
+  }
+
+  if (!producto.nombre) {
+    errores.push("El producto requiere nombre.");
+  }
+
+  if (
+    existentes.some(
+      existente =>
+        existente.codigo === producto.codigo &&
+        existente.id !== producto.id
+    )
+  ) {
+    errores.push(
+      `El codigo ${producto.codigo} ya existe.`
+    );
+  }
+
+  return errores;
+};
+
+const prepararMaterialesEntrada = (
+  materiales = [],
+  materialEntradaId = ""
+) => {
+  const materialesNormalizados = materiales
+    .map(material => {
+      const cantidad = numeroDecimal(
+        material.cantidad
+      );
+
+      return {
+        material_id: limpiarTexto(
+          material.material_id
+        ),
+        material_codigo: normalizarCodigo(
+          material.material_codigo
+        ),
+        material_nombre: limpiarTexto(
+          material.material_nombre
+        ),
+        cantidad: Number.isFinite(cantidad)
+          ? cantidad
+          : 1
+      };
+    })
+    .filter(material => material.material_id);
+
+  const materialSimple =
+    limpiarTexto(materialEntradaId);
+
+  if (
+    materialesNormalizados.length === 0 &&
+    materialSimple
+  ) {
+    return [{
+      material_id: materialSimple,
+      material_codigo: "",
+      material_nombre: "",
+      cantidad: 1
+    }];
+  }
+
+  return materialesNormalizados;
+};
+
+const prepararDependenciasOperacion = datos => {
+  const dependencias = Array.isArray(
+    datos.dependencias
+  )
+    ? datos.dependencias
+    : [];
+
+  const dependenciasNormalizadas = dependencias
+    .map(dependencia => ({
+      ruta_operacion_id: limpiarTexto(
+        dependencia.ruta_operacion_id ||
+        dependencia.dependencia_id
+      ),
+      porcentaje_minimo_avance: Number(
+        dependencia.porcentaje_minimo_avance
+      ),
+      requiere_material_disponible:
+        dependencia.requiere_material_disponible !==
+        false
+    }))
+    .filter(
+      dependencia =>
+        dependencia.ruta_operacion_id
+    );
+
+  const dependenciaSimple =
+    limpiarTexto(datos.dependencia_id);
+
+  if (
+    dependenciasNormalizadas.length === 0 &&
+    dependenciaSimple
+  ) {
+    return [{
+      ruta_operacion_id: dependenciaSimple,
+      porcentaje_minimo_avance: Number(
+        datos.porcentaje_minimo_avance
+      ),
+      requiere_material_disponible: true
+    }];
+  }
+
+  return dependenciasNormalizadas;
+};
+
+export const prepararOperacionRuta = (
+  datos,
+  productoId,
+  id
+) => {
+  const materialesEntrada =
+    prepararMaterialesEntrada(
+      datos.materiales_entrada,
+      datos.material_entrada_id
+    );
+  const dependencias =
+    prepararDependenciasOperacion(datos);
+
+  return {
+    id,
+    empresa_id: datos.empresa_id,
+    producto_id: productoId,
+    tipo_ruta:
+      rutaEsSubproducto(datos.tipo_ruta)
+        ? "SUBPRODUCTO"
+        : "PRODUCTO",
+    entidad_ruta_id: limpiarTexto(
+      datos.entidad_ruta_id ||
+      productoId
+    ),
+    subproducto_ruta_id:
+      rutaEsSubproducto(datos.tipo_ruta)
+        ? limpiarTexto(
+            datos.subproducto_ruta_id ||
+            datos.entidad_ruta_id
+          )
+        : "",
+    secuencia: Number(datos.secuencia),
+    operacion_id: id,
+    operacion_codigo:
+      normalizarCodigoOperacion(datos.codigo),
+    operacion_nombre:
+      limpiarTexto(datos.nombre),
+    pieza_id: limpiarTexto(datos.pieza_id),
+    pieza_codigo:
+      normalizarCodigo(datos.pieza_codigo),
+    pieza_nombre:
+      limpiarTexto(datos.pieza_nombre),
+    subproducto_id:
+      limpiarTexto(datos.subproducto_id),
+    subproducto_codigo:
+      normalizarCodigo(datos.subproducto_codigo),
+    subproducto_nombre:
+      limpiarTexto(datos.subproducto_nombre),
+    proceso_id:
+      normalizarCodigo(datos.proceso_codigo),
+    proceso_nombre:
+      limpiarTexto(datos.proceso_nombre),
+    estacion_id:
+      normalizarCodigo(
+        datos.estacion_codigo ||
+          datos.subproceso_codigo
+      ),
+    estacion_nombre:
+      limpiarTexto(
+        datos.estacion_nombre ||
+          datos.subproceso_nombre
+      ),
+    subproceso_id:
+      normalizarCodigo(
+        datos.estacion_codigo ||
+          datos.subproceso_codigo
+      ),
+    subproceso_nombre:
+      limpiarTexto(
+        datos.estacion_nombre ||
+          datos.subproceso_nombre
+      ),
+    material_entrada_id:
+      materialesEntrada[0]?.material_id ||
+      limpiarTexto(datos.material_entrada_id),
+    materiales_entrada: materialesEntrada,
+    material_salida_id:
+      limpiarTexto(datos.material_salida_id),
+    medida: limpiarTexto(datos.medida),
+    unidades_por_producto: Number(
+      datos.unidades_por_producto
+    ),
+    unidades_por_hora: Number(
+      datos.unidades_por_hora
+    ),
+    dependencias,
+    activo: true
+  };
+};
+
+export const validarOperacionBasica = (
+  operacion,
+  existentes = []
+) => {
+  const errores = [];
+
+  if (
+    !codigoValido(
+      operacion.operacion_codigo,
+      "OP"
+    )
+  ) {
+    errores.push(
+      "El codigo de operacion debe usar el formato OP0001."
+    );
+  }
+
+  if (!operacion.operacion_nombre) {
+    errores.push(
+      "La operacion requiere nombre."
+    );
+  }
+
+  if (!operacion.proceso_id) {
+    errores.push(
+      "La operacion requiere codigo de proceso."
+    );
+  }
+
+  if (!operacion.proceso_nombre) {
+    errores.push(
+      "La operacion requiere nombre de proceso."
+    );
+  }
+
+  if (!operacion.subproceso_id) {
+    errores.push(
+      "La operacion requiere codigo de estación."
+    );
+  }
+
+  if (!operacion.subproceso_nombre) {
+    errores.push(
+      "La operacion requiere nombre de estación."
+    );
+  }
+
+  if (
+    !operacion.material_entrada_id ||
+    (operacion.materiales_entrada || [])
+      .length === 0
+  ) {
+    errores.push(
+      "Selecciona el material de entrada."
+    );
+  }
+
+  const materialesUsados = new Set();
+  (operacion.materiales_entrada || [])
+    .forEach((material, indice) => {
+      const posicion = indice + 1;
+
+      if (!material.material_id) {
+        errores.push(
+          `El material de entrada ${posicion} requiere material.`
+        );
+      }
+
+      if (
+        !Number.isFinite(material.cantidad) ||
+        material.cantidad <= 0
+      ) {
+        errores.push(
+          `El material de entrada ${posicion} requiere cantidad mayor que cero.`
+        );
+      }
+
+      if (
+        material.material_id &&
+        materialesUsados.has(material.material_id)
+      ) {
+        errores.push(
+          `El material de entrada ${material.material_codigo || material.material_id} está repetido.`
+        );
+      }
+
+      if (material.material_id) {
+        materialesUsados.add(material.material_id);
+      }
+    });
+
+  const dependenciasUsadas = new Set();
+  (operacion.dependencias || [])
+    .forEach((dependencia, indice) => {
+      const posicion = indice + 1;
+      const porcentaje = Number(
+        dependencia.porcentaje_minimo_avance
+      );
+
+      if (!dependencia.ruta_operacion_id) {
+        errores.push(
+          `La dependencia ${posicion} requiere operación.`
+        );
+      }
+
+      if (
+        !Number.isFinite(porcentaje) ||
+        porcentaje < 0 ||
+        porcentaje > 100
+      ) {
+        errores.push(
+          `La dependencia ${posicion} requiere avance entre 0 y 100.`
+        );
+      }
+
+      if (
+        dependencia.ruta_operacion_id &&
+        dependenciasUsadas.has(
+          dependencia.ruta_operacion_id
+        )
+      ) {
+        errores.push(
+          `La dependencia ${dependencia.ruta_operacion_id} está repetida.`
+        );
+      }
+
+      if (dependencia.ruta_operacion_id) {
+        dependenciasUsadas.add(
+          dependencia.ruta_operacion_id
+        );
+      }
+    });
+
+  if (
+    existentes.some(
+      existente =>
+        existente.operacion_codigo ===
+          operacion.operacion_codigo &&
+        existente.id !== operacion.id
+    )
+  ) {
+    errores.push(
+      `La operacion ${operacion.operacion_codigo} ya existe en la ruta.`
+    );
+  }
+
+  return errores;
+};
+
+export const validarRecalibracionEstandar = ({
+  valorAnterior,
+  valorNuevo,
+  motivo
+}) => {
+  const errores = [];
+  const anterior = Number(valorAnterior);
+  const nuevo = Number(valorNuevo);
+
+  if (!Number.isFinite(nuevo) || nuevo <= 0) {
+    errores.push(
+      "El nuevo estándar debe ser mayor que cero."
+    );
+  }
+
+  if (
+    Number.isFinite(anterior) &&
+    nuevo === anterior
+  ) {
+    errores.push(
+      "El nuevo estándar debe ser diferente al actual."
+    );
+  }
+
+  if (limpiarTexto(motivo).length < 10) {
+    errores.push(
+      "Indica un motivo de al menos 10 caracteres."
+    );
+  }
+
+  return errores;
+};
+
+export const operacionesQueDependenDe = (
+  operaciones = [],
+  operacionId
+) =>
+  operaciones.filter(operacion =>
+    (operacion.dependencias || []).some(
+      dependencia =>
+        dependencia.ruta_operacion_id ===
+        operacionId
+    )
+  );
+
+export const quitarDependenciaOperacion = (
+  operacion,
+  operacionId
+) => {
+  const dependencias = (
+    operacion.dependencias || []
+  ).filter(
+    dependencia =>
+      dependencia.ruta_operacion_id !==
+      operacionId
+  );
+
+  return {
+    ...operacion,
+    dependencias,
+    dependencia_id:
+      dependencias[0]?.ruta_operacion_id || "",
+    porcentaje_minimo_avance:
+      dependencias[0]
+        ?.porcentaje_minimo_avance ?? "0"
+  };
+};
+
+const idProducto = (empresaId, codigo) =>
+  `${empresaId}__${codigo}`;
+
+const idRuta = (version) => `v${version}`;
+
+const idOperacion = (codigo) =>
+  normalizarCodigoOperacion(codigo);
+
+const rutaEsSubproducto = tipoRuta =>
+  normalizarCodigo(tipoRuta) === "SUBPRODUCTO";
+
+const referenciaEntidadRuta = (
+  db,
+  productoId,
+  opciones = {}
+) => {
+  const esSubproducto = rutaEsSubproducto(
+    opciones.tipoRuta
+  );
+  const entidadId = esSubproducto
+    ? limpiarTexto(
+        opciones.subproductoId ||
+        opciones.entidadId
+      )
+    : limpiarTexto(productoId);
+
+  return {
+    tipoRuta: esSubproducto
+      ? "SUBPRODUCTO"
+      : "PRODUCTO",
+    coleccion: esSubproducto
+      ? "catalogo_subproductos"
+      : "productos",
+    entidadId,
+    ref: doc(
+      db,
+      esSubproducto
+        ? "catalogo_subproductos"
+        : "productos",
+      entidadId
+    )
+  };
+};
+
+const referenciaRuta = (
+  db,
+  productoId,
+  version,
+  opciones = {}
+) => {
+  const entidad =
+    referenciaEntidadRuta(
+      db,
+      productoId,
+      opciones
+    );
+
+  return {
+    ...entidad,
+    rutaRef: doc(
+      db,
+      entidad.coleccion,
+      entidad.entidadId,
+      "rutas",
+      idRuta(version)
+    ),
+    operacionesCollection: collection(
+      db,
+      entidad.coleccion,
+      entidad.entidadId,
+      "rutas",
+      idRuta(version),
+      "operaciones"
+    )
+  };
+};
+
+const camposActualizacionEntidadRuta = (
+  referencias,
+  campos = {}
+) => ({
+  ...campos,
+  fecha_actualizacion: serverTimestamp(),
+  ...(referencias.tipoRuta === "SUBPRODUCTO"
+    ? { actualizado_en: serverTimestamp() }
+    : {})
+});
+
+export const listarProductos = async (
+  db,
+  empresaId
+) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, "productos"),
+      where("empresa_id", "==", empresaId)
+    )
+  );
+
+  return snapshot.docs
+    .map(documento => ({
+      id: documento.id,
+      ...documento.data()
+    }))
+    .sort((a, b) =>
+      (a.codigo || "").localeCompare(
+        b.codigo || ""
+      )
+    );
+};
+
+export const crearProductoConRuta = async (
+  db,
+  empresaId,
+  datos
+) => {
+  const codigo = normalizarCodigoProducto(
+    datos.codigo
+  );
+  const productoRef = doc(
+    db,
+    "productos",
+    idProducto(empresaId, codigo)
+  );
+  const rutaRef = doc(
+    db,
+    "productos",
+    productoRef.id,
+    "rutas",
+    idRuta(1)
+  );
+  const producto = prepararProducto(
+    datos,
+    empresaId,
+    productoRef.id
+  );
+  const errores = validarProducto(producto);
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  const lote = writeBatch(db);
+  lote.set(productoRef, {
+    ...producto,
+    fecha_creacion: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  });
+  lote.set(rutaRef, {
+    id: rutaRef.id,
+    empresa_id: empresaId,
+    producto_id: productoRef.id,
+    version: 1,
+    estado: "borrador",
+    creada_por: datos.creada_por || "",
+    fecha_creacion: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  });
+  await lote.commit();
+
+  return producto;
+};
+
+export const obtenerRuta = async (
+  db,
+  productoId,
+  empresaId,
+  version = 1,
+  opciones = {}
+) => {
+  const rutaId = idRuta(version);
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    version,
+    opciones
+  );
+  const rutaSnap = await getDoc(
+    referencias.rutaRef
+  );
+  const operacionesSnap = await getDocs(
+    query(
+      referencias.operacionesCollection,
+      where("empresa_id", "==", empresaId)
+    )
+  );
+
+  return {
+    id: rutaId,
+    ...(rutaSnap.exists() ? rutaSnap.data() : {}),
+    producto_id: productoId,
+    tipo_ruta: referencias.tipoRuta,
+    entidad_ruta_id: referencias.entidadId,
+    subproducto_ruta_id:
+      referencias.tipoRuta === "SUBPRODUCTO"
+        ? referencias.entidadId
+        : "",
+    version,
+    existe: rutaSnap.exists(),
+    estado:
+      rutaSnap.exists()
+        ? rutaSnap.data().estado
+        : "borrador",
+    operaciones: operacionesSnap.docs
+      .map(documento => ({
+        id: documento.id,
+        ...documento.data()
+      }))
+      .sort(
+        (a, b) =>
+          Number(a.secuencia) -
+          Number(b.secuencia)
+      )
+  };
+};
+
+export const contarOrdenesPorRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  version,
+  perfil
+}) => {
+  const filtros = [
+    where("empresa_id", "==", empresaId),
+    where("producto_id", "==", productoId),
+    where("ruta_version", "==", Number(version))
+  ];
+  const plantas = perfil?.planta_ids || [];
+
+  if (perfil?.rol !== "gerencia") {
+    if (plantas.length === 0) {
+      return 0;
+    }
+    filtros.push(where("planta_id", "in", plantas));
+  }
+
+  const snapshot = await getDocs(
+    query(
+      collection(db, "ordenes_trabajo"),
+      ...filtros
+    )
+  );
+
+  return snapshot.size;
+};
+
+export const guardarOperacionRuta = async (
+  db,
+  empresaId,
+  productoId,
+  version,
+  datos,
+  existentes = [],
+  opciones = {}
+) => {
+  const codigo = normalizarCodigoOperacion(
+    datos.codigo
+  );
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    version,
+    opciones
+  );
+  const operacionRef = doc(
+    referencias.operacionesCollection,
+    idOperacion(codigo)
+  );
+  const operacion = prepararOperacionRuta(
+    {
+      ...datos,
+      empresa_id: empresaId,
+      tipo_ruta: referencias.tipoRuta,
+      entidad_ruta_id: referencias.entidadId,
+      subproducto_ruta_id:
+        referencias.tipoRuta === "SUBPRODUCTO"
+          ? referencias.entidadId
+          : ""
+    },
+    productoId,
+    operacionRef.id
+  );
+  const errores = validarOperacionBasica(
+    operacion,
+    existentes
+  );
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  const rutaSnap = await getDoc(
+    referencias.rutaRef
+  );
+
+  if (!rutaSnap.exists()) {
+    await setDoc(referencias.rutaRef, {
+      id: referencias.rutaRef.id,
+      empresa_id: empresaId,
+      producto_id: productoId,
+      tipo_ruta: referencias.tipoRuta,
+      entidad_ruta_id: referencias.entidadId,
+      subproducto_ruta_id:
+        referencias.tipoRuta === "SUBPRODUCTO"
+          ? referencias.entidadId
+          : "",
+      version,
+      estado: "borrador",
+      fecha_creacion: serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    });
+  }
+
+  await setDoc(operacionRef, {
+    ...operacion,
+    fecha_creacion: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  });
+
+  return operacion;
+};
+
+export const actualizarOperacionRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  version,
+  operacionId,
+  datos,
+  existentes = [],
+  ruta,
+  tipoRuta,
+  subproductoId,
+  entidadId
+}) => {
+  if (ruta?.estado !== "borrador") {
+    throw new Error(
+      "Solo se pueden editar operaciones de rutas en borrador."
+    );
+  }
+
+  const codigo = normalizarCodigoOperacion(
+    datos.codigo
+  );
+  const siguienteId = idOperacion(codigo);
+  const operacionAnterior = (
+    ruta?.operaciones || []
+  ).find(operacion =>
+    operacion.id === operacionId
+  );
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    version,
+    { tipoRuta, subproductoId, entidadId }
+  );
+  const operacionRef = doc(
+    referencias.operacionesCollection,
+    siguienteId
+  );
+  const operacion = prepararOperacionRuta(
+    {
+      ...datos,
+      empresa_id: empresaId,
+      tipo_ruta: referencias.tipoRuta,
+      entidad_ruta_id: referencias.entidadId,
+      subproducto_ruta_id:
+        referencias.tipoRuta === "SUBPRODUCTO"
+          ? referencias.entidadId
+          : ""
+    },
+    productoId,
+    siguienteId
+  );
+  const errores = validarOperacionBasica(
+    operacion,
+    existentes.filter(
+      existente => existente.id !== operacionId
+    )
+  );
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  if (siguienteId !== operacionId) {
+    const usadaComoDependencia = (
+      ruta?.operaciones || []
+    ).some(otraOperacion =>
+      otraOperacion.id !== operacionId &&
+      (otraOperacion.dependencias || []).some(
+        dependencia =>
+          dependencia.ruta_operacion_id ===
+          operacionId
+      )
+    );
+
+    if (usadaComoDependencia) {
+      throw new Error(
+        "No se puede cambiar el código: otra operación depende de esta."
+      );
+    }
+
+    const batch = writeBatch(db);
+    batch.set(operacionRef, {
+      ...operacion,
+      fecha_creacion:
+        operacionAnterior?.fecha_creacion ||
+        serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    });
+    batch.delete(
+      doc(
+        db,
+        referencias.coleccion,
+        referencias.entidadId,
+        "rutas",
+        idRuta(version),
+        "operaciones",
+        operacionId
+      )
+    );
+    await batch.commit();
+    return operacion;
+  }
+
+  await setDoc(
+    operacionRef,
+    {
+      ...operacion,
+      fecha_actualizacion: serverTimestamp()
+    },
+    { merge: true }
+  );
+
+  return operacion;
+};
+
+export const eliminarOperacionRuta = async ({
+  db,
+  productoId,
+  version,
+  operacionId,
+  ruta,
+  tipoRuta,
+  subproductoId,
+  entidadId,
+  limpiarDependencias = false
+}) => {
+  if (ruta?.estado !== "borrador") {
+    throw new Error(
+      "Solo se pueden eliminar operaciones de rutas en borrador."
+    );
+  }
+
+  const operacionesDependientes =
+    operacionesQueDependenDe(
+      ruta?.operaciones || [],
+      operacionId
+    );
+
+  if (
+    operacionesDependientes.length > 0 &&
+    !limpiarDependencias
+  ) {
+    throw new Error(
+      "No se puede eliminar: otra operación depende de esta."
+    );
+  }
+
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    version,
+    { tipoRuta, subproductoId, entidadId }
+  );
+
+  if (operacionesDependientes.length === 0) {
+    await deleteDoc(
+      doc(
+        referencias.operacionesCollection,
+        operacionId
+      )
+    );
+    return;
+  }
+
+  const batch = writeBatch(db);
+
+  operacionesDependientes.forEach(operacion => {
+    const operacionActualizada =
+      quitarDependenciaOperacion(
+        operacion,
+        operacionId
+      );
+
+    batch.update(
+      doc(
+        referencias.operacionesCollection,
+        operacion.id
+      ),
+      {
+        dependencias:
+          operacionActualizada.dependencias,
+        dependencia_id:
+          operacionActualizada.dependencia_id,
+        porcentaje_minimo_avance:
+          operacionActualizada
+            .porcentaje_minimo_avance,
+        fecha_actualizacion: serverTimestamp()
+      }
+    );
+  });
+
+  batch.delete(
+    doc(
+      referencias.operacionesCollection,
+      operacionId
+    )
+  );
+
+  await batch.commit();
+};
+
+export const actualizarDependenciasOperacionesRuta =
+async ({
+  db,
+  productoId,
+  version,
+  ruta,
+  operaciones = [],
+  tipoRuta,
+  subproductoId,
+  entidadId
+}) => {
+  if (ruta?.estado !== "borrador") {
+    throw new Error(
+      "Solo se pueden actualizar dependencias en rutas en borrador."
+    );
+  }
+
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    version,
+    { tipoRuta, subproductoId, entidadId }
+  );
+  const batch = writeBatch(db);
+
+  operaciones.forEach(operacion => {
+    batch.update(
+      doc(
+        referencias.operacionesCollection,
+        operacion.id
+      ),
+      {
+        dependencias: operacion.dependencias || [],
+        dependencia_id:
+          operacion.dependencia_id || "",
+        porcentaje_minimo_avance:
+          operacion.porcentaje_minimo_avance ??
+          "0",
+        fecha_actualizacion: serverTimestamp()
+      }
+    );
+  });
+
+  await batch.commit();
+};
+
+export const publicarRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  version,
+  operaciones,
+  materiales,
+  tipoRuta,
+  subproductoId,
+  entidadId
+}) => {
+  const ruta = {
+    producto_id: productoId,
+    version,
+    operaciones
+  };
+  const errores = validarRuta(
+    ruta,
+    materiales
+  );
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    version,
+    { tipoRuta, subproductoId, entidadId }
+  );
+  const lote = writeBatch(db);
+
+  lote.update(
+    referencias.ref,
+    camposActualizacionEntidadRuta(referencias, {
+      version_ruta_activa: version,
+      version_ruta_borrador: null
+    })
+  );
+  lote.update(referencias.rutaRef, {
+    estado: "publicada",
+    vigente_desde: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp(),
+    empresa_id: empresaId,
+    tipo_ruta: referencias.tipoRuta,
+    entidad_ruta_id: referencias.entidadId,
+    subproducto_ruta_id:
+      referencias.tipoRuta === "SUBPRODUCTO"
+        ? referencias.entidadId
+        : ""
+  });
+  await lote.commit();
+};
+
+export const eliminarRutaBorrador = async ({
+  db,
+  empresaId,
+  producto,
+  ruta,
+  perfil,
+  tipoRuta,
+  subproducto
+}) => {
+  const esSubproducto =
+    rutaEsSubproducto(tipoRuta);
+  const entidad = esSubproducto
+    ? subproducto
+    : producto;
+
+  if (!entidad?.id || !ruta?.version) {
+    throw new Error("Selecciona una ruta.");
+  }
+
+  if (ruta.estado !== "borrador") {
+    throw new Error(
+      "Solo se pueden eliminar rutas en borrador."
+    );
+  }
+
+  const ordenes = await contarOrdenesPorRuta({
+    db,
+    empresaId,
+    productoId: producto.id,
+    version: ruta.version,
+    perfil
+  });
+
+  if (ordenes > 0) {
+    throw new Error(
+      "No se puede eliminar: existen OT asociadas a esta ruta."
+    );
+  }
+
+  const referencias = referenciaRuta(
+    db,
+    producto.id,
+    ruta.version,
+    {
+      tipoRuta,
+      subproductoId: subproducto?.id
+    }
+  );
+  const operacionesSnap = await getDocs(
+    referencias.operacionesCollection
+  );
+  const lote = writeBatch(db);
+
+  operacionesSnap.docs.forEach(documento => {
+    lote.delete(documento.ref);
+  });
+  lote.delete(referencias.rutaRef);
+
+  if (
+    Number(entidad.version_ruta_borrador) ===
+    Number(ruta.version)
+  ) {
+    lote.update(
+      referencias.ref,
+      camposActualizacionEntidadRuta(
+        referencias,
+        { version_ruta_borrador: null }
+      )
+    );
+  }
+
+  await lote.commit();
+
+  return {
+    eliminado_por: perfil?.uid || "",
+    version: ruta.version
+  };
+};
+
+export const anularRutaPublicada = async ({
+  db,
+  empresaId,
+  producto,
+  ruta,
+  motivo,
+  perfil,
+  tipoRuta,
+  subproducto
+}) => {
+  const esSubproducto =
+    rutaEsSubproducto(tipoRuta);
+  const entidad = esSubproducto
+    ? subproducto
+    : producto;
+  const motivoLimpio = limpiarTexto(motivo);
+
+  if (!entidad?.id || !ruta?.version) {
+    throw new Error("Selecciona una ruta.");
+  }
+
+  if (ruta.estado !== "publicada") {
+    throw new Error(
+      "Solo se pueden anular rutas publicadas."
+    );
+  }
+
+  if (motivoLimpio.length < 10) {
+    throw new Error(
+      "Indica un motivo de al menos 10 caracteres."
+    );
+  }
+
+  const referencias = referenciaRuta(
+    db,
+    producto.id,
+    ruta.version,
+    {
+      tipoRuta,
+      subproductoId: subproducto?.id
+    }
+  );
+  const lote = writeBatch(db);
+  const actualizacionesEntidad =
+    camposActualizacionEntidadRuta(
+      referencias
+    );
+
+  if (
+    Number(entidad.version_ruta_activa) ===
+    Number(ruta.version)
+  ) {
+    actualizacionesEntidad.version_ruta_activa =
+      null;
+  }
+
+  lote.update(referencias.rutaRef, {
+    estado: "anulada",
+    motivo_anulacion: motivoLimpio,
+    anulada_por: perfil?.uid || "",
+    anulada_en: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp(),
+    empresa_id: empresaId
+  });
+  lote.update(
+    referencias.ref,
+    actualizacionesEntidad
+  );
+
+  await lote.commit();
+
+  return {
+    version: ruta.version,
+    motivo: motivoLimpio
+  };
+};
+
+export const actualizarComposicionProducto = async (
+  db,
+  productoId,
+  composicion
+) => {
+  const composicionNormalizada =
+    prepararComposicionProducto(composicion);
+  const errores =
+    validarComposicionProducto(
+      composicionNormalizada
+    );
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  await updateDoc(
+    doc(db, "productos", productoId),
+    {
+      composicion: composicionNormalizada,
+      fecha_actualizacion: serverTimestamp()
+    }
+  );
+
+  return composicionNormalizada;
+};
+
+export const crearVersionBorradorRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  versionActual,
+  operaciones,
+  perfil,
+  tipoRuta,
+  subproductoId
+}) => {
+  const versionNueva =
+    Number(versionActual || 1) + 1;
+  const referencias = referenciaRuta(
+    db,
+    productoId,
+    versionNueva,
+    { tipoRuta, subproductoId }
+  );
+  const lote = writeBatch(db);
+
+  lote.set(referencias.rutaRef, {
+    id: referencias.rutaRef.id,
+    empresa_id: empresaId,
+    producto_id: productoId,
+    tipo_ruta: referencias.tipoRuta,
+    entidad_ruta_id: referencias.entidadId,
+    subproducto_ruta_id:
+      referencias.tipoRuta === "SUBPRODUCTO"
+        ? referencias.entidadId
+        : "",
+    version: versionNueva,
+    estado: "borrador",
+    version_origen: Number(versionActual || 1),
+    creada_por: perfil.uid,
+    fecha_creacion: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  });
+
+  operaciones.forEach(operacion => {
+    const operacionRef = doc(
+      db,
+      referencias.coleccion,
+      referencias.entidadId,
+      "rutas",
+      idRuta(versionNueva),
+      "operaciones",
+      operacion.id
+    );
+    const copia = {
+      ...operacion,
+      tipo_ruta: referencias.tipoRuta,
+      entidad_ruta_id: referencias.entidadId,
+      subproducto_ruta_id:
+        referencias.tipoRuta === "SUBPRODUCTO"
+          ? referencias.entidadId
+          : "",
+      ruta_version: versionNueva,
+      fecha_creacion: serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    };
+
+    delete copia.id;
+
+    lote.set(operacionRef, copia);
+  });
+
+  lote.update(
+    referencias.ref,
+    camposActualizacionEntidadRuta(referencias, {
+      version_ruta_borrador: versionNueva
+    })
+  );
+
+  await lote.commit();
+
+  return { version: versionNueva };
+};
+
+export const recalibrarEstandarRuta = async ({
+  db,
+  empresaId,
+  productoId,
+  versionActual,
+  operaciones,
+  operacionId,
+  unidadesPorHora,
+  motivo,
+  perfil,
+  tipoRuta,
+  subproductoId
+}) => {
+  const operacionActual = operaciones.find(
+    operacion => operacion.id === operacionId
+  );
+
+  if (!operacionActual) {
+    throw new Error(
+      "No se encontró la operación seleccionada."
+    );
+  }
+
+  const errores = validarRecalibracionEstandar({
+    valorAnterior:
+      operacionActual.unidades_por_hora,
+    valorNuevo: unidadesPorHora,
+    motivo
+  });
+
+  if (errores.length > 0) {
+    throw new Error(errores.join(" "));
+  }
+
+  const versionNueva =
+    Number(versionActual) + 1;
+  const referenciasActual = referenciaRuta(
+    db,
+    productoId,
+    versionActual,
+    { tipoRuta, subproductoId }
+  );
+  const referenciasNueva = referenciaRuta(
+    db,
+    productoId,
+    versionNueva,
+    { tipoRuta, subproductoId }
+  );
+  const lote = writeBatch(db);
+  const motivoLimpio = limpiarTexto(motivo);
+  const nuevoEstandar = Number(
+    unidadesPorHora
+  );
+
+  lote.set(referenciasNueva.rutaRef, {
+    id: referenciasNueva.rutaRef.id,
+    empresa_id: empresaId,
+    producto_id: productoId,
+    tipo_ruta: referenciasNueva.tipoRuta,
+    entidad_ruta_id:
+      referenciasNueva.entidadId,
+    subproducto_ruta_id:
+      referenciasNueva.tipoRuta === "SUBPRODUCTO"
+        ? referenciasNueva.entidadId
+        : "",
+    version: versionNueva,
+    estado: "publicada",
+    version_origen: Number(versionActual),
+    motivo_nueva_version: motivoLimpio,
+    creada_por: perfil.uid,
+    vigente_desde: serverTimestamp(),
+    fecha_creacion: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  });
+
+  operaciones.forEach(operacion => {
+    const esRecalibrada =
+      operacion.id === operacionId;
+    const operacionRef = doc(
+      db,
+      referenciasNueva.coleccion,
+      referenciasNueva.entidadId,
+      "rutas",
+      idRuta(versionNueva),
+      "operaciones",
+      operacion.id
+    );
+    const copia = {
+      ...operacion,
+      tipo_ruta: referenciasNueva.tipoRuta,
+      entidad_ruta_id:
+        referenciasNueva.entidadId,
+      subproducto_ruta_id:
+        referenciasNueva.tipoRuta === "SUBPRODUCTO"
+          ? referenciasNueva.entidadId
+          : "",
+      unidades_por_hora: esRecalibrada
+        ? nuevoEstandar
+        : Number(operacion.unidades_por_hora),
+      ruta_version: versionNueva,
+      fecha_creacion: serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    };
+
+    delete copia.id;
+
+    if (esRecalibrada) {
+      copia.estandar_anterior = Number(
+        operacion.unidades_por_hora
+      );
+      copia.estandar_motivo = motivoLimpio;
+      copia.estandar_actualizado_por =
+        perfil.uid;
+      copia.estandar_actualizado_en =
+        serverTimestamp();
+    }
+
+    lote.set(operacionRef, copia);
+  });
+
+  lote.update(referenciasActual.rutaRef, {
+    estado: "retirada",
+    fecha_actualizacion: serverTimestamp()
+  });
+  lote.update(
+    referenciasNueva.ref,
+    camposActualizacionEntidadRuta(
+      referenciasNueva,
+      { version_ruta_activa: versionNueva }
+    )
+  );
+  await lote.commit();
+
+  return {
+    version: versionNueva,
+    unidades_por_hora: nuevoEstandar
+  };
+};
+
+export const retirarProducto = async (
+  db,
+  productoId,
+  activo
+) => {
+  await updateDoc(
+    doc(db, "productos", productoId),
+    {
+      activo,
+      fecha_actualizacion: serverTimestamp()
+    }
+  );
+};

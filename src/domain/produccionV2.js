@@ -1,6 +1,7 @@
 export const TIPOS_MATERIAL = {
   MATERIA_PRIMA: "MP",
-  RECURSO_FABRICACION: "RF"
+  RECURSO_FABRICACION: "RF",
+  SUMINISTRO: "SUM"
 };
 
 const numeroPositivo = (valor) =>
@@ -10,6 +11,168 @@ const numeroPositivo = (valor) =>
 const codigoValido = (codigo, prefijo) =>
   typeof codigo === "string" &&
   new RegExp(`^${prefijo}\\d{4,}$`).test(codigo);
+
+const factorComposicionOperacion = (
+  operacion = {},
+  composicionProducto = []
+) => {
+  const objetivo = operacion.subproducto_id
+    ? {
+        tipo: "SUBPRODUCTO",
+        item_id: operacion.subproducto_id
+      }
+    : operacion.pieza_id
+      ? {
+          tipo: "PIEZA",
+          item_id: operacion.pieza_id
+        }
+      : null;
+  const item = objetivo
+    ? composicionProducto.find(
+        componente =>
+          componente.tipo === objetivo.tipo &&
+          componente.item_id ===
+            objetivo.item_id
+      )
+    : null;
+  const cantidad = Number(item?.cantidad || 0);
+
+  return {
+    factor: cantidad > 0 ? cantidad : 1,
+    item
+  };
+};
+
+const materialesEntradaOperacion = (
+  operacion = {}
+) => {
+  const entradas = Array.isArray(
+    operacion.materiales_entrada
+  )
+    ? operacion.materiales_entrada
+    : [];
+
+  if (entradas.length > 0) {
+    return entradas;
+  }
+
+  return operacion.material_entrada_id
+    ? [{
+        material_id:
+          operacion.material_entrada_id,
+        cantidad: 1
+      }]
+    : [];
+};
+
+export const autocompletarDependenciasRf = (
+  ruta = {},
+  materiales = []
+) => {
+  const operaciones = Array.isArray(ruta.operaciones)
+    ? ruta.operaciones
+    : [];
+  const materialesPorId = new Map(
+    materiales.map(material => [
+      material.id,
+      material
+    ])
+  );
+  const productoresRf = new Map();
+
+  operaciones.forEach(operacion => {
+    const salida = materialesPorId.get(
+      operacion.material_salida_id
+    );
+
+    if (
+      salida?.tipo ===
+        TIPOS_MATERIAL.RECURSO_FABRICACION &&
+      !productoresRf.has(salida.id)
+    ) {
+      productoresRf.set(salida.id, operacion);
+    }
+  });
+
+  const cambios = [];
+  const operacionesActualizadas = operaciones.map(
+    operacion => {
+      const dependencias = [
+        ...(operacion.dependencias || [])
+      ];
+      const dependenciasUsadas = new Set(
+        dependencias
+          .map(dependencia =>
+            dependencia.ruta_operacion_id
+          )
+          .filter(Boolean)
+      );
+
+      materialesEntradaOperacion(operacion)
+        .forEach(entradaOperacion => {
+          const entrada = materialesPorId.get(
+            entradaOperacion.material_id
+          );
+
+          if (
+            entrada?.tipo !==
+              TIPOS_MATERIAL.RECURSO_FABRICACION ||
+            entrada.es_comprado
+          ) {
+            return;
+          }
+
+          const productora =
+            productoresRf.get(entrada.id);
+
+          if (
+            !productora ||
+            productora.id === operacion.id ||
+            dependenciasUsadas.has(productora.id)
+          ) {
+            return;
+          }
+
+          dependencias.push({
+            ruta_operacion_id: productora.id,
+            porcentaje_minimo_avance: 100,
+            requiere_material_disponible: true
+          });
+          dependenciasUsadas.add(productora.id);
+          cambios.push({
+            operacion_id: operacion.id,
+            operacion_codigo:
+              operacion.operacion_codigo,
+            rf_id: entrada.id,
+            rf_codigo: entrada.codigo,
+            productora_id: productora.id,
+            productora_codigo:
+              productora.operacion_codigo
+          });
+        });
+
+      if (dependencias.length ===
+        (operacion.dependencias || []).length) {
+        return operacion;
+      }
+
+      return {
+        ...operacion,
+        dependencias,
+        dependencia_id:
+          dependencias[0]?.ruta_operacion_id || "",
+        porcentaje_minimo_avance:
+          dependencias[0]
+            ?.porcentaje_minimo_avance ?? "0"
+      };
+    }
+  );
+
+  return {
+    operaciones: operacionesActualizadas,
+    cambios
+  };
+};
 
 export const validarMaterial = (material = {}) => {
   const errores = [];
@@ -23,7 +186,7 @@ export const validarMaterial = (material = {}) => {
       material.tipo
     )
   ) {
-    errores.push("El tipo de material debe ser MP o RF.");
+    errores.push("El tipo de material debe ser MP, RF o SUM.");
   }
 
   if (
@@ -182,32 +345,90 @@ export const validarRuta = (
     }
 
     if (
-      !numeroPositivo(
-        operacion.unidades_por_hora
-      )
+      !Number.isFinite(
+        Number(operacion.unidades_por_hora)
+      ) ||
+      Number(operacion.unidades_por_hora) < 0
     ) {
       errores.push(
-        `La operacion ${referencia} requiere unidades_por_hora positivas.`
+        `La operacion ${referencia} requiere unidades_por_hora iguales o mayores que cero.`
       );
     }
 
-    const entrada = materialesPorId.get(
-      operacion.material_entrada_id
+    const entradas =
+      materialesEntradaOperacion(operacion);
+    const entradasMateriales = entradas.map(
+      entrada => ({
+        ...entrada,
+        material: materialesPorId.get(
+          entrada.material_id
+        )
+      })
     );
     const salida = materialesPorId.get(
       operacion.material_salida_id
     );
 
-    if (!entrada) {
+    if (entradas.length === 0) {
       errores.push(
         `La operacion ${referencia} usa un material de entrada inexistente.`
       );
     }
 
+    const entradasUsadas = new Set();
+    entradasMateriales.forEach(
+      (entrada, entradaIndice) => {
+        if (!entrada.material) {
+          errores.push(
+            `La operacion ${referencia} usa un material de entrada inexistente.`
+          );
+        }
+
+        if (
+          !numeroPositivo(entrada.cantidad)
+        ) {
+          errores.push(
+            `La operacion ${referencia} requiere cantidades de entrada positivas.`
+          );
+        }
+
+        if (
+          entrada.material_id &&
+          entradasUsadas.has(
+            entrada.material_id
+          )
+        ) {
+          errores.push(
+            `La operacion ${referencia} repite un material de entrada.`
+          );
+        }
+
+        if (entrada.material_id) {
+          entradasUsadas.add(
+            entrada.material_id
+          );
+        }
+
+        if (
+          entradaIndice === 0 &&
+          operacion.material_entrada_id &&
+          entrada.material_id !==
+            operacion.material_entrada_id
+        ) {
+          errores.push(
+            `La operacion ${referencia} no coincide con su primer material de entrada.`
+          );
+        }
+      }
+    );
+
     if (
-      entrada &&
       salida &&
-      entrada.id === salida.id
+      entradasMateriales.some(
+        entrada =>
+          entrada.material &&
+          entrada.material.id === salida.id
+      )
     ) {
       errores.push(
         `La operacion ${referencia} no puede tener el mismo material de entrada y salida.`
@@ -238,6 +459,8 @@ export const validarRuta = (
       );
     }
 
+    const dependenciasUsadas = new Set();
+
     (operacion.dependencias || [])
       .forEach(dependencia => {
         const porcentaje = Number(
@@ -262,6 +485,23 @@ export const validarRuta = (
             `La dependencia de ${referencia} requiere un porcentaje entre 0 y 100.`
           );
         }
+
+        if (
+          dependencia.ruta_operacion_id &&
+          dependenciasUsadas.has(
+            dependencia.ruta_operacion_id
+          )
+        ) {
+          errores.push(
+            `La operacion ${referencia} tiene dependencias repetidas.`
+          );
+        }
+
+        if (dependencia.ruta_operacion_id) {
+          dependenciasUsadas.add(
+            dependencia.ruta_operacion_id
+          );
+        }
       });
   });
 
@@ -279,15 +519,20 @@ export const validarRuta = (
         }
       });
 
-    const entrada = materialesPorId.get(
-      operacion.material_entrada_id
-    );
+    materialesEntradaOperacion(operacion)
+      .forEach(entradaOperacion => {
+        const entrada = materialesPorId.get(
+          entradaOperacion.material_id
+        );
 
-    if (
-      entrada?.tipo ===
-        TIPOS_MATERIAL.RECURSO_FABRICACION &&
-      !entrada.es_comprado
-    ) {
+        if (
+          entrada?.tipo !==
+            TIPOS_MATERIAL.RECURSO_FABRICACION ||
+          entrada.es_comprado
+        ) {
+          return;
+        }
+
       const productorId =
         productoresRf.get(entrada.id);
 
@@ -309,7 +554,7 @@ export const validarRuta = (
           );
         }
       }
-    }
+      });
   });
 
   if (
@@ -327,7 +572,8 @@ export const validarRuta = (
 export const congelarRutaParaOT = ({
   ruta,
   materiales,
-  cantidadProducto
+  cantidadProducto,
+  composicionProducto = []
 }) => {
   if (!numeroPositivo(cantidadProducto)) {
     throw new Error(
@@ -355,15 +601,37 @@ export const congelarRutaParaOT = ({
         Number(b.secuencia)
     )
     .map(operacion => {
-      const entrada = materialesPorId.get(
-        operacion.material_entrada_id
-      );
+      const entradas =
+        materialesEntradaOperacion(operacion)
+          .map(entrada => {
+            const material =
+              materialesPorId.get(
+                entrada.material_id
+              );
+            return {
+              material_id: material.id,
+              material_codigo: material.codigo,
+              material_nombre: material.nombre,
+              cantidad: Number(
+                entrada.cantidad || 1
+              )
+            };
+          });
+      const entrada = entradas[0];
       const salida = materialesPorId.get(
         operacion.material_salida_id
       );
-      const unidadesPorProducto = Number(
+      const unidadesPorItemBase = Number(
         operacion.unidades_por_producto
       );
+      const composicion =
+        factorComposicionOperacion(
+          operacion,
+          composicionProducto
+        );
+      const unidadesPorProducto =
+        unidadesPorItemBase *
+        composicion.factor;
       const cantidadRequerida =
         Number(cantidadProducto) *
         unidadesPorProducto;
@@ -399,20 +667,51 @@ export const congelarRutaParaOT = ({
         subproceso_nombre:
           operacion.subproceso_nombre,
         secuencia: Number(operacion.secuencia),
-        material_entrada_id: entrada.id,
+        material_entrada_id:
+          entrada.material_id,
         material_entrada_codigo:
-          entrada.codigo,
+          entrada.material_codigo,
+        materiales_entrada: entradas,
         material_salida_id: salida.id,
         material_salida_codigo:
           salida.codigo,
         medida: operacion.medida || "",
         unidades_por_producto:
           unidadesPorProducto,
+        unidades_por_item_base:
+          unidadesPorItemBase,
+        item_base_tipo:
+          composicion.item?.tipo ||
+          (operacion.subproducto_id
+            ? "SUBPRODUCTO"
+            : operacion.pieza_id
+              ? "PIEZA"
+              : "PRODUCTO"),
+        item_base_id:
+          composicion.item?.item_id ||
+          operacion.subproducto_id ||
+          operacion.pieza_id ||
+          ruta.producto_id ||
+          "",
+        item_base_codigo:
+          composicion.item?.item_codigo ||
+          operacion.subproducto_codigo ||
+          operacion.pieza_codigo ||
+          "",
+        item_base_nombre:
+          composicion.item?.item_nombre ||
+          operacion.subproducto_nombre ||
+          operacion.pieza_nombre ||
+          "",
+        factor_composicion:
+          composicion.factor,
         cantidad_requerida:
           cantidadRequerida,
         cantidad_ok: 0,
         cantidad_defectuosa: 0,
         cantidad_reproceso: 0,
+        cantidad_merma: 0,
+        reproceso_pendiente: 0,
         cantidad_consumida: 0,
         cantidad_pendiente:
           cantidadRequerida,
@@ -538,11 +837,14 @@ export const dependenciasCumplidas = (
       const cumpleMaterial =
         !dependencia
           .requiere_material_disponible ||
-        Number(
-          disponibilidadPorMaterial[
-            operacion.material_entrada_id
-          ] || 0
-        ) > 0;
+        materialesEntradaOperacion(operacion)
+          .every(entrada =>
+            Number(
+              disponibilidadPorMaterial[
+                entrada.material_id
+              ] || 0
+            ) > 0
+          );
 
       return cumpleAvance && cumpleMaterial;
     });

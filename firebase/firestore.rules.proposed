@@ -42,6 +42,15 @@ service cloud.firestore {
         );
     }
 
+    function belongsToTransferPlant(data) {
+      return belongsToCompany(data) &&
+        (
+          role() == 'gerencia' ||
+          data.planta_origen_id in plantIds() ||
+          data.planta_destino_id in plantIds()
+        );
+    }
+
     function unchangedScope() {
       return request.resource.data.empresa_id ==
           resource.data.empresa_id &&
@@ -67,18 +76,24 @@ service cloud.firestore {
     }
 
     match /usuarios/{userId} {
-      allow read: if authenticated() &&
+      allow get: if authenticated() &&
         (
           userId == request.auth.uid ||
-          isManagement()
+          (
+            isManagement() &&
+            belongsToCompany(resource.data)
+          )
         ) &&
-        belongsToCompany(resource.data);
+        resource.data.empresa_id is string;
+      allow list: if isManagement();
       allow write: if role() == 'gerencia' &&
         belongsToCompany(request.resource.data);
     }
 
     match /operarios/{operarioId} {
-      allow read: if belongsToPlant(resource.data);
+      allow get: if isManagement() ||
+        belongsToPlant(resource.data);
+      allow list: if isManagement();
       allow create: if isManagement() &&
         belongsToPlant(request.resource.data);
       allow update: if isManagement() &&
@@ -88,16 +103,343 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /inventario_materiales/{stockId} {
+      allow get: if isManagement() &&
+        (
+          !exists(
+            /databases/$(database)/documents/inventario_materiales/$(stockId)
+          ) ||
+          belongsToPlant(resource.data)
+        );
+      allow list: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope() &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /movimientos_almacen/{movimientoId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.usuario_id ==
+          request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /traspasos_almacen/{traspasoId} {
+      allow read: if belongsToTransferPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.tipo_operacion ==
+          'traspaso_interno' &&
+        request.resource.data.planta_id ==
+          request.resource.data.planta_origen_id &&
+        request.resource.data.estado == 'en_transito' &&
+        request.resource.data.creado_por_id ==
+          request.auth.uid;
+      allow update: if isManagement() &&
+        belongsToTransferPlant(resource.data) &&
+        belongsToTransferPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.tipo_operacion ==
+          resource.data.tipo_operacion &&
+        request.resource.data.planta_origen_id ==
+          resource.data.planta_origen_id &&
+        request.resource.data.planta_destino_id ==
+          resource.data.planta_destino_id &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.estado == 'recibido' &&
+        request.resource.data.recibido_por_id ==
+          request.auth.uid &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'cantidad_recibida',
+            'recibido_por_id',
+            'recibido_por_nombre',
+            'recibido_en',
+            'movimiento_recepcion_id',
+            'actualizado_en'
+          ]);
+      allow delete: if false;
+    }
+
+    match /conteos_fisicos/{conteoId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.contado_por_id ==
+          request.auth.uid &&
+        request.resource.data.stock_contado >= 0 &&
+        (
+          request.resource.data.diferencia == 0 ||
+          (
+            request.resource.data.observacion is string &&
+            request.resource.data.observacion.size() > 0
+          )
+        );
+      allow update, delete: if false;
+    }
+
+    match /solicitudes_reposicion/{solicitudId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.solicitado_por_id ==
+          request.auth.uid &&
+        request.resource.data.estado == 'pendiente' &&
+        request.resource.data.cantidad_sugerida > 0 &&
+        request.resource.data.tipo_sugerido in [
+          'compra',
+          'reposicion_interna'
+        ];
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.estado in [
+          'en_revision',
+          'aprobada',
+          'cerrada',
+          'anulada'
+        ] &&
+        request.resource.data.resuelto_por_id ==
+          request.auth.uid &&
+        request.resource.data.observacion_resolucion is string &&
+        request.resource.data.observacion_resolucion.size() > 0 &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'observacion_resolucion',
+            'resuelto_por_id',
+            'resuelto_por_nombre',
+            'resuelto_en',
+            'actualizado_en'
+          ]);
+      allow delete: if false;
+    }
+
+    match /solicitudes_compra/{solicitudId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.solicitado_por_id ==
+          request.auth.uid &&
+        request.resource.data.estado == 'pendiente' &&
+        request.resource.data.cantidad > 0;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.material_id ==
+          resource.data.material_id &&
+        request.resource.data.estado in [
+          'en_oc',
+          'cerrada',
+          'anulada'
+        ] &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'orden_compra_id',
+            'orden_compra_codigo',
+            'actualizado_en'
+          ]);
+      allow delete: if false;
+    }
+
+    match /ordenes_compra/{ordenId} {
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/ordenes_compra/$(ordenId)
+          )
+        ) ||
+        belongsToPlant(resource.data);
+      allow list: if isManagement();
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.creado_por_id ==
+          request.auth.uid &&
+        request.resource.data.estado == 'borrador' &&
+        request.resource.data.items is list &&
+        request.resource.data.items.size() > 0;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.codigo ==
+          resource.data.codigo &&
+        request.resource.data.estado in [
+          'aprobada',
+          'enviada',
+          'parcial_recibida',
+          'recibida',
+          'anulada'
+        ] &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'actualizado_por_id',
+            'actualizado_por_nombre',
+            'actualizado_en',
+            'enviada_en',
+            'enviada_por_id',
+            'enviada_por_nombre'
+          ]);
+      allow delete: if false;
+    }
+
+    match /ordenes_compra_publicas/{token} {
+      allow get: if resource.data.compartir_activo == true &&
+        resource.data.token_compartir == token;
+      allow list: if false;
+      allow create, update: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.token_compartir == token &&
+        request.resource.data.compartir_activo == true;
+      allow delete: if false;
+    }
+
+    match /configuracion_capacidad/{configId} {
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/configuracion_capacidad/$(configId)
+          )
+        ) ||
+        belongsToPlant(resource.data);
+      allow list: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope();
+      allow delete: if false;
+    }
+
+    match /capacidad_procesos/{capacidadId} {
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/capacidad_procesos/$(capacidadId)
+          )
+        ) ||
+        belongsToPlant(resource.data);
+      allow list: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope() &&
+        request.resource.data.subproceso_id ==
+          resource.data.subproceso_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
+
+      match /historial/{historialId} {
+        allow read: if belongsToPlant(resource.data);
+        allow create: if isManagement() &&
+          belongsToPlant(request.resource.data) &&
+          request.resource.data.capacidad_id ==
+            capacidadId &&
+          request.resource.data.actualizado_por_id ==
+            request.auth.uid;
+        allow update, delete: if false;
+      }
+    }
+
     match /{catalogo}/{documentId} {
-      allow read: if catalogo in [
+      allow get: if catalogo in [
           'materiales',
           'procesos',
           'subprocesos',
           'operaciones',
           'productos',
-          'catalogo_defectos'
+          'estandares',
+          'config_procesos',
+          'config_productos',
+          'operaciones_maestras',
+          'catalogo_piezas',
+          'catalogo_subproductos',
+          'catalogo_procesos_estaciones',
+          'catalogo_operaciones',
+          'catalogo_defectos',
+          'catalogo_causas',
+          'catalogo_motivos_paro',
+          'clientes',
+          'proveedores',
+          'cotizaciones_tecnicas',
+          'costos_base_estacion',
+          'costos_operativos_planta'
         ] &&
-        belongsToCompany(resource.data);
+        (
+          (
+            isManagement() &&
+            !exists(
+              /databases/$(database)/documents/$(catalogo)/$(documentId)
+            )
+          ) ||
+          isManagement() ||
+          belongsToCompany(resource.data)
+        );
+
+      allow list: if catalogo in [
+          'materiales',
+          'procesos',
+          'subprocesos',
+          'operaciones',
+          'productos',
+          'estandares',
+          'config_procesos',
+          'config_productos',
+          'operaciones_maestras',
+          'catalogo_piezas',
+          'catalogo_subproductos',
+          'catalogo_procesos_estaciones',
+          'catalogo_operaciones',
+          'catalogo_defectos',
+          'catalogo_causas',
+          'catalogo_motivos_paro',
+          'clientes',
+          'proveedores',
+          'cotizaciones_tecnicas',
+          'costos_base_estacion',
+          'costos_operativos_planta'
+        ] &&
+        isManagement();
 
       allow create: if catalogo in [
           'materiales',
@@ -105,7 +447,22 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
-          'catalogo_defectos'
+          'estandares',
+          'config_procesos',
+          'config_productos',
+          'operaciones_maestras',
+          'catalogo_piezas',
+          'catalogo_subproductos',
+          'catalogo_procesos_estaciones',
+          'catalogo_operaciones',
+          'catalogo_defectos',
+          'catalogo_causas',
+          'catalogo_motivos_paro',
+          'clientes',
+          'proveedores',
+          'cotizaciones_tecnicas',
+          'costos_base_estacion',
+          'costos_operativos_planta'
         ] &&
         isManagement() &&
         belongsToCompany(request.resource.data);
@@ -116,7 +473,22 @@ service cloud.firestore {
           'subprocesos',
           'operaciones',
           'productos',
-          'catalogo_defectos'
+          'estandares',
+          'config_procesos',
+          'config_productos',
+          'operaciones_maestras',
+          'catalogo_piezas',
+          'catalogo_subproductos',
+          'catalogo_procesos_estaciones',
+          'catalogo_operaciones',
+          'catalogo_defectos',
+          'catalogo_causas',
+          'catalogo_motivos_paro',
+          'clientes',
+          'proveedores',
+          'cotizaciones_tecnicas',
+          'costos_base_estacion',
+          'costos_operativos_planta'
         ] &&
         isManagement() &&
         belongsToCompany(resource.data) &&
@@ -127,18 +499,87 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /{legacyDashboard}/{documentId} {
+      allow read: if legacyDashboard in [
+          'registros_produccion',
+          'produccion_activa',
+          'paros_produccion',
+          'ajustes_produccion'
+        ] &&
+        authenticated();
+
+      allow create, update: if legacyDashboard in [
+          'registros_produccion',
+          'produccion_activa',
+          'paros_produccion',
+          'ajustes_produccion'
+        ] &&
+        isPlantOperator();
+
+      allow delete: if false;
+    }
+
     match /productos/{productoId}/rutas/{rutaId} {
-      allow read: if belongsToCompany(resource.data);
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/productos/$(productoId)/rutas/$(rutaId)
+          )
+        ) ||
+        belongsToCompany(resource.data);
+      allow list: if isManagement();
       allow create, update: if isManagement() &&
         belongsToCompany(request.resource.data);
       allow delete: if false;
 
       match /operaciones/{operacionId} {
-        allow read: if belongsToCompany(resource.data);
+        allow get: if belongsToCompany(resource.data);
+        allow list: if isManagement();
         allow create, update: if isManagement() &&
           belongsToCompany(request.resource.data);
         allow delete: if false;
       }
+    }
+
+    match /catalogo_subproductos/{subproductoId}/rutas/{rutaId} {
+      allow get: if (
+          isManagement() &&
+          !exists(
+            /databases/$(database)/documents/catalogo_subproductos/$(subproductoId)/rutas/$(rutaId)
+          )
+        ) ||
+        belongsToCompany(resource.data);
+      allow list: if isManagement();
+      allow create, update: if isManagement() &&
+        belongsToCompany(request.resource.data);
+      allow delete: if false;
+
+      match /operaciones/{operacionId} {
+        allow get: if belongsToCompany(resource.data);
+        allow list: if isManagement();
+        allow create, update: if isManagement() &&
+          belongsToCompany(request.resource.data);
+        allow delete: if false;
+      }
+    }
+
+    match /programacion_turnos/{programacionId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope() &&
+        request.resource.data.semana_inicio ==
+          resource.data.semana_inicio &&
+        request.resource.data.operario_id ==
+          resource.data.operario_id &&
+        request.resource.data.actualizado_por_id ==
+          request.auth.uid;
+      allow delete: if false;
     }
 
     match /ordenes_trabajo/{otId} {
@@ -161,6 +602,30 @@ service cloud.firestore {
           unchangedScope();
         allow delete: if false;
       }
+    }
+
+    match /ocupacion_operarios/{ocupacionId} {
+      allow get: if isPlantOperator();
+      allow list: if belongsToPlant(resource.data);
+      allow create: if isPlantOperator() &&
+        belongsToPlant(request.resource.data);
+      allow update: if isPlantOperator() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        unchangedScope() &&
+        request.resource.data.operario_id ==
+          resource.data.operario_id;
+      allow delete: if false;
+    }
+
+    match /decisiones_planificador/{decisionId} {
+      allow read: if isManagement() &&
+        belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.usuario_id ==
+          request.auth.uid;
+      allow update, delete: if false;
     }
 
     match /sesiones_produccion/{sesionId} {
