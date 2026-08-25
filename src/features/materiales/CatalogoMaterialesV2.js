@@ -85,6 +85,13 @@ const estiloCampo = {
 
 const FILTRO_SIN_VINCULAR = "__sin_vincular__";
 
+const normalizarBusqueda = valor =>
+  String(valor || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 const usaLaserFibra = aplicacion =>
   [
     APLICACIONES_CORTE_LASER.FIBRA,
@@ -128,6 +135,8 @@ function CatalogoMaterialesV2({
   const [filtroProductoId, setFiltroProductoId] =
     useState("");
   const [filtroSubproductoId, setFiltroSubproductoId] =
+    useState("");
+  const [busquedaMaterial, setBusquedaMaterial] =
     useState("");
   const [editandoId, setEditandoId] =
     useState("");
@@ -235,8 +244,11 @@ function CatalogoMaterialesV2({
   );
 
   const materialesFiltrados = useMemo(
-    () =>
-      materiales.filter(material => {
+    () => {
+      const busquedaNormalizada =
+        normalizarBusqueda(busquedaMaterial);
+
+      return materiales.filter(material => {
         const sinVincular =
           !material.producto_id &&
           !material.subproducto_id &&
@@ -268,13 +280,50 @@ function CatalogoMaterialesV2({
           (material.subproductos_asociados || [])
             .some(subproducto =>
               subproducto.subproducto_id ===
-              filtroSubproductoId
+                filtroSubproductoId
             );
+        const productosTexto =
+          (material.productos_asociados || [])
+            .map(producto => [
+              producto.producto_codigo,
+              producto.producto_nombre
+            ].filter(Boolean).join(" "))
+            .join(" ");
+        const subproductosTexto =
+          (material.subproductos_asociados || [])
+            .map(subproducto => [
+              subproducto.subproducto_codigo,
+              subproducto.subproducto_nombre,
+              subproducto.producto_codigo,
+              subproducto.producto_nombre
+            ].filter(Boolean).join(" "))
+            .join(" ");
+        const textoBusqueda = normalizarBusqueda([
+          material.codigo,
+          material.nombre,
+          material.tipo,
+          material.unidad_medida,
+          material.proveedor_preferente_codigo,
+          material.proveedor_preferente_nombre,
+          material.producto_codigo,
+          material.producto_nombre,
+          material.subproducto_codigo,
+          material.subproducto_nombre,
+          productosTexto,
+          subproductosTexto,
+          material.aplicacion_corte_laser
+        ].filter(Boolean).join(" "));
+        const coincideBusqueda =
+          !busquedaNormalizada ||
+          textoBusqueda.includes(busquedaNormalizada);
 
         return coincideProducto &&
-          coincideSubproducto;
-      }),
+          coincideSubproducto &&
+          coincideBusqueda;
+      });
+    },
     [
+      busquedaMaterial,
       filtroProductoId,
       filtroSubproductoId,
       materiales
@@ -1825,6 +1874,30 @@ function CatalogoMaterialesV2({
               marginBottom: 14
             }}>
               <label>
+                Buscar en catálogo
+                <input
+                  type="search"
+                  value={busquedaMaterial}
+                  onChange={evento =>
+                    setBusquedaMaterial(evento.target.value)
+                  }
+                  placeholder="Ej: tubo, PAI, SUM, perno, proveedor..."
+                  style={{
+                    ...estiloCampo,
+                    marginTop: 6
+                  }}
+                />
+                <small style={{
+                  color: "#64748B",
+                  display: "block",
+                  marginTop: 5
+                }}>
+                  Busca por código, nombre, tipo,
+                  proveedor, producto o subproducto.
+                </small>
+              </label>
+
+              <label>
                 Filtrar por producto
                 <select
                   value={filtroProductoId}
@@ -1909,8 +1982,8 @@ function CatalogoMaterialesV2({
               </p>
             ) : materialesFiltrados.length === 0 ? (
               <p style={{ color: "#64748B" }}>
-                No hay materiales para los filtros
-                seleccionados.
+                No hay materiales relacionados con la
+                búsqueda o filtros seleccionados.
               </p>
             ) : (
               <div style={{
