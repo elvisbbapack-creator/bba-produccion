@@ -686,6 +686,8 @@ function AlmacenV2({
   );
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [busquedaStock, setBusquedaStock] =
+    useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -767,6 +769,24 @@ function AlmacenV2({
     ),
     [stocks]
   );
+
+  const stocksFiltrados = useMemo(() => {
+    const termino = normalizarTexto(busquedaStock);
+
+    if (!termino) {
+      return stocks;
+    }
+
+    return stocks.filter(stock =>
+      normalizarTexto([
+        stock.material_codigo,
+        stock.material_nombre,
+        stock.material_tipo,
+        stock.material_id,
+        stock.almacen_id
+      ].filter(Boolean).join(" ")).includes(termino)
+    );
+  }, [busquedaStock, stocks]);
 
   const stockSeleccionado = useMemo(
     () => stocksPorMaterial.get(
@@ -1754,6 +1774,212 @@ function AlmacenV2({
             </select>
           </label>
         </div>
+
+        <section style={{
+          background: "white",
+          padding: esPantallaPequena ? 16 : 22,
+          borderRadius: 14,
+          boxShadow:
+            "0 2px 10px rgba(15,23,42,0.08)",
+          marginBottom: esPantallaPequena ? 14 : 22
+        }}>
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            alignItems: esPantallaPequena
+              ? "stretch"
+              : "center",
+            flexDirection: esPantallaPequena
+              ? "column"
+              : "row"
+          }}>
+            <div>
+              <h2 style={{ margin: 0 }}>
+                Existencias actuales
+              </h2>
+              <p style={{
+                color: "#64748B",
+                margin: "6px 0 0"
+              }}>
+                Stock visible por material para la planta{" "}
+                {plantaId.toUpperCase()}. Usa el buscador
+                para encontrar rápido MP, SUM, RF o EPP.
+              </p>
+            </div>
+            <div style={{
+              minWidth: esPantallaPequena
+                ? "100%"
+                : 280
+            }}>
+              <input
+                type="search"
+                value={busquedaStock}
+                onChange={evento =>
+                  setBusquedaStock(evento.target.value)
+                }
+                placeholder="Buscar alambre, tubo, MP..."
+                style={{
+                  ...campo,
+                  background: "#F8FAFC"
+                }}
+              />
+            </div>
+          </div>
+
+          {cargando ? (
+            <p>Cargando existencias...</p>
+          ) : stocks.length === 0 ? (
+            <p style={{
+              color: "#64748B",
+              marginBottom: 0
+            }}>
+              Todavía no hay stock registrado para esta
+              planta. Si ya hiciste conteo físico, revisa
+              que estés viendo la planta correcta.
+            </p>
+          ) : stocksFiltrados.length === 0 ? (
+            <p style={{
+              color: "#64748B",
+              marginBottom: 0
+            }}>
+              No hay existencias relacionadas con esa
+              búsqueda.
+            </p>
+          ) : (
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: esPantallaPequena
+                ? "minmax(0, 1fr)"
+                : "repeat(auto-fit, minmax(230px, 1fr))",
+              gap: 10,
+              marginTop: 16,
+              maxHeight: esPantallaPequena ? 420 : 360,
+              overflowY: "auto",
+              paddingRight: 4
+            }}>
+              {stocksFiltrados.map(stock => {
+                const alerta =
+                  alertasPorMaterial.get(
+                    stock.material_id
+                  );
+                const alertaCritica =
+                  alerta &&
+                  [
+                    "sin_stock",
+                    "bajo_minimo"
+                  ].includes(alerta.estado);
+
+                return (
+                  <article
+                    key={stock.id || stock.material_id}
+                    style={{
+                      border: "1px solid #E2E8F0",
+                      borderRadius: 12,
+                      padding: 12,
+                      background: alertaCritica
+                        ? "#FEF2F2"
+                        : "#F8FAFC"
+                    }}
+                  >
+                    <strong>
+                      {stock.material_codigo || "Sin código"}
+                    </strong>
+                    <div style={{
+                      color: "#475569",
+                      fontSize: 13,
+                      marginTop: 3
+                    }}>
+                      {stock.material_nombre ||
+                        "Sin nombre"}
+                    </div>
+                    <div style={{
+                      color: "#64748B",
+                      fontSize: 12,
+                      marginTop: 4
+                    }}>
+                      Tipo: {stock.material_tipo || "-"}
+                    </div>
+
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(3, minmax(0, 1fr))",
+                      gap: 8,
+                      marginTop: 10,
+                      textAlign: "center"
+                    }}>
+                      <div>
+                        <strong>
+                          {formatearNumero(
+                            stock.stock_actual
+                          )}
+                        </strong>
+                        <div style={{
+                          color: "#64748B",
+                          fontSize: 12
+                        }}>
+                          Stock
+                        </div>
+                      </div>
+                      <div>
+                        <strong>
+                          {formatearNumero(
+                            stock.stock_reservado
+                          )}
+                        </strong>
+                        <div style={{
+                          color: "#64748B",
+                          fontSize: 12
+                        }}>
+                          Reservado
+                        </div>
+                      </div>
+                      <div>
+                        <strong>
+                          {formatearNumero(
+                            stock.stock_disponible
+                          )}
+                        </strong>
+                        <div style={{
+                          color: "#64748B",
+                          fontSize: 12
+                        }}>
+                          Disponible
+                        </div>
+                      </div>
+                    </div>
+
+                    {alerta && (
+                      <div style={{
+                        marginTop: 10,
+                        color: alerta.estado === "ok"
+                          ? "#166534"
+                          : alertaCritica
+                            ? "#991B1B"
+                            : "#92400E",
+                        fontWeight: "bold",
+                        fontSize: 13
+                      }}>
+                        {alerta.estado === "ok"
+                          ? "OK"
+                          : alerta.estado ===
+                            "sin_politica"
+                            ? "Sin política de stock"
+                            : alerta.estado === "sin_stock"
+                              ? "Sin stock"
+                              : alerta.estado ===
+                                "bajo_minimo"
+                                ? "Bajo mínimo"
+                                : "Reponer"}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
         <div style={{
           display: "grid",
