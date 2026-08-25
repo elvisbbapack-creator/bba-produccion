@@ -150,6 +150,8 @@ function ConstructorRutasV2({
     useState([]);
   const [productoId, setProductoId] =
     useState("");
+  const [filtroProductos, setFiltroProductos] =
+    useState("");
   const [tipoRuta, setTipoRuta] = useState(
     TIPOS_RUTA.PRODUCTO
   );
@@ -371,6 +373,29 @@ function ConstructorRutasV2({
         subproceso.proceso_codigo ===
           operacionForm.proceso_codigo
     );
+  const productosFiltrados = useMemo(() => {
+    const busqueda = filtroProductos
+      .trim()
+      .toLowerCase();
+
+    if (!busqueda) {
+      return productos;
+    }
+
+    return productos.filter(producto =>
+      [
+        producto.codigo,
+        producto.nombre,
+        producto.familia
+      ]
+        .filter(Boolean)
+        .some(valor =>
+          String(valor)
+            .toLowerCase()
+            .includes(busqueda)
+        )
+    );
+  }, [filtroProductos, productos]);
 
   const cargarCatalogos = useCallback(
     async () => {
@@ -1914,20 +1939,50 @@ function ConstructorRutasV2({
 
             <section style={tarjeta}>
               <h2 style={{ marginTop: 0 }}>
-                Productos ({productos.length})
+                Productos ({productosFiltrados.length}
+                /{productos.length})
               </h2>
+              <label style={{
+                ...etiqueta,
+                marginBottom: 12
+              }}>
+                Buscar producto
+                <input
+                  value={filtroProductos}
+                  onChange={evento =>
+                    setFiltroProductos(
+                      evento.target.value
+                    )
+                  }
+                  placeholder="Código, nombre o familia..."
+                  style={campo}
+                />
+                <small style={{
+                  color: "#64748B",
+                  fontWeight: "normal"
+                }}>
+                  Digita algunas letras para revisar si
+                  el producto ya está registrado antes de
+                  crearlo.
+                </small>
+              </label>
               {cargando ? (
                 <p>Cargando...</p>
               ) : productos.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
                   No hay productos.
                 </p>
+              ) : productosFiltrados.length === 0 ? (
+                <p style={{ color: "#64748B" }}>
+                  No hay productos relacionados con esa
+                  búsqueda.
+                </p>
               ) : (
                 <div style={{
                   display: "grid",
                   gap: 9
                 }}>
-                  {productos.map(producto => (
+                  {productosFiltrados.map(producto => (
                     <button
                       type="button"
                       key={producto.id}
