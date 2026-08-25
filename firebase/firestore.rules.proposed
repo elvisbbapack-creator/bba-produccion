@@ -29,6 +29,44 @@ service cloud.firestore {
       return role() in ['supervisor', 'jefe', 'gerencia'];
     }
 
+    function hasPermission(permission) {
+      return authenticated() &&
+        request.auth.token.permisos is map &&
+        request.auth.token.permisos[permission] == true;
+    }
+
+    function canUseWarehouse() {
+      return isManagement() ||
+        hasPermission('almacen.gestionar');
+    }
+
+    function canUsePurchasing() {
+      return isManagement() ||
+        hasPermission('compras.gestionar');
+    }
+
+    function canReadCatalog(catalogo) {
+      return isManagement() ||
+        (
+          catalogo in [
+            'materiales',
+            'proveedores',
+            'productos',
+            'catalogo_piezas',
+            'catalogo_subproductos',
+            'catalogo_procesos_estaciones',
+            'catalogo_operaciones'
+          ] &&
+          (
+            hasPermission('almacen.gestionar') ||
+            hasPermission('compras.gestionar') ||
+            hasPermission('ingenieria.gestionar') ||
+            hasPermission('costeo.gestionar') ||
+            hasPermission('produccion.operar')
+          )
+        );
+    }
+
     function belongsToCompany(data) {
       return authenticated() &&
         data.empresa_id == companyId();
@@ -104,7 +142,7 @@ service cloud.firestore {
     }
 
     match /inventario_materiales/{stockId} {
-      allow get: if isManagement() &&
+      allow get: if canUseWarehouse() &&
         (
           !exists(
             /databases/$(database)/documents/inventario_materiales/$(stockId)
@@ -112,11 +150,11 @@ service cloud.firestore {
           belongsToPlant(resource.data)
         );
       allow list: if belongsToPlant(resource.data);
-      allow create: if isManagement() &&
+      allow create: if canUseWarehouse() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.actualizado_por_id ==
           request.auth.uid;
-      allow update: if isManagement() &&
+      allow update: if canUseWarehouse() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(request.resource.data) &&
         unchangedScope() &&
@@ -129,7 +167,7 @@ service cloud.firestore {
 
     match /movimientos_almacen/{movimientoId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if isManagement() &&
+      allow create: if canUseWarehouse() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.usuario_id ==
           request.auth.uid;
@@ -138,7 +176,7 @@ service cloud.firestore {
 
     match /traspasos_almacen/{traspasoId} {
       allow read: if belongsToTransferPlant(resource.data);
-      allow create: if isManagement() &&
+      allow create: if canUseWarehouse() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.tipo_operacion ==
           'traspaso_interno' &&
@@ -147,7 +185,7 @@ service cloud.firestore {
         request.resource.data.estado == 'en_transito' &&
         request.resource.data.creado_por_id ==
           request.auth.uid;
-      allow update: if isManagement() &&
+      allow update: if canUseWarehouse() &&
         belongsToTransferPlant(resource.data) &&
         belongsToTransferPlant(request.resource.data) &&
         request.resource.data.empresa_id ==
@@ -179,7 +217,7 @@ service cloud.firestore {
 
     match /conteos_fisicos/{conteoId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if isManagement() &&
+      allow create: if canUseWarehouse() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.contado_por_id ==
           request.auth.uid &&
@@ -196,7 +234,7 @@ service cloud.firestore {
 
     match /solicitudes_reposicion/{solicitudId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if isManagement() &&
+      allow create: if canUseWarehouse() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.solicitado_por_id ==
           request.auth.uid &&
@@ -206,7 +244,7 @@ service cloud.firestore {
           'compra',
           'reposicion_interna'
         ];
-      allow update: if isManagement() &&
+      allow update: if canUseWarehouse() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.empresa_id ==
@@ -240,13 +278,13 @@ service cloud.firestore {
 
     match /solicitudes_compra/{solicitudId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if isManagement() &&
+      allow create: if (canUsePurchasing() || canUseWarehouse()) &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.solicitado_por_id ==
           request.auth.uid &&
         request.resource.data.estado == 'pendiente' &&
         request.resource.data.cantidad > 0;
-      allow update: if isManagement() &&
+      allow update: if canUsePurchasing() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.empresa_id ==
@@ -279,14 +317,14 @@ service cloud.firestore {
 
     match /solicitudes_cotizacion_compra/{cotizacionId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if isManagement() &&
+      allow create: if canUsePurchasing() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.solicitado_por_id ==
           request.auth.uid &&
         request.resource.data.estado == 'solicitada' &&
         request.resource.data.items is list &&
         request.resource.data.items.size() > 0;
-      allow update: if isManagement() &&
+      allow update: if canUsePurchasing() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.empresa_id ==
@@ -314,21 +352,22 @@ service cloud.firestore {
 
     match /ordenes_compra/{ordenId} {
       allow get: if (
-          isManagement() &&
+          canUsePurchasing() &&
           !exists(
             /databases/$(database)/documents/ordenes_compra/$(ordenId)
           )
         ) ||
         belongsToPlant(resource.data);
-      allow list: if isManagement();
-      allow create: if isManagement() &&
+      allow list: if canUsePurchasing() &&
+        belongsToPlant(resource.data);
+      allow create: if canUsePurchasing() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.creado_por_id ==
           request.auth.uid &&
         request.resource.data.estado == 'borrador' &&
         request.resource.data.items is list &&
         request.resource.data.items.size() > 0;
-      allow update: if isManagement() &&
+      allow update: if canUsePurchasing() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.empresa_id ==
@@ -362,7 +401,7 @@ service cloud.firestore {
       allow get: if resource.data.compartir_activo == true &&
         resource.data.token_compartir == token;
       allow list: if false;
-      allow create, update: if isManagement() &&
+      allow create, update: if canUsePurchasing() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.token_compartir == token &&
         request.resource.data.compartir_activo == true;
@@ -480,7 +519,13 @@ service cloud.firestore {
           'costos_base_estacion',
           'costos_operativos_planta'
         ] &&
-        isManagement();
+        (
+          isManagement() ||
+          (
+            belongsToCompany(resource.data) &&
+            canReadCatalog(catalogo)
+          )
+        );
 
       allow create: if catalogo in [
           'materiales',
