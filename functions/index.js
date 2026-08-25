@@ -7,9 +7,18 @@ const {
 admin.initializeApp();
 
 const REGION = "southamerica-west1";
+const PROJECT_ID =
+  process.env.GCLOUD_PROJECT ||
+  process.env.GCP_PROJECT ||
+  "";
+const WEB_API_KEYS = {
+  "bba-produccion": "AIzaSyCyiF21dtbrFjdu8H-w5df0Ul87upa2vaY",
+  "bba-erp-pruebas": "AIzaSyCQhqhJ4u0c2dbIKsSSb9ZK_uEEcoBX_Jo"
+};
 const WEB_API_KEY =
   process.env.BBA_FIREBASE_WEB_API_KEY ||
-  "AIzaSyCQhqhJ4u0c2dbIKsSSb9ZK_uEEcoBX_Jo";
+  WEB_API_KEYS[PROJECT_ID] ||
+  WEB_API_KEYS["bba-erp-pruebas"];
 
 const db = admin.firestore();
 

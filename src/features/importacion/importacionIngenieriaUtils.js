@@ -183,7 +183,7 @@ const agruparProcesosEstaciones = filas => {
 };
 
 export const hojasPlantillaIngenieria = {
-  Materiales_MP_SUM: [
+  Materiales_MP_SUM_EPP: [
     [
       "tipo",
       "codigo",
@@ -213,6 +213,16 @@ export const hojasPlantillaIngenieria = {
       "CLP",
       "1",
       "Proveedor tintas"
+    ],
+    [
+      "EPP",
+      "EPP0001",
+      "Guante anticorte",
+      "par",
+      "3500",
+      "CLP",
+      "12",
+      "Proveedor seguridad"
     ]
   ],
   Recursos_RF: [
@@ -397,7 +407,10 @@ export const leerIngenieriaDesdeWorkbook = (
   xlsx
 ) => {
   const materialFilas = leerFilas(
-    obtenerHoja(workbook, ["Materiales_MP_SUM"]),
+    obtenerHoja(workbook, [
+      "Materiales_MP_SUM_EPP",
+      "Materiales_MP_SUM"
+    ]),
     xlsx
   );
   const recursoRfFilas = leerFilas(
@@ -902,9 +915,9 @@ export const validarIngenieriaImportada = data => {
   );
 
   (data.materiales || []).forEach(material => {
-    if (!["MP", "RF", "SUM"].includes(material.tipo)) {
+    if (!["MP", "RF", "SUM", "EPP"].includes(material.tipo)) {
       errores.push(
-        `Material ${material.codigo || "(sin código)"} requiere tipo MP, RF o SUM.`
+        `Material ${material.codigo || "(sin código)"} requiere tipo MP, RF, SUM o EPP.`
       );
     }
     if (

@@ -201,13 +201,44 @@ test("permite crear suministros productivos comprados", () => {
   expect(validarNuevoMaterial(material)).toEqual([]);
 });
 
+test("permite crear EPP comprado con peso y sin parametros productivos", () => {
+  const material = prepararMaterial(
+    {
+      codigo: "EPP0001",
+      tipo: TIPOS_MATERIAL.EPP,
+      nombre: "Guante anticorte",
+      unidad_medida: "par",
+      peso_kg_por_unidad: "0.2",
+      es_comprado: true,
+      aplicacion_corte_laser:
+        APLICACIONES_CORTE_LASER.FIBRA,
+      velocidad_laser_fibra_m_min: "8"
+    },
+    "bba",
+    "material-epp"
+  );
+
+  expect(material).toMatchObject({
+    codigo: "EPP0001",
+    tipo: "EPP",
+    peso_kg_por_unidad: 0.2,
+    es_comprado: true,
+    aplicacion_corte_laser:
+      APLICACIONES_CORTE_LASER.NO_APLICA,
+    velocidad_laser_fibra_m_min: 0,
+    velocidad_laser_co2_m_min: 0
+  });
+  expect(validarNuevoMaterial(material)).toEqual([]);
+});
+
 test("calcula el siguiente código disponible por tipo", () => {
   const materiales = [
     { codigo: "MP0001" },
     { codigo: "MP0003" },
     { codigo: "RF0001" },
     { codigo: "SUM0001" },
-    { codigo: "SUM0002" }
+    { codigo: "SUM0002" },
+    { codigo: "EPP0001" }
   ];
 
   expect(
@@ -219,6 +250,9 @@ test("calcula el siguiente código disponible por tipo", () => {
   expect(
     siguienteCodigoMaterial("SUM", materiales)
   ).toBe("SUM0003");
+  expect(
+    siguienteCodigoMaterial("EPP", materiales)
+  ).toBe("EPP0002");
 });
 
 test("rechaza codigos duplicados", () => {

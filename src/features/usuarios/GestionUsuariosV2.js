@@ -248,7 +248,7 @@ export default function GestionUsuariosV2({
           firebaseFunctions,
           usuario.id,
           {
-            enviarCorreo: false
+            enviarCorreo: true
           }
         );
       await cargar();

@@ -19,6 +19,7 @@ Opciones:
   --doc <docId>        Usa un documento especifico de la coleccion usuarios.
   --send-reset         Envia correo de restablecimiento aunque la cuenta ya exista.
   --no-reset           No envia correo de restablecimiento.
+  --set-temp-password  Genera una contraseña temporal y la asigna al usuario.
   --dry-run            Muestra lo que haria sin escribir en Firebase.
 `;
 
@@ -48,6 +49,11 @@ const docArg = takeValue("--doc").trim();
 const dryRun = hasFlag("--dry-run");
 const forceReset = hasFlag("--send-reset");
 const noReset = hasFlag("--no-reset");
+const setTempPassword = hasFlag("--set-temp-password");
+const generatedTempPassword =
+  setTempPassword && !dryRun
+    ? `BBA-${randomBytes(12).toString("base64url")}!7`
+    : "";
 
 if (hasFlag("--help") || hasFlag("-h")) {
   console.log(usage.trim());
@@ -299,8 +305,12 @@ const lookupAuthUser = async (
   return response.users?.[0] || null;
 };
 
-const createAuthUser = async usuario => {
+const createAuthUser = async (
+  usuario,
+  password = ""
+) => {
   const tempPassword =
+    password ||
     `BBA-${randomBytes(18).toString("base64url")}!7`;
 
   const response = await jsonRequest(
@@ -325,7 +335,8 @@ const createAuthUser = async usuario => {
 const updateClaims = async (
   token,
   uid,
-  claims
+  claims,
+  tempPassword = ""
 ) => {
   await jsonRequest(
     `https://identitytoolkit.googleapis.com/v1/projects/${projectId}/accounts:update`,
@@ -337,7 +348,10 @@ const updateClaims = async (
       body: JSON.stringify({
         localId: uid,
         customAttributes: JSON.stringify(claims),
-        disableUser: false
+        disableUser: false,
+        ...(tempPassword
+          ? { password: tempPassword }
+          : {})
       })
     }
   );
@@ -442,7 +456,10 @@ const run = async () => {
           uid: existing.localId,
           created: false
         }
-      : await createAuthUser(usuario);
+      : await createAuthUser(
+          usuario,
+          generatedTempPassword
+        );
 
   const uid = account.uid;
   const now = new Date();
@@ -476,6 +493,7 @@ const run = async () => {
 
   const shouldReset =
     !noReset &&
+    !setTempPassword &&
     (account.created || forceReset);
 
   const plan = {
@@ -490,6 +508,7 @@ const run = async () => {
     permisos_count: Object.keys(usuario.permisos).length,
     auth_will_create: account.created,
     will_send_password_reset: shouldReset,
+    will_set_temp_password: setTempPassword,
     will_replace_source_doc:
       ficha.id !== uid
   };
@@ -502,7 +521,8 @@ const run = async () => {
   await updateClaims(
     token,
     uid,
-    claims
+    claims,
+    generatedTempPassword
   );
 
   await patchFirestoreDocument(
@@ -544,6 +564,12 @@ const run = async () => {
 
   console.log(JSON.stringify({
     ...plan,
+    ...(generatedTempPassword
+      ? {
+          temporary_password:
+            generatedTempPassword
+        }
+      : {}),
     status: "ok"
   }, null, 2));
 };

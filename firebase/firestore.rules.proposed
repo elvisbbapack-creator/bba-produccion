@@ -256,6 +256,7 @@ service cloud.firestore {
         request.resource.data.material_id ==
           resource.data.material_id &&
         request.resource.data.estado in [
+          'pendiente',
           'en_oc',
           'cerrada',
           'anulada'
@@ -266,6 +267,46 @@ service cloud.firestore {
             'estado',
             'orden_compra_id',
             'orden_compra_codigo',
+            'solicitud_cotizacion_id',
+            'solicitud_cotizacion_codigo',
+            'cotizacion_solicitada_en',
+            'cotizacion_solicitada_por_id',
+            'cotizacion_solicitada_por_nombre',
+            'actualizado_en'
+          ]);
+      allow delete: if false;
+    }
+
+    match /solicitudes_cotizacion_compra/{cotizacionId} {
+      allow read: if belongsToPlant(resource.data);
+      allow create: if isManagement() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.solicitado_por_id ==
+          request.auth.uid &&
+        request.resource.data.estado == 'solicitada' &&
+        request.resource.data.items is list &&
+        request.resource.data.items.size() > 0;
+      allow update: if isManagement() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.codigo ==
+          resource.data.codigo &&
+        request.resource.data.estado in [
+          'respondida',
+          'cerrada',
+          'anulada'
+        ] &&
+        request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'estado',
+            'observacion_respuesta',
+            'actualizado_por_id',
+            'actualizado_por_nombre',
             'actualizado_en'
           ]);
       allow delete: if false;

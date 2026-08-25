@@ -291,7 +291,8 @@ function CatalogoMaterialesV2({
       ),
       es_comprado: [
         TIPOS_MATERIAL.MATERIA_PRIMA,
-        TIPOS_MATERIAL.SUMINISTRO
+        TIPOS_MATERIAL.SUMINISTRO,
+        TIPOS_MATERIAL.EPP
       ].includes(tipo)
     }),
     [materiales]
@@ -902,7 +903,8 @@ function CatalogoMaterialesV2({
         }}>
           Materias primas (MP) y recursos de
           fabricación semielaborados (RF), más
-          suministros productivos (SUM).
+          suministros productivos (SUM) y elementos
+          de protección personal (EPP).
         </p>
 
         <div style={{
@@ -988,7 +990,8 @@ function CatalogoMaterialesV2({
                     es_comprado:
                       [
                         TIPOS_MATERIAL.MATERIA_PRIMA,
-                        TIPOS_MATERIAL.SUMINISTRO
+                        TIPOS_MATERIAL.SUMINISTRO,
+                        TIPOS_MATERIAL.EPP
                       ].includes(tipo)
                   }));
                   setError("");
@@ -1012,6 +1015,9 @@ function CatalogoMaterialesV2({
                 </option>
                 <option value="SUM">
                   SUM - Suministro productivo
+                </option>
+                <option value="EPP">
+                  EPP - Elemento de protección personal
                 </option>
               </select>
             </label>
@@ -1627,7 +1633,7 @@ function CatalogoMaterialesV2({
                 </select>
               </label>
 
-              {["MP", "SUM"].includes(
+              {["MP", "SUM", "EPP"].includes(
                 formulario.tipo
               ) && (
                 <label>
@@ -1713,7 +1719,7 @@ function CatalogoMaterialesV2({
               </select>
             </label>
 
-            {["MP", "SUM"].includes(
+            {["MP", "SUM", "EPP"].includes(
               formulario.tipo
             ) && (
               <label style={{
@@ -1732,7 +1738,7 @@ function CatalogoMaterialesV2({
                     )
                   }
                 />
-                Material comprado a proveedor
+                Comprado a proveedor
               </label>
             )}
 

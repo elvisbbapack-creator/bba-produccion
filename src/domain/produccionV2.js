@@ -1,7 +1,8 @@
 export const TIPOS_MATERIAL = {
   MATERIA_PRIMA: "MP",
   RECURSO_FABRICACION: "RF",
-  SUMINISTRO: "SUM"
+  SUMINISTRO: "SUM",
+  EPP: "EPP"
 };
 
 const numeroPositivo = (valor) =>
@@ -186,7 +187,7 @@ export const validarMaterial = (material = {}) => {
       material.tipo
     )
   ) {
-    errores.push("El tipo de material debe ser MP, RF o SUM.");
+    errores.push("El tipo de material debe ser MP, RF, SUM o EPP.");
   }
 
   if (

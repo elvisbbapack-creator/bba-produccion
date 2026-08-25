@@ -46,6 +46,7 @@ const estadoInicial = {
   email: "",
   telefono: "",
   condicion_pago: "",
+  requiere_cotizacion_previa: false,
   observacion: "",
   activo: true
 };
@@ -429,6 +430,44 @@ export default function TercerosV2({
             <option value="true">Activo</option>
             <option value="false">Inactivo</option>
           </select>
+          {tipo === TIPOS_TERCERO.PROVEEDOR && (
+            <label style={{
+              border: "1px solid #CBD5E1",
+              borderRadius: 10,
+              padding: 10,
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              color: "#334155"
+            }}>
+              <input
+                type="checkbox"
+                checked={
+                  formulario.requiere_cotizacion_previa === true
+                }
+                onChange={e =>
+                  actualizar({
+                    requiere_cotizacion_previa:
+                      e.target.checked
+                  })
+                }
+                style={{
+                  marginTop: 3
+                }}
+              />
+              <span>
+                Requiere cotización/proforma antes de OC
+                <small style={{
+                  display: "block",
+                  color: "#64748B",
+                  marginTop: 3
+                }}>
+                  Compras verá una sugerencia para pedir
+                  cotización antes de emitir la OC.
+                </small>
+              </span>
+            </label>
+          )}
         </div>
         <textarea
           style={{
@@ -532,6 +571,10 @@ export default function TercerosV2({
                 : ""}
               {tercero.condicion_pago
                 ? ` / ${tercero.condicion_pago}`
+                : ""}
+              {tipo === TIPOS_TERCERO.PROVEEDOR &&
+              tercero.requiere_cotizacion_previa
+                ? " / Cotiza antes de OC"
                 : ""}
             </div>
             <div style={{

@@ -30,6 +30,13 @@ export const ESTADOS_ORDEN_COMPRA = {
   ANULADA: "anulada"
 };
 
+export const ESTADOS_SOLICITUD_COTIZACION_COMPRA = {
+  SOLICITADA: "solicitada",
+  RESPONDIDA: "respondida",
+  CERRADA: "cerrada",
+  ANULADA: "anulada"
+};
+
 export const PRIORIDADES_COMPRA = [
   "normal",
   "alta",
@@ -139,6 +146,9 @@ const normalizarCodigo = valor =>
 const idOrdenCompra = (empresaId, codigo) =>
   `${empresaId}__${codigo}`;
 
+const idSolicitudCotizacionCompra = (empresaId, codigo) =>
+  `${empresaId}__${codigo}`;
+
 export const siguienteCodigoOrdenCompra = (
   ordenes = []
 ) => {
@@ -158,6 +168,27 @@ export const siguienteCodigoOrdenCompra = (
   }
 
   return `OC${String(correlativo).padStart(4, "0")}`;
+};
+
+export const siguienteCodigoSolicitudCotizacion = (
+  solicitudesCotizacion = []
+) => {
+  const usados = new Set(
+    solicitudesCotizacion
+      .map(solicitud => normalizarCodigo(solicitud.codigo))
+      .filter(codigo => /^SC\d{4,}$/.test(codigo))
+  );
+  let correlativo = 1;
+
+  while (
+    usados.has(
+      `SC${String(correlativo).padStart(4, "0")}`
+    )
+  ) {
+    correlativo += 1;
+  }
+
+  return `SC${String(correlativo).padStart(4, "0")}`;
 };
 
 export const proveedorDesdeMaterial = (
@@ -188,7 +219,10 @@ export const proveedorDesdeMaterial = (
     proveedor_email: proveedor?.email || "",
     proveedor_telefono: proveedor?.telefono || "",
     condicion_pago:
-      proveedor?.condicion_pago || ""
+      proveedor?.condicion_pago || "",
+    proveedor_requiere_cotizacion_previa:
+      proveedor?.requiere_cotizacion_previa === true ||
+      proveedor?.requiere_proforma === true
   };
 };
 
@@ -222,72 +256,79 @@ export const prepararSolicitudCompra = ({
     ) || MOTIVOS_SOLICITUD_COMPRA[0];
 
   return {
-  empresa_id: limpiarTexto(empresaId),
-  planta_id: limpiarTexto(plantaId),
-  area_solicitante_id: area.id,
-  area_solicitante_nombre: area.nombre,
-  motivo_solicitud_id: motivo.id,
-  motivo_solicitud_nombre: motivo.nombre,
-  solicitud_interna_id: limpiarTexto(
-    solicitudInternaId
-  ),
-  solicitud_interna_codigo: limpiarTexto(
-    solicitudInternaCodigo
-  ),
-  linea_solicitud_numero: numero(
-    lineaSolicitudNumero
-  ),
-  material_id: limpiarTexto(material?.id),
-  material_codigo: limpiarTexto(material?.codigo),
-  material_nombre: limpiarTexto(material?.nombre),
-  material_tipo: limpiarTexto(material?.tipo),
-  unidad_medida: limpiarTexto(
-    material?.unidad_medida
-  ),
-  costo_unitario_referencial: numero(
-    material?.costo_unitario_referencial
-  ),
-  moneda: limpiarTexto(material?.moneda) || "CLP",
-  proveedor_id: limpiarTexto(
-    proveedor?.proveedor_id || proveedor?.id
-  ),
-  proveedor_codigo: limpiarTexto(
-    proveedor?.proveedor_codigo ||
-      proveedor?.codigo
-  ),
-  proveedor_nombre:
-    limpiarTexto(
-      proveedor?.proveedor_nombre ||
-        proveedor?.nombre
-    ) || "Sin proveedor asignado",
-  proveedor_email: limpiarTexto(
-    proveedor?.proveedor_email ||
-      proveedor?.email
-  ),
-  proveedor_telefono: limpiarTexto(
-    proveedor?.proveedor_telefono ||
-      proveedor?.telefono
-  ),
-  cantidad: numero(cantidad),
-  prioridad: PRIORIDADES_COMPRA.includes(
-    prioridad
-  )
-    ? prioridad
-    : "normal",
-  fecha_requerida: limpiarTexto(fechaRequerida),
-  ot_codigo: normalizarCodigo(otCodigo),
-  origen:
-    limpiarTexto(origen) || "solicitud_interna",
-  observacion: limpiarTexto(observacion),
-  estado: ESTADOS_SOLICITUD_COMPRA.PENDIENTE,
-  solicitado_por_id: limpiarTexto(usuario?.uid),
-  solicitado_por_nombre: limpiarTexto(
-    usuario?.nombre
-  ),
-  solicitado_por_email: limpiarTexto(
-    usuario?.email || usuario?.correo
-  ),
-  modelo_version: 2
+    empresa_id: limpiarTexto(empresaId),
+    planta_id: limpiarTexto(plantaId),
+    area_solicitante_id: area.id,
+    area_solicitante_nombre: area.nombre,
+    motivo_solicitud_id: motivo.id,
+    motivo_solicitud_nombre: motivo.nombre,
+    solicitud_interna_id: limpiarTexto(
+      solicitudInternaId
+    ),
+    solicitud_interna_codigo: limpiarTexto(
+      solicitudInternaCodigo
+    ),
+    linea_solicitud_numero: numero(
+      lineaSolicitudNumero
+    ),
+    material_id: limpiarTexto(material?.id),
+    material_codigo: limpiarTexto(material?.codigo),
+    material_nombre: limpiarTexto(material?.nombre),
+    material_tipo: limpiarTexto(material?.tipo),
+    unidad_medida: limpiarTexto(
+      material?.unidad_medida
+    ),
+    costo_unitario_referencial: numero(
+      material?.costo_unitario_referencial
+    ),
+    moneda: limpiarTexto(material?.moneda) || "CLP",
+    proveedor_id: limpiarTexto(
+      proveedor?.proveedor_id || proveedor?.id
+    ),
+    proveedor_codigo: limpiarTexto(
+      proveedor?.proveedor_codigo ||
+        proveedor?.codigo
+    ),
+    proveedor_nombre:
+      limpiarTexto(
+        proveedor?.proveedor_nombre ||
+          proveedor?.nombre
+      ) || "Sin proveedor asignado",
+    proveedor_email: limpiarTexto(
+      proveedor?.proveedor_email ||
+        proveedor?.email
+    ),
+    proveedor_telefono: limpiarTexto(
+      proveedor?.proveedor_telefono ||
+        proveedor?.telefono
+    ),
+    condicion_pago: limpiarTexto(
+      proveedor?.condicion_pago
+    ),
+    proveedor_requiere_cotizacion_previa:
+      proveedor?.proveedor_requiere_cotizacion_previa === true ||
+      proveedor?.requiere_cotizacion_previa === true ||
+      proveedor?.requiere_proforma === true,
+    cantidad: numero(cantidad),
+    prioridad: PRIORIDADES_COMPRA.includes(
+      prioridad
+    )
+      ? prioridad
+      : "normal",
+    fecha_requerida: limpiarTexto(fechaRequerida),
+    ot_codigo: normalizarCodigo(otCodigo),
+    origen:
+      limpiarTexto(origen) || "solicitud_interna",
+    observacion: limpiarTexto(observacion),
+    estado: ESTADOS_SOLICITUD_COMPRA.PENDIENTE,
+    solicitado_por_id: limpiarTexto(usuario?.uid),
+    solicitado_por_nombre: limpiarTexto(
+      usuario?.nombre
+    ),
+    solicitado_por_email: limpiarTexto(
+      usuario?.email || usuario?.correo
+    ),
+    modelo_version: 2
   };
 };
 
@@ -421,6 +462,10 @@ export const prepararOrdenCompra = ({
     ),
     condicion_pago:
       limpiarTexto(proveedor?.condicion_pago),
+    proveedor_requiere_cotizacion_previa:
+      proveedor?.proveedor_requiere_cotizacion_previa === true ||
+      proveedor?.requiere_cotizacion_previa === true ||
+      proveedor?.requiere_proforma === true,
     moneda: items[0]?.moneda || "CLP",
     items,
     subtotal: totales.subtotal,
@@ -436,6 +481,99 @@ export const prepararOrdenCompra = ({
     modelo_version: 2
   };
 };
+
+export const prepararSolicitudCotizacionCompra = ({
+  empresaId,
+  plantaId,
+  codigo,
+  proveedor,
+  solicitudes,
+  observacion = "",
+  usuario
+}) => {
+  const items = solicitudes.map(
+    prepararItemOrdenCompra
+  );
+  const totales =
+    calcularTotalesOrdenCompra(items);
+
+  return {
+    empresa_id: limpiarTexto(empresaId),
+    planta_id: limpiarTexto(plantaId),
+    codigo: normalizarCodigo(codigo),
+    proveedor_id: limpiarTexto(
+      proveedor?.proveedor_id || proveedor?.id
+    ),
+    proveedor_codigo: limpiarTexto(
+      proveedor?.proveedor_codigo ||
+        proveedor?.codigo
+    ),
+    proveedor_nombre:
+      limpiarTexto(
+        proveedor?.proveedor_nombre ||
+          proveedor?.nombre
+      ) || "Sin proveedor asignado",
+    proveedor_email: limpiarTexto(
+      proveedor?.proveedor_email ||
+        proveedor?.email
+    ),
+    proveedor_telefono: limpiarTexto(
+      proveedor?.proveedor_telefono ||
+        proveedor?.telefono
+    ),
+    condicion_pago:
+      limpiarTexto(proveedor?.condicion_pago),
+    moneda: items[0]?.moneda || "CLP",
+    items,
+    subtotal_referencial: totales.subtotal,
+    total_referencial: totales.total,
+    observacion: limpiarTexto(observacion),
+    estado:
+      ESTADOS_SOLICITUD_COTIZACION_COMPRA.SOLICITADA,
+    solicitado_por_id: limpiarTexto(usuario?.uid),
+    solicitado_por_nombre: limpiarTexto(
+      usuario?.nombre
+    ),
+    modelo_version: 2
+  };
+};
+
+export const validarSolicitudCotizacionCompra =
+  solicitudCotizacion => {
+    const errores = [];
+
+    if (!solicitudCotizacion.codigo) {
+      errores.push(
+        "Falta código de solicitud de cotización."
+      );
+    }
+
+    if (!solicitudCotizacion.proveedor_nombre) {
+      errores.push("Selecciona proveedor.");
+    }
+
+    if (!solicitudCotizacion.items?.length) {
+      errores.push(
+        "Agrega al menos un material para cotizar."
+      );
+    }
+
+    solicitudCotizacion.items.forEach(item => {
+      if (!item.material_id) {
+        errores.push(
+          "La solicitud contiene una línea sin material."
+        );
+      }
+
+      if (numero(item.cantidad) <= 0) {
+        errores.push(
+          `La cantidad de ${item.material_codigo} debe ser mayor que cero.`
+        );
+      }
+    });
+
+    return errores;
+  };
 
 export const construirRutaPublicaOrdenCompra = orden =>
   orden?.token_compartir
@@ -603,11 +741,23 @@ export const agruparSolicitudesPorProveedor = (
             solicitud.proveedor_email,
           proveedor_telefono:
             solicitud.proveedor_telefono,
+          condicion_pago:
+            solicitud.condicion_pago || "",
+          proveedor_requiere_cotizacion_previa:
+            solicitud.proveedor_requiere_cotizacion_previa === true,
           solicitudes: []
         });
       }
 
-      grupos.get(clave).solicitudes.push(solicitud);
+      const grupo = grupos.get(clave);
+
+      if (
+        solicitud.proveedor_requiere_cotizacion_previa === true
+      ) {
+        grupo.proveedor_requiere_cotizacion_previa = true;
+      }
+
+      grupo.solicitudes.push(solicitud);
     });
 
   return [...grupos.values()].sort((a, b) =>
@@ -616,6 +766,12 @@ export const agruparSolicitudesPorProveedor = (
     )
   );
 };
+
+const formatearMonto = (
+  valor,
+  moneda = "CLP"
+) =>
+  `${moneda} ${Math.round(numero(valor)).toLocaleString("es-CL")}`;
 
 export const construirTextoOrdenCompra = (
   orden,
@@ -641,15 +797,28 @@ export const construirTextoOrdenCompra = (
 
     lineas.push([
       `- ${item.material_codigo} ${item.material_nombre}: ${item.cantidad} ${item.unidad_medida}`,
+      numero(item.costo_unitario) > 0
+        ? `PU ${formatearMonto(
+            item.costo_unitario,
+            item.moneda || orden.moneda
+          )}`
+        : "PU sin precio ref.",
+      numero(item.total_linea) > 0
+        ? `Total línea ${formatearMonto(
+            item.total_linea,
+            item.moneda || orden.moneda
+          )}`
+        : "",
       contexto.length ? `(${contexto.join(" | ")})` : ""
     ].filter(Boolean).join(" "));
   });
 
   lineas.push("");
   lineas.push(
-    `Total referencial: ${orden.moneda} ${Math.round(
-      numero(orden.total)
-    ).toLocaleString("es-CL")}`
+    `Total referencial: ${formatearMonto(
+      orden.total,
+      orden.moneda
+    )}`
   );
 
   if (orden.observacion) {
@@ -665,6 +834,52 @@ export const construirTextoOrdenCompra = (
 
   return lineas.join("\n");
 };
+
+export const construirTextoSolicitudCotizacionCompra =
+  solicitudCotizacion => {
+    const lineas = [
+      `Solicitud de cotización ${solicitudCotizacion.codigo}`,
+      `Proveedor: ${solicitudCotizacion.proveedor_nombre}`,
+      `Planta: ${solicitudCotizacion.planta_id}`,
+      "",
+      "Favor cotizar/proformar los siguientes materiales indicando precio unitario, disponibilidad, plazo de entrega, condición de pago y validez de la oferta.",
+      "",
+      "Detalle:"
+    ];
+
+    solicitudCotizacion.items.forEach(item => {
+      const contexto = [
+        item.area_solicitante_nombre,
+        item.motivo_solicitud_nombre,
+        item.solicitud_interna_codigo
+          ? `Req ${item.solicitud_interna_codigo}`
+          : "",
+        item.ot_codigo ? `OT ${item.ot_codigo}` : "",
+        item.fecha_requerida
+          ? `Fecha requerida ${item.fecha_requerida}`
+          : ""
+      ].filter(Boolean);
+
+      lineas.push([
+        `- ${item.material_codigo} ${item.material_nombre}: ${item.cantidad} ${item.unidad_medida}`,
+        contexto.length ? `(${contexto.join(" | ")})` : ""
+      ].filter(Boolean).join(" "));
+    });
+
+    if (solicitudCotizacion.observacion) {
+      lineas.push("");
+      lineas.push(
+        `Observación: ${solicitudCotizacion.observacion}`
+      );
+    }
+
+    lineas.push("");
+    lineas.push(
+      "Quedamos atentos a su cotización/proforma para emitir la orden de compra."
+    );
+
+    return lineas.join("\n");
+  };
 
 export const crearEnlaceCorreoOrdenCompra =
   (orden, opciones = {}) => {
@@ -688,6 +903,39 @@ export const crearEnlaceWhatsappOrdenCompra =
     ).replace(/[^\d]/g, "");
     const texto = encodeURIComponent(
       construirTextoOrdenCompra(orden, opciones)
+    );
+
+    return telefono
+      ? `https://wa.me/${telefono}?text=${texto}`
+      : `https://wa.me/?text=${texto}`;
+  };
+
+export const crearEnlaceCorreoSolicitudCotizacionCompra =
+  solicitudCotizacion => {
+    const asunto = encodeURIComponent(
+      `Solicitud de cotización ${solicitudCotizacion.codigo} - BBA`
+    );
+    const cuerpo = encodeURIComponent(
+      construirTextoSolicitudCotizacionCompra(
+        solicitudCotizacion
+      )
+    );
+    const email = encodeURIComponent(
+      solicitudCotizacion.proveedor_email || ""
+    );
+
+    return `mailto:${email}?subject=${asunto}&body=${cuerpo}`;
+  };
+
+export const crearEnlaceWhatsappSolicitudCotizacionCompra =
+  solicitudCotizacion => {
+    const telefono = limpiarTexto(
+      solicitudCotizacion.proveedor_telefono
+    ).replace(/[^\d]/g, "");
+    const texto = encodeURIComponent(
+      construirTextoSolicitudCotizacionCompra(
+        solicitudCotizacion
+      )
     );
 
     return telefono
@@ -871,6 +1119,33 @@ export const listarOrdenesCompra = async (
     });
 };
 
+export const listarSolicitudesCotizacionCompra = async (
+  db,
+  empresaId,
+  plantaId
+) => {
+  const snapshot = await getDocs(
+    query(
+      collection(db, "solicitudes_cotizacion_compra"),
+      where("empresa_id", "==", empresaId),
+      where("planta_id", "==", plantaId)
+    )
+  );
+
+  return snapshot.docs
+    .map(documento => ({
+      id: documento.id,
+      ...documento.data()
+    }))
+    .sort((a, b) => {
+      const derecha =
+        b.solicitada_en?.toMillis?.() || 0;
+      const izquierda =
+        a.solicitada_en?.toMillis?.() || 0;
+      return derecha - izquierda;
+    });
+};
+
 export const crearSolicitudCompra = async ({
   db,
   perfil,
@@ -1004,6 +1279,90 @@ export const generarOrdenCompraDesdeSolicitudes =
     return {
       id: ordenRef.id,
       ...orden
+  };
+};
+
+export const generarSolicitudCotizacionDesdeSolicitudes =
+  async ({
+    db,
+    perfil,
+    plantaId,
+    codigo,
+    proveedor,
+    solicitudes,
+    observacion
+  }) => {
+    const solicitudCotizacion =
+      prepararSolicitudCotizacionCompra({
+        empresaId: perfil.empresa_id,
+        plantaId,
+        codigo,
+        proveedor,
+        solicitudes,
+        observacion,
+        usuario: perfil
+      });
+    const errores =
+      validarSolicitudCotizacionCompra(
+        solicitudCotizacion
+      );
+
+    if (errores.length > 0) {
+      throw new Error(errores.join(" "));
+    }
+
+    const solicitudRef = doc(
+      db,
+      "solicitudes_cotizacion_compra",
+      idSolicitudCotizacionCompra(
+        perfil.empresa_id,
+        solicitudCotizacion.codigo
+      )
+    );
+
+    await runTransaction(db, async transaccion => {
+      const solicitudSnapshot =
+        await transaccion.get(solicitudRef);
+
+      if (solicitudSnapshot.exists()) {
+        throw new Error(
+          `La solicitud ${solicitudCotizacion.codigo} ya existe. Actualiza la página para tomar el siguiente correlativo.`
+        );
+      }
+
+      transaccion.set(solicitudRef, {
+        ...solicitudCotizacion,
+        solicitada_en: serverTimestamp(),
+        actualizado_en: serverTimestamp()
+      });
+
+      solicitudes.forEach(solicitud => {
+        transaccion.update(
+          doc(
+            db,
+            "solicitudes_compra",
+            solicitud.id
+          ),
+          {
+            solicitud_cotizacion_id:
+              solicitudRef.id,
+            solicitud_cotizacion_codigo:
+              solicitudCotizacion.codigo,
+            cotizacion_solicitada_en:
+              serverTimestamp(),
+            cotizacion_solicitada_por_id:
+              perfil.uid || "",
+            cotizacion_solicitada_por_nombre:
+              perfil.nombre || "",
+            actualizado_en: serverTimestamp()
+          }
+        );
+      });
+    });
+
+    return {
+      id: solicitudRef.id,
+      ...solicitudCotizacion
     };
   };
 
