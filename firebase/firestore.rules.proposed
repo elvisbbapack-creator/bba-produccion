@@ -6,19 +6,47 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function userProfilePath() {
+      return /databases/$(database)/documents/usuarios/$(request.auth.uid);
+    }
+
+    function userProfile() {
+      return authenticated() &&
+        exists(userProfilePath())
+          ? get(userProfilePath()).data
+          : {};
+    }
+
     function role() {
-      return authenticated() ? request.auth.token.rol : null;
+      return authenticated()
+        ? (
+            userProfile().rol is string
+              ? userProfile().rol
+              : request.auth.token.rol
+          )
+        : null;
     }
 
     function companyId() {
-      return authenticated() ? request.auth.token.empresa_id : null;
+      return authenticated()
+        ? (
+            userProfile().empresa_id is string
+              ? userProfile().empresa_id
+              : request.auth.token.empresa_id
+          )
+        : null;
     }
 
     function plantIds() {
       return authenticated() &&
-        request.auth.token.planta_ids is list
-          ? request.auth.token.planta_ids
-          : [];
+        userProfile().planta_ids is list
+          ? userProfile().planta_ids
+          : (
+              authenticated() &&
+                request.auth.token.planta_ids is list
+                ? request.auth.token.planta_ids
+                : []
+            );
     }
 
     function isManagement() {
@@ -31,8 +59,16 @@ service cloud.firestore {
 
     function hasPermission(permission) {
       return authenticated() &&
-        request.auth.token.permisos is map &&
-        request.auth.token.permisos[permission] == true;
+        (
+          (
+            userProfile().permisos is map &&
+            userProfile().permisos[permission] == true
+          ) ||
+          (
+            request.auth.token.permisos is map &&
+            request.auth.token.permisos[permission] == true
+          )
+        );
     }
 
     function canUseWarehouse() {
