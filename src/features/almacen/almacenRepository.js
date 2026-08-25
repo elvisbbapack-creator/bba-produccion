@@ -99,13 +99,57 @@ export const MOVIMIENTOS_ALMACEN = [
 const limpiarTexto = valor =>
   (valor || "").toString().trim();
 
+export const normalizarPlantaId = valor =>
+  limpiarTexto(valor).toLowerCase();
+
+const variantesPlantaId = valor => {
+  const original = limpiarTexto(valor);
+  const normalizado = normalizarPlantaId(valor);
+
+  return Array.from(
+    new Set([normalizado, original].filter(Boolean))
+  );
+};
+
+const consultarPorPlanta = async ({
+  db,
+  coleccion,
+  empresaId,
+  plantaId,
+  campoPlanta = "planta_id"
+}) => {
+  const consultas = variantesPlantaId(plantaId).map(
+    variante =>
+      getDocs(
+        query(
+          collection(db, coleccion),
+          where("empresa_id", "==", empresaId),
+          where(campoPlanta, "==", variante)
+        )
+      )
+  );
+  const snapshots = await Promise.all(consultas);
+  const registros = new Map();
+
+  snapshots.forEach(snapshot => {
+    snapshot.docs.forEach(documento => {
+      registros.set(documento.id, {
+        id: documento.id,
+        ...documento.data()
+      });
+    });
+  });
+
+  return Array.from(registros.values());
+};
+
 export const idStockMaterial = ({
   empresaId,
   plantaId,
   materialId
 }) => [
   limpiarTexto(empresaId),
-  limpiarTexto(plantaId),
+  normalizarPlantaId(plantaId),
   limpiarTexto(materialId)
 ].join("__");
 
@@ -152,7 +196,7 @@ export const prepararMovimientoAlmacen = ({
 
   return {
     empresa_id: limpiarTexto(empresaId),
-    planta_id: limpiarTexto(plantaId),
+    planta_id: normalizarPlantaId(plantaId),
     material_id: limpiarTexto(material?.id),
     material_codigo: limpiarTexto(
       material?.codigo
@@ -327,9 +371,9 @@ export const prepararTraspasoAlmacen = ({
   return {
     empresa_id: limpiarTexto(empresaId),
     tipo_operacion: "traspaso_interno",
-    planta_id: limpiarTexto(plantaOrigenId),
-    planta_origen_id: limpiarTexto(plantaOrigenId),
-    planta_destino_id: limpiarTexto(plantaDestinoId),
+    planta_id: normalizarPlantaId(plantaOrigenId),
+    planta_origen_id: normalizarPlantaId(plantaOrigenId),
+    planta_destino_id: normalizarPlantaId(plantaDestinoId),
     material_id: limpiarTexto(material?.id),
     material_codigo: limpiarTexto(material?.codigo),
     material_nombre: limpiarTexto(material?.nombre),
@@ -419,7 +463,7 @@ export const prepararConteoFisico = ({
 
   return {
     empresa_id: limpiarTexto(empresaId),
-    planta_id: limpiarTexto(plantaId),
+    planta_id: normalizarPlantaId(plantaId),
     material_id: limpiarTexto(material?.id),
     material_codigo: limpiarTexto(material?.codigo),
     material_nombre: limpiarTexto(material?.nombre),
@@ -498,7 +542,7 @@ export const prepararPoliticaStock = ({
 
   return {
     empresa_id: limpiarTexto(empresaId),
-    planta_id: limpiarTexto(plantaId),
+    planta_id: normalizarPlantaId(plantaId),
     material_id: limpiarTexto(material?.id),
     material_codigo: limpiarTexto(material?.codigo),
     material_nombre: limpiarTexto(material?.nombre),
@@ -967,7 +1011,7 @@ export const prepararSolicitudReposicion = ({
 
   return {
     empresa_id: limpiarTexto(empresaId),
-    planta_id: limpiarTexto(plantaId),
+    planta_id: normalizarPlantaId(plantaId),
     material_id: limpiarTexto(material?.id),
     material_codigo: limpiarTexto(material?.codigo),
     material_nombre: limpiarTexto(material?.nombre),
@@ -1103,7 +1147,7 @@ export const prepararDocumentoStockMaterial = ({
 }) => ({
   ...stockActual,
   empresa_id: perfil.empresa_id,
-  planta_id: plantaId,
+  planta_id: normalizarPlantaId(plantaId),
   material_id: material.id,
   material_codigo: material.codigo,
   material_nombre: material.nombre,
@@ -1557,19 +1601,14 @@ export const listarStockMateriales = async (
   empresaId,
   plantaId
 ) => {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "inventario_materiales"),
-      where("empresa_id", "==", empresaId),
-      where("planta_id", "==", plantaId)
-    )
-  );
+  const registros = await consultarPorPlanta({
+    db,
+    coleccion: "inventario_materiales",
+    empresaId,
+    plantaId
+  });
 
-  return snapshot.docs
-    .map(documento => ({
-      id: documento.id,
-      ...documento.data()
-    }))
+  return registros
     .sort((a, b) =>
       (a.material_codigo || "").localeCompare(
         b.material_codigo || ""
@@ -1582,19 +1621,14 @@ export const listarMovimientosAlmacen = async (
   empresaId,
   plantaId
 ) => {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "movimientos_almacen"),
-      where("empresa_id", "==", empresaId),
-      where("planta_id", "==", plantaId)
-    )
-  );
+  const registros = await consultarPorPlanta({
+    db,
+    coleccion: "movimientos_almacen",
+    empresaId,
+    plantaId
+  });
 
-  return snapshot.docs
-    .map(documento => ({
-      id: documento.id,
-      ...documento.data()
-    }))
+  return registros
     .sort((a, b) => {
       const derecha = b.fecha?.toMillis?.() || 0;
       const izquierda = a.fecha?.toMillis?.() || 0;
@@ -1619,7 +1653,11 @@ export const listarMovimientosAlmacenOT = async (
     query(
       collection(db, "movimientos_almacen"),
       where("empresa_id", "==", empresaId),
-      where("planta_id", "==", plantaId),
+      where(
+        "planta_id",
+        "==",
+        normalizarPlantaId(plantaId)
+      ),
       where("ot_codigo", "==", codigo)
     )
   );
@@ -1641,29 +1679,37 @@ export const listarTraspasosAlmacen = async (
   empresaId,
   plantaId
 ) => {
-  const [salidasSnapshot, recepcionesSnapshot] =
-    await Promise.all([
-      getDocs(
-        query(
-          collection(db, "traspasos_almacen"),
-          where("empresa_id", "==", empresaId),
-          where("planta_origen_id", "==", plantaId)
-        )
-      ),
-      getDocs(
-        query(
-          collection(db, "traspasos_almacen"),
-          where("empresa_id", "==", empresaId),
-          where("planta_destino_id", "==", plantaId)
+  const variantes = variantesPlantaId(plantaId);
+  const [salidas, recepciones] = await Promise.all([
+    Promise.all(
+      variantes.map(variante =>
+        getDocs(
+          query(
+            collection(db, "traspasos_almacen"),
+            where("empresa_id", "==", empresaId),
+            where("planta_origen_id", "==", variante)
+          )
         )
       )
-    ]);
+    ),
+    Promise.all(
+      variantes.map(variante =>
+        getDocs(
+          query(
+            collection(db, "traspasos_almacen"),
+            where("empresa_id", "==", empresaId),
+            where("planta_destino_id", "==", variante)
+          )
+        )
+      )
+    )
+  ]);
 
   const registros = new Map();
 
   [
-    ...salidasSnapshot.docs,
-    ...recepcionesSnapshot.docs
+    ...salidas.flatMap(snapshot => snapshot.docs),
+    ...recepciones.flatMap(snapshot => snapshot.docs)
   ].forEach(documento => {
     registros.set(documento.id, {
       id: documento.id,
@@ -1691,19 +1737,14 @@ export const listarConteosFisicos = async (
   empresaId,
   plantaId
 ) => {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "conteos_fisicos"),
-      where("empresa_id", "==", empresaId),
-      where("planta_id", "==", plantaId)
-    )
-  );
+  const registros = await consultarPorPlanta({
+    db,
+    coleccion: "conteos_fisicos",
+    empresaId,
+    plantaId
+  });
 
-  return snapshot.docs
-    .map(documento => ({
-      id: documento.id,
-      ...documento.data()
-    }))
+  return registros
     .sort((a, b) => {
       const derecha =
         b.contado_en?.toMillis?.() || 0;
@@ -1718,19 +1759,14 @@ export const listarSolicitudesReposicion = async (
   empresaId,
   plantaId
 ) => {
-  const snapshot = await getDocs(
-    query(
-      collection(db, "solicitudes_reposicion"),
-      where("empresa_id", "==", empresaId),
-      where("planta_id", "==", plantaId)
-    )
-  );
+  const registros = await consultarPorPlanta({
+    db,
+    coleccion: "solicitudes_reposicion",
+    empresaId,
+    plantaId
+  });
 
-  return snapshot.docs
-    .map(documento => ({
-      id: documento.id,
-      ...documento.data()
-    }))
+  return registros
     .sort((a, b) => {
       const derecha =
         b.solicitado_en?.toMillis?.() || 0;
@@ -2107,7 +2143,11 @@ export const registrarSolicitudReposicion =
           "solicitudes_reposicion"
         ),
         where("empresa_id", "==", perfil.empresa_id),
-        where("planta_id", "==", plantaId)
+        where(
+          "planta_id",
+          "==",
+          normalizarPlantaId(plantaId)
+        )
       )
     );
     const tieneSolicitudAbierta =
@@ -2316,7 +2356,8 @@ export const registrarTraspasoSalida =
         ...movimiento,
         origen: "traspaso",
         traspaso_id: traspasoRef.id,
-        planta_destino_id: plantaDestinoId,
+        planta_destino_id:
+          normalizarPlantaId(plantaDestinoId),
         stock_anterior:
           Number(
             stockActual.stock_actual || 0

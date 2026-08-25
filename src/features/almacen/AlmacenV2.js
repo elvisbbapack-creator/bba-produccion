@@ -31,6 +31,7 @@ import {
   listarTraspasosAlmacen,
   listarMovimientosAlmacen,
   listarStockMateriales,
+  normalizarPlantaId,
   priorizarOrdenesPorMaterial,
   prepararMovimientoAlmacen,
   prepararConteoFisico,
@@ -617,9 +618,11 @@ function AlmacenV2({
   onVolver
 }) {
   const plantaInicial =
-    perfil?.planta_ids?.[0] ||
-    perfil?.planta_id ||
-    "chile";
+    normalizarPlantaId(
+      perfil?.planta_ids?.[0] ||
+        perfil?.planta_id ||
+        "chile"
+    );
   const [plantaId, setPlantaId] =
     useState(plantaInicial);
   const [materiales, setMateriales] =
@@ -712,9 +715,16 @@ function AlmacenV2({
       );
   }, []);
 
-  const plantas = perfil?.planta_ids?.length
-    ? perfil.planta_ids
-    : [plantaInicial];
+  const plantas = Array.from(
+    new Set(
+      (perfil?.planta_ids?.length
+        ? perfil.planta_ids
+        : [plantaInicial]
+      )
+        .map(normalizarPlantaId)
+        .filter(Boolean)
+    )
+  );
 
   const materialSeleccionado = useMemo(
     () => materiales.find(
