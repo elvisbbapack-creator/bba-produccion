@@ -1135,7 +1135,7 @@ function ImportadorIngenieriaV2({
                 lineHeight: 1.8
               }}>
                 <li>
-                  Materiales MP/RF/SUM:{" "}
+                  Materiales MP/RF/SUM/EPP:{" "}
                   {resumen.materiales}
                 </li>
                 <li>

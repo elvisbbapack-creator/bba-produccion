@@ -280,7 +280,8 @@ export const prepararMaterial = (
     ),
     peso_kg_por_unidad: [
       TIPOS_MATERIAL.MATERIA_PRIMA,
-      TIPOS_MATERIAL.SUMINISTRO
+      TIPOS_MATERIAL.SUMINISTRO,
+      TIPOS_MATERIAL.EPP
     ].includes(tipo)
       ? numero(datos.peso_kg_por_unidad)
       : 0,
@@ -307,7 +308,8 @@ export const prepararMaterial = (
     es_comprado:
       [
         TIPOS_MATERIAL.MATERIA_PRIMA,
-        TIPOS_MATERIAL.SUMINISTRO
+        TIPOS_MATERIAL.SUMINISTRO,
+        TIPOS_MATERIAL.EPP
       ].includes(tipo)
         ? Boolean(datos.es_comprado)
         : false,

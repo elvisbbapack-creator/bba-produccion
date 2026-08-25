@@ -144,7 +144,8 @@ const normalizar = valor =>
 
 const tiposComprables = [
   TIPOS_MATERIAL.MATERIA_PRIMA,
-  TIPOS_MATERIAL.SUMINISTRO
+  TIPOS_MATERIAL.SUMINISTRO,
+  TIPOS_MATERIAL.EPP
 ];
 
 const textoBusquedaMaterial = material => normalizar([
@@ -332,7 +333,7 @@ function SelectorMaterialCompra({
               fontSize: 14
             }}>
               {materiales.length === 0
-                ? "No hay MP/SUM activos cargados o no tienes permiso para leer el catálogo."
+                ? "No hay MP/SUM/EPP activos cargados o no tienes permiso para leer el catálogo."
                 : `No encontramos materiales con "${busqueda}".`}
             </div>
           ) : opciones.map(material => (
@@ -951,7 +952,7 @@ function ComprasV2({
               display: "block",
               marginTop: 14
             }}>
-              Material o suministro
+              Material, suministro o EPP
               <SelectorMaterialCompra
                 materiales={materialesComprables}
                 materialId={materialId}
@@ -968,8 +969,10 @@ function ComprasV2({
                 fontSize: 13
               }}>
                 Escribe parte del código, nombre o proveedor.
-                Solo se muestran MP y SUM activos. Accesorios
-                y herramientas comprables se registran como SUM.
+                Solo se muestran MP, SUM y EPP activos.
+                Accesorios y herramientas comprables se
+                registran como SUM; protección personal se
+                registra como EPP.
               </span>
               {materialSeleccionado && (
                 <div style={{

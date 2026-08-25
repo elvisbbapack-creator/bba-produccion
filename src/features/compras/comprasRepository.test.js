@@ -27,7 +27,7 @@ import {
 } from "./comprasRepository";
 
 describe("comprasRepository", () => {
-  test("filtra materiales comprables por texto y solo muestra MP/SUM activos", () => {
+  test("filtra materiales comprables por texto y solo muestra MP/SUM/EPP activos", () => {
     const materiales = [
       {
         id: "m1",
@@ -51,6 +51,13 @@ describe("comprasRepository", () => {
         activo: true
       },
       {
+        id: "m5",
+        tipo: "EPP",
+        codigo: "EPP0001",
+        nombre: "Guante anticorte",
+        activo: true
+      },
+      {
         id: "m4",
         tipo: "MP",
         codigo: "MP0002",
@@ -67,6 +74,10 @@ describe("comprasRepository", () => {
       filtrarMaterialesComprables(materiales, "tinta")
         .map(material => material.codigo)
     ).toEqual(["SUM0030"]);
+    expect(
+      filtrarMaterialesComprables(materiales, "guante")
+        .map(material => material.codigo)
+    ).toEqual(["EPP0001"]);
   });
 
   test("propone el siguiente correlativo OC disponible", () => {

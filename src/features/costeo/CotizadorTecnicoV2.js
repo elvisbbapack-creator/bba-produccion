@@ -1167,7 +1167,7 @@ const materialCorrespondeATipoLinea = (
     return material.tipo === "SUM";
   }
 
-  return material.tipo !== "SUM";
+  return !["SUM", "EPP"].includes(material.tipo);
 };
 
 const esSuministroTintaUvCmyk = material => {
