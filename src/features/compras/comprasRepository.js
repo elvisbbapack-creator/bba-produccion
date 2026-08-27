@@ -9,6 +9,7 @@ import {
   setDoc,
   where
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import {
   registrarMovimientoAlmacen,
   TIPOS_MOVIMIENTO_ALMACEN
@@ -407,17 +408,20 @@ export const prepararItemOrdenCompra = (
 };
 
 export const calcularTotalesOrdenCompra = (
-  items = []
+  items = [],
+  flete = 0
 ) => {
   const subtotal = items.reduce(
     (total, item) =>
       total + numero(item.total_linea),
     0
   );
+  const montoFlete = Math.max(0, numero(flete));
 
   return {
     subtotal,
-    total: subtotal
+    flete: montoFlete,
+    total: subtotal + montoFlete
   };
 };
 
@@ -469,6 +473,7 @@ export const prepararOrdenCompra = ({
     moneda: items[0]?.moneda || "CLP",
     items,
     subtotal: totales.subtotal,
+    flete: totales.flete,
     total: totales.total,
     observacion: limpiarTexto(observacion),
     estado: ESTADOS_ORDEN_COMPRA.BORRADOR,
@@ -614,6 +619,7 @@ const prepararOrdenCompraPublica = orden => ({
   moneda: limpiarTexto(orden?.moneda) || "CLP",
   items: Array.isArray(orden?.items) ? orden.items : [],
   subtotal: numero(orden?.subtotal),
+  flete: Math.max(0, numero(orden?.flete)),
   total: numero(orden?.total),
   observacion: limpiarTexto(orden?.observacion),
   estado: limpiarTexto(orden?.estado),
@@ -815,7 +821,19 @@ export const construirTextoOrdenCompra = (
 
   lineas.push("");
   lineas.push(
-    `Total referencial: ${formatearMonto(
+    `Subtotal productos: ${formatearMonto(
+      orden.subtotal || orden.total,
+      orden.moneda
+    )}`
+  );
+  lineas.push(
+    `Flete: ${formatearMonto(
+      orden.flete,
+      orden.moneda
+    )}`
+  );
+  lineas.push(
+    `Total neto referencial: ${formatearMonto(
       orden.total,
       orden.moneda
     )}`
@@ -893,8 +911,31 @@ export const crearEnlaceCorreoOrdenCompra =
       orden.proveedor_email || ""
     );
 
-    return `mailto:${email}?subject=${asunto}&body=${cuerpo}`;
+    const copia = encodeURIComponent([
+      "esaavedra@bbachile.cl",
+      "produccion@bbachile.cl",
+      "contabilidad@bbachile.cl"
+    ].join(","));
+
+    return `mailto:${email}?cc=${copia}&subject=${asunto}&body=${cuerpo}`;
   };
+
+export const emitirOrdenCompraPorCorreo = async (
+  functions,
+  ordenId
+) => {
+  if (!ordenId) {
+    throw new Error("Falta la orden de compra.");
+  }
+
+  const emitir = httpsCallable(
+    functions,
+    "emitirOrdenCompraPorCorreo"
+  );
+  const respuesta = await emitir({ ordenId });
+
+  return respuesta.data;
+};
 
 export const crearEnlaceWhatsappOrdenCompra =
   (orden, opciones = {}) => {
@@ -974,7 +1015,13 @@ export const construirTextoAvisoInternoOrdenCompra = (
     `Proveedor: ${orden.proveedor_nombre}`,
     `Planta: ${orden.planta_id}`,
     `Estado: ${orden.estado}`,
-    `Total referencial: ${orden.moneda} ${Math.round(
+    `Subtotal productos: ${orden.moneda} ${Math.round(
+      numero(orden.subtotal || orden.total)
+    ).toLocaleString("es-CL")}`,
+    `Flete: ${orden.moneda} ${Math.round(
+      numero(orden.flete)
+    ).toLocaleString("es-CL")}`,
+    `Total neto referencial: ${orden.moneda} ${Math.round(
       numero(orden.total)
     ).toLocaleString("es-CL")}`,
     ""
@@ -1423,6 +1470,67 @@ export const actualizarEstadoOrdenCompra =
               perfil.nombre || ""
           }
           : {})
+      });
+    });
+  };
+
+export const actualizarFleteOrdenCompra =
+  async ({
+    db,
+    perfil,
+    orden,
+    flete
+  }) => {
+    const montoFlete = Math.round(Number(flete));
+
+    if (!Number.isFinite(montoFlete) || montoFlete < 0) {
+      throw new Error(
+        "Ingresa un monto de flete válido."
+      );
+    }
+
+    const ordenRef = doc(
+      db,
+      "ordenes_compra",
+      orden.id
+    );
+
+    await runTransaction(db, async transaccion => {
+      const snapshot = await transaccion.get(ordenRef);
+
+      if (!snapshot.exists()) {
+        throw new Error("La OC ya no existe.");
+      }
+
+      const actual = snapshot.data();
+
+      if (actual.empresa_id !== perfil.empresa_id) {
+        throw new Error(
+          "La OC no pertenece a esta empresa."
+        );
+      }
+
+      if (
+        actual.estado !==
+        ESTADOS_ORDEN_COMPRA.BORRADOR
+      ) {
+        throw new Error(
+          "Solo puedes modificar el flete mientras la OC esté en borrador."
+        );
+      }
+
+      const subtotal = numero(
+        actual.subtotal || actual.total
+      );
+
+      transaccion.update(ordenRef, {
+        subtotal,
+        flete: montoFlete,
+        total: subtotal + montoFlete,
+        actualizado_por_id: perfil.uid || "",
+        actualizado_por_nombre:
+          perfil.nombre || "",
+        actualizado_en: serverTimestamp()
       });
     });
   };

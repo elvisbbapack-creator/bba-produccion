@@ -337,24 +337,53 @@ service cloud.firestore {
           resource.data.planta_id &&
         request.resource.data.codigo ==
           resource.data.codigo &&
-        request.resource.data.estado in [
-          'aprobada',
-          'enviada',
-          'parcial_recibida',
-          'recibida',
-          'anulada'
-        ] &&
-        request.resource.data.diff(resource.data)
-          .affectedKeys()
-          .hasOnly([
-            'estado',
-            'actualizado_por_id',
-            'actualizado_por_nombre',
-            'actualizado_en',
-            'enviada_en',
-            'enviada_por_id',
-            'enviada_por_nombre'
-          ]);
+        (
+          (
+            request.resource.data.estado in [
+              'aprobada',
+              'enviada',
+              'parcial_recibida',
+              'recibida',
+              'anulada'
+            ] &&
+            request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+                'estado',
+                'actualizado_por_id',
+                'actualizado_por_nombre',
+                'actualizado_en',
+                'enviada_en',
+                'enviada_por_id',
+                'enviada_por_nombre'
+              ])
+          ) ||
+          (
+            resource.data.estado == 'borrador' &&
+            request.resource.data.estado == 'borrador' &&
+            request.resource.data.subtotal is number &&
+            request.resource.data.flete is number &&
+            request.resource.data.flete >= 0 &&
+            request.resource.data.subtotal == (
+              'subtotal' in resource.data
+                ? resource.data.subtotal
+                : resource.data.total
+            ) &&
+            request.resource.data.total ==
+              request.resource.data.subtotal +
+              request.resource.data.flete &&
+            request.resource.data.diff(resource.data)
+              .affectedKeys()
+              .hasOnly([
+                'subtotal',
+                'flete',
+                'total',
+                'actualizado_por_id',
+                'actualizado_por_nombre',
+                'actualizado_en'
+              ])
+          )
+        );
       allow delete: if false;
     }
 

@@ -53,10 +53,16 @@ const formatoFechaHora = valor => {
 };
 
 export const calcularResumenOrdenCompra = orden => {
-  const subtotal = numero(orden?.subtotal || orden?.total);
+  const subtotalProductos = numero(
+    orden?.subtotal || orden?.total
+  );
+  const flete = Math.max(0, numero(orden?.flete));
+  const subtotal = subtotalProductos + flete;
   const iva = Math.round(subtotal * 0.19);
 
   return {
+    subtotalProductos,
+    flete,
     subtotal,
     iva,
     total: subtotal + iva
@@ -386,7 +392,15 @@ export const construirHtmlOrdenCompra = (
       <table>
         <tbody>
           <tr>
-            <td>Subtotal</td>
+            <td>Subtotal productos</td>
+            <td class="right">${escaparHtml(formatoMoneda(resumen.subtotalProductos))}</td>
+          </tr>
+          <tr>
+            <td>Flete</td>
+            <td class="right">${escaparHtml(formatoMoneda(resumen.flete))}</td>
+          </tr>
+          <tr>
+            <td>Subtotal neto</td>
             <td class="right">${escaparHtml(formatoMoneda(resumen.subtotal))}</td>
           </tr>
           <tr>

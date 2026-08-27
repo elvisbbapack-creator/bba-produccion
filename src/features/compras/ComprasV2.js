@@ -6,12 +6,16 @@ import {
   useState
 } from "react";
 import BotonVolver from "../../components/BotonVolver";
+import { functions } from "../../firebase";
 import {
   TIPOS_MATERIAL
 } from "../../domain/produccionV2";
 import {
   listarMateriales
 } from "../materiales/materialesRepository";
+import {
+  listarOrdenesV2
+} from "../ordenes/ordenesRepository";
 import {
   listarTerceros,
   TIPOS_TERCERO
@@ -21,7 +25,7 @@ import {
   ESTADOS_ORDEN_COMPRA,
   MOTIVOS_SOLICITUD_COMPRA,
   PRIORIDADES_COMPRA,
-  actualizarEstadoOrdenCompra,
+  actualizarFleteOrdenCompra,
   agruparSolicitudesPorProveedor,
   crearEnlaceCorreoAvisoContabilidad,
   crearEnlaceCorreoAvisoSolicitantes,
@@ -30,6 +34,7 @@ import {
   crearEnlaceWhatsappOrdenCompra,
   crearEnlaceWhatsappSolicitudCotizacionCompra,
   crearSolicitudCompra,
+  emitirOrdenCompraPorCorreo,
   generarOrdenCompraDesdeSolicitudes,
   generarSolicitudCotizacionDesdeSolicitudes,
   listarOrdenesCompra,
@@ -54,6 +59,9 @@ const campo = {
   boxSizing: "border-box",
   fontSize: 15
 };
+
+const envioCorreoAutomaticoActivo =
+  process.env.REACT_APP_OC_EMAIL_ENABLED === "true";
 
 const botonPrimario = {
   width: "100%",
@@ -186,6 +194,30 @@ export const filtrarMaterialesComprables = (
 
       return aEtiqueta.localeCompare(bEtiqueta);
     });
+};
+
+export const filtrarOrdenesTrabajoCompra = (
+  ordenes = [],
+  busqueda = ""
+) => {
+  const texto = normalizar(busqueda);
+
+  return ordenes
+    .filter(orden => {
+      if (!texto) {
+        return true;
+      }
+
+      return normalizar([
+        orden.codigo,
+        orden.producto_codigo,
+        orden.producto_nombre,
+        orden.cliente_codigo,
+        orden.cliente_nombre,
+        orden.estado
+      ].join(" ")).includes(texto);
+    })
+    .slice(0, 10);
 };
 
 function SelectorMaterialCompra({
@@ -386,6 +418,126 @@ function SelectorMaterialCompra({
   );
 }
 
+function SelectorOrdenTrabajoCompra({
+  ordenes,
+  value,
+  onChange
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const contenedorRef = useRef(null);
+  const opciones = useMemo(
+    () => filtrarOrdenesTrabajoCompra(ordenes, value),
+    [ordenes, value]
+  );
+
+  useEffect(() => {
+    if (!abierto) {
+      return undefined;
+    }
+
+    const cerrarSiClickFuera = evento => {
+      if (
+        contenedorRef.current &&
+        !contenedorRef.current.contains(evento.target)
+      ) {
+        setAbierto(false);
+      }
+    };
+
+    document.addEventListener("mousedown", cerrarSiClickFuera);
+    document.addEventListener("touchstart", cerrarSiClickFuera);
+
+    return () => {
+      document.removeEventListener("mousedown", cerrarSiClickFuera);
+      document.removeEventListener("touchstart", cerrarSiClickFuera);
+    };
+  }, [abierto]);
+
+  return (
+    <div
+      ref={contenedorRef}
+      style={{
+        position: "relative",
+        marginTop: 6
+      }}
+    >
+      <input
+        value={value}
+        onFocus={() => setAbierto(true)}
+        onChange={evento => {
+          onChange(evento.target.value);
+          setAbierto(true);
+        }}
+        placeholder="Escribe código, producto o cliente..."
+        autoComplete="off"
+        style={campo}
+      />
+      {abierto && (
+        <div style={{
+          position: "absolute",
+          zIndex: 35,
+          top: "calc(100% + 4px)",
+          left: 0,
+          right: 0,
+          maxHeight: 300,
+          overflowY: "auto",
+          background: "white",
+          border: "1px solid #CBD5E1",
+          borderRadius: 10,
+          boxShadow:
+            "0 12px 30px rgba(15,23,42,0.18)"
+        }}>
+          {opciones.length === 0 ? (
+            <div style={{
+              padding: 12,
+              color: "#64748B",
+              fontSize: 14
+            }}>
+              {ordenes.length === 0
+                ? "No hay OT registradas en esta planta."
+                : `No encontramos OT con "${value}".`}
+            </div>
+          ) : opciones.map(orden => (
+            <button
+              key={orden.id}
+              type="button"
+              onMouseDown={evento => {
+                evento.preventDefault();
+                onChange(orden.codigo || "");
+                setAbierto(false);
+              }}
+              style={{
+                width: "100%",
+                display: "grid",
+                gap: 3,
+                padding: "10px 12px",
+                textAlign: "left",
+                border: 0,
+                borderBottom: "1px solid #E2E8F0",
+                background: "white",
+                color: "#0F172A",
+                cursor: "pointer"
+              }}
+            >
+              <strong>{orden.codigo}</strong>
+              <span style={{
+                color: "#64748B",
+                fontSize: 13
+              }}>
+                {[
+                  orden.producto_nombre,
+                  orden.cliente_nombre,
+                  orden.estado
+                ].filter(Boolean).join(" | ")}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ComprasV2({
   db,
   perfil,
@@ -405,6 +557,8 @@ function ComprasV2({
     setSolicitudesCotizacion
   ] = useState([]);
   const [ordenes, setOrdenes] = useState([]);
+  const [ordenesTrabajo, setOrdenesTrabajo] =
+    useState([]);
   const [materialId, setMaterialId] = useState("");
   const [cantidad, setCantidad] = useState("");
   const [prioridad, setPrioridad] = useState("normal");
@@ -419,6 +573,8 @@ function ComprasV2({
   const [busqueda, setBusqueda] = useState("");
   const [correoContabilidad, setCorreoContabilidad] =
     useState("");
+  const [fletesPorOrden, setFletesPorOrden] =
+    useState({});
   const [lineasSolicitud, setLineasSolicitud] =
     useState([]);
   const [mensaje, setMensaje] = useState("");
@@ -441,7 +597,8 @@ function ComprasV2({
         proveedoresDatos,
         solicitudesDatos,
         solicitudesCotizacionDatos,
-        ordenesDatos
+        ordenesDatos,
+        ordenesTrabajoDatos
       ] = await Promise.all([
         listarMateriales(db, perfil.empresa_id),
         listarTerceros(
@@ -463,6 +620,11 @@ function ComprasV2({
           db,
           perfil.empresa_id,
           plantaId
+        ),
+        listarOrdenesV2(
+          db,
+          perfil.empresa_id,
+          plantaId
         )
       ]);
 
@@ -477,6 +639,15 @@ function ComprasV2({
         solicitudesCotizacionDatos
       );
       setOrdenes(ordenesDatos);
+      setOrdenesTrabajo(ordenesTrabajoDatos);
+      setFletesPorOrden(
+        Object.fromEntries(
+          ordenesDatos.map(orden => [
+            orden.id,
+            String(Number(orden.flete || 0))
+          ])
+        )
+      );
     } catch (err) {
       setError(
         err?.message ||
@@ -708,26 +879,72 @@ function ComprasV2({
     }
   };
 
-  const marcarEnviada = async orden => {
+  const emitirPorCorreo = async orden => {
     setProcesando(true);
     setError("");
     setMensaje("");
 
     try {
-      await actualizarEstadoOrdenCompra({
-        db,
-        perfil,
-        orden,
-        estado: ESTADOS_ORDEN_COMPRA.ENVIADA
-      });
+      if (!orden.proveedor_id) {
+        throw new Error(
+          "Asigna un proveedor a la OC antes de emitirla."
+        );
+      }
+
+      if (!orden.proveedor_email) {
+        throw new Error(
+          "El proveedor no tiene correo de contacto registrado."
+        );
+      }
+
+      await emitirOrdenCompraPorCorreo(
+        functions,
+        orden.id
+      );
       setMensaje(
-        `${orden.codigo} marcada como enviada.`
+        `${orden.codigo}: correo formal en proceso de envío. La OC cambiará a enviada cuando se confirme la entrega.`
       );
       await cargar();
     } catch (err) {
       setError(
         err?.message ||
-          "No se pudo actualizar la OC."
+          "No se pudo emitir la OC por correo."
+      );
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const guardarFlete = async orden => {
+    setProcesando(true);
+    setError("");
+    setMensaje("");
+
+    try {
+      const flete = Number(
+        fletesPorOrden[orden.id] || 0
+      );
+
+      if (!Number.isFinite(flete) || flete < 0) {
+        throw new Error(
+          "Ingresa un monto de flete válido."
+        );
+      }
+
+      await actualizarFleteOrdenCompra({
+        db,
+        perfil,
+        orden,
+        flete
+      });
+      setMensaje(
+        `Flete de ${orden.codigo} guardado correctamente.`
+      );
+      await cargar();
+    } catch (err) {
+      setError(
+        err?.message ||
+          "No se pudo guardar el flete."
       );
     } finally {
       setProcesando(false);
@@ -1034,14 +1251,20 @@ function ComprasV2({
               </label>
               <label>
                 OT afectada
-                <input
+                <SelectorOrdenTrabajoCompra
+                  ordenes={ordenesTrabajo}
                   value={otCodigo}
-                  onChange={evento =>
-                    setOtCodigo(evento.target.value)
-                  }
-                  placeholder="Opcional"
-                  style={campo}
+                  onChange={setOtCodigo}
                 />
+                <span style={{
+                  display: "block",
+                  color: "#64748B",
+                  fontSize: 13,
+                  marginTop: 5
+                }}>
+                  Muestra las 10 OT más recientes y filtra
+                  mientras escribes.
+                </span>
               </label>
             </div>
 
@@ -1514,16 +1737,72 @@ function ComprasV2({
               }}>
                 {orden.proveedor_nombre}
               </p>
-              <p style={{
+              <div style={{
                 margin: "0 0 8px",
-                fontWeight: 800
+                display: "grid",
+                gap: 4
               }}>
-                Total referencial:{" "}
-                {formatoMoneda(
-                  orden.total,
-                  orden.moneda
-                )}
-              </p>
+                <span>
+                  Subtotal productos:{" "}
+                  <b>{formatoMoneda(
+                    orden.subtotal || orden.total,
+                    orden.moneda
+                  )}</b>
+                </span>
+                <span>
+                  Flete:{" "}
+                  <b>{formatoMoneda(
+                    orden.flete,
+                    orden.moneda
+                  )}</b>
+                </span>
+                <span style={{ fontWeight: 800 }}>
+                  Total neto referencial:{" "}
+                  {formatoMoneda(
+                    Number(orden.subtotal || orden.total) +
+                      Number(orden.flete || 0),
+                    orden.moneda
+                  )}
+                </span>
+              </div>
+              {orden.estado ===
+                ESTADOS_ORDEN_COMPRA.BORRADOR && (
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0, 1fr) auto",
+                  gap: 8,
+                  alignItems: "end",
+                  margin: "12px 0"
+                }}>
+                  <label>
+                    Flete neto (CLP)
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={fletesPorOrden[orden.id] ?? "0"}
+                      onChange={evento =>
+                        setFletesPorOrden(actual => ({
+                          ...actual,
+                          [orden.id]: evento.target.value
+                        }))
+                      }
+                      style={{
+                        ...campo,
+                        marginTop: 5
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={procesando}
+                    onClick={() => guardarFlete(orden)}
+                    style={botonSecundario}
+                  >
+                    Guardar flete
+                  </button>
+                </div>
+              )}
               <ul style={{
                 paddingLeft: 18,
                 minHeight: 70
@@ -1566,7 +1845,7 @@ function ComprasV2({
                   href={crearEnlaceCorreoOrdenCompra(orden)}
                   style={botonSecundario}
                 >
-                  Correo
+                  Correo manual
                 </a>
                 <button
                   type="button"
@@ -1621,25 +1900,33 @@ function ComprasV2({
                 >
                   Avisar contabilidad
                 </a>
-                {orden.estado !==
-                  ESTADOS_ORDEN_COMPRA.ENVIADA &&
-                  orden.estado !==
-                    ESTADOS_ORDEN_COMPRA.RECIBIDA && (
+                {envioCorreoAutomaticoActivo &&
+                  orden.estado ===
+                  ESTADOS_ORDEN_COMPRA.BORRADOR && (
                     <button
                       type="button"
-                      disabled={procesando}
-                      onClick={() =>
-                        marcarEnviada(orden)
+                      disabled={
+                        procesando ||
+                        orden.correo_estado === "pendiente"
                       }
-                      style={botonSecundario}
+                      onClick={() =>
+                        emitirPorCorreo(orden)
+                      }
+                      style={{
+                        ...botonSecundario,
+                        background: "#163B7A",
+                        color: "white"
+                      }}
                     >
-                      Marcar enviada
+                      {orden.correo_estado === "pendiente"
+                        ? "Correo en proceso"
+                        : "Emitir y enviar OC"}
                     </button>
                   )}
-                {orden.estado !==
-                  ESTADOS_ORDEN_COMPRA.RECIBIDA &&
-                  orden.estado !==
-                    ESTADOS_ORDEN_COMPRA.ANULADA && (
+                {[
+                  ESTADOS_ORDEN_COMPRA.ENVIADA,
+                  ESTADOS_ORDEN_COMPRA.PARCIAL_RECIBIDA
+                ].includes(orden.estado) && (
                     <button
                       type="button"
                       disabled={procesando}
@@ -1655,6 +1942,15 @@ function ComprasV2({
                     </button>
                   )}
               </div>
+              {orden.correo_estado === "error" && (
+                <p style={{
+                  color: "#B91C1C",
+                  margin: "10px 0 0",
+                  fontWeight: 700
+                }}>
+                  No se pudo entregar el correo: {orden.correo_error || "revisa la configuración e inténtalo nuevamente."}
+                </p>
+              )}
             </article>
           ))}
           {ordenes.length === 0 && !cargando && (

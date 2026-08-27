@@ -1,5 +1,6 @@
 import {
-  filtrarMaterialesComprables
+  filtrarMaterialesComprables,
+  filtrarOrdenesTrabajoCompra
 } from "./ComprasV2";
 import {
   calcularResumenOrdenCompra,
@@ -27,6 +28,37 @@ import {
 } from "./comprasRepository";
 
 describe("comprasRepository", () => {
+  test("muestra hasta 10 OT recientes y filtra por palabra", () => {
+    const ordenes = Array.from(
+      { length: 12 },
+      (_, indice) => ({
+        id: `ot-${indice + 1}`,
+        codigo: `OT-CHI-${String(12 - indice).padStart(6, "0")}`,
+        producto_nombre:
+          indice === 4 ? "Caja Premium" : `Producto ${indice + 1}`,
+        cliente_nombre:
+          indice === 7 ? "Cliente Andino" : "Cliente BBA",
+        estado: indice === 9 ? "pausada" : "liberada"
+      })
+    );
+
+    expect(
+      filtrarOrdenesTrabajoCompra(ordenes)
+    ).toHaveLength(10);
+    expect(
+      filtrarOrdenesTrabajoCompra(ordenes, "premium")
+        .map(orden => orden.id)
+    ).toEqual(["ot-5"]);
+    expect(
+      filtrarOrdenesTrabajoCompra(ordenes, "andino")
+        .map(orden => orden.id)
+    ).toEqual(["ot-8"]);
+    expect(
+      filtrarOrdenesTrabajoCompra(ordenes, "pausada")
+        .map(orden => orden.id)
+    ).toEqual(["ot-10"]);
+  });
+
   test("filtra materiales comprables por texto y solo muestra MP/SUM/EPP activos", () => {
     const materiales = [
       {
@@ -231,6 +263,12 @@ describe("comprasRepository", () => {
         subtotal: 25000,
         total: 25000
       });
+    expect(calcularTotalesOrdenCompra(orden.items, 15000))
+      .toMatchObject({
+        subtotal: 25000,
+        flete: 15000,
+        total: 40000
+      });
     expect(construirTextoOrdenCompra(orden))
       .toContain("Orden de compra OC0004");
     expect(construirTextoOrdenCompra(orden))
@@ -241,6 +279,15 @@ describe("comprasRepository", () => {
       .toContain("PU CLP 2.500");
     expect(construirTextoOrdenCompra(orden))
       .toContain("Total línea CLP 25.000");
+    expect(construirTextoOrdenCompra({
+      ...orden,
+      subtotal: undefined
+    })).toContain("Subtotal productos: CLP 25.000");
+    expect(construirTextoOrdenCompra({
+      ...orden,
+      flete: 15000,
+      total: 40000
+    })).toContain("Flete: CLP 15.000");
     expect(crearEnlaceCorreoOrdenCompra(orden))
       .toContain("mailto:ventas%40acero.cl");
     expect(crearEnlaceWhatsappOrdenCompra(orden))
@@ -365,6 +412,7 @@ describe("comprasRepository", () => {
       condicion_pago: "Factura 60",
       creado_por_nombre: "Elvis",
       subtotal: 100000,
+      flete: 15000,
       items: [
         {
           material_codigo: "MP0001",
@@ -381,9 +429,11 @@ describe("comprasRepository", () => {
 
     expect(calcularResumenOrdenCompra(orden))
       .toMatchObject({
-        subtotal: 100000,
-        iva: 19000,
-        total: 119000
+        subtotalProductos: 100000,
+        flete: 15000,
+        subtotal: 115000,
+        iva: 21850,
+        total: 136850
       });
 
     const html = construirHtmlOrdenCompra(orden);
@@ -395,7 +445,9 @@ describe("comprasRepository", () => {
     expect(html).toContain("Alambre Crudo BCC 2.7 mm");
     expect(html).toContain("Req REQ20260824-12345");
     expect(html).toContain("IVA");
-    expect(html).toContain("$ 119.000");
+    expect(html).toContain("Flete");
+    expect(html).toContain("$ 15.000");
+    expect(html).toContain("$ 136.850");
     expect(html).toContain("HORARIO DE RECEPCIÓN");
     expect(html).not.toContain("<th class=\"right\">DESC</th>");
     expect(html).not.toContain("<th>IMPUESTO</th>");

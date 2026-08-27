@@ -3,6 +3,9 @@ const {
   HttpsError,
   onCall
 } = require("firebase-functions/v2/https");
+const {
+  onDocumentUpdated
+} = require("firebase-functions/v2/firestore");
 
 admin.initializeApp();
 
@@ -21,6 +24,16 @@ const WEB_API_KEY =
   WEB_API_KEYS["bba-erp-pruebas"];
 
 const db = admin.firestore();
+const CORREO_REMITENTE_OC =
+  "administracion@bbachile.cl";
+const COPIAS_CORREO_OC = [
+  "esaavedra@bbachile.cl",
+  "produccion@bbachile.cl",
+  "contabilidad@bbachile.cl"
+];
+const URL_PUBLICA_APP =
+  process.env.BBA_PUBLIC_APP_URL ||
+  "https://bba-produccion.vercel.app";
 
 const normalizarPermisos = permisos =>
   Object.fromEntries(
@@ -103,6 +116,118 @@ const permisosEfectivos = perfil => ({
   ...permisosPorRol(perfil?.rol),
   ...(perfil?.permisos || {})
 });
+
+const escaparHtml = valor =>
+  String(valor || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const formatoMonto = valor =>
+  Math.round(Number(valor || 0))
+    .toLocaleString("es-CL");
+
+const obtenerPerfilCompras = async auth => {
+  if (!auth?.uid) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Debes iniciar sesión para emitir una OC."
+    );
+  }
+
+  const perfilSnap = await db
+    .collection("usuarios")
+    .doc(auth.uid)
+    .get();
+  const datos = perfilSnap.exists
+    ? perfilSnap.data()
+    : {};
+  const perfil = {
+    uid: auth.uid,
+    nombre:
+      datos.nombre ||
+      auth.token.name ||
+      auth.token.email ||
+      auth.uid,
+    rol: datos.rol || auth.token.rol,
+    empresa_id:
+      datos.empresa_id || auth.token.empresa_id,
+    planta_ids: Array.isArray(datos.planta_ids)
+      ? datos.planta_ids
+      : normalizarLista(auth.token.planta_ids),
+    permisos: {
+      ...(auth.token.permisos || {}),
+      ...(datos.permisos || {})
+    },
+    activo: datos.activo !== false
+  };
+
+  if (
+    !perfil.activo ||
+    !perfil.empresa_id ||
+    !(
+      ["jefe", "gerencia"].includes(perfil.rol) ||
+      permisosEfectivos(perfil)["compras.gestionar"]
+    )
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes permiso para emitir órdenes de compra."
+    );
+  }
+
+  return perfil;
+};
+
+const construirCorreoOrdenCompra = (orden, urlPublica) => {
+  const filas = (orden.items || []).map(item => `
+    <tr>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0">${escaparHtml(item.material_codigo)} - ${escaparHtml(item.material_nombre)}</td>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">${escaparHtml(item.cantidad)} ${escaparHtml(item.unidad_medida)}</td>
+      <td style="padding:8px;border-bottom:1px solid #e2e8f0;text-align:right">CLP ${formatoMonto(item.total_linea)}</td>
+    </tr>
+  `).join("");
+
+  const texto = [
+    "Estimados, junto con saludar, esperamos que se encuentren muy bien.",
+    "",
+    `Por medio del presente compartimos nuestra orden de compra ${orden.codigo}.`,
+    "Agradecemos confirmar la recepción de este correo, la disponibilidad de los productos y la fecha estimada de entrega.",
+    "",
+    `Proveedor: ${orden.proveedor_nombre}`,
+    `Subtotal productos: CLP ${formatoMonto(orden.subtotal || orden.total)}`,
+    `Flete: CLP ${formatoMonto(orden.flete)}`,
+    `Total neto: CLP ${formatoMonto(orden.total)}`,
+    "",
+    `Puede visualizar y descargar la orden de compra de forma segura aquí: ${urlPublica}`,
+    "",
+    "Muchas gracias por su atención y colaboración.",
+    "Saludos cordiales,",
+    "BBA Chile"
+  ].join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;color:#0f172a;line-height:1.55;max-width:720px">
+      <p>Estimados, junto con saludar, esperamos que se encuentren muy bien.</p>
+      <p>Por medio del presente compartimos nuestra orden de compra <strong>${escaparHtml(orden.codigo)}</strong>.</p>
+      <p>Agradecemos confirmar la recepción de este correo, la disponibilidad de los productos y la fecha estimada de entrega.</p>
+      <table style="width:100%;border-collapse:collapse;margin:18px 0">
+        <thead><tr><th style="padding:8px;text-align:left">Producto</th><th style="padding:8px;text-align:right">Cantidad</th><th style="padding:8px;text-align:right">Monto</th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+      <p><strong>Subtotal productos:</strong> CLP ${formatoMonto(orden.subtotal || orden.total)}<br />
+      <strong>Flete:</strong> CLP ${formatoMonto(orden.flete)}<br />
+      <strong>Total neto:</strong> CLP ${formatoMonto(orden.total)}</p>
+      <p><a href="${escaparHtml(urlPublica)}" style="display:inline-block;background:#163b7a;color:white;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:bold">Ver y descargar orden de compra</a></p>
+      <p>Muchas gracias por su atención y colaboración.</p>
+      <p>Saludos cordiales,<br /><strong>BBA Chile</strong></p>
+    </div>
+  `;
+
+  return { texto, html };
+};
 
 const puedeGestionarUsuarios = perfil =>
   Boolean(
@@ -449,3 +574,249 @@ exports.activarUsuarioPendiente = onCall(
     };
   }
 );
+
+exports.emitirOrdenCompraPorCorreo = onCall(
+  {
+    region: REGION,
+    cors: true
+  },
+  async request => {
+    const perfil = await obtenerPerfilCompras(
+      request.auth
+    );
+    const ordenId = String(
+      request.data?.ordenId || ""
+    ).trim();
+
+    if (!ordenId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Falta la orden de compra."
+      );
+    }
+
+    const ordenRef = db
+      .collection("ordenes_compra")
+      .doc(ordenId);
+    const ordenSnap = await ordenRef.get();
+
+    if (!ordenSnap.exists) {
+      throw new HttpsError(
+        "not-found",
+        "La orden de compra no existe."
+      );
+    }
+
+    const orden = ordenSnap.data();
+
+    if (
+      orden.empresa_id !== perfil.empresa_id ||
+      (
+        perfil.rol !== "gerencia" &&
+        !perfil.planta_ids.includes(orden.planta_id)
+      )
+    ) {
+      throw new HttpsError(
+        "permission-denied",
+        "La OC no pertenece a una planta autorizada."
+      );
+    }
+
+    if (orden.estado !== "borrador") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Solo se pueden emitir OC en borrador."
+      );
+    }
+
+    if (!orden.proveedor_id) {
+      throw new HttpsError(
+        "failed-precondition",
+        "La OC no tiene proveedor asignado."
+      );
+    }
+
+    const proveedorEmail = String(
+      orden.proveedor_email || ""
+    ).trim().toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(proveedorEmail)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "El proveedor no tiene un correo de contacto válido."
+      );
+    }
+
+    if (orden.correo_estado === "pendiente") {
+      throw new HttpsError(
+        "already-exists",
+        "La OC ya tiene un correo en proceso."
+      );
+    }
+
+    const token = String(
+      orden.token_compartir || ""
+    ).trim();
+
+    if (!token) {
+      throw new HttpsError(
+        "failed-precondition",
+        "La OC no tiene un enlace seguro disponible."
+      );
+    }
+
+    const urlPublica = `${URL_PUBLICA_APP.replace(/\/$/, "")}/oc-publica/${encodeURIComponent(token)}`;
+    const correo = construirCorreoOrdenCompra(
+      orden,
+      urlPublica
+    );
+    const mailRef = db.collection("mail").doc();
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    const batch = db.batch();
+
+    batch.set(
+      db.collection("ordenes_compra_publicas").doc(token),
+      {
+        empresa_id: orden.empresa_id,
+        planta_id: orden.planta_id,
+        codigo: orden.codigo,
+        proveedor_nombre: orden.proveedor_nombre,
+        proveedor_email: proveedorEmail,
+        proveedor_telefono:
+          orden.proveedor_telefono || "",
+        condicion_pago: orden.condicion_pago || "",
+        moneda: orden.moneda || "CLP",
+        items: Array.isArray(orden.items)
+          ? orden.items
+          : [],
+        subtotal: Number(
+          orden.subtotal || orden.total || 0
+        ),
+        flete: Number(orden.flete || 0),
+        total: Number(orden.total || 0),
+        observacion: orden.observacion || "",
+        estado: orden.estado,
+        token_compartir: token,
+        compartir_activo: true,
+        modelo_version: 2,
+        publicado_en: now
+      },
+      { merge: true }
+    );
+    batch.set(mailRef, {
+      from: CORREO_REMITENTE_OC,
+      replyTo: CORREO_REMITENTE_OC,
+      to: [proveedorEmail],
+      cc: COPIAS_CORREO_OC,
+      message: {
+        subject: `Orden de compra ${orden.codigo} - BBA Chile`,
+        text: correo.texto,
+        html: correo.html
+      },
+      metadata: {
+        tipo: "orden_compra",
+        orden_id: ordenId,
+        orden_codigo: orden.codigo,
+        empresa_id: orden.empresa_id,
+        planta_id: orden.planta_id,
+        solicitado_por_id: perfil.uid,
+        solicitado_por_nombre: perfil.nombre
+      },
+      creado_en: now
+    });
+    batch.update(ordenRef, {
+      correo_estado: "pendiente",
+      correo_id: mailRef.id,
+      correo_para: proveedorEmail,
+      correo_cc: COPIAS_CORREO_OC,
+      correo_error: "",
+      correo_solicitado_en: now,
+      correo_solicitado_por_id: perfil.uid,
+      correo_solicitado_por_nombre: perfil.nombre,
+      actualizado_en: now
+    });
+    await batch.commit();
+
+    return {
+      ok: true,
+      estado: "pendiente",
+      correoId: mailRef.id,
+      urlPublica
+    };
+  }
+);
+
+exports.confirmarEntregaCorreoOrdenCompra =
+  onDocumentUpdated(
+    {
+      document: "mail/{mailId}",
+      region: REGION
+    },
+    async event => {
+      const antes = event.data?.before.data() || {};
+      const despues = event.data?.after.data() || {};
+      const metadata = despues.metadata || {};
+      const estadoAntes = antes.delivery?.state || "";
+      const estado = despues.delivery?.state || "";
+
+      if (
+        metadata.tipo !== "orden_compra" ||
+        !metadata.orden_id ||
+        estado === estadoAntes ||
+        !["SUCCESS", "ERROR"].includes(estado)
+      ) {
+        return;
+      }
+
+      const ordenRef = db
+        .collection("ordenes_compra")
+        .doc(metadata.orden_id);
+      const now =
+        admin.firestore.FieldValue.serverTimestamp();
+
+      if (estado === "SUCCESS") {
+        const batch = db.batch();
+        const cambiosOrden = {
+          estado: "enviada",
+          correo_estado: "enviado",
+          correo_error: "",
+          correo_enviado_en: now,
+          enviada_en: now,
+          enviada_por_id:
+            metadata.solicitado_por_id || "",
+          enviada_por_nombre:
+            metadata.solicitado_por_nombre || "",
+          actualizado_en: now
+        };
+
+        batch.update(ordenRef, cambiosOrden);
+
+        if (despues.metadata?.orden_codigo) {
+          const ordenSnap = await ordenRef.get();
+          const token = ordenSnap.data()?.token_compartir;
+
+          if (token) {
+            batch.update(
+              db.collection("ordenes_compra_publicas").doc(token),
+              {
+                estado: "enviada",
+                actualizado_en: now
+              }
+            );
+          }
+        }
+
+        await batch.commit();
+        return;
+      }
+
+      await ordenRef.update({
+        correo_estado: "error",
+        correo_error: String(
+          despues.delivery?.error ||
+          "El servicio de correo rechazó el envío."
+        ),
+        actualizado_en: now
+      });
+    }
+  );

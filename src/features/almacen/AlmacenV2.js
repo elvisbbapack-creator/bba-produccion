@@ -612,6 +612,94 @@ const estiloOrigenMovimiento = origen => {
   };
 };
 
+function PanelDesplegable({
+  titulo,
+  cantidad,
+  cantidadFiltrada,
+  busqueda,
+  onBusquedaChange,
+  placeholder,
+  children,
+  abiertoInicial = false
+}) {
+  const [abierto, setAbierto] = useState(
+    abiertoInicial
+  );
+
+  return (
+    <details
+      open={abierto}
+      onToggle={evento =>
+        setAbierto(evento.currentTarget.open)
+      }
+      style={{
+        background: "white",
+        padding: "0 18px",
+        borderRadius: 14,
+        boxShadow:
+          "0 2px 10px rgba(15,23,42,0.08)",
+        minWidth: 0
+      }}
+    >
+      <summary style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 12,
+        padding: "18px 0",
+        cursor: "pointer",
+        listStyle: "none",
+        fontSize: 20,
+        fontWeight: 800,
+        color: "#0F172A"
+      }}>
+        <span>{titulo}</span>
+        <span style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          flexShrink: 0,
+          color: "#475569",
+          fontSize: 13,
+          fontWeight: 700
+        }}>
+          <span style={{
+            padding: "4px 9px",
+            borderRadius: 999,
+            background: "#EEF2FF",
+            color: "#3730A3"
+          }}>
+            {cantidadFiltrada === cantidad
+              ? cantidad
+              : `${cantidadFiltrada}/${cantidad}`}
+          </span>
+          <span aria-hidden="true">⌄</span>
+        </span>
+      </summary>
+      <div style={{
+        borderTop: "1px solid #E2E8F0",
+        padding: "16px 0 18px"
+      }}>
+        <input
+          type="search"
+          value={busqueda}
+          onChange={evento =>
+            onBusquedaChange(evento.target.value)
+          }
+          placeholder={placeholder}
+          aria-label={`Filtrar ${titulo}`}
+          style={{
+            ...campo,
+            marginBottom: 14,
+            background: "#F8FAFC"
+          }}
+        />
+        {children}
+      </div>
+    </details>
+  );
+}
+
 function AlmacenV2({
   db,
   perfil,
@@ -690,6 +778,14 @@ function AlmacenV2({
   const [error, setError] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [busquedaStock, setBusquedaStock] =
+    useState("");
+  const [busquedaConteos, setBusquedaConteos] =
+    useState("");
+  const [busquedaDiferencias, setBusquedaDiferencias] =
+    useState("");
+  const [busquedaTablaStock, setBusquedaTablaStock] =
+    useState("");
+  const [busquedaMovimientos, setBusquedaMovimientos] =
     useState("");
 
   useEffect(() => {
@@ -889,6 +985,77 @@ function AlmacenV2({
     () => conteos.slice(0, 10),
     [conteos]
   );
+  const conteosRecientesFiltrados = useMemo(() => {
+    const termino = normalizarTexto(busquedaConteos);
+
+    return termino
+      ? conteosRecientes.filter(conteo =>
+        normalizarTexto([
+          conteo.material_codigo,
+          conteo.material_nombre,
+          conteo.referencia,
+          conteo.observacion,
+          conteo.contado_por_nombre,
+          Number(conteo.diferencia || 0) === 0
+            ? "cuadrado"
+            : "ajustado"
+        ].filter(Boolean).join(" ")).includes(termino)
+      )
+      : conteosRecientes;
+  }, [busquedaConteos, conteosRecientes]);
+  const diferenciasRecientesFiltradas = useMemo(() => {
+    const termino = normalizarTexto(busquedaDiferencias);
+
+    return termino
+      ? diferenciasRecientes.filter(movimiento =>
+        normalizarTexto([
+          movimiento.tipo_nombre,
+          movimiento.material_codigo,
+          movimiento.material_nombre,
+          movimiento.referencia,
+          movimiento.observacion,
+          movimiento.autorizado_por_nombre,
+          movimiento.usuario_nombre
+        ].filter(Boolean).join(" ")).includes(termino)
+      )
+      : diferenciasRecientes;
+  }, [busquedaDiferencias, diferenciasRecientes]);
+  const stocksTablaFiltrados = useMemo(() => {
+    const termino = normalizarTexto(busquedaTablaStock);
+
+    return termino
+      ? stocks.filter(stock =>
+        normalizarTexto([
+          stock.material_codigo,
+          stock.material_nombre,
+          stock.material_tipo,
+          stock.material_id,
+          stock.almacen_id
+        ].filter(Boolean).join(" ")).includes(termino)
+      )
+      : stocks;
+  }, [busquedaTablaStock, stocks]);
+  const movimientosRecientesFiltrados = useMemo(() => {
+    const termino = normalizarTexto(busquedaMovimientos);
+
+    return termino
+      ? movimientosRecientes.filter(movimiento =>
+        normalizarTexto([
+          movimiento.tipo_nombre,
+          movimiento.material_codigo,
+          movimiento.material_nombre,
+          movimiento.ot_codigo,
+          movimiento.referencia,
+          movimiento.observacion,
+          movimiento.origen,
+          etiquetaOrigenMovimiento(movimiento.origen),
+          movimiento.operacion_codigo,
+          movimiento.operacion_nombre,
+          movimiento.usuario_nombre
+        ].filter(Boolean).join(" ")).includes(termino)
+      )
+      : movimientosRecientes;
+  }, [busquedaMovimientos, movimientosRecientes]);
   const referenciasMovimiento = useMemo(
     () => unirReferencias(
       referenciasFrecuentesMovimiento,
@@ -1767,6 +1934,11 @@ function AlmacenV2({
                 setFormularioConteo(conteoInicial);
                 setFormularioPolitica(politicaInicial);
                 setOtTrazabilidad("");
+                setBusquedaStock("");
+                setBusquedaConteos("");
+                setBusquedaDiferencias("");
+                setBusquedaTablaStock("");
+                setBusquedaMovimientos("");
               }}
               style={{
                 ...campo,
@@ -1861,9 +2033,9 @@ function AlmacenV2({
               display: "grid",
               gridTemplateColumns: esPantallaPequena
                 ? "minmax(0, 1fr)"
-                : "repeat(auto-fit, minmax(230px, 1fr))",
-              gap: 10,
-              marginTop: 16,
+                : "repeat(auto-fill, minmax(260px, 1fr))",
+              gap: 8,
+              marginTop: 14,
               maxHeight: esPantallaPequena ? 420 : 360,
               overflowY: "auto",
               paddingRight: 4
@@ -1886,40 +2058,59 @@ function AlmacenV2({
                     style={{
                       border: "1px solid #E2E8F0",
                       borderRadius: 12,
-                      padding: 12,
+                      padding: 10,
                       background: alertaCritica
                         ? "#FEF2F2"
                         : "#F8FAFC"
                     }}
                   >
-                    <strong>
-                      {stock.material_codigo || "Sin código"}
-                    </strong>
                     <div style={{
-                      color: "#475569",
-                      fontSize: 13,
-                      marginTop: 3
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: 8
                     }}>
-                      {stock.material_nombre ||
-                        "Sin nombre"}
-                    </div>
-                    <div style={{
-                      color: "#64748B",
-                      fontSize: 12,
-                      marginTop: 4
-                    }}>
-                      Tipo: {stock.material_tipo || "-"}
+                      <div style={{ minWidth: 0 }}>
+                        <strong>
+                          {stock.material_codigo || "Sin código"}
+                        </strong>
+                        <div style={{
+                          color: "#475569",
+                          fontSize: 13,
+                          marginTop: 2,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap"
+                        }}>
+                          {stock.material_nombre || "Sin nombre"}
+                        </div>
+                      </div>
+                      <span style={{
+                        padding: "3px 7px",
+                        borderRadius: 999,
+                        background: "#E2E8F0",
+                        color: "#475569",
+                        fontSize: 11,
+                        fontWeight: 800,
+                        flexShrink: 0
+                      }}>
+                        {stock.material_tipo || "-"}
+                      </span>
                     </div>
 
                     <div style={{
                       display: "grid",
                       gridTemplateColumns:
                         "repeat(3, minmax(0, 1fr))",
-                      gap: 8,
-                      marginTop: 10,
+                      gap: 5,
+                      marginTop: 8,
                       textAlign: "center"
                     }}>
-                      <div>
+                      <div style={{
+                        background: "white",
+                        borderRadius: 8,
+                        padding: "6px 3px"
+                      }}>
                         <strong>
                           {formatearNumero(
                             stock.stock_actual
@@ -1932,7 +2123,11 @@ function AlmacenV2({
                           Stock
                         </div>
                       </div>
-                      <div>
+                      <div style={{
+                        background: "white",
+                        borderRadius: 8,
+                        padding: "6px 3px"
+                      }}>
                         <strong>
                           {formatearNumero(
                             stock.stock_reservado
@@ -1945,7 +2140,11 @@ function AlmacenV2({
                           Reservado
                         </div>
                       </div>
-                      <div>
+                      <div style={{
+                        background: "white",
+                        borderRadius: 8,
+                        padding: "6px 3px"
+                      }}>
                         <strong>
                           {formatearNumero(
                             stock.stock_disponible
@@ -1962,7 +2161,7 @@ function AlmacenV2({
 
                     {alerta && (
                       <div style={{
-                        marginTop: 10,
+                        marginTop: 7,
                         color: alerta.estado === "ok"
                           ? "#166534"
                           : alertaCritica
@@ -4012,28 +4211,27 @@ function AlmacenV2({
               )}
             </section>
 
-            <section style={{
-              background: "white",
-              padding: esPantallaPequena ? 16 : 22,
-              borderRadius: 14,
-              boxShadow:
-                "0 2px 10px rgba(15,23,42,0.08)"
-            }}>
-              <h2 style={{ marginTop: 0 }}>
-                Conteos físicos recientes
-              </h2>
+            <PanelDesplegable
+              titulo="Conteos físicos recientes"
+              cantidad={conteosRecientes.length}
+              cantidadFiltrada={conteosRecientesFiltrados.length}
+              busqueda={busquedaConteos}
+              onBusquedaChange={setBusquedaConteos}
+              placeholder="Filtrar por material, estado, motivo o usuario..."
+            >
 
-              {conteosRecientes.length === 0 ? (
+              {conteosRecientesFiltrados.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
-                  Todavía no hay conteos físicos para
-                  esta planta.
+                  {conteosRecientes.length === 0
+                    ? "Todavía no hay conteos físicos para esta planta."
+                    : "No hay conteos que coincidan con la búsqueda."}
                 </p>
               ) : (
                 <div style={{
                   display: "grid",
                   gap: 10
                 }}>
-                  {conteosRecientes.map(conteo => {
+                  {conteosRecientesFiltrados.map(conteo => {
                     const cuadrado =
                       Number(conteo.diferencia || 0) ===
                       0;
@@ -4130,30 +4328,29 @@ function AlmacenV2({
                   })}
                 </div>
               )}
-            </section>
+            </PanelDesplegable>
 
-            <section style={{
-              background: "white",
-              padding: esPantallaPequena ? 16 : 22,
-              borderRadius: 14,
-              boxShadow:
-                "0 2px 10px rgba(15,23,42,0.08)"
-            }}>
-              <h2 style={{ marginTop: 0 }}>
-                Mermas y ajustes recientes
-              </h2>
+            <PanelDesplegable
+              titulo="Mermas y ajustes recientes"
+              cantidad={diferenciasRecientes.length}
+              cantidadFiltrada={diferenciasRecientesFiltradas.length}
+              busqueda={busquedaDiferencias}
+              onBusquedaChange={setBusquedaDiferencias}
+              placeholder="Filtrar por material, tipo, motivo o usuario..."
+            >
 
-              {diferenciasRecientes.length === 0 ? (
+              {diferenciasRecientesFiltradas.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
-                  Sin mermas ni ajustes autorizados
-                  registrados para esta planta.
+                  {diferenciasRecientes.length === 0
+                    ? "Sin mermas ni ajustes autorizados registrados para esta planta."
+                    : "No hay mermas o ajustes que coincidan con la búsqueda."}
                 </p>
               ) : (
                 <div style={{
                   display: "grid",
                   gap: 10
                 }}>
-                  {diferenciasRecientes.map(
+                  {diferenciasRecientesFiltradas.map(
                     movimiento => (
                       <article
                         key={movimiento.id}
@@ -4234,25 +4431,24 @@ function AlmacenV2({
                   )}
                 </div>
               )}
-            </section>
+            </PanelDesplegable>
 
-            <section style={{
-              background: "white",
-              padding: esPantallaPequena ? 16 : 22,
-              borderRadius: 14,
-              boxShadow:
-                "0 2px 10px rgba(15,23,42,0.08)"
-            }}>
-              <h2 style={{ marginTop: 0 }}>
-                Stock por material
-              </h2>
+            <PanelDesplegable
+              titulo="Stock por material"
+              cantidad={stocks.length}
+              cantidadFiltrada={stocksTablaFiltrados.length}
+              busqueda={busquedaTablaStock}
+              onBusquedaChange={setBusquedaTablaStock}
+              placeholder="Filtrar por código, nombre o tipo de material..."
+            >
 
               {cargando ? (
                 <p>Cargando stock...</p>
-              ) : stocks.length === 0 ? (
+              ) : stocksTablaFiltrados.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
-                  Todavía no hay stock registrado
-                  para esta planta.
+                  {stocks.length === 0
+                    ? "Todavía no hay stock registrado para esta planta."
+                    : "No hay materiales que coincidan con la búsqueda."}
                 </p>
               ) : (
                 <div style={{
@@ -4276,7 +4472,7 @@ function AlmacenV2({
                       </tr>
                     </thead>
                     <tbody>
-                      {stocks.map(stock => {
+                      {stocksTablaFiltrados.map(stock => {
                         const alerta =
                           alertasPorMaterial.get(
                             stock.material_id
@@ -4367,7 +4563,7 @@ function AlmacenV2({
                   </table>
                 </div>
               )}
-            </section>
+            </PanelDesplegable>
 
             <section style={{
               background: "white",
@@ -4735,27 +4931,27 @@ function AlmacenV2({
               )}
             </section>
 
-            <section style={{
-              background: "white",
-              padding: esPantallaPequena ? 16 : 22,
-              borderRadius: 14,
-              boxShadow:
-                "0 2px 10px rgba(15,23,42,0.08)"
-            }}>
-              <h2 style={{ marginTop: 0 }}>
-                Últimos movimientos
-              </h2>
+            <PanelDesplegable
+              titulo="Últimos movimientos"
+              cantidad={movimientosRecientes.length}
+              cantidadFiltrada={movimientosRecientesFiltrados.length}
+              busqueda={busquedaMovimientos}
+              onBusquedaChange={setBusquedaMovimientos}
+              placeholder="Filtrar por material, OT, referencia, tipo u origen..."
+            >
 
-              {movimientosRecientes.length === 0 ? (
+              {movimientosRecientesFiltrados.length === 0 ? (
                 <p style={{ color: "#64748B" }}>
-                  Sin movimientos registrados.
+                  {movimientosRecientes.length === 0
+                    ? "Sin movimientos registrados."
+                    : "No hay movimientos que coincidan con la búsqueda."}
                 </p>
               ) : (
                 <div style={{
                   display: "grid",
                   gap: 10
                 }}>
-                  {movimientosRecientes.map(movimiento => (
+                  {movimientosRecientesFiltrados.map(movimiento => (
                     <article
                       key={movimiento.id}
                       style={{
@@ -4850,7 +5046,7 @@ function AlmacenV2({
                   ))}
                 </div>
               )}
-            </section>
+            </PanelDesplegable>
           </div>
         </div>
       </div>
