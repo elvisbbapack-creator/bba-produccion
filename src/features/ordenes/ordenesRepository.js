@@ -8,6 +8,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
   where
 } from "firebase/firestore";
 import {
@@ -1477,81 +1478,101 @@ export const crearOrdenV2 = async ({
   const otRef = doc(
     collection(db, "ordenes_trabajo")
   );
-  let ordenCreada;
+  let reserva;
 
-  await runTransaction(
-    db,
-    async transaccion => {
-      const correlativoSnap =
-        await transaccion.get(correlativoRef);
-      const siguiente =
-        Number(
-          correlativoSnap.exists()
-            ? correlativoSnap.data().ultimo
-            : 0
-        ) + 1;
-      const codigo = formatearCodigoOT(
-        plantaId,
-        siguiente
-      );
-      const orden = prepararOrden({
-        codigo,
-        correlativo: siguiente,
-        empresaId: perfil.empresa_id,
-        plantaId,
-        clienteId,
-        clienteCodigo,
-        clienteNombre,
-        producto,
-        cantidadProducto,
-        fechaInicio,
-        fechaEntrega,
-        perfil,
-        rutaVersion:
-          producto.version_ruta_activa || null
-      });
-
-      transaccion.set(correlativoRef, {
-        empresa_id: perfil.empresa_id,
-        planta_id: plantaId,
-        tipo: "ot",
-        ultimo: siguiente,
-        actualizado_en: serverTimestamp()
-      });
-      transaccion.set(otRef, {
-        ...orden,
-        ...proyeccion,
-        fecha_creacion: serverTimestamp(),
-        fecha_actualizacion: serverTimestamp()
-      });
-
-      operaciones.forEach(operacion => {
-        const operacionRef = doc(
-          db,
-          "ordenes_trabajo",
-          otRef.id,
-          "operaciones",
-          operacion.ruta_operacion_id
+  try {
+    reserva = await runTransaction(
+      db,
+      async transaccion => {
+        const correlativoSnap =
+          await transaccion.get(correlativoRef);
+        const siguiente =
+          Number(
+            correlativoSnap.exists()
+              ? correlativoSnap.data().ultimo
+              : 0
+          ) + 1;
+        const codigo = formatearCodigoOT(
+          plantaId,
+          siguiente
         );
 
-        transaccion.set(operacionRef, {
-          ...operacion,
+        transaccion.set(correlativoRef, {
           empresa_id: perfil.empresa_id,
           planta_id: plantaId,
-          ot_id: otRef.id,
-          ot_codigo: codigo,
-          fecha_creacion: serverTimestamp(),
-          fecha_actualizacion:
-            serverTimestamp()
+          tipo: "ot",
+          ultimo: siguiente,
+          actualizado_en: serverTimestamp()
         });
-      });
+        return {
+          siguiente,
+          codigo
+        };
+      }
+    );
+  } catch (fallo) {
+    throw new Error(
+      `No se pudo reservar el correlativo de la OT: ${fallo?.message || "error de permisos"}`
+    );
+  }
 
-      ordenCreada = {
-        id: otRef.id,
-        ...orden
-      };
-    }
-  );
+  const orden = prepararOrden({
+    codigo: reserva.codigo,
+    correlativo: reserva.siguiente,
+    empresaId: perfil.empresa_id,
+    plantaId,
+    clienteId,
+    clienteCodigo,
+    clienteNombre,
+    producto,
+    cantidadProducto,
+    fechaInicio,
+    fechaEntrega,
+    perfil,
+    rutaVersion:
+      producto.version_ruta_activa || null
+  });
+  const lote = writeBatch(db);
+
+  lote.set(otRef, {
+    ...orden,
+    ...proyeccion,
+    fecha_creacion: serverTimestamp(),
+    fecha_actualizacion: serverTimestamp()
+  });
+
+  operaciones.forEach(operacion => {
+    const operacionRef = doc(
+      db,
+      "ordenes_trabajo",
+      otRef.id,
+      "operaciones",
+      operacion.ruta_operacion_id
+    );
+
+    lote.set(operacionRef, {
+      ...operacion,
+      empresa_id: perfil.empresa_id,
+      planta_id: plantaId,
+      ot_id: otRef.id,
+      ot_codigo: reserva.codigo,
+      fecha_creacion: serverTimestamp(),
+      fecha_actualizacion: serverTimestamp()
+    });
+  });
+
+  try {
+    await lote.commit();
+  } catch (fallo) {
+    throw new Error(
+      `El correlativo ${reserva.codigo} fue reservado, pero Firestore rechazó el lote de la OT y sus operaciones: ${fallo?.message || "error de permisos"}`
+    );
+  }
+
+  const ordenCreada = {
+    id: otRef.id,
+    ...orden
+  };
 
   return {
     orden: ordenCreada,
