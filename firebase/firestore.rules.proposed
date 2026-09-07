@@ -25,6 +25,17 @@ service cloud.firestore {
       return role() in ['jefe', 'gerencia'];
     }
 
+    function hasPermission(permission) {
+      return authenticated() &&
+        request.auth.token.permisos is map &&
+        request.auth.token.permisos[permission] == true;
+    }
+
+    function canManageOrders() {
+      return isManagement() ||
+        hasPermission('ots.gestionar');
+    }
+
     function isPlantOperator() {
       return role() in ['supervisor', 'jefe', 'gerencia'];
     }
@@ -653,12 +664,12 @@ service cloud.firestore {
     }
 
     match /correlativos/{correlativoId} {
-      allow get: if isManagement() &&
+      allow get: if canManageOrders() &&
         correlativoId.matches(
           companyId() + '__.*__ot'
         );
       allow list: if false;
-      allow create: if isManagement() &&
+      allow create: if canManageOrders() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.tipo == 'ot' &&
         request.resource.data.ultimo == 1 &&
@@ -673,7 +684,7 @@ service cloud.firestore {
           'ultimo',
           'actualizado_en'
         ]);
-      allow update: if isManagement() &&
+      allow update: if canManageOrders() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.tipo == 'ot' &&
         request.resource.data.ultimo is number &&
@@ -694,9 +705,9 @@ service cloud.firestore {
 
     match /ordenes_trabajo/{otId} {
       allow read: if belongsToPlant(resource.data);
-      allow create: if isManagement() &&
+      allow create: if canManageOrders() &&
         belongsToPlant(request.resource.data);
-      allow update: if isManagement() &&
+      allow update: if canManageOrders() &&
         belongsToPlant(resource.data) &&
         belongsToPlant(request.resource.data) &&
         unchangedScope();
@@ -704,7 +715,7 @@ service cloud.firestore {
 
       match /operaciones/{operacionId} {
         allow read: if belongsToPlant(resource.data);
-        allow create: if isManagement() &&
+        allow create: if canManageOrders() &&
           belongsToPlant(request.resource.data);
         allow update: if isPlantOperator() &&
           belongsToPlant(resource.data) &&
