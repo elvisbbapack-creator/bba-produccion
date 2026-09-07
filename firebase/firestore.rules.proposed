@@ -676,6 +676,8 @@ service cloud.firestore {
       allow update: if isManagement() &&
         belongsToPlant(request.resource.data) &&
         request.resource.data.tipo == 'ot' &&
+        request.resource.data.ultimo is number &&
+        request.resource.data.ultimo > 0 &&
         correlativoId ==
           companyId() + '__' +
           request.resource.data.planta_id +
@@ -686,18 +688,7 @@ service cloud.firestore {
           'tipo',
           'ultimo',
           'actualizado_en'
-        ]) &&
-        (
-          (
-            resource.data.ultimo is number &&
-            request.resource.data.ultimo ==
-              resource.data.ultimo + 1
-          ) ||
-          (
-            !('ultimo' in resource.data) &&
-            request.resource.data.ultimo == 1
-          )
-        );
+        ]);
       allow delete: if false;
     }
 
