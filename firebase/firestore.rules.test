@@ -1087,32 +1087,10 @@ service cloud.firestore {
     }
 
     match /correlativos/{correlativoId} {
-      allow read: if canManageOrders();
-      allow create: if canManageOrders() &&
-        belongsToPlant(
-          request.resource.data
-        );
-      allow update: if canManageOrders() &&
-        belongsToPlant(resource.data) &&
-        belongsToPlant(
-          request.resource.data
-        ) &&
-        request.resource.data.empresa_id ==
-          resource.data.empresa_id &&
-        request.resource.data.planta_id ==
-          resource.data.planta_id &&
-        request.resource.data.ultimo ==
-          resource.data.ultimo + 1;
-      allow delete: if false;
-    }
-
-    match /correlativos/{correlativoId} {
       allow get: if canManageOrders() &&
-        (
-          !exists(
-            /databases/$(database)/documents/correlativos/$(correlativoId)
-          ) ||
-          belongsToPlant(resource.data)
+        correlativoId.matches(
+          request.auth.token.empresa_id +
+          '__.*__ot'
         );
       allow list: if false;
       allow create: if canManageOrders() &&
@@ -1131,23 +1109,30 @@ service cloud.firestore {
           'actualizado_en'
         ]);
       allow update: if canManageOrders() &&
-        belongsToPlant(resource.data) &&
         belongsToPlant(request.resource.data) &&
-        request.resource.data.empresa_id ==
-          resource.data.empresa_id &&
-        request.resource.data.planta_id ==
-          resource.data.planta_id &&
-        request.resource.data.tipo ==
-          resource.data.tipo &&
-        resource.data.tipo == 'ot' &&
-        request.resource.data.ultimo ==
-          resource.data.ultimo + 1 &&
-        request.resource.data.diff(
-          resource.data
-        ).affectedKeys().hasOnly([
+        request.resource.data.tipo == 'ot' &&
+        correlativoId ==
+          request.auth.token.empresa_id + '__' +
+          request.resource.data.planta_id +
+          '__ot' &&
+        request.resource.data.keys().hasOnly([
+          'empresa_id',
+          'planta_id',
+          'tipo',
           'ultimo',
           'actualizado_en'
-        ]);
+        ]) &&
+        (
+          (
+            resource.data.ultimo is number &&
+            request.resource.data.ultimo ==
+              resource.data.ultimo + 1
+          ) ||
+          (
+            !('ultimo' in resource.data) &&
+            request.resource.data.ultimo == 1
+          )
+        );
       allow delete: if false;
     }
 

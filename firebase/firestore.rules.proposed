@@ -654,11 +654,8 @@ service cloud.firestore {
 
     match /correlativos/{correlativoId} {
       allow get: if isManagement() &&
-        (
-          !exists(
-            /databases/$(database)/documents/correlativos/$(correlativoId)
-          ) ||
-          belongsToPlant(resource.data)
+        correlativoId.matches(
+          companyId() + '__.*__ot'
         );
       allow list: if false;
       allow create: if isManagement() &&
@@ -677,19 +674,30 @@ service cloud.firestore {
           'actualizado_en'
         ]);
       allow update: if isManagement() &&
-        belongsToPlant(resource.data) &&
         belongsToPlant(request.resource.data) &&
-        unchangedScope() &&
-        resource.data.tipo == 'ot' &&
-        request.resource.data.tipo == resource.data.tipo &&
-        request.resource.data.ultimo ==
-          resource.data.ultimo + 1 &&
-        request.resource.data.diff(
-          resource.data
-        ).affectedKeys().hasOnly([
+        request.resource.data.tipo == 'ot' &&
+        correlativoId ==
+          companyId() + '__' +
+          request.resource.data.planta_id +
+          '__ot' &&
+        request.resource.data.keys().hasOnly([
+          'empresa_id',
+          'planta_id',
+          'tipo',
           'ultimo',
           'actualizado_en'
-        ]);
+        ]) &&
+        (
+          (
+            resource.data.ultimo is number &&
+            request.resource.data.ultimo ==
+              resource.data.ultimo + 1
+          ) ||
+          (
+            !('ultimo' in resource.data) &&
+            request.resource.data.ultimo == 1
+          )
+        );
       allow delete: if false;
     }
 
