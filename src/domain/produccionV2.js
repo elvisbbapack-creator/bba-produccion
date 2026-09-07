@@ -251,7 +251,8 @@ const detectarCiclo = (operaciones) => {
 
 export const validarRuta = (
   ruta = {},
-  materiales = []
+  materiales = [],
+  opciones = {}
 ) => {
   const errores = [];
   const operaciones = Array.isArray(ruta.operaciones)
@@ -283,7 +284,10 @@ export const validarRuta = (
     errores.push("La ruta requiere una version positiva.");
   }
 
-  if (operaciones.length === 0) {
+  if (
+    operaciones.length === 0 &&
+    !opciones.permitirSinOperaciones
+  ) {
     errores.push("La ruta requiere al menos una operacion.");
   }
 

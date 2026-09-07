@@ -358,3 +358,29 @@ test("autocompleta dependencias RF faltantes desde la operacion productora", () 
     requiere_material_disponible: true
   }]);
 });
+
+test("permite una ruta principal compuesta sin operaciones directas", () => {
+  expect(
+    validarRuta(
+      {
+        producto_id: "PCL0006",
+        version: 1,
+        operaciones: []
+      },
+      [],
+      { permitirSinOperaciones: true }
+    )
+  ).toEqual([]);
+});
+
+test("mantiene el requisito de operaciones en una ruta normal", () => {
+  expect(
+    validarRuta({
+      producto_id: "PCL0007",
+      version: 1,
+      operaciones: []
+    })
+  ).toContain(
+    "La ruta requiere al menos una operacion."
+  );
+});

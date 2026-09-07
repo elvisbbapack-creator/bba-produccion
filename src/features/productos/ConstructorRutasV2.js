@@ -1326,7 +1326,11 @@ function ConstructorRutasV2({
           version: ruta.version,
           operaciones: ruta.operaciones
         },
-        materiales
+        materiales,
+        {
+          permitirSinOperaciones:
+            productoCompuestoPorSubproductos
+        }
       )
     : [];
   const erroresRuta =
@@ -1460,7 +1464,9 @@ function ConstructorRutasV2({
         entidadId: entidadRutaId,
         version: ruta.version,
         operaciones: ruta.operaciones,
-        materiales
+        materiales,
+        permitirSinOperaciones:
+          productoCompuestoPorSubproductos
       });
       await cargarCatalogos();
       await cargarRuta(

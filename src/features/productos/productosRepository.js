@@ -1241,7 +1241,8 @@ export const publicarRuta = async ({
   materiales,
   tipoRuta,
   subproductoId,
-  entidadId
+  entidadId,
+  permitirSinOperaciones = false
 }) => {
   const ruta = {
     producto_id: productoId,
@@ -1250,7 +1251,8 @@ export const publicarRuta = async ({
   };
   const errores = validarRuta(
     ruta,
-    materiales
+    materiales,
+    { permitirSinOperaciones }
   );
 
   if (errores.length > 0) {
