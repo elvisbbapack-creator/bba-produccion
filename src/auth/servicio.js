@@ -70,6 +70,27 @@ export const iniciarSesion = async (
 export const cerrarSesion = () =>
   signOut(auth);
 
+export const refrescarSesionFirebase = async () => {
+  const usuario = auth.currentUser;
+
+  if (!usuario) {
+    throw crearErrorAutenticacion(
+      "La sesión expiró. Vuelve a iniciar sesión.",
+      "auth/sesion-expirada"
+    );
+  }
+
+  const token = await getIdTokenResult(
+    usuario,
+    true
+  );
+
+  return {
+    uid: usuario.uid,
+    claims: token.claims
+  };
+};
+
 export const enviarCorreoRestablecerPassword = async (
   email
 ) => {

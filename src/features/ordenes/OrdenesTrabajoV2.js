@@ -6,6 +6,9 @@ import {
 } from "react";
 import BotonVolver from "../../components/BotonVolver";
 import {
+  refrescarSesionFirebase
+} from "../../auth/servicio";
+import {
   listarProductos
 } from "../productos/productosRepository";
 import {
@@ -490,6 +493,18 @@ function OrdenesTrabajoV2({
     try {
       setGuardando(true);
       setError("");
+      const sesion =
+        await refrescarSesionFirebase();
+
+      if (
+        perfil.uid &&
+        sesion.uid !== perfil.uid
+      ) {
+        throw new Error(
+          "La sesión activa no coincide con el perfil cargado. Cierra sesión y vuelve a ingresar."
+        );
+      }
+
       const resultado = await crearOrdenV2({
         db,
         perfil,
