@@ -66,6 +66,12 @@ const materialesEntradaOperacion = (
     : [];
 };
 
+const claveOperacionEnAmbito = (
+  operacion = {},
+  valor = ""
+) =>
+  `${operacion.subproducto_id || "PRODUCTO"}::${valor}`;
+
 export const autocompletarDependenciasRf = (
   ruta = {},
   materiales = []
@@ -315,22 +321,24 @@ export const validarRuta = (
       );
     }
 
+    const claveCodigoOperacion =
+      claveOperacionEnAmbito(
+        operacion,
+        operacion.operacion_codigo
+      );
+
     if (!operacion.operacion_codigo) {
       errores.push(
         `La operacion ${referencia} requiere codigo.`
       );
     } else if (
-      codigosOperacion.has(
-        operacion.operacion_codigo
-      )
+      codigosOperacion.has(claveCodigoOperacion)
     ) {
       errores.push(
         `El codigo ${operacion.operacion_codigo} esta duplicado.`
       );
     } else {
-      codigosOperacion.add(
-        operacion.operacion_codigo
-      );
+      codigosOperacion.add(claveCodigoOperacion);
     }
 
     if (!numeroPositivo(operacion.secuencia)) {
@@ -452,14 +460,22 @@ export const validarRuta = (
         `La salida de ${referencia} debe ser un RF.`
       );
     } else if (
-      productoresRf.has(salida.id)
+      productoresRf.has(
+        claveOperacionEnAmbito(
+          operacion,
+          salida.id
+        )
+      )
     ) {
       errores.push(
         `El RF ${salida.codigo} tiene mas de una operacion productora.`
       );
     } else {
       productoresRf.set(
-        salida.id,
+        claveOperacionEnAmbito(
+          operacion,
+          salida.id
+        ),
         operacion.id
       );
     }
@@ -539,7 +555,12 @@ export const validarRuta = (
         }
 
       const productorId =
-        productoresRf.get(entrada.id);
+        productoresRf.get(
+          claveOperacionEnAmbito(
+            operacion,
+            entrada.id
+          )
+        );
 
       if (!productorId) {
         errores.push(

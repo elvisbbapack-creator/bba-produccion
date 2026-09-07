@@ -59,6 +59,69 @@ test("valida la ruta PCL0001 sin errores", () => {
   ).toEqual([]);
 });
 
+const operacionesConAmbitoSubproducto = (
+  subproductoId,
+  prefijoId = subproductoId
+) =>
+  rutaPcl0001.operaciones.map(operacion => ({
+    ...operacion,
+    id: `${prefijoId}__${operacion.id}`,
+    subproducto_id: subproductoId,
+    dependencias: (operacion.dependencias || [])
+      .map(dependencia => ({
+        ...dependencia,
+        ruta_operacion_id:
+          `${prefijoId}__${dependencia.ruta_operacion_id}`
+      }))
+  }));
+
+test("permite códigos y productores RF repetidos entre subproductos", () => {
+  expect(
+    validarRuta(
+      {
+        producto_id: "PCL0006",
+        version: 1,
+        operaciones: [
+          ...operacionesConAmbitoSubproducto(
+            "SUB0011"
+          ),
+          ...operacionesConAmbitoSubproducto(
+            "SUB0012"
+          )
+        ]
+      },
+      materialesPcl0001
+    )
+  ).toEqual([]);
+});
+
+test("rechaza códigos y productores RF repetidos dentro del mismo subproducto", () => {
+  const errores = validarRuta(
+    {
+      producto_id: "PCL0006",
+      version: 1,
+      operaciones: [
+        ...operacionesConAmbitoSubproducto(
+          "SUB0011",
+          "instancia-a"
+        ),
+        ...operacionesConAmbitoSubproducto(
+          "SUB0011",
+          "instancia-b"
+        )
+      ]
+    },
+    materialesPcl0001
+  );
+
+  expect(errores).toContain(
+    "El codigo DT0001 esta duplicado."
+  );
+  expect(errores).toContain(
+    "El RF RF0001 tiene mas de una operacion productora."
+  );
+});
+
 test("permite una ruta nueva con estándar pendiente", () => {
   expect(
     validarRuta(
