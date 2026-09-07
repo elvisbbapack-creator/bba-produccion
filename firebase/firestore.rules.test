@@ -1106,6 +1106,51 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /correlativos/{correlativoId} {
+      allow get: if canManageOrders() &&
+        (
+          !exists(
+            /databases/$(database)/documents/correlativos/$(correlativoId)
+          ) ||
+          belongsToPlant(resource.data)
+        );
+      allow list: if false;
+      allow create: if canManageOrders() &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.tipo == 'ot' &&
+        request.resource.data.ultimo == 1 &&
+        correlativoId ==
+          request.auth.token.empresa_id + '__' +
+          request.resource.data.planta_id +
+          '__ot' &&
+        request.resource.data.keys().hasOnly([
+          'empresa_id',
+          'planta_id',
+          'tipo',
+          'ultimo',
+          'actualizado_en'
+        ]);
+      allow update: if canManageOrders() &&
+        belongsToPlant(resource.data) &&
+        belongsToPlant(request.resource.data) &&
+        request.resource.data.empresa_id ==
+          resource.data.empresa_id &&
+        request.resource.data.planta_id ==
+          resource.data.planta_id &&
+        request.resource.data.tipo ==
+          resource.data.tipo &&
+        resource.data.tipo == 'ot' &&
+        request.resource.data.ultimo ==
+          resource.data.ultimo + 1 &&
+        request.resource.data.diff(
+          resource.data
+        ).affectedKeys().hasOnly([
+          'ultimo',
+          'actualizado_en'
+        ]);
+      allow delete: if false;
+    }
+
     match /ordenes_trabajo/{otId} {
       allow read: if
         resource.data.modelo_version != 2 &&
