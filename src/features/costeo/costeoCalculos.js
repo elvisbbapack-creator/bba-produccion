@@ -900,6 +900,10 @@ export const PARAMETROS_DOBLEZ_CNC_3D = {
   unidad_expresion: "mm"
 };
 
+export const PARAMETROS_PLEGADORA_NEUMATICA = {
+  segundos_por_doblez: 36
+};
+
 export const PARAMETROS_CORTE_CNC_RECTO = {
   segundos_por_metro: 5,
   segundos_por_doblez: 0,
@@ -946,6 +950,7 @@ export const analizarFormulaProceso = ({
   const texto = (expresion || "").toString().trim();
   const formulaSoportada = [
     "doblez_cnc_3d",
+    "doblez_plegadora_neumatica",
     "corte_cnc_recto",
     "corte_prensa",
     "laser_metros_minuto",
@@ -1029,6 +1034,70 @@ export const analizarFormulaProceso = ({
           segundosPerimetrales,
           2
         )
+      },
+      error: ""
+    };
+  }
+
+  if (tipoFormula === "doblez_plegadora_neumatica") {
+    const dobleces = numero(texto);
+    const segundosDobleces =
+      dobleces * numero(segundosPorDoblez);
+    const unidadesHora =
+      segundosDobleces > 0
+        ? 3600 / segundosDobleces
+        : 0;
+
+    if (!texto) {
+      return {
+        valido: false,
+        segundos_por_producto: 0,
+        unidades_por_hora: 0,
+        metros_totales: 0,
+        piezas: 0,
+        cortes: 0,
+        dobleces_por_producto: 0,
+        dobleces_por_pieza: 0,
+        dobleces_total: 0,
+        longitud_por_pieza: 0,
+        error: ""
+      };
+    }
+
+    if (dobleces <= 0) {
+      return {
+        valido: false,
+        segundos_por_producto: 0,
+        unidades_por_hora: 0,
+        metros_totales: 0,
+        piezas: 0,
+        cortes: 0,
+        dobleces_por_producto: 0,
+        dobleces_por_pieza: 0,
+        dobleces_total: 0,
+        longitud_por_pieza: 0,
+        error:
+          "Ingresa una cantidad de dobleces mayor que cero."
+      };
+    }
+
+    return {
+      valido: true,
+      segundos_por_producto: redondear(
+        segundosDobleces,
+        2
+      ),
+      unidades_por_hora: redondear(unidadesHora, 2),
+      metros_totales: 0,
+      piezas: 1,
+      cortes: 0,
+      golpes: 0,
+      dobleces_por_producto: dobleces,
+      dobleces_por_pieza: dobleces,
+      dobleces_total: dobleces,
+      longitud_por_pieza: 0,
+      detalle_tiempo: {
+        dobleces: redondear(segundosDobleces, 2)
       },
       error: ""
     };

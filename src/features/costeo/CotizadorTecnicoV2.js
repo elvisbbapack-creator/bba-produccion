@@ -719,6 +719,23 @@ const esDoblezCnc3d = proceso => {
   );
 };
 
+const esPlegadoraNeumatica = proceso => {
+  const texto = normalizarComparacion(
+    [
+      proceso?.proceso_nombre,
+      proceso?.estacion_nombre
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    texto.includes("doblez") &&
+    texto.includes("plegadora") &&
+    texto.includes("neumatica")
+  );
+};
+
 const esCorteCncRecto = proceso => {
   const texto = normalizarComparacion(
     [
@@ -787,6 +804,29 @@ const valoresFormulaDoblezCnc = proceso => ({
     proceso?.segundos_por_doblez || 3,
   segundos_por_corte:
     proceso?.segundos_por_corte || 1.5
+});
+
+const valoresFormulaPlegadoraNeumatica = proceso => ({
+  tipo_formula_tiempo: "doblez_plegadora_neumatica",
+  formula_tiempo:
+    proceso?.tipo_formula_tiempo ===
+    "doblez_plegadora_neumatica"
+      ? proceso?.formula_tiempo || ""
+      : "",
+  formula_material_indice: "",
+  formula_material_id: "",
+  formula_material_codigo: "",
+  formula_material_nombre: "",
+  unidad_formula_tiempo: "un",
+  segundos_por_metro: 0,
+  segundos_por_doblez:
+    proceso?.tipo_formula_tiempo ===
+      "doblez_plegadora_neumatica" &&
+    Number(proceso?.segundos_por_doblez) > 0
+      ? proceso.segundos_por_doblez
+      : 36,
+  segundos_por_corte: 0,
+  unidades_por_hora: 0
 });
 
 const valoresFormulaCorteCncRecto = proceso => ({
@@ -866,6 +906,10 @@ const valoresPorTipoFormula = (
 ) => {
   if (tipoFormula === "doblez_cnc_3d") {
     return valoresFormulaDoblezCnc(proceso);
+  }
+
+  if (tipoFormula === "doblez_plegadora_neumatica") {
+    return valoresFormulaPlegadoraNeumatica(proceso);
   }
 
   if (tipoFormula === "corte_cnc_recto") {
@@ -2442,8 +2486,12 @@ export default function CotizadorTecnicoV2({
         porcentajeCostoOperativo > 0
           ? "costos_operativos_planta"
           : "manual",
-      ...(esDoblezCnc3d(estacion)
+    ...(esDoblezCnc3d(estacion)
         ? valoresFormulaDoblezCnc(procesoActual)
+        : esPlegadoraNeumatica(estacion)
+          ? valoresFormulaPlegadoraNeumatica(
+              procesoActual
+            )
         : esCorteCncRecto(estacion)
           ? valoresFormulaCorteCncRecto(procesoActual)
           : esCortePrensa(estacion)
@@ -3861,6 +3909,9 @@ export default function CotizadorTecnicoV2({
           const esFormulaDoblezCnc =
             proceso.tipo_formula_tiempo ===
             "doblez_cnc_3d";
+          const esFormulaCorteCncRecto =
+            proceso.tipo_formula_tiempo ===
+            "corte_cnc_recto";
           const esFormulaCortePrensa =
             proceso.tipo_formula_tiempo ===
             "corte_prensa";
@@ -3871,7 +3922,8 @@ export default function CotizadorTecnicoV2({
             proceso.tipo_formula_tiempo ===
             "soldadura_mig";
           const materialesFormulaProceso =
-            esFormulaDoblezCnc
+            esFormulaDoblezCnc ||
+            esFormulaCorteCncRecto
               ? materialesConFormulaAlambre
                 : esFormulaCortePrensa
                   ? materialesConFormulaCortes
@@ -3965,6 +4017,9 @@ export default function CotizadorTecnicoV2({
                   <option value="doblez_cnc_3d">
                     Doblez CNC 3D
                   </option>
+                  <option value="doblez_plegadora_neumatica">
+                    Doblez / Plegadora Neumática
+                  </option>
                   <option value="corte_cnc_recto">
                     Corte CNC Recto
                   </option>
@@ -3981,6 +4036,7 @@ export default function CotizadorTecnicoV2({
               </CampoConAyuda>
               {[
                 "doblez_cnc_3d",
+                "doblez_plegadora_neumatica",
                 "corte_cnc_recto",
                 "corte_prensa",
                 "laser_metros_minuto",
@@ -3988,12 +4044,14 @@ export default function CotizadorTecnicoV2({
               ].includes(proceso.tipo_formula_tiempo) && (
                 <>
                   {(esFormulaDoblezCnc ||
+                    esFormulaCorteCncRecto ||
                     esFormulaCortePrensa ||
                     esFormulaLaser) && (
                     <CampoConAyuda
                       etiqueta="Usar fórmula desde material"
                       ayuda={
-                        esFormulaDoblezCnc
+                        esFormulaDoblezCnc ||
+                        esFormulaCorteCncRecto
                           ? "Reutiliza la fórmula del MP Alambre ya ingresada en Materiales estimados para calcular avance, dobleces y cortes."
                           : esFormulaCortePrensa
                             ? "Reutiliza la fórmula del MP Tubo ya ingresada en Materiales estimados para calcular golpes de prensa."
@@ -4057,7 +4115,8 @@ export default function CotizadorTecnicoV2({
                         }}
                       >
                         <option value="">
-                          {esFormulaDoblezCnc
+                          {esFormulaDoblezCnc ||
+                          esFormulaCorteCncRecto
                             ? "Seleccionar MP Alambre con fórmula"
                             : esFormulaCortePrensa
                               ? "Seleccionar MP Tubo con fórmula"
@@ -4088,6 +4147,9 @@ export default function CotizadorTecnicoV2({
                       <CampoConAyuda
                         etiqueta={
                           proceso.tipo_formula_tiempo ===
+                          "doblez_plegadora_neumatica"
+                            ? "Cantidad de dobleces por exhibidor"
+                            : proceso.tipo_formula_tiempo ===
                           "corte_prensa"
                             ? "Fórmula golpes"
                             : proceso.tipo_formula_tiempo ===
@@ -4097,6 +4159,9 @@ export default function CotizadorTecnicoV2({
                         }
                         ayuda={
                           proceso.tipo_formula_tiempo ===
+                          "doblez_plegadora_neumatica"
+                            ? "Dato variable según el modelo del exhibidor. Debe completarse para calcular el tiempo."
+                            : proceso.tipo_formula_tiempo ===
                           "corte_prensa"
                             ? "Ej: (131+360+71)*1. Cada medida del tubo equivale a un golpe/corte de prensa."
                             : proceso.tipo_formula_tiempo ===
@@ -4110,8 +4175,20 @@ export default function CotizadorTecnicoV2({
                       >
                         <input
                           style={campo}
-                          type="text"
-                          placeholder="Ej: (100+50+20)*4"
+                          type={
+                            proceso.tipo_formula_tiempo ===
+                            "doblez_plegadora_neumatica"
+                              ? "number"
+                              : "text"
+                          }
+                          min="0"
+                          step="1"
+                          placeholder={
+                            proceso.tipo_formula_tiempo ===
+                            "doblez_plegadora_neumatica"
+                              ? "Pendiente por completar"
+                              : "Ej: (100+50+20)*4"
+                          }
                           value={
                             proceso.formula_tiempo || ""
                           }
@@ -4146,6 +4223,8 @@ export default function CotizadorTecnicoV2({
                           </div>
                         )}
                       </CampoConAyuda>
+                      {proceso.tipo_formula_tiempo !==
+                        "doblez_plegadora_neumatica" && (
                       <CampoConAyuda
                         etiqueta="Unidad fórmula"
                         ayuda="Unidad usada en la fórmula. Normalmente mm para alambre."
@@ -4178,6 +4257,7 @@ export default function CotizadorTecnicoV2({
                           <option value="m">m</option>
                         </select>
                       </CampoConAyuda>
+                      )}
                     </>
                   )}
                   {esFormulaSoldaduraMig && [
@@ -4273,6 +4353,8 @@ export default function CotizadorTecnicoV2({
                         }]
                       : []),
                     ...(proceso.tipo_formula_tiempo ===
+                    "doblez_plegadora_neumatica" ||
+                    proceso.tipo_formula_tiempo ===
                     "corte_prensa" ||
                     proceso.tipo_formula_tiempo ===
                       "laser_metros_minuto" ||
@@ -4284,14 +4366,18 @@ export default function CotizadorTecnicoV2({
                           etiqueta: "Seg/m avance"
                         }]),
                     ...(proceso.tipo_formula_tiempo ===
-                    "doblez_cnc_3d"
+                    "doblez_cnc_3d" ||
+                    proceso.tipo_formula_tiempo ===
+                    "doblez_plegadora_neumatica"
                       ? [{
                           clave: "segundos_por_doblez",
                           etiqueta: "Seg/doblez"
                         }]
                       : []),
                     ...(proceso.tipo_formula_tiempo ===
-                    "soldadura_mig"
+                    "soldadura_mig" ||
+                    proceso.tipo_formula_tiempo ===
+                    "doblez_plegadora_neumatica"
                       ? []
                       : [{
                           clave: "segundos_por_corte",
@@ -4366,6 +4452,9 @@ export default function CotizadorTecnicoV2({
                     }}>
                       {proceso.formula_tiempo
                         ? proceso.tipo_formula_tiempo ===
+                          "doblez_plegadora_neumatica"
+                          ? `${proceso.segundos_por_producto || 0} seg/exhibidor | ${proceso.unidades_por_hora || 0} exhibidores/h | ${proceso.dobleces_total || 0} dobleces | ${proceso.segundos_por_doblez || 36} seg/doblez`
+                          : proceso.tipo_formula_tiempo ===
                           "corte_prensa"
                           ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | Golpes por producto: ${proceso.golpes_calculados || proceso.cortes_calculados || 0}${proceso.formula_material_codigo ? ` | Desde material: ${proceso.formula_material_codigo}` : ""}`
                           : proceso.tipo_formula_tiempo ===

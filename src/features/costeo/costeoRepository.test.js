@@ -329,6 +329,24 @@ describe("costeoRepository", () => {
     });
   });
 
+  it("calcula tiempo de Plegadora Neumática desde dobleces por exhibidor", () => {
+    const resultado = analizarFormulaProceso({
+      tipoFormula: "doblez_plegadora_neumatica",
+      expresion: "5",
+      segundosPorDoblez: 36
+    });
+
+    expect(resultado).toMatchObject({
+      valido: true,
+      segundos_por_producto: 180,
+      unidades_por_hora: 20,
+      dobleces_total: 5,
+      detalle_tiempo: {
+        dobleces: 180
+      }
+    });
+  });
+
   it("calcula tiempo de Corte CNC Recto desde formula de cortes", () => {
     const resultado = analizarFormulaProceso({
       tipoFormula: "corte_cnc_recto",
