@@ -165,6 +165,20 @@ export const prepararCotizacionTecnica = (
         Math.round(numero(material.caja_unidades)),
         1
       ),
+      pallet_cajas: Math.max(
+        Math.round(numero(material.pallet_cajas)),
+        1
+      ),
+      pallet_largo_mm:
+        numero(material.pallet_largo_mm) || 1200,
+      pallet_ancho_mm:
+        numero(material.pallet_ancho_mm) || 1000,
+      pallet_peso_kg:
+        numero(material.pallet_peso_kg) || 20,
+      pallets_adicionales: Math.max(
+        Math.round(numero(material.pallets_adicionales)),
+        0
+      ),
       costo_origen: limpiarTexto(material.costo_origen),
       minimo_compra: numero(material.minimo_compra),
       politica_minimo_compra:
@@ -362,6 +376,8 @@ export const prepararCotizacionTecnica = (
       capacidad_camion_kg: numero(
         datos.capacidad_camion_kg
       ),
+      posiciones_pallet_camion:
+        numero(datos.posiciones_pallet_camion) || 26,
       flete_internacional: numero(
         datos.flete_internacional
       ),
@@ -642,6 +658,9 @@ export const aFormularioCotizacionTecnica = (
   capacidad_camion_kg:
     cotizacion.supuestos?.exportacion
       ?.capacidad_camion_kg ?? 25000,
+  posiciones_pallet_camion:
+    cotizacion.supuestos?.exportacion
+      ?.posiciones_pallet_camion ?? 26,
   flete_internacional:
     cotizacion.supuestos?.exportacion
       ?.flete_internacional ?? 0,

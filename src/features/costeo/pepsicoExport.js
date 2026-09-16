@@ -112,7 +112,14 @@ export const inferirCategoriaPepsico = material => {
   if (texto.includes("cabezote") || texto.includes("header")) return "cabezote";
   if (texto.includes("lateral") || texto.includes("pai")) return "laterales";
   if (texto.includes("cenefa")) return "cenefas";
-  if (texto.includes("empaque") || texto.includes("caja") || texto.includes("embalaje")) return "empaque";
+  if (
+    texto.includes("empaque") ||
+    texto.includes("caja") ||
+    texto.includes("embalaje") ||
+    texto.includes("pallet") ||
+    texto.includes("sum0016") ||
+    texto.includes("sum0038")
+  ) return "empaque";
   if (texto.includes("lamina") || texto.includes("plancha") || texto.includes("laf")) return "lamina";
   if ((material?.tipo_linea || "material") === "suministro") return "accesorios";
   return "";

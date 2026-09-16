@@ -32,7 +32,8 @@ import {
   calcularCotizacionTecnica,
   CONSUMO_TINTA_UV_CMYK_ML_M2,
   TIPOS_LECTURA_CONSUMO,
-  TIPO_FORMULA_CAJA_CORRUGADA
+  TIPO_FORMULA_CAJA_CORRUGADA,
+  TIPO_FORMULA_PALLET
 } from "./costeoCalculos";
 import {
   ESTADOS_COTIZACION,
@@ -256,6 +257,7 @@ const estadoInicial = {
   factor_estiba: 1,
   capacidad_camion_m3: 90,
   capacidad_camion_kg: 25000,
+  posiciones_pallet_camion: 26,
   flete_internacional: 0,
   costo_ltl_m3: 0,
   costo_ltl_minimo: 0,
@@ -377,6 +379,11 @@ const materialVacio = {
   caja_alto_mm: 0,
   caja_pestana_mm: 40,
   caja_unidades: 1,
+  pallet_cajas: 1,
+  pallet_largo_mm: 1200,
+  pallet_ancho_mm: 1000,
+  pallet_peso_kg: 20,
+  pallets_adicionales: 0,
   proveedor_id: "",
   proveedor_codigo: "",
   proveedor: "",
@@ -397,6 +404,13 @@ const esMaterialCajaCorrugada = material => {
     texto.includes("mp0048") ||
     texto.includes("carton corrugado 20c")
   );
+};
+
+const esSuministroPallet = material => {
+  const texto = normalizarComparacion(
+    `${material?.codigo || ""} ${material?.nombre || ""}`
+  );
+  return texto.includes("sum0016") || texto.includes("sum0038");
 };
 
 const obtenerTipoLecturaConsumoMaterial = material => {
@@ -1762,6 +1776,8 @@ export default function CotizadorTecnicoV2({
             formulario.capacidad_camion_m3,
           capacidad_camion_kg:
             formulario.capacidad_camion_kg,
+          posiciones_pallet_camion:
+            formulario.posiciones_pallet_camion,
           flete_internacional:
             formulario.flete_internacional,
           costo_ltl_m3: formulario.costo_ltl_m3,
@@ -1820,6 +1836,8 @@ export default function CotizadorTecnicoV2({
               formulario.capacidad_camion_m3,
             capacidad_camion_kg:
               formulario.capacidad_camion_kg,
+            posiciones_pallet_camion:
+              formulario.posiciones_pallet_camion,
             seguro_porcentaje:
               formulario.seguro_porcentaje,
             seguro_sobre_porcentaje:
@@ -1943,6 +1961,12 @@ export default function CotizadorTecnicoV2({
               formulario.pais_destino === destino.pais &&
               (formulario.incoterm || "EXW").toUpperCase() !==
                 "EXW";
+            const cajaLogistica = formulario.materiales.find(
+              esMaterialCajaCorrugada
+            );
+            const palletLogistico = formulario.materiales.find(
+              esSuministroPallet
+            );
             const exportacionDestino = {
               incoterm: "CIP",
               modalidad_carga:
@@ -1957,6 +1981,28 @@ export default function CotizadorTecnicoV2({
                 formulario.capacidad_camion_m3,
               capacidad_camion_kg:
                 formulario.capacidad_camion_kg,
+              posiciones_pallet_camion:
+                formulario.posiciones_pallet_camion,
+              ...(cajaLogistica
+                ? {
+                    unidades_por_caja:
+                      cajaLogistica.caja_unidades,
+                    largo_caja_cm:
+                      Number(cajaLogistica.caja_largo_mm) / 10,
+                    ancho_caja_cm:
+                      Number(cajaLogistica.caja_ancho_mm) / 10,
+                    alto_caja_cm:
+                      Number(cajaLogistica.caja_alto_mm) / 10
+                  }
+                : {}),
+              ...(palletLogistico
+                ? {
+                    cajas_por_pallet:
+                      palletLogistico.pallet_cajas,
+                    pallets_adicionales:
+                      palletLogistico.pallets_adicionales
+                  }
+                : {}),
               seguro_porcentaje:
                 formulario.seguro_porcentaje,
               seguro_sobre_porcentaje:
@@ -2358,6 +2404,7 @@ export default function CotizadorTecnicoV2({
     const esCajaCorrugada = esMaterialCajaCorrugada(
       material
     );
+    const esPallet = esSuministroPallet(material);
 
     return {
       tipo_linea:
@@ -2376,6 +2423,14 @@ export default function CotizadorTecnicoV2({
       unidad_expresion_consumo:
         materialActual?.unidad_expresion_consumo ||
         "mm",
+      consumo_unitario: esPallet
+        ? 1
+        : mismoMaterialActual
+          ? materialActual?.consumo_unitario || 1
+          : 1,
+      merma_porcentaje: mismoMaterialActual
+        ? materialActual?.merma_porcentaje ?? 5
+        : 5,
       piezas_calculadas:
         materialActual?.piezas_calculadas || 0,
       cortes_calculados:
@@ -2411,7 +2466,7 @@ export default function CotizadorTecnicoV2({
           : 0) ||
         0,
       peso_kg_por_unidad:
-        material?.peso_kg_por_unidad ||
+        (esPallet ? 20 : material?.peso_kg_por_unidad) ||
         materialCosto?.peso_kg_por_unidad ||
         (mismoMaterialActual
           ? materialActual?.peso_kg_por_unidad
@@ -2419,6 +2474,8 @@ export default function CotizadorTecnicoV2({
         0,
       tipo_formula_consumo: esCajaCorrugada
         ? TIPO_FORMULA_CAJA_CORRUGADA
+        : esPallet
+          ? TIPO_FORMULA_PALLET
         : mismoMaterialActual
           ? materialActual?.tipo_formula_consumo || ""
           : "",
@@ -2458,6 +2515,21 @@ export default function CotizadorTecnicoV2({
       caja_unidades: mismoMaterialActual
         ? materialActual?.caja_unidades || 1
         : 1,
+      pallet_cajas: mismoMaterialActual
+        ? materialActual?.pallet_cajas || 1
+        : 1,
+      pallet_largo_mm: mismoMaterialActual
+        ? materialActual?.pallet_largo_mm || 1200
+        : 1200,
+      pallet_ancho_mm: mismoMaterialActual
+        ? materialActual?.pallet_ancho_mm || 1000
+        : 1000,
+      pallet_peso_kg: mismoMaterialActual
+        ? materialActual?.pallet_peso_kg || 20
+        : 20,
+      pallets_adicionales: mismoMaterialActual
+        ? materialActual?.pallets_adicionales || 0
+        : 0,
       minimo_compra:
         minimoCompra ||
         (mismoMaterialActual
@@ -2997,6 +3069,9 @@ export default function CotizadorTecnicoV2({
           const esCajaCorrugada =
             tipoLinea === "material" &&
             esMaterialCajaCorrugada(material);
+          const esPallet =
+            tipoLinea === "suministro" &&
+            esSuministroPallet(material);
           const lecturaCaja = esCajaCorrugada
             ? calcularCajaCorrugada({
                 largo_mm: material.caja_largo_mm,
@@ -3036,6 +3111,37 @@ export default function CotizadorTecnicoV2({
                     calculo.consumo_unitario_referencial_m2,
                   area_m2_por_producto:
                     calculo.consumo_unitario_referencial_m2,
+                  politica_minimo_compra: "consumo_real"
+                }
+              )
+            });
+          };
+          const actualizarPallet = cambios => {
+            const actualizado = { ...material, ...cambios };
+            const cajasPorPallet = Math.max(
+              Number(actualizado.pallet_cajas) || 1,
+              1
+            );
+            const caja = formulario.materiales.find(
+              esMaterialCajaCorrugada
+            );
+            const unidadesPorCaja = Math.max(
+              Number(caja?.caja_unidades) || 1,
+              1
+            );
+            actualizar({
+              materiales: actualizarItem(
+                formulario.materiales,
+                indice,
+                {
+                  ...cambios,
+                  unidad: "un",
+                  tipo_formula_consumo:
+                    TIPO_FORMULA_PALLET,
+                  consumo_unitario:
+                    1 / (unidadesPorCaja * cajasPorPallet),
+                  peso_kg_por_unidad:
+                    Number(actualizado.pallet_peso_kg) || 0,
                   politica_minimo_compra: "consumo_real"
                 }
               )
@@ -3293,6 +3399,64 @@ export default function CotizadorTecnicoV2({
                 </CampoConAyuda>
               </>
             )}
+            {esPallet && (
+              <div style={{
+                gridColumn: "1 / -1",
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(170px, 1fr))",
+                gap: 10,
+                padding: 12,
+                borderRadius: 12,
+                background: "#F0FDF4",
+                border: "1px solid #86EFAC"
+              }}>
+                {[
+                  ["pallet_cajas", "Cajas por pallet", 1],
+                  ["pallet_largo_mm", "Largo pallet (mm)", 1],
+                  ["pallet_ancho_mm", "Ancho pallet (mm)", 1],
+                  ["pallet_peso_kg", "Peso pallet vacío (kg)", 0],
+                  ["pallets_adicionales", "Pallets adicionales", 0]
+                ].map(([clave, etiqueta, minimo]) => (
+                  <CampoConAyuda
+                    key={clave}
+                    etiqueta={etiqueta}
+                    ayuda={clave === "pallet_cajas"
+                      ? "Cantidad máxima de cajas master que se cargan en un pallet."
+                      : "Dato logístico editable para calcular costo, peso y transporte."}
+                  >
+                    <input
+                      style={campo}
+                      type="number"
+                      min={minimo}
+                      step="1"
+                      value={material[clave] ?? ({
+                        pallet_cajas: 1,
+                        pallet_largo_mm: 1200,
+                        pallet_ancho_mm: 1000,
+                        pallet_peso_kg: 20,
+                        pallets_adicionales: 0
+                      }[clave])}
+                      onChange={e => actualizarPallet({
+                        [clave]: e.target.value
+                      })}
+                    />
+                  </CampoConAyuda>
+                ))}
+                <div style={{
+                  ...campo,
+                  background: "white",
+                  color: "#166534",
+                  fontWeight: "bold",
+                  lineHeight: 1.5
+                }}>
+                  Base: {material.pallet_largo_mm || 1200} ×{" "}
+                  {material.pallet_ancho_mm || 1000} mm<br />
+                  Peso vacío: {material.pallet_peso_kg ?? 20} kg<br />
+                  El número de pallets se calcula por cada escala.
+                </div>
+              </div>
+            )}
             {tipoLinea === "material" && (
               <>
                 {esCajaCorrugada && (
@@ -3473,6 +3637,15 @@ export default function CotizadorTecnicoV2({
                   esCajaCorrugada &&
                   ["unidad", "consumo_unitario", "minimo_compra"]
                     .includes(campoConfig.clave)
+                ) &&
+                !(
+                  esPallet &&
+                  [
+                    "unidad",
+                    "consumo_unitario",
+                    "minimo_compra",
+                    "peso_kg_por_unidad"
+                  ].includes(campoConfig.clave)
                 )
             ).map(campoConfig => (
               <CampoConAyuda
@@ -4556,6 +4729,12 @@ export default function CotizadorTecnicoV2({
                   etiqueta: "Capacidad camión kg",
                   ayuda:
                     "Referencia útil: 25.000 a 27.000 kg. Evita que el sistema mire solo volumen."
+                },
+                {
+                  clave: "posiciones_pallet_camion",
+                  etiqueta: "Posiciones pallet/camión",
+                  ayuda:
+                    "Cantidad de pallets que caben físicamente. Valor inicial: 26; ajústalo al vehículo cotizado."
                 },
                 {
                   clave: "flete_internacional",
@@ -6044,6 +6223,17 @@ export default function CotizadorTecnicoV2({
                       textoBase:
                         "volumen total de la escala"
                     },
+                    ...(logisticaBase.pallets_necesarios > 0
+                      ? [{
+                          titulo: "Pallets",
+                          valor:
+                            logisticaBase.pallets_necesarios,
+                          porcentaje: 0,
+                          color: "#166534",
+                          unidad: "texto",
+                          textoBase: `${logisticaBase.cajas || 0} cajas · ${logisticaBase.cajas_por_pallet || 0} cajas/pallet`
+                        }]
+                      : []),
                     {
                       titulo: "Ocupación camión",
                       valor:

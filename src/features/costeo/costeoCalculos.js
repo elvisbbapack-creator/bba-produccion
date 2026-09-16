@@ -48,6 +48,20 @@ export const calcularLogisticaExportacion = ({
   const cajas = unidadesPorCaja > 0
     ? Math.ceil(cantidadPedido / unidadesPorCaja)
     : 0;
+  const cajasPorPallet = Math.max(
+    Math.round(numero(exportacion.cajas_por_pallet)),
+    0
+  );
+  const palletsBase = cajasPorPallet > 0
+    ? Math.ceil(cajas / cajasPorPallet)
+    : 0;
+  const palletsAdicionales = Math.max(
+    Math.round(numero(exportacion.pallets_adicionales)),
+    0
+  );
+  const pallets = palletsBase > 0
+    ? palletsBase + palletsAdicionales
+    : 0;
   const volumenTotalM3 = volumenCajaM3 * cajas;
   const pesoTotalKg =
     numero(pesoUnitarioKg) * cantidadPedido;
@@ -65,9 +79,18 @@ export const calcularLogisticaExportacion = ({
   const camionesPorPeso = Math.ceil(
     pesoTotalKg / capacidadCamionKg
   );
+  const posicionesPalletCamion = Math.max(
+    Math.round(numero(exportacion.posiciones_pallet_camion)),
+    0
+  );
+  const camionesPorPallet =
+    pallets > 0 && posicionesPalletCamion > 0
+      ? Math.ceil(pallets / posicionesPalletCamion)
+      : 0;
   const camionesNecesarios = Math.max(
     camionesPorVolumen,
     camionesPorPeso,
+    camionesPorPallet,
     INCOTERMS_CON_FLETE.has(incoterm) ? 1 : 0
   );
   const ocupacionVolumenPct =
@@ -147,6 +170,12 @@ export const calcularLogisticaExportacion = ({
   return {
     incoterm,
     cajas,
+    cajas_por_pallet: cajasPorPallet,
+    pallets_necesarios: pallets,
+    posiciones_pallet_camion: posicionesPalletCamion,
+    camiones_por_pallet: camionesPorPallet,
+    camiones_por_volumen: camionesPorVolumen,
+    camiones_por_peso: camionesPorPeso,
     volumen_caja_m3: redondear(volumenCajaM3, 4),
     volumen_total_m3: redondear(volumenTotalM3, 4),
     peso_total_kg: redondear(pesoTotalKg, 4),
@@ -1404,6 +1433,26 @@ export const prepararEscalas = valor => {
 
 export const TIPO_FORMULA_CAJA_CORRUGADA =
   "caja_corrugada_m2";
+export const TIPO_FORMULA_PALLET = "pallet_por_cajas";
+
+const normalizarCodigoMaterial = material =>
+  `${material?.codigo || ""} ${material?.nombre || ""}`
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const esCajaCorrugada = material =>
+  material?.tipo_formula_consumo ===
+    TIPO_FORMULA_CAJA_CORRUGADA ||
+  normalizarCodigoMaterial(material).includes("mp0048");
+
+const esPallet = material => {
+  const texto = normalizarCodigoMaterial(material);
+  return material?.tipo_formula_consumo ===
+    TIPO_FORMULA_PALLET ||
+    texto.includes("sum0016") ||
+    texto.includes("sum0038");
+};
 
 export const calcularCajaCorrugada = ({
   largo_mm = 0,
@@ -1465,12 +1514,13 @@ export const calcularCajaCorrugada = ({
   };
 };
 
-const calcularUsoMaterial = (material, cantidad) => {
+const calcularUsoMaterial = (
+  material,
+  cantidad,
+  materiales = []
+) => {
   const merma = numero(material.merma_porcentaje) / 100;
-  if (
-    material.tipo_formula_consumo ===
-    TIPO_FORMULA_CAJA_CORRUGADA
-  ) {
+  if (esCajaCorrugada(material)) {
     const caja = calcularCajaCorrugada({
       largo_mm: material.caja_largo_mm,
       ancho_mm: material.caja_ancho_mm,
@@ -1488,6 +1538,42 @@ const calcularUsoMaterial = (material, cantidad) => {
       caja
     };
   }
+  if (esPallet(material)) {
+    const cajaMaterial = materiales.find(esCajaCorrugada);
+    const unidadesPorCaja = Math.max(
+      Math.round(numero(cajaMaterial?.caja_unidades)),
+      1
+    );
+    const cajas = Math.ceil(
+      Math.max(numero(cantidad), 0) / unidadesPorCaja
+    );
+    const cajasPorPallet = Math.max(
+      Math.round(numero(material.pallet_cajas)),
+      1
+    );
+    const palletsBase = cajas > 0
+      ? Math.ceil(cajas / cajasPorPallet)
+      : 0;
+    const palletsAdicionales = Math.max(
+      Math.round(numero(material.pallets_adicionales)),
+      0
+    );
+    const pallets = palletsBase > 0
+      ? palletsBase + palletsAdicionales
+      : 0;
+    return {
+      consumo: 1 / (unidadesPorCaja * cajasPorPallet),
+      requerido: pallets,
+      compra: pallets,
+      caja: null,
+      pallet: {
+        cajas_necesarias: cajas,
+        cajas_por_pallet: cajasPorPallet,
+        pallets_necesarios: pallets,
+        pallets_adicionales: palletsAdicionales
+      }
+    };
+  }
 
   const consumo = numero(material.consumo_unitario);
   const minimoCompra = numero(material.minimo_compra);
@@ -1496,7 +1582,13 @@ const calcularUsoMaterial = (material, cantidad) => {
     material.politica_minimo_compra === "consumo_real"
       ? requerido
       : Math.max(requerido, minimoCompra);
-  return { consumo, requerido, compra, caja: null };
+  return {
+    consumo,
+    requerido,
+    compra,
+    caja: null,
+    pallet: null
+  };
 };
 
 export const calcularCostoMateriales = (
@@ -1507,7 +1599,8 @@ export const calcularCostoMateriales = (
     const precio = numero(material.costo_unitario);
     const { compra } = calcularUsoMaterial(
       material,
-      cantidad
+      cantidad,
+      materiales
     );
 
     return total + compra * precio;
@@ -1519,17 +1612,20 @@ export const calcularDetalleMaterialesCotizacion = (
 ) =>
   materiales.map(material => {
     const precio = numero(material.costo_unitario);
-    const pesoKgPorUnidad = numero(
-      material.peso_kg_por_unidad
-    );
+    const pesoKgPorUnidad = esPallet(material)
+      ? numero(material.pallet_peso_kg) || 20
+      : numero(material.peso_kg_por_unidad);
     const {
       consumo,
       requerido,
       compra,
-      caja
-    } = calcularUsoMaterial(material, cantidad);
+      caja,
+      pallet
+    } = calcularUsoMaterial(material, cantidad, materiales);
     const costo = compra * precio;
-    const pesoNeto = (caja
+    const pesoNeto = (pallet
+      ? compra
+      : caja
       ? caja.area_sin_merma_m2
       : consumo * cantidad) * pesoKgPorUnidad;
     const pesoConMerma = requerido * pesoKgPorUnidad;
@@ -1579,6 +1675,7 @@ export const calcularDetalleMaterialesCotizacion = (
         6
       ),
       caja_corrugada: caja,
+      pallet,
       politica_minimo_compra:
         material.politica_minimo_compra ||
         "cobrar_minimo"
@@ -1775,6 +1872,32 @@ export const calcularCotizacionTecnica = ({
     : 0;
   const horasDia =
     Math.max(numero(horas_disponibles_dia), 1);
+  const materialCaja = materiales.find(esCajaCorrugada);
+  const materialPallet = materiales.find(esPallet);
+  const exportacionIntegrada = {
+    ...exportacion,
+    ...(materialCaja
+      ? {
+          unidades_por_caja: materialCaja.caja_unidades,
+          largo_caja_cm:
+            numero(materialCaja.caja_largo_mm) / 10,
+          ancho_caja_cm:
+            numero(materialCaja.caja_ancho_mm) / 10,
+          alto_caja_cm:
+            numero(materialCaja.caja_alto_mm) / 10
+        }
+      : {}),
+    ...(materialPallet
+      ? {
+          cajas_por_pallet: materialPallet.pallet_cajas,
+          pallets_adicionales:
+            materialPallet.pallets_adicionales,
+          largo_pallet_mm: materialPallet.pallet_largo_mm,
+          ancho_pallet_mm: materialPallet.pallet_ancho_mm,
+          peso_pallet_kg: materialPallet.pallet_peso_kg
+        }
+      : {})
+  };
 
   return escalasPreparadas.map(cantidad => {
     const costoMaterialesBase = calcularCostoMateriales(
@@ -1803,18 +1926,20 @@ export const calcularCotizacionTecnica = ({
       detalleMaterialesBase.map(convertirDetalle);
     const detalleMaterialesUnidad =
       detalleMaterialesUnidadBase.map(convertirDetalle);
-    const pesoUnitarioKg =
-      detalleMaterialesUnidad.reduce(
+    const pesoUnitarioKg = cantidad > 0
+      ? detalleMateriales.reduce(
         (total, detalle) =>
           total + numero(detalle.peso_material_kg),
         0
-      );
-    const pesoUnitarioRequeridoKg =
-      detalleMaterialesUnidad.reduce(
+      ) / cantidad
+      : 0;
+    const pesoUnitarioRequeridoKg = cantidad > 0
+      ? detalleMateriales.reduce(
         (total, detalle) =>
           total + numero(detalle.peso_requerido_kg),
         0
-      );
+      ) / cantidad
+      : 0;
     const costoProcesosBase = calcularCostoProcesos(
       procesos,
       cantidad
@@ -1876,7 +2001,7 @@ export const calcularCotizacionTecnica = ({
     const logisticaExportacion =
       calcularLogisticaExportacion({
         exportacion: {
-          ...exportacion,
+          ...exportacionIntegrada,
           incoterm
         },
         cantidad,
@@ -1885,18 +2010,10 @@ export const calcularCotizacionTecnica = ({
       });
     const costoExportacionBase =
       logisticaExportacion.costo_exportacion;
-    const costoTotalCip =
-      costoTotal + costoExportacionBase;
-    const costoUnitarioCip =
-      costoTotalCip / cantidad;
-    const precioUnitarioCip =
-      tipo_margen === "markup"
-        ? costoUnitarioCip * (1 + margen)
-        : margen >= 1
-          ? costoUnitarioCip
-          : costoUnitarioCip / (1 - margen);
-    const precioTotalCip =
-      precioUnitarioCip * cantidad;
+    const costoTotalCip = costoTotal + costoExportacionBase;
+    const costoUnitarioCip = costoTotalCip / cantidad;
+    const precioTotalCip = precioTotal + costoExportacionBase;
+    const precioUnitarioCip = precioTotalCip / cantidad;
     const utilidad =
       precioTotal - costoTotal;
     const utilidadCip =

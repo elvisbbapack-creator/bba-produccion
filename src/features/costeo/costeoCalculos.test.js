@@ -5,9 +5,11 @@ import {
   calcularConsumoTintaUvCmykDesdePlancha,
   calcularCostoMateriales,
   calcularCotizacionTecnica,
+  calcularLogisticaExportacion,
   prepararEscalas,
   TIPOS_LECTURA_CONSUMO,
-  TIPO_FORMULA_CAJA_CORRUGADA
+  TIPO_FORMULA_CAJA_CORRUGADA,
+  TIPO_FORMULA_PALLET
 } from "./costeoCalculos";
 import {
   esEstacionSoldaduraMig
@@ -62,6 +64,61 @@ test("cobra cajas completas según la cantidad cotizada", () => {
   expect(
     calcularCostoMateriales([material], 101)
   ).toBeCloseTo(6272.64, 2);
+});
+
+test("calcula pallets completos desde las cajas requeridas", () => {
+  const materiales = [
+    {
+      codigo: "MP0048",
+      tipo_formula_consumo: TIPO_FORMULA_CAJA_CORRUGADA,
+      caja_largo_mm: 400,
+      caja_ancho_mm: 300,
+      caja_alto_mm: 250,
+      caja_unidades: 10,
+      costo_unitario: 0
+    },
+    {
+      codigo: "SUM0016",
+      tipo_formula_consumo: TIPO_FORMULA_PALLET,
+      pallet_cajas: 12,
+      pallet_largo_mm: 1200,
+      pallet_ancho_mm: 1000,
+      pallet_peso_kg: 20,
+      pallets_adicionales: 0,
+      costo_unitario: 15000
+    }
+  ];
+
+  // 1.770 productos / 10 = 177 cajas; 177 / 12 = 15 pallets.
+  expect(calcularCostoMateriales(materiales, 1770)).toBe(225000);
+});
+
+test("limita los camiones por posiciones de pallet", () => {
+  const logistica = calcularLogisticaExportacion({
+    cantidad: 1770,
+    exportacion: {
+      incoterm: "CIP",
+      modalidad_carga: "ftl",
+      unidades_por_caja: 10,
+      largo_caja_cm: 40,
+      ancho_caja_cm: 30,
+      alto_caja_cm: 25,
+      cajas_por_pallet: 12,
+      posiciones_pallet_camion: 10,
+      capacidad_camion_m3: 90,
+      capacidad_camion_kg: 25000,
+      flete_internacional: 1000
+    },
+    pesoUnitarioKg: 1
+  });
+
+  expect(logistica).toMatchObject({
+    cajas: 177,
+    pallets_necesarios: 15,
+    camiones_por_pallet: 2,
+    camiones_necesarios: 2,
+    flete_internacional: 2000
+  });
 });
 
 test("calcula consumo de tinta UV CMYK desde area de plancha PAI", () => {
@@ -235,8 +292,8 @@ test("calcula precio Incoterm con logística FTL, seguro porcentual y gastos", (
     costo_exportacion_unitario: 700,
     costo_total_cip: 170000,
     costo_unitario_cip: 1700,
-    precio_unitario_cip_sugerido: 2125,
-    precio_total_cip_sugerido: 212500,
+    precio_unitario_cip_sugerido: 1950,
+    precio_total_cip_sugerido: 195000,
     lead_time_flujo_dias: 2,
     lead_time_cip_dias: 9
   });
