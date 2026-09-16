@@ -1,10 +1,13 @@
 import {
   analizarExpresionConsumoMaterial,
   analizarFormulaProceso,
+  calcularCajaCorrugada,
   calcularConsumoTintaUvCmykDesdePlancha,
+  calcularCostoMateriales,
   calcularCotizacionTecnica,
   prepararEscalas,
-  TIPOS_LECTURA_CONSUMO
+  TIPOS_LECTURA_CONSUMO,
+  TIPO_FORMULA_CAJA_CORRUGADA
 } from "./costeoCalculos";
 import {
   esEstacionSoldaduraMig
@@ -14,6 +17,51 @@ test("normaliza escalas de cotizacion", () => {
   expect(
     prepararEscalas("100, 50, 50, abc, 10")
   ).toEqual([10, 50, 100]);
+});
+
+test("calcula el desarrollo y costo de una caja corrugada", () => {
+  const resultado = calcularCajaCorrugada({
+    largo_mm: 400,
+    ancho_mm: 300,
+    alto_mm: 250,
+    pestana_mm: 40,
+    unidades_por_caja: 10,
+    cantidad: 105,
+    costo_m2: 720
+  });
+
+  expect(resultado).toMatchObject({
+    desarrollo_horizontal_mm: 1440,
+    desarrollo_vertical_mm: 550,
+    area_caja_m2: 0.792,
+    unidades_por_caja: 10,
+    cajas_necesarias: 11,
+    area_total_m2: 8.712,
+    consumo_unitario_referencial_m2: 0.0792,
+    costo_caja: 570.24,
+    costo_total: 6272.64,
+    costo_efectivo_producto: 59.74
+  });
+});
+
+test("cobra cajas completas según la cantidad cotizada", () => {
+  const material = {
+    tipo_formula_consumo: TIPO_FORMULA_CAJA_CORRUGADA,
+    caja_largo_mm: 400,
+    caja_ancho_mm: 300,
+    caja_alto_mm: 250,
+    caja_pestana_mm: 40,
+    caja_unidades: 10,
+    costo_unitario: 720,
+    merma_porcentaje: 0
+  };
+
+  expect(calcularCostoMateriales([material], 100)).toBe(
+    5702.4
+  );
+  expect(
+    calcularCostoMateriales([material], 101)
+  ).toBeCloseTo(6272.64, 2);
 });
 
 test("calcula consumo de tinta UV CMYK desde area de plancha PAI", () => {

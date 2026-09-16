@@ -27,10 +27,12 @@ import {
   analizarExpresionConsumoMaterial,
   analizarFormulaProceso,
   calcularLogisticaExportacion,
+  calcularCajaCorrugada,
   calcularConsumoTintaUvCmykDesdePlancha,
   calcularCotizacionTecnica,
   CONSUMO_TINTA_UV_CMYK_ML_M2,
-  TIPOS_LECTURA_CONSUMO
+  TIPOS_LECTURA_CONSUMO,
+  TIPO_FORMULA_CAJA_CORRUGADA
 } from "./costeoCalculos";
 import {
   ESTADOS_COTIZACION,
@@ -370,6 +372,11 @@ const materialVacio = {
   area_m2_por_producto: 0,
   consumo_tinta_ml_por_m2: 0,
   consumo_tinta_ml_total: 0,
+  caja_largo_mm: 0,
+  caja_ancho_mm: 0,
+  caja_alto_mm: 0,
+  caja_pestana_mm: 40,
+  caja_unidades: 1,
   proveedor_id: "",
   proveedor_codigo: "",
   proveedor: "",
@@ -381,6 +388,16 @@ const crearLineaMaterial = tipoLinea => ({
   ...materialVacio,
   tipo_linea: tipoLinea
 });
+
+const esMaterialCajaCorrugada = material => {
+  const texto = normalizarComparacion(
+    `${material?.codigo || ""} ${material?.nombre || ""}`
+  );
+  return (
+    texto.includes("mp0048") ||
+    texto.includes("carton corrugado 20c")
+  );
+};
 
 const obtenerTipoLecturaConsumoMaterial = material => {
   const texto = normalizarComparacion(
@@ -2338,6 +2355,9 @@ export default function CotizadorTecnicoV2({
         proveedor.codigo === proveedorCodigo ||
         proveedor.nombre === proveedorNombre
     );
+    const esCajaCorrugada = esMaterialCajaCorrugada(
+      material
+    );
 
     return {
       tipo_linea:
@@ -2348,7 +2368,7 @@ export default function CotizadorTecnicoV2({
       codigo: material?.codigo || "",
       nombre: material?.nombre || "",
       unidad:
-        material?.unidad_medida ||
+        (esCajaCorrugada ? "m2" : material?.unidad_medida) ||
         materialActual?.unidad ||
         "un",
       expresion_consumo:
@@ -2397,9 +2417,11 @@ export default function CotizadorTecnicoV2({
           ? materialActual?.peso_kg_por_unidad
           : 0) ||
         0,
-      tipo_formula_consumo: mismoMaterialActual
-        ? materialActual?.tipo_formula_consumo || ""
-        : "",
+      tipo_formula_consumo: esCajaCorrugada
+        ? TIPO_FORMULA_CAJA_CORRUGADA
+        : mismoMaterialActual
+          ? materialActual?.tipo_formula_consumo || ""
+          : "",
       formula_material_indice: mismoMaterialActual
         ? materialActual?.formula_material_indice || ""
         : "",
@@ -2421,6 +2443,21 @@ export default function CotizadorTecnicoV2({
       consumo_tinta_ml_total: mismoMaterialActual
         ? materialActual?.consumo_tinta_ml_total || 0
         : 0,
+      caja_largo_mm: mismoMaterialActual
+        ? materialActual?.caja_largo_mm || 0
+        : 0,
+      caja_ancho_mm: mismoMaterialActual
+        ? materialActual?.caja_ancho_mm || 0
+        : 0,
+      caja_alto_mm: mismoMaterialActual
+        ? materialActual?.caja_alto_mm || 0
+        : 0,
+      caja_pestana_mm: mismoMaterialActual
+        ? materialActual?.caja_pestana_mm ?? 40
+        : 40,
+      caja_unidades: mismoMaterialActual
+        ? materialActual?.caja_unidades || 1
+        : 1,
       minimo_compra:
         minimoCompra ||
         (mismoMaterialActual
@@ -2957,6 +2994,53 @@ export default function CotizadorTecnicoV2({
           const esTintaUvCmyk =
             tipoLinea === "suministro" &&
             esSuministroTintaUvCmyk(material);
+          const esCajaCorrugada =
+            tipoLinea === "material" &&
+            esMaterialCajaCorrugada(material);
+          const lecturaCaja = esCajaCorrugada
+            ? calcularCajaCorrugada({
+                largo_mm: material.caja_largo_mm,
+                ancho_mm: material.caja_ancho_mm,
+                alto_mm: material.caja_alto_mm,
+                pestana_mm:
+                  material.caja_pestana_mm ?? 40,
+                unidades_por_caja:
+                  material.caja_unidades || 1,
+                cantidad: 1,
+                costo_m2: material.costo_unitario
+              })
+            : null;
+          const actualizarCaja = cambios => {
+            const actualizado = { ...material, ...cambios };
+            const calculo = calcularCajaCorrugada({
+              largo_mm: actualizado.caja_largo_mm,
+              ancho_mm: actualizado.caja_ancho_mm,
+              alto_mm: actualizado.caja_alto_mm,
+              pestana_mm:
+                actualizado.caja_pestana_mm ?? 40,
+              unidades_por_caja:
+                actualizado.caja_unidades || 1,
+              cantidad: 1,
+              costo_m2: actualizado.costo_unitario
+            });
+            actualizar({
+              materiales: actualizarItem(
+                formulario.materiales,
+                indice,
+                {
+                  ...cambios,
+                  unidad: "m2",
+                  tipo_formula_consumo:
+                    TIPO_FORMULA_CAJA_CORRUGADA,
+                  consumo_unitario:
+                    calculo.consumo_unitario_referencial_m2,
+                  area_m2_por_producto:
+                    calculo.consumo_unitario_referencial_m2,
+                  politica_minimo_compra: "consumo_real"
+                }
+              )
+            });
+          };
 
           return (
           <details
@@ -3211,7 +3295,64 @@ export default function CotizadorTecnicoV2({
             )}
             {tipoLinea === "material" && (
               <>
-                <CampoConAyuda
+                {esCajaCorrugada && (
+                  <div style={{
+                    gridColumn: "1 / -1",
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(170px, 1fr))",
+                    gap: 10,
+                    padding: 12,
+                    borderRadius: 12,
+                    background: "#FFF7ED",
+                    border: "1px solid #FDBA74"
+                  }}>
+                    {[
+                      ["caja_largo_mm", "Largo caja (mm)", 1],
+                      ["caja_ancho_mm", "Ancho caja (mm)", 1],
+                      ["caja_alto_mm", "Alto caja (mm)", 1],
+                      ["caja_pestana_mm", "Pestaña (mm)", 1],
+                      ["caja_unidades", "Unidades por caja", 1]
+                    ].map(([clave, etiqueta, minimo]) => (
+                      <CampoConAyuda
+                        key={clave}
+                        etiqueta={etiqueta}
+                        ayuda={clave === "caja_unidades"
+                          ? "Productos que caben dentro de una caja master."
+                          : "Medida tomada del plano en milímetros."}
+                      >
+                        <input
+                          style={campo}
+                          type="number"
+                          min={minimo}
+                          step="1"
+                          value={material[clave] || ""}
+                          onChange={e => actualizarCaja({
+                            [clave]: e.target.value
+                          })}
+                        />
+                      </CampoConAyuda>
+                    ))}
+                    <div style={{
+                      ...campo,
+                      background: "white",
+                      color: "#9A3412",
+                      fontWeight: "bold",
+                      lineHeight: 1.5
+                    }}>
+                      Desarrollo: {lecturaCaja.desarrollo_horizontal_mm} ×{" "}
+                      {lecturaCaja.desarrollo_vertical_mm} mm<br />
+                      Área por caja: {lecturaCaja.area_caja_m2} m²<br />
+                      Consumo referencial por producto:{" "}
+                      {lecturaCaja.consumo_unitario_referencial_m2} m²<br />
+                      Costo por caja: {formatoNumero(
+                        lecturaCaja.costo_caja,
+                        "CLP"
+                      )}
+                    </div>
+                  </div>
+                )}
+                {!esCajaCorrugada && <CampoConAyuda
                   etiqueta="Fórmula consumo"
                   ayuda={
                     lecturaFraccionaria
@@ -3264,8 +3405,8 @@ export default function CotizadorTecnicoV2({
                       {material.expresion_consumo_error}
                     </div>
                   )}
-                </CampoConAyuda>
-                <CampoConAyuda
+                </CampoConAyuda>}
+                {!esCajaCorrugada && <CampoConAyuda
                   etiqueta="Unidad fórmula"
                   ayuda="Unidad usada en la fórmula. Si el material está en metros, mm se convierte a m."
                 >
@@ -3297,8 +3438,8 @@ export default function CotizadorTecnicoV2({
                     <option value="m">m</option>
                     <option value="un">un</option>
                   </select>
-                </CampoConAyuda>
-                <CampoConAyuda
+                </CampoConAyuda>}
+                {!esCajaCorrugada && <CampoConAyuda
                   etiqueta="Lectura técnica"
                   ayuda="Resumen calculado desde la fórmula para validar rápido el supuesto."
                 >
@@ -3319,7 +3460,7 @@ export default function CotizadorTecnicoV2({
                         : `Cortes: ${lecturaMaterial.cortes_calculados || 0} | Cortes por subproducto: ${lecturaMaterial.cortes_por_subproducto || lecturaMaterial.cortes_calculados || 0} | Subproductos: ${lecturaMaterial.subproductos || 1} | Largo base: ${lecturaMaterial.longitud_por_pieza || 0} ${lecturaMaterial.unidad_expresion_consumo || "mm"}`
                       : "Sin fórmula"}
                   </div>
-                </CampoConAyuda>
+                </CampoConAyuda>}
               </>
             )}
             {CAMPOS_MATERIAL_ESTIMADO.filter(
@@ -3327,6 +3468,11 @@ export default function CotizadorTecnicoV2({
                 !(
                   campoConfig.clave === "proveedor" &&
                   material.proveedor_id
+                ) &&
+                !(
+                  esCajaCorrugada &&
+                  ["unidad", "consumo_unitario", "minimo_compra"]
+                    .includes(campoConfig.clave)
                 )
             ).map(campoConfig => (
               <CampoConAyuda

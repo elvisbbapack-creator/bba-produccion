@@ -155,6 +155,16 @@ export const prepararCotizacionTecnica = (
       consumo_tinta_ml_total: numero(
         material.consumo_tinta_ml_total
       ),
+      caja_largo_mm: numero(material.caja_largo_mm),
+      caja_ancho_mm: numero(material.caja_ancho_mm),
+      caja_alto_mm: numero(material.caja_alto_mm),
+      caja_pestana_mm: numero(
+        material.caja_pestana_mm ?? 40
+      ),
+      caja_unidades: Math.max(
+        Math.round(numero(material.caja_unidades)),
+        1
+      ),
       costo_origen: limpiarTexto(material.costo_origen),
       minimo_compra: numero(material.minimo_compra),
       politica_minimo_compra:

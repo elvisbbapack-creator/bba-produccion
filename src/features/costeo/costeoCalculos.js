@@ -1402,20 +1402,113 @@ export const prepararEscalas = valor => {
   ].sort((a, b) => a - b);
 };
 
+export const TIPO_FORMULA_CAJA_CORRUGADA =
+  "caja_corrugada_m2";
+
+export const calcularCajaCorrugada = ({
+  largo_mm = 0,
+  ancho_mm = 0,
+  alto_mm = 0,
+  pestana_mm = 40,
+  unidades_por_caja = 1,
+  cantidad = 1,
+  merma_porcentaje = 0,
+  costo_m2 = 0
+} = {}) => {
+  const largo = Math.max(numero(largo_mm), 0);
+  const ancho = Math.max(numero(ancho_mm), 0);
+  const alto = Math.max(numero(alto_mm), 0);
+  const pestana = Math.max(numero(pestana_mm), 0);
+  const unidadesCaja = Math.max(
+    Math.round(numero(unidades_por_caja)),
+    1
+  );
+  const productos = Math.max(Math.round(numero(cantidad)), 0);
+  const desarrolloHorizontal =
+    largo + ancho + largo + ancho + pestana;
+  const desarrolloVertical = alto + ancho;
+  const areaCajaM2 =
+    (desarrolloHorizontal * desarrolloVertical) / 1000000;
+  const cajasNecesarias = productos > 0
+    ? Math.ceil(productos / unidadesCaja)
+    : 0;
+  const areaSinMerma = areaCajaM2 * cajasNecesarias;
+  const areaTotalM2 =
+    areaSinMerma * (1 + numero(merma_porcentaje) / 100);
+  const costoTotal = areaTotalM2 * numero(costo_m2);
+
+  return {
+    desarrollo_horizontal_mm: redondear(
+      desarrolloHorizontal,
+      2
+    ),
+    desarrollo_vertical_mm: redondear(
+      desarrolloVertical,
+      2
+    ),
+    area_caja_m2: redondear(areaCajaM2, 6),
+    unidades_por_caja: unidadesCaja,
+    cajas_necesarias: cajasNecesarias,
+    area_sin_merma_m2: redondear(areaSinMerma, 6),
+    area_total_m2: redondear(areaTotalM2, 6),
+    consumo_unitario_referencial_m2: unidadesCaja > 0
+      ? redondear(areaCajaM2 / unidadesCaja, 6)
+      : 0,
+    costo_caja: redondear(
+      areaCajaM2 * numero(costo_m2),
+      2
+    ),
+    costo_total: redondear(costoTotal, 2),
+    costo_efectivo_producto: productos > 0
+      ? redondear(costoTotal / productos, 2)
+      : 0
+  };
+};
+
+const calcularUsoMaterial = (material, cantidad) => {
+  const merma = numero(material.merma_porcentaje) / 100;
+  if (
+    material.tipo_formula_consumo ===
+    TIPO_FORMULA_CAJA_CORRUGADA
+  ) {
+    const caja = calcularCajaCorrugada({
+      largo_mm: material.caja_largo_mm,
+      ancho_mm: material.caja_ancho_mm,
+      alto_mm: material.caja_alto_mm,
+      pestana_mm: material.caja_pestana_mm,
+      unidades_por_caja: material.caja_unidades,
+      cantidad,
+      merma_porcentaje: material.merma_porcentaje,
+      costo_m2: material.costo_unitario
+    });
+    return {
+      consumo: caja.consumo_unitario_referencial_m2,
+      requerido: caja.area_total_m2,
+      compra: caja.area_total_m2,
+      caja
+    };
+  }
+
+  const consumo = numero(material.consumo_unitario);
+  const minimoCompra = numero(material.minimo_compra);
+  const requerido = consumo * cantidad * (1 + merma);
+  const compra =
+    material.politica_minimo_compra === "consumo_real"
+      ? requerido
+      : Math.max(requerido, minimoCompra);
+  return { consumo, requerido, compra, caja: null };
+};
+
 export const calcularCostoMateriales = (
   materiales = [],
   cantidad = 1
 ) =>
   materiales.reduce((total, material) => {
-    const consumo = numero(material.consumo_unitario);
-    const merma = numero(material.merma_porcentaje) / 100;
     const precio = numero(material.costo_unitario);
-    const minimoCompra = numero(material.minimo_compra);
-    const requerido = consumo * cantidad * (1 + merma);
-    const compra =
-      material.politica_minimo_compra === "consumo_real"
-        ? requerido
-        : Math.max(requerido, minimoCompra);
+    const { compra } = calcularUsoMaterial(
+      material,
+      cantidad
+    );
 
     return total + compra * precio;
   }, 0);
@@ -1425,22 +1518,21 @@ export const calcularDetalleMaterialesCotizacion = (
   cantidad = 1
 ) =>
   materiales.map(material => {
-    const consumo = numero(material.consumo_unitario);
-    const merma = numero(material.merma_porcentaje) / 100;
     const precio = numero(material.costo_unitario);
     const pesoKgPorUnidad = numero(
       material.peso_kg_por_unidad
     );
-    const minimoCompra = numero(material.minimo_compra);
-    const requerido = consumo * cantidad * (1 + merma);
-    const compra =
-      material.politica_minimo_compra === "consumo_real"
-        ? requerido
-        : Math.max(requerido, minimoCompra);
+    const {
+      consumo,
+      requerido,
+      compra,
+      caja
+    } = calcularUsoMaterial(material, cantidad);
     const costo = compra * precio;
-    const pesoNeto = consumo * cantidad * pesoKgPorUnidad;
-    const pesoConMerma =
-      requerido * pesoKgPorUnidad;
+    const pesoNeto = (caja
+      ? caja.area_sin_merma_m2
+      : consumo * cantidad) * pesoKgPorUnidad;
+    const pesoConMerma = requerido * pesoKgPorUnidad;
 
     return {
       tipo_linea:
@@ -1486,6 +1578,7 @@ export const calcularDetalleMaterialesCotizacion = (
         material.consumo_tinta_ml_total,
         6
       ),
+      caja_corrugada: caja,
       politica_minimo_compra:
         material.politica_minimo_compra ||
         "cobrar_minimo"
