@@ -8,6 +8,43 @@ import {
 } from "./costeoCalculos";
 
 describe("costeoRepository", () => {
+  it("conserva escenarios multipaís sin duplicar la base técnica", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Exhibidor regional",
+        escalas: "100",
+        cotizacion_multipais: true,
+        escenarios_pais: [
+          {
+            pais: "Chile",
+            activo: true,
+            cantidades: "100, 200, 300"
+          },
+          {
+            pais: "Argentina",
+            activo: true,
+            cantidades: "50, 150, 250",
+            incoterm: "CIP",
+            destino: "Buenos Aires"
+          }
+        ],
+        materiales: [],
+        procesos: []
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.cotizacion_multipais).toBe(true);
+    expect(cotizacion.escenarios_pais).toHaveLength(4);
+    expect(cotizacion.escenarios_pais[1]).toMatchObject({
+      pais: "Argentina",
+      moneda: "USD",
+      cantidades: "50, 150, 250",
+      destino: "Buenos Aires"
+    });
+    expect(cotizacion.materiales).toHaveLength(0);
+  });
+
   it("interpreta formula de consumo de tubo como cortes por subproducto", () => {
     const resultado =
       analizarExpresionConsumoMaterial({

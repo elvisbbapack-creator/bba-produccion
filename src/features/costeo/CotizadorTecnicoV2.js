@@ -57,6 +57,11 @@ import {
   filaAValoresPepsico,
   inferirCategoriaPepsico
 } from "./pepsicoExport";
+import {
+  calcularEscenariosMultipais,
+  crearEscenariosPaisIniciales,
+  normalizarEscenariosPais
+} from "./escenariosMultipais";
 
 const campo = {
   width: "100%",
@@ -224,6 +229,8 @@ const estadoInicial = {
   flete_cif_unitario: 0,
   flete_ddp_unitario: 0,
   comentarios_pepsico: "",
+  cotizacion_multipais: false,
+  escenarios_pais: crearEscenariosPaisIniciales(),
   escalas: "50, 100, 500",
   indirectos_porcentaje: 5,
   costo_operativo_hora: 0,
@@ -1686,6 +1693,18 @@ export default function CotizadorTecnicoV2({
     setError("");
   };
 
+  const actualizarEscenarioPais = (pais, cambios) => {
+    actualizar({
+      escenarios_pais: normalizarEscenariosPais(
+        formulario.escenarios_pais
+      ).map(escenario =>
+        escenario.pais === pais
+          ? { ...escenario, ...cambios }
+          : escenario
+      )
+    });
+  };
+
   const resultados = useMemo(
     () =>
       calcularCotizacionTecnica({
@@ -1747,6 +1766,89 @@ export default function CotizadorTecnicoV2({
         }
       }),
     [formulario]
+  );
+  const resultadosMultipais = useMemo(
+    () => formulario.cotizacion_multipais
+      ? calcularEscenariosMultipais({
+          escenarios: formulario.escenarios_pais,
+          materiales: formulario.materiales,
+          procesos: formulario.procesos,
+          supuestos: {
+            indirectos_porcentaje:
+              formulario.indirectos_porcentaje,
+            costo_operativo_hora:
+              formulario.costo_operativo_hora,
+            margen_porcentaje:
+              formulario.margen_porcentaje,
+            tipo_margen: formulario.tipo_margen,
+            factor_riesgo_porcentaje:
+              formulario.factor_riesgo_porcentaje,
+            dias_compra: formulario.dias_compra,
+            dias_ingenieria: formulario.dias_ingenieria,
+            horas_disponibles_dia:
+              formulario.horas_disponibles_dia,
+            desfase_flujo_horas:
+              formulario.desfase_flujo_horas,
+            tipo_cambio_clp_usd:
+              formulario.tipo_cambio_clp_usd
+          },
+          exportacionBase: {
+            modalidad_carga: formulario.modalidad_carga,
+            unidades_por_caja: formulario.unidades_por_caja,
+            largo_caja_cm: formulario.largo_caja_cm,
+            ancho_caja_cm: formulario.ancho_caja_cm,
+            alto_caja_cm: formulario.alto_caja_cm,
+            factor_estiba: formulario.factor_estiba,
+            capacidad_camion_m3:
+              formulario.capacidad_camion_m3,
+            capacidad_camion_kg:
+              formulario.capacidad_camion_kg,
+            seguro_porcentaje:
+              formulario.seguro_porcentaje,
+            seguro_sobre_porcentaje:
+              formulario.seguro_sobre_porcentaje,
+            otros_costos_exportacion:
+              formulario.otros_costos_exportacion
+          }
+        })
+      : [],
+    [formulario]
+  );
+  const filasPepsicoMultipais = useMemo(
+    () => crearFilasPepsico(
+      ["Chile", "Argentina", "Uruguay", "Paraguay"].map(
+        pais => ({
+          id: `${editandoId || "actual"}-${pais}`,
+          nombre_producto: formulario.nombre_producto,
+          moneda: pais === "Chile" ? "CLP" : "USD",
+          materiales: formulario.materiales,
+          resultados: resultadosMultipais.filter(
+            resultado => resultado.pais === pais
+          ),
+          datos_pepsico: {
+            pais,
+            link_planos: formulario.link_planos,
+            graficos_laterales: formulario.graficos_laterales,
+            produccion_minima_semanal:
+              formulario.produccion_minima_semanal,
+            plazo_entrega_comercial:
+              formulario.plazo_entrega_comercial,
+            concepto_adicional:
+              formulario.concepto_adicional,
+            concepto_adicional_descripcion:
+              formulario.concepto_adicional_descripcion,
+            concepto_adicional_aplicacion:
+              formulario.concepto_adicional_aplicacion,
+            flete_cif_unitario:
+              formulario.flete_cif_unitario,
+            flete_ddp_unitario:
+              formulario.flete_ddp_unitario,
+            comentarios: formulario.comentarios_pepsico
+          }
+        })
+      )
+    ),
+    [editandoId, formulario, resultadosMultipais]
   );
   const incotermSeleccionado = (
     formulario.incoterm || "EXW"
@@ -4390,6 +4492,241 @@ export default function CotizadorTecnicoV2({
             </>
           )}
         </div>
+      </SeccionDesplegable>
+
+      <SeccionDesplegable
+        clave={`multipais-${editandoId || "nueva"}`}
+        titulo="Escenarios por país y cantidad"
+        resumen={formulario.cotizacion_multipais
+          ? `${resultadosMultipais.length} escenarios calculados`
+          : "Opcional · una base técnica, varios países"}
+        abierta={formulario.cotizacion_multipais}
+        estilo={{
+          background: formulario.cotizacion_multipais
+            ? "#F0FDF4"
+            : "white",
+          borderColor: formulario.cotizacion_multipais
+            ? "#86EFAC"
+            : "#CBD5E1"
+        }}
+      >
+        <label style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: 12,
+          borderRadius: 12,
+          background: "white",
+          border: "1px solid #CBD5E1",
+          fontWeight: "bold",
+          marginBottom: 12
+        }}>
+          <input
+            type="checkbox"
+            checked={formulario.cotizacion_multipais === true}
+            onChange={e => actualizar({
+              cotizacion_multipais: e.target.checked,
+              escenarios_pais: normalizarEscenariosPais(
+                formulario.escenarios_pais
+              )
+            })}
+          />
+          Cotizar el mismo producto para varios países y cantidades
+        </label>
+        <p style={{ color: "#475569", lineHeight: 1.45 }}>
+          Los materiales y procesos se ingresan una sola vez. Cada país
+          recalcula compras mínimas, setup, precio, logística y lead time
+          para sus propias cantidades.
+        </p>
+        {formulario.cotizacion_multipais && (
+          <>
+            <div style={{ display: "grid", gap: 12 }}>
+              {normalizarEscenariosPais(
+                formulario.escenarios_pais
+              ).map(escenario => (
+                <div key={escenario.pais} style={{
+                  background: "white",
+                  border: escenario.activo !== false
+                    ? "2px solid #86EFAC"
+                    : "1px solid #CBD5E1",
+                  borderRadius: 14,
+                  padding: 14
+                }}>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 10
+                  }}>
+                    <label style={{ fontWeight: "bold", fontSize: 17 }}>
+                      <input
+                        type="checkbox"
+                        checked={escenario.activo !== false}
+                        onChange={e => actualizarEscenarioPais(
+                          escenario.pais,
+                          { activo: e.target.checked }
+                        )}
+                        style={{ marginRight: 8 }}
+                      />
+                      {escenario.pais}
+                    </label>
+                    <span style={{
+                      padding: "5px 9px",
+                      borderRadius: 999,
+                      background: escenario.pais === "Chile"
+                        ? "#DBEAFE"
+                        : "#DCFCE7",
+                      fontWeight: "bold"
+                    }}>
+                      {escenario.moneda}
+                    </span>
+                  </div>
+                  <div style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(170px, 1fr))",
+                    gap: 10,
+                    opacity: escenario.activo !== false ? 1 : 0.55
+                  }}>
+                    <CampoConAyuda
+                      etiqueta="Cantidades"
+                      ayuda="Separadas por coma. Pueden ser distintas en cada país."
+                    >
+                      <input
+                        style={campo}
+                        value={escenario.cantidades || ""}
+                        disabled={escenario.activo === false}
+                        onChange={e => actualizarEscenarioPais(
+                          escenario.pais,
+                          { cantidades: e.target.value }
+                        )}
+                      />
+                    </CampoConAyuda>
+                    <CampoConAyuda
+                      etiqueta="Incoterm"
+                      ayuda="Chile normalmente EXW; exportación normalmente CIP."
+                    >
+                      <select
+                        style={campo}
+                        value={escenario.incoterm || "EXW"}
+                        disabled={escenario.activo === false}
+                        onChange={e => actualizarEscenarioPais(
+                          escenario.pais,
+                          { incoterm: e.target.value }
+                        )}
+                      >
+                        <option value="EXW">EXW</option>
+                        <option value="FCA">FCA</option>
+                        <option value="CIP">CIP</option>
+                        <option value="DAP">DAP</option>
+                      </select>
+                    </CampoConAyuda>
+                    <CampoConAyuda
+                      etiqueta="Destino"
+                      ayuda="Ciudad o lugar de entrega del escenario."
+                    >
+                      <input
+                        style={campo}
+                        value={escenario.destino || ""}
+                        disabled={escenario.activo === false}
+                        onChange={e => actualizarEscenarioPais(
+                          escenario.pais,
+                          { destino: e.target.value }
+                        )}
+                      />
+                    </CampoConAyuda>
+                    {escenario.pais !== "Chile" && [
+                      ["flete_internacional", "Flete FTL", "Costo por camión"],
+                      ["costo_ltl_m3", "LTL por m³", "Costo de carga consolidada"],
+                      ["costo_ltl_minimo", "Mínimo LTL", "Cargo mínimo consolidado"],
+                      ["gastos_exportacion", "Gastos exportación", "Documentación y salida"],
+                      ["dias_preparacion_exportacion", "Días preparación", "Documentos y coordinación"],
+                      ["dias_transito", "Días tránsito", "Traslado hasta destino"]
+                    ].map(([clave, etiqueta, ayuda]) => (
+                      <CampoConAyuda
+                        key={clave}
+                        etiqueta={etiqueta}
+                        ayuda={ayuda}
+                      >
+                        <input
+                          style={campo}
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={escenario[clave] || ""}
+                          disabled={escenario.activo === false}
+                          onChange={e => actualizarEscenarioPais(
+                            escenario.pais,
+                            { [clave]: e.target.value }
+                          )}
+                        />
+                      </CampoConAyuda>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              marginTop: 14
+            }}>
+              <button
+                type="button"
+                style={botonSecundario}
+                onClick={() => actualizar({
+                  escenarios_pais: crearEscenariosPaisIniciales()
+                })}
+              >
+                Restablecer ejemplos
+              </button>
+              <button
+                type="button"
+                style={boton}
+                disabled={filasPepsicoMultipais.length === 0}
+                onClick={() => descargarFilasPepsico(
+                  filasPepsicoMultipais
+                )}
+              >
+                Descargar escenarios en Excel PepsiCo
+              </button>
+            </div>
+            <div style={{ overflowX: "auto", marginTop: 14 }}>
+              <table style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                background: "white"
+              }}>
+                <thead>
+                  <tr>
+                    {["País", "Cantidad", "Moneda", "Incoterm", "Costo/u", "EXW/u", "Logística/u", "Precio final/u", "Lead time"].map(titulo => (
+                      <th key={titulo} style={{ textAlign: "left", padding: 8 }}>
+                        {titulo}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {resultadosMultipais.map(resultado => (
+                    <tr key={resultado.clave} style={{ borderTop: "1px solid #E2E8F0" }}>
+                      <td style={{ padding: 8 }}><b>{resultado.pais}</b></td>
+                      <td style={{ padding: 8 }}>{resultado.cantidad}</td>
+                      <td style={{ padding: 8 }}>{resultado.moneda}</td>
+                      <td style={{ padding: 8 }}>{resultado.incoterm}</td>
+                      <td style={{ padding: 8 }}>{formatoNumero(resultado.costo_unitario, resultado.moneda)}</td>
+                      <td style={{ padding: 8 }}>{formatoNumero(resultado.precio_unitario_sugerido, resultado.moneda)}</td>
+                      <td style={{ padding: 8 }}>{formatoNumero(resultado.costo_exportacion_unitario, resultado.moneda)}</td>
+                      <td style={{ padding: 8 }}><b>{formatoNumero(resultado.precio_unitario_cip_sugerido || resultado.precio_unitario_sugerido, resultado.moneda)}</b></td>
+                      <td style={{ padding: 8 }}>{resultado.lead_time_cip_dias || resultado.lead_time_flujo_dias} días</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </SeccionDesplegable>
 
       {renderLineasMateriales({

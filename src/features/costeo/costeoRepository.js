@@ -13,6 +13,9 @@ import {
   calcularCotizacionTecnica,
   prepararEscalas
 } from "./costeoCalculos";
+import {
+  normalizarEscenariosPais
+} from "./escenariosMultipais";
 
 const COLECCION = "cotizaciones_tecnicas";
 
@@ -456,6 +459,11 @@ export const prepararCotizacionTecnica = (
         datos.comentarios_pepsico
       )
     },
+    cotizacion_multipais:
+      datos.cotizacion_multipais === true,
+    escenarios_pais: normalizarEscenariosPais(
+      datos.escenarios_pais
+    ),
     escalas,
     materiales,
     procesos,
@@ -562,11 +570,16 @@ export const aFormularioCotizacionTecnica = (
     cotizacion.datos_pepsico?.flete_ddp_unitario ?? 0,
   comentarios_pepsico:
     cotizacion.datos_pepsico?.comentarios || "",
+  cotizacion_multipais:
+    cotizacion.cotizacion_multipais === true,
+  escenarios_pais: normalizarEscenariosPais(
+    cotizacion.escenarios_pais
+  ),
   escalas: Array.isArray(cotizacion.escalas)
     ? cotizacion.escalas.join(", ")
     : cotizacion.escalas || "50, 100, 500",
   indirectos_porcentaje:
-    cotizacion.supuestos?.indirectos_porcentaje ?? 18,
+    cotizacion.supuestos?.indirectos_porcentaje ?? 5,
   costo_operativo_hora:
     cotizacion.supuestos?.costo_operativo_hora ?? 0,
   costo_operativo_origen:
@@ -577,15 +590,15 @@ export const aFormularioCotizacionTecnica = (
   margen_porcentaje:
     cotizacion.supuestos?.margen_porcentaje ?? 35,
   tipo_margen:
-    cotizacion.supuestos?.tipo_margen || "margen_bruto",
+    cotizacion.supuestos?.tipo_margen || "markup",
   factor_riesgo_porcentaje:
-    cotizacion.supuestos?.factor_riesgo_porcentaje ?? 8,
+    cotizacion.supuestos?.factor_riesgo_porcentaje ?? 3,
   dias_compra:
     cotizacion.supuestos?.dias_compra ?? 5,
   dias_ingenieria:
     cotizacion.supuestos?.dias_ingenieria ?? 2,
   horas_disponibles_dia:
-    cotizacion.supuestos?.horas_disponibles_dia ?? 14,
+    cotizacion.supuestos?.horas_disponibles_dia ?? 21,
   desfase_flujo_horas:
     cotizacion.supuestos?.desfase_flujo_horas ?? 2,
   incoterm:
