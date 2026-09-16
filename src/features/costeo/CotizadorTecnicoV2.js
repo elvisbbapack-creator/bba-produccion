@@ -117,9 +117,56 @@ const franjaCard = {
     "linear-gradient(90deg, #1976D2, #60A5FA)"
 };
 
-const tituloCard = {
-  marginTop: 8,
-  marginBottom: 8
+const resumenDesplegable = {
+  cursor: "pointer",
+  listStyle: "none",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+  padding: "4px 0",
+  color: "#0F172A"
+};
+
+const SeccionDesplegable = ({
+  titulo,
+  resumen,
+  abierta = false,
+  clave,
+  estilo,
+  children
+}) => {
+  const [estaAbierta, setEstaAbierta] = useState(abierta);
+
+  useEffect(() => {
+    setEstaAbierta(abierta);
+  }, [abierta, clave]);
+
+  return (
+    <details
+      open={estaAbierta}
+      onToggle={evento =>
+        setEstaAbierta(evento.currentTarget.open)
+      }
+      style={{ ...cardCotizador, ...estilo }}
+    >
+      <summary style={resumenDesplegable}>
+        <span style={{ fontSize: 19, fontWeight: "bold" }}>
+          {titulo}
+        </span>
+        <span style={{
+          color: "#64748B",
+          fontSize: 13,
+          fontWeight: "bold",
+          textAlign: "right"
+        }}>
+          {resumen}
+        </span>
+      </summary>
+      <div style={franjaCard} />
+      <div style={{ paddingTop: 14 }}>{children}</div>
+    </details>
+  );
 };
 
 const lineaCotizador = {
@@ -2757,9 +2804,12 @@ export default function CotizadorTecnicoV2({
       );
 
     return (
-      <section style={cardCotizador}>
-        <div style={franjaCard} />
-        <h3 style={tituloCard}>{titulo}</h3>
+      <SeccionDesplegable
+        clave={`${tipoLinea}-${editandoId || "nueva"}`}
+        titulo={titulo}
+        resumen={`${lineas.length} línea${lineas.length === 1 ? "" : "s"}`}
+        abierta={!editandoId}
+      >
         <p style={{
           color: "#64748B",
           marginTop: -4,
@@ -2807,10 +2857,34 @@ export default function CotizadorTecnicoV2({
             esSuministroTintaUvCmyk(material);
 
           return (
-          <div
+          <details
             key={indice}
-            style={lineaCotizador}
+            style={{
+              background: "#F8FAFC",
+              borderRadius: 14,
+              border: "1px solid #CBD5E1",
+              marginBottom: 12,
+              overflow: "hidden"
+            }}
           >
+            <summary style={{
+              ...resumenDesplegable,
+              padding: 14
+            }}>
+              <span style={{ fontWeight: "bold" }}>
+                {material.codigo || `${tipoLinea} ${indice + 1}`} ·{" "}
+                {material.nombre || "Sin nombre"}
+              </span>
+              <span style={{ color: "#475569", fontSize: 13 }}>
+                {material.consumo_unitario || 0}{" "}
+                {material.unidad || "un"} ·{" "}
+                {formatoNumero(
+                  material.costo_unitario || 0,
+                  formulario.moneda
+                )}
+              </span>
+            </summary>
+          <div style={{ ...lineaCotizador, marginBottom: 0 }}>
             <CampoConAyuda
               etiqueta={etiquetaSelector}
               ayuda={ayudaSelector}
@@ -3256,6 +3330,7 @@ export default function CotizadorTecnicoV2({
               </CampoConAyuda>
             ))}
           </div>
+          </details>
           );
         })}
         <button
@@ -3272,7 +3347,7 @@ export default function CotizadorTecnicoV2({
         >
           {textoBoton}
         </button>
-      </section>
+      </SeccionDesplegable>
     );
   };
 
@@ -3322,12 +3397,100 @@ export default function CotizadorTecnicoV2({
         </div>
       )}
 
-      <section style={cardCotizador}>
-        <div style={franjaCard} />
-        <h3 style={tituloCard}>
-          Producto prototipo{" "}
-          {editandoId ? "(editando)" : ""}
-        </h3>
+      {editandoId && (
+        <section style={{
+          ...cardCotizador,
+          background: "linear-gradient(135deg, #EFF6FF, #F8FAFC)",
+          borderColor: "#60A5FA"
+        }}>
+          <div style={franjaCard} />
+          <div style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: 12,
+            flexWrap: "wrap"
+          }}>
+            <div>
+              <div style={{ color: "#1D4ED8", fontWeight: "bold" }}>
+                RESUMEN DE LA COTIZACIÓN
+              </div>
+              <h3 style={{ margin: "4px 0" }}>
+                {formulario.nombre_producto || "Producto sin nombre"}
+              </h3>
+              <div style={{ color: "#475569" }}>
+                {formulario.cliente || "Cliente sin asignar"} ·{" "}
+                {formulario.version || "Sin versión"} ·{" "}
+                {formulario.estado}
+              </div>
+            </div>
+            <span style={{
+              padding: "7px 11px",
+              borderRadius: 999,
+              background: "#DBEAFE",
+              color: "#1E40AF",
+              fontWeight: "bold"
+            }}>
+              Confianza {formulario.nivel_confianza}
+            </span>
+          </div>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))",
+            gap: 10,
+            marginTop: 16
+          }}>
+            {[
+              ["Cantidad", resultadoBase?.cantidad || "-"],
+              ["Costo unitario", formatoNumero(resultadoBase?.costo_unitario || 0, formulario.moneda)],
+              ["Precio EXW/u", formatoNumero(resultadoBase?.precio_unitario_sugerido || 0, formulario.moneda)],
+              [
+                `${incotermSeleccionado}/u`,
+                formatoNumero(
+                  resultadoBase?.precio_unitario_cip_sugerido ||
+                    resultadoBase?.precio_unitario_sugerido || 0,
+                  formulario.moneda
+                )
+              ],
+              ["Peso unitario", formatoKg(resultadoBase?.peso_unitario_kg || 0)],
+              ["Lead time", `${resultadoBase?.lead_time_flujo_dias || 0} días`]
+            ].map(([etiqueta, valor]) => (
+              <div key={etiqueta} style={{
+                background: "white",
+                border: "1px solid #BFDBFE",
+                borderRadius: 12,
+                padding: 11
+              }}>
+                <div style={{ color: "#64748B", fontSize: 12 }}>
+                  {etiqueta}
+                </div>
+                <strong style={{ fontSize: 17 }}>{valor}</strong>
+              </div>
+            ))}
+          </div>
+          {cotizaExportacion && !formulario.pais_destino && (
+            <div role="alert" style={{
+              marginTop: 12,
+              padding: 11,
+              borderRadius: 10,
+              background: "#FFF7ED",
+              border: "1px solid #FDBA74",
+              color: "#9A3412",
+              fontWeight: "bold"
+            }}>
+              ⚠ {incotermSeleccionado} requiere definir el país de destino.
+              La logística aparece en cero hasta completar ese dato.
+            </div>
+          )}
+        </section>
+      )}
+
+      <SeccionDesplegable
+        clave={`producto-${editandoId || "nueva"}`}
+        titulo={`Producto prototipo${editandoId ? " (editando)" : ""}`}
+        resumen={formulario.nombre_producto || "Identificación y cliente"}
+        abierta
+      >
         <div style={{
           display: "grid",
           gridTemplateColumns:
@@ -3436,13 +3599,14 @@ export default function CotizadorTecnicoV2({
             actualizar({ descripcion: e.target.value })
           }
         />
-      </section>
+      </SeccionDesplegable>
 
-      <section style={cardCotizador}>
-        <div style={franjaCard} />
-        <h3 style={tituloCard}>
-          Datos para plantilla PepsiCo
-        </h3>
+      <SeccionDesplegable
+        clave={`pepsico-${editandoId || "nueva"}`}
+        titulo="Datos para plantilla PepsiCo"
+        resumen={`${formulario.pais_cotizacion || "Chile"} · ${formulario.moneda}`}
+        abierta={!editandoId}
+      >
         <p style={{
           color: "#64748B",
           marginTop: -4,
@@ -3673,13 +3837,14 @@ export default function CotizadorTecnicoV2({
             })
           }
         />
-      </section>
+      </SeccionDesplegable>
 
-      <section style={cardCotizador}>
-        <div style={franjaCard} />
-        <h3 style={tituloCard}>
-          Supuestos comerciales y lead time
-        </h3>
+      <SeccionDesplegable
+        clave={`supuestos-${editandoId || "nueva"}`}
+        titulo="Supuestos comerciales y lead time"
+        resumen={`Escalas ${formulario.escalas} · margen ${formulario.margen_porcentaje}%`}
+        abierta={!editandoId}
+      >
         <div style={{
           display: "grid",
           gridTemplateColumns:
@@ -3791,13 +3956,14 @@ export default function CotizadorTecnicoV2({
             actualizar({ riesgos: e.target.value })
           }
         />
-      </section>
+      </SeccionDesplegable>
 
-      <section style={cardCotizador}>
-        <div style={franjaCard} />
-        <h3 style={tituloCard}>
-          Logística internacional
-        </h3>
+      <SeccionDesplegable
+        clave={`logistica-${editandoId || "nueva"}`}
+        titulo="Logística internacional"
+        resumen={`${incotermSeleccionado} · ${formulario.pais_destino || "sin destino"}`}
+        abierta={!editandoId}
+      >
         <p style={{
           color: "#64748B",
           marginTop: -4,
@@ -4224,7 +4390,7 @@ export default function CotizadorTecnicoV2({
             </>
           )}
         </div>
-      </section>
+      </SeccionDesplegable>
 
       {renderLineasMateriales({
         tipoLinea: "material",
@@ -4248,11 +4414,12 @@ export default function CotizadorTecnicoV2({
         textoBoton: "+ Agregar suministro"
       })}
 
-      <section style={cardCotizador}>
-        <div style={franjaCard} />
-        <h3 style={tituloCard}>
-          Procesos estimados
-        </h3>
+      <SeccionDesplegable
+        clave={`procesos-${editandoId || "nueva"}`}
+        titulo="Procesos estimados"
+        resumen={`${formulario.procesos.length} ${formulario.procesos.length === 1 ? "operación" : "operaciones"}`}
+        abierta={!editandoId}
+      >
         {procesosSinCostoHora.length > 0 && (
           <div style={{
             background: "#FFF7ED",
@@ -4311,16 +4478,43 @@ export default function CotizadorTecnicoV2({
                 : [];
 
           return (
-            <div
+            <details
               key={indice}
               style={{
-                ...lineaCotizador,
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(170px, 1fr))",
-                gap: 10
+                background: "#F8FAFC",
+                borderRadius: 14,
+                border: faltaCostoHora
+                  ? "1px solid #FDBA74"
+                  : "1px solid #CBD5E1",
+                marginBottom: 12,
+                overflow: "hidden"
               }}
             >
+              <summary style={{
+                ...resumenDesplegable,
+                padding: 14
+              }}>
+                <span style={{ fontWeight: "bold" }}>
+                  {proceso.proceso_nombre || proceso.proceso_codigo || "Proceso"} ·{" "}
+                  {proceso.estacion_nombre || "Sin estación"}
+                </span>
+                <span style={{
+                  color: faltaCostoHora ? "#C2410C" : "#475569",
+                  fontSize: 13
+                }}>
+                  {faltaCostoHora
+                    ? "Falta costo hora"
+                    : `${proceso.unidades_por_hora || 0} un/h · ${formatoNumero(proceso.costo_hora || 0, formulario.moneda)}/h`}
+                </span>
+              </summary>
+            <div style={{
+              ...lineaCotizador,
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fit, minmax(170px, 1fr))",
+              gap: 10,
+              marginBottom: 0
+            }}>
               <CampoConAyuda
                 etiqueta="Proceso / estación"
                 ayuda="Selecciona una estación del catálogo o deja libre."
@@ -4919,6 +5113,7 @@ export default function CotizadorTecnicoV2({
                 </CampoConAyuda>
               ))}
             </div>
+            </details>
           );
         })}
         <button
@@ -4935,17 +5130,20 @@ export default function CotizadorTecnicoV2({
         >
           + Agregar proceso
         </button>
-      </section>
+      </SeccionDesplegable>
 
-      <section style={{
-        ...cardCotizador,
-        background: "#EFF6FF",
-        borderColor: "#93C5FD"
-      }}>
-        <div style={franjaCard} />
-        <h3 style={tituloCard}>
-          Resultado por escala
-        </h3>
+      <SeccionDesplegable
+        clave={`resultado-${editandoId || "nueva"}`}
+        titulo="Resultado por escala"
+        resumen={resultadoBase
+          ? `${resultadoBase.cantidad} un · ${formatoNumero(resultadoBase.precio_unitario_sugerido, formulario.moneda)}/u`
+          : "Sin cálculo"}
+        abierta
+        estilo={{
+          background: "#EFF6FF",
+          borderColor: "#93C5FD"
+        }}
+      >
         <p style={{
           color: "#475569",
           lineHeight: 1.45,
@@ -5568,7 +5766,7 @@ export default function CotizadorTecnicoV2({
         {(resultados[0]?.detalle_materiales_unitario ||
           resultados[0]?.detalle_materiales)?.length >
           0 && (
-          <div style={{
+          <details style={{
             marginTop: 16,
             background: "white",
             borderRadius: 12,
@@ -5577,9 +5775,13 @@ export default function CotizadorTecnicoV2({
             boxShadow:
               "0 4px 12px rgba(37,99,235,0.08)"
           }}>
-            <h4 style={{ marginTop: 0 }}>
-              Desglose de materiales por unidad
-            </h4>
+            <summary style={resumenDesplegable}>
+              <strong>Desglose de materiales por unidad</strong>
+              <span style={{ color: "#64748B", fontSize: 13 }}>
+                {(resultados[0]?.detalle_materiales_unitario || resultados[0]?.detalle_materiales || []).length} líneas · ver detalle
+              </span>
+            </summary>
+            <div style={{ paddingTop: 12 }}>
             <p style={{
               color: "#64748B",
               marginTop: -6
@@ -5714,10 +5916,11 @@ export default function CotizadorTecnicoV2({
                 </tbody>
               </table>
             </div>
-          </div>
+            </div>
+          </details>
         )}
         {resultados[0]?.detalle_procesos?.length > 0 && (
-          <div style={{
+          <details style={{
             marginTop: 16,
             background: "white",
             borderRadius: 12,
@@ -5726,10 +5929,16 @@ export default function CotizadorTecnicoV2({
             boxShadow:
               "0 4px 12px rgba(37,99,235,0.08)"
           }}>
-            <h4 style={{ marginTop: 0 }}>
+            <summary style={resumenDesplegable}>
+              <strong>
               Detalle costo operativo por proceso ·{" "}
               {resultados[0].cantidad} unidades
-            </h4>
+              </strong>
+              <span style={{ color: "#64748B", fontSize: 13 }}>
+                {resultados[0].detalle_procesos.length} operaciones · ver detalle
+              </span>
+            </summary>
+            <div style={{ paddingTop: 12 }}>
             <div style={{ overflowX: "auto" }}>
               <table style={{
                 width: "100%",
@@ -5842,9 +6051,10 @@ export default function CotizadorTecnicoV2({
                 </tbody>
               </table>
             </div>
-          </div>
+            </div>
+          </details>
         )}
-      </section>
+      </SeccionDesplegable>
 
       <div style={{
         display: "grid",
@@ -5872,11 +6082,12 @@ export default function CotizadorTecnicoV2({
         </button>
       </div>
 
-      <section style={cardCotizador}>
-        <div style={franjaCard} />
-        <h3 style={tituloCard}>
-          Historial de cotizaciones
-        </h3>
+      <SeccionDesplegable
+        clave={`historial-${editandoId || "nueva"}`}
+        titulo="Historial de cotizaciones"
+        resumen={`${historial.length} ${historial.length === 1 ? "cotización" : "cotizaciones"}`}
+        abierta={!editandoId}
+      >
         <p style={{
           color: "#64748B",
           marginTop: -4,
@@ -6132,7 +6343,7 @@ export default function CotizadorTecnicoV2({
             Mostrar 20 cotizaciones más
           </button>
         )}
-      </section>
+      </SeccionDesplegable>
     </div>
   );
 }
