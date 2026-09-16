@@ -5,6 +5,7 @@ import {
   calcularConsumoTintaUvCmykDesdePlancha,
   calcularCostoMateriales,
   calcularCotizacionTecnica,
+  calcularDetalleMaterialesCotizacion,
   calcularLogisticaExportacion,
   prepararEscalas,
   TIPOS_LECTURA_CONSUMO,
@@ -64,6 +65,26 @@ test("cobra cajas completas según la cantidad cotizada", () => {
   expect(
     calcularCostoMateriales([material], 101)
   ).toBeCloseTo(6272.64, 2);
+});
+
+test("no deja campos undefined al detallar carton corrugado", () => {
+  const [detalle] = calcularDetalleMaterialesCotizacion(
+    [{
+      codigo: "MP0048",
+      tipo_formula_consumo: TIPO_FORMULA_CAJA_CORRUGADA,
+      caja_largo_mm: 400,
+      caja_ancho_mm: 300,
+      caja_alto_mm: 250,
+      caja_unidades: 10,
+      costo_unitario: 720
+    }],
+    100
+  );
+
+  expect(detalle.pallet).toBeNull();
+  expect(
+    Object.values(detalle).includes(undefined)
+  ).toBe(false);
 });
 
 test("calcula pallets completos desde las cajas requeridas", () => {

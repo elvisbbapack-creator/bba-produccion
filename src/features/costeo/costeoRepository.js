@@ -34,6 +34,27 @@ const normalizarLista = lista =>
     ? lista.filter(Boolean)
     : [];
 
+const eliminarIndefinidos = valor => {
+  if (Array.isArray(valor)) {
+    return valor.map(eliminarIndefinidos);
+  }
+  if (
+    valor &&
+    typeof valor === "object" &&
+    Object.getPrototypeOf(valor) === Object.prototype
+  ) {
+    return Object.fromEntries(
+      Object.entries(valor)
+        .filter(([, contenido]) => contenido !== undefined)
+        .map(([clave, contenido]) => [
+          clave,
+          eliminarIndefinidos(contenido)
+        ])
+    );
+  }
+  return valor;
+};
+
 export const ESTADOS_COTIZACION = [
   "borrador",
   "en_revision",
@@ -503,9 +524,8 @@ export const guardarCotizacionTecnica = async (
   perfil,
   datos
 ) => {
-  const cotizacion = prepararCotizacionTecnica(
-    datos,
-    perfil
+  const cotizacion = eliminarIndefinidos(
+    prepararCotizacionTecnica(datos, perfil)
   );
 
   const creado = await addDoc(
@@ -531,9 +551,8 @@ export const actualizarCotizacionTecnica = async (
   cotizacionId,
   datos
 ) => {
-  const cotizacion = prepararCotizacionTecnica(
-    datos,
-    perfil
+  const cotizacion = eliminarIndefinidos(
+    prepararCotizacionTecnica(datos, perfil)
   );
 
   await updateDoc(

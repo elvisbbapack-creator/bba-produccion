@@ -1539,7 +1539,8 @@ const calcularUsoMaterial = (
       consumo: caja.consumo_unitario_referencial_m2,
       requerido: caja.area_total_m2,
       compra: caja.area_total_m2,
-      caja
+      caja,
+      pallet: null
     };
   }
   if (esPallet(material)) {
@@ -1679,7 +1680,7 @@ export const calcularDetalleMaterialesCotizacion = (
         6
       ),
       caja_corrugada: caja,
-      pallet,
+      pallet: pallet || null,
       politica_minimo_compra:
         material.politica_minimo_compra ||
         "cobrar_minimo"
