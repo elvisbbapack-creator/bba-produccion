@@ -504,6 +504,7 @@ describe("costeoRepository", () => {
       {
         nombre_producto: "Gráfica UV",
         escalas: "10",
+        pais_cotizacion: "Argentina",
         moneda: "USD",
         tipo_cambio_clp_usd: 915,
         incoterm: "CIP",

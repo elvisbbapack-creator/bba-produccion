@@ -64,6 +64,9 @@ export const prepararCotizacionTecnica = (
     return {
       tipo_linea:
         limpiarTexto(material.tipo_linea) || "material",
+      categoria_pepsico: limpiarTexto(
+        material.categoria_pepsico
+      ),
       material_id: material.material_id || "",
       codigo: limpiarTexto(material.codigo),
       nombre: limpiarTexto(material.nombre),
@@ -280,8 +283,18 @@ export const prepararCotizacionTecnica = (
       proceso.proceso_nombre ||
       proceso.estacion_nombre
     );
+  const paisCotizacion = [
+    "Chile",
+    "Argentina",
+    "Uruguay",
+    "Paraguay"
+  ].includes(datos.pais_cotizacion)
+    ? datos.pais_cotizacion
+    : "Chile";
+  const monedaCotizacion =
+    paisCotizacion === "Chile" ? "CLP" : "USD";
   const supuestos = {
-    moneda: limpiarTexto(datos.moneda) || "CLP",
+    moneda: monedaCotizacion,
     tipo_cambio_clp_usd: numero(
       datos.tipo_cambio_clp_usd
     ),
@@ -409,7 +422,40 @@ export const prepararCotizacionTecnica = (
         : "media",
     descripcion: limpiarTexto(datos.descripcion),
     riesgos: limpiarTexto(datos.riesgos),
-    moneda: limpiarTexto(datos.moneda) || "CLP",
+    moneda: monedaCotizacion,
+    datos_pepsico: {
+      pais: paisCotizacion,
+      link_planos: limpiarTexto(datos.link_planos),
+      graficos_laterales:
+        datos.graficos_laterales === "SI" ? "SI" : "NO",
+      produccion_minima_semanal: numero(
+        datos.produccion_minima_semanal
+      ),
+      plazo_entrega_comercial: limpiarTexto(
+        datos.plazo_entrega_comercial
+      ),
+      concepto_adicional: numero(
+        datos.concepto_adicional
+      ),
+      concepto_adicional_descripcion: limpiarTexto(
+        datos.concepto_adicional_descripcion
+      ),
+      concepto_adicional_aplicacion:
+        ["exw", "cif", "ddp"].includes(
+          datos.concepto_adicional_aplicacion
+        )
+          ? datos.concepto_adicional_aplicacion
+          : "exw",
+      flete_cif_unitario: numero(
+        datos.flete_cif_unitario
+      ),
+      flete_ddp_unitario: numero(
+        datos.flete_ddp_unitario
+      ),
+      comentarios: limpiarTexto(
+        datos.comentarios_pepsico
+      )
+    },
     escalas,
     materiales,
     procesos,
@@ -488,6 +534,34 @@ export const aFormularioCotizacionTecnica = (
     cotizacion.supuestos?.tipo_cambio_clp_usd ?? 915,
   descripcion: cotizacion.descripcion || "",
   riesgos: cotizacion.riesgos || "",
+  pais_cotizacion:
+    cotizacion.datos_pepsico?.pais ||
+    cotizacion.supuestos?.exportacion?.pais_destino ||
+    "Chile",
+  link_planos:
+    cotizacion.datos_pepsico?.link_planos || "",
+  graficos_laterales:
+    cotizacion.datos_pepsico?.graficos_laterales || "NO",
+  produccion_minima_semanal:
+    cotizacion.datos_pepsico
+      ?.produccion_minima_semanal ?? 0,
+  plazo_entrega_comercial:
+    cotizacion.datos_pepsico
+      ?.plazo_entrega_comercial || "",
+  concepto_adicional:
+    cotizacion.datos_pepsico?.concepto_adicional ?? 0,
+  concepto_adicional_descripcion:
+    cotizacion.datos_pepsico
+      ?.concepto_adicional_descripcion || "",
+  concepto_adicional_aplicacion:
+    cotizacion.datos_pepsico
+      ?.concepto_adicional_aplicacion || "exw",
+  flete_cif_unitario:
+    cotizacion.datos_pepsico?.flete_cif_unitario ?? 0,
+  flete_ddp_unitario:
+    cotizacion.datos_pepsico?.flete_ddp_unitario ?? 0,
+  comentarios_pepsico:
+    cotizacion.datos_pepsico?.comentarios || "",
   escalas: Array.isArray(cotizacion.escalas)
     ? cotizacion.escalas.join(", ")
     : cotizacion.escalas || "50, 100, 500",

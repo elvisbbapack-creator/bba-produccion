@@ -47,6 +47,16 @@ import {
   obtenerTipoCambioClpUsdActual,
   TIPO_CAMBIO_CLP_USD_FALLBACK
 } from "./tipoCambio";
+import {
+  CATEGORIAS_PEPSICO,
+  ENCABEZADOS_PEPSICO,
+  PAISES_PEPSICO,
+  claveFilaPepsico,
+  crearFilasPepsico,
+  descargarExcelPepsico,
+  filaAValoresPepsico,
+  inferirCategoriaPepsico
+} from "./pepsicoExport";
 
 const campo = {
   width: "100%",
@@ -156,6 +166,17 @@ const estadoInicial = {
   tipo_cambio_clp_usd: 915,
   descripcion: "",
   riesgos: "",
+  pais_cotizacion: "Chile",
+  link_planos: "",
+  graficos_laterales: "NO",
+  produccion_minima_semanal: 0,
+  plazo_entrega_comercial: "",
+  concepto_adicional: 0,
+  concepto_adicional_descripcion: "",
+  concepto_adicional_aplicacion: "exw",
+  flete_cif_unitario: 0,
+  flete_ddp_unitario: 0,
+  comentarios_pepsico: "",
   escalas: "50, 100, 500",
   indirectos_porcentaje: 18,
   costo_operativo_hora: 0,
@@ -253,6 +274,7 @@ const DESTINOS_EXPORTACION_FRECUENTES = [
 
 const materialVacio = {
   tipo_linea: "material",
+  categoria_pepsico: "",
   material_id: "",
   codigo: "",
   nombre: "",
@@ -1470,6 +1492,8 @@ export default function CotizadorTecnicoV2({
     useState("");
   const [limiteHistorialVisible, setLimiteHistorialVisible] =
     useState(20);
+  const [filasPepsicoSeleccionadas, setFilasPepsicoSeleccionadas] =
+    useState([]);
   const [editandoId, setEditandoId] = useState("");
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
@@ -1689,6 +1713,46 @@ export default function CotizadorTecnicoV2({
     ? `${incotermSeleccionado} total`
     : "EXW total";
   const resultadoBase = resultados[0];
+  const filasPepsicoActuales = useMemo(
+    () =>
+      crearFilasPepsico([
+        {
+          id: editandoId || "actual",
+          nombre_producto: formulario.nombre_producto,
+          moneda: formulario.moneda,
+          materiales: formulario.materiales,
+          resultados,
+          supuestos: {
+            exportacion: {
+              pais_destino: formulario.pais_destino
+            }
+          },
+          datos_pepsico: {
+            pais: formulario.pais_cotizacion,
+            link_planos: formulario.link_planos,
+            graficos_laterales:
+              formulario.graficos_laterales,
+            produccion_minima_semanal:
+              formulario.produccion_minima_semanal,
+            plazo_entrega_comercial:
+              formulario.plazo_entrega_comercial,
+            concepto_adicional:
+              formulario.concepto_adicional,
+            concepto_adicional_descripcion:
+              formulario.concepto_adicional_descripcion,
+            concepto_adicional_aplicacion:
+              formulario.concepto_adicional_aplicacion,
+            flete_cif_unitario:
+              formulario.flete_cif_unitario,
+            flete_ddp_unitario:
+              formulario.flete_ddp_unitario,
+            comentarios:
+              formulario.comentarios_pepsico
+          }
+        }
+      ]),
+    [editandoId, formulario, resultados]
+  );
   const logisticaBase =
     resultadoBase?.logistica_exportacion || {};
   const destinosExportacionSeleccionados = useMemo(
@@ -1876,6 +1940,37 @@ export default function CotizadorTecnicoV2({
       ),
     [historialFiltrado, limiteHistorialVisible]
   );
+  const filasPepsicoHistorial = useMemo(
+    () => crearFilasPepsico(historialFiltrado),
+    [historialFiltrado]
+  );
+  const clavesFilasPepsicoHistorial = useMemo(
+    () => filasPepsicoHistorial.map(fila => fila.clave),
+    [filasPepsicoHistorial]
+  );
+
+  const alternarFilaPepsico = clave => {
+    setFilasPepsicoSeleccionadas(actual =>
+      actual.includes(clave)
+        ? actual.filter(item => item !== clave)
+        : [...actual, clave]
+    );
+  };
+
+  const descargarFilasPepsico = filas => {
+    try {
+      setError("");
+      descargarExcelPepsico(filas);
+      setMensaje(
+        `Excel PepsiCo generado con ${filas.length} fila(s).`
+      );
+    } catch (fallo) {
+      setError(
+        fallo?.message ||
+        "No se pudo generar el Excel PepsiCo."
+      );
+    }
+  };
 
   const procesosSinCostoHora = useMemo(
     () =>
@@ -2098,6 +2193,8 @@ export default function CotizadorTecnicoV2({
     return {
       tipo_linea:
         materialActual?.tipo_linea || "material",
+      categoria_pepsico:
+        materialActual?.categoria_pepsico || "",
       material_id: materialId,
       codigo: material?.codigo || "",
       nombre: material?.nombre || "",
@@ -2772,6 +2869,43 @@ export default function CotizadorTecnicoV2({
               </select>
             </CampoConAyuda>
             <CampoConAyuda
+              etiqueta="Categoría plantilla PepsiCo"
+              ayuda="Define la columna exacta donde se informará este costo en la vista y el Excel PepsiCo."
+            >
+              <select
+                style={campo}
+                value={
+                  material.categoria_pepsico ||
+                  inferirCategoriaPepsico(material) ||
+                  ""
+                }
+                onChange={e =>
+                  actualizar({
+                    materiales: actualizarItem(
+                      formulario.materiales,
+                      indice,
+                      {
+                        categoria_pepsico:
+                          e.target.value
+                      }
+                    )
+                  })
+                }
+              >
+                <option value="">
+                  Seleccionar categoría
+                </option>
+                {CATEGORIAS_PEPSICO.map(categoria => (
+                  <option
+                    key={categoria.clave}
+                    value={categoria.clave}
+                  >
+                    {categoria.etiqueta}
+                  </option>
+                ))}
+              </select>
+            </CampoConAyuda>
+            <CampoConAyuda
               etiqueta="Compra mínima"
               ayuda="Define si cargas toda la compra mínima o solo el consumo cuando el sobrante se reutiliza."
             >
@@ -3307,6 +3441,243 @@ export default function CotizadorTecnicoV2({
       <section style={cardCotizador}>
         <div style={franjaCard} />
         <h3 style={tituloCard}>
+          Datos para plantilla PepsiCo
+        </h3>
+        <p style={{
+          color: "#64748B",
+          marginTop: -4,
+          lineHeight: 1.4
+        }}>
+          Estos datos se muestran en la vista PepsiCo y se
+          conservan al guardar la cotización. Chile se cotiza en
+          CLP; Argentina, Uruguay y Paraguay en USD.
+        </p>
+        <div style={{
+          display: "grid",
+          gridTemplateColumns:
+            "repeat(auto-fit, minmax(210px, 1fr))",
+          gap: 12
+        }}>
+          <CampoConAyuda
+            etiqueta="País de cotización"
+            ayuda="La moneda se asigna automáticamente según el país."
+          >
+            <select
+              style={campo}
+              value={formulario.pais_cotizacion || "Chile"}
+              onChange={e => {
+                const pais = e.target.value;
+                const internacional = pais !== "Chile";
+                const preset =
+                  PRESETS_LOGISTICA_DESTINO[pais] || {};
+                actualizar({
+                  pais_cotizacion: pais,
+                  moneda: internacional ? "USD" : "CLP",
+                  pais_destino: internacional ? pais : "",
+                  incoterm: internacional
+                    ? formulario.incoterm === "EXW"
+                      ? "CIP"
+                      : formulario.incoterm
+                    : "EXW",
+                  ...(internacional ? preset : {})
+                });
+              }}
+            >
+              {PAISES_PEPSICO.map(pais => (
+                <option key={pais} value={pais}>
+                  {pais}
+                </option>
+              ))}
+            </select>
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Moneda obligatoria"
+            ayuda="Se deriva del país y no se edita manualmente."
+          >
+            <div style={{
+              ...campo,
+              background: "#F1F5F9",
+              fontWeight: "bold"
+            }}>
+              {formulario.pais_cotizacion === "Chile"
+                ? "CLP - Pesos chilenos"
+                : "USD - Dólares americanos"}
+            </div>
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Link de planos"
+            ayuda="Enlace que recibirá PepsiCo para consultar los planos."
+          >
+            <input
+              style={campo}
+              type="url"
+              placeholder="https://..."
+              value={formulario.link_planos || ""}
+              onChange={e =>
+                actualizar({ link_planos: e.target.value })
+              }
+            />
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Gráficos laterales"
+            ayuda="Indica si el modelo contempla gráficas laterales."
+          >
+            <select
+              style={campo}
+              value={formulario.graficos_laterales || "NO"}
+              onChange={e =>
+                actualizar({
+                  graficos_laterales: e.target.value
+                })
+              }
+            >
+              <option value="NO">NO</option>
+              <option value="SI">SI</option>
+            </select>
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Producción mínima semanal"
+            ayuda="Volumen mínimo semanal de racks informado al cliente."
+          >
+            <input
+              style={campo}
+              type="number"
+              min="0"
+              step="1"
+              value={formulario.produccion_minima_semanal || ""}
+              onChange={e =>
+                actualizar({
+                  produccion_minima_semanal: e.target.value
+                })
+              }
+            />
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Plazo comercial de entrega"
+            ayuda="Si queda vacío se usa el lead time calculado."
+          >
+            <input
+              style={campo}
+              placeholder="Ej: 3 a 4 semanas"
+              value={formulario.plazo_entrega_comercial || ""}
+              onChange={e =>
+                actualizar({
+                  plazo_entrega_comercial: e.target.value
+                })
+              }
+            />
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Concepto adicional unitario"
+            ayuda="Importe por producto, en la moneda de la cotización."
+          >
+            <input
+              style={campo}
+              type="number"
+              min="0"
+              step="0.01"
+              value={formulario.concepto_adicional || ""}
+              onChange={e =>
+                actualizar({
+                  concepto_adicional: e.target.value
+                })
+              }
+            />
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Aplicar concepto adicional en"
+            ayuda="Define en qué total se incorpora el concepto."
+          >
+            <select
+              style={campo}
+              value={
+                formulario.concepto_adicional_aplicacion ||
+                "exw"
+              }
+              onChange={e =>
+                actualizar({
+                  concepto_adicional_aplicacion:
+                    e.target.value
+                })
+              }
+            >
+              <option value="exw">Producción / EXW</option>
+              <option value="cif">Flete / CIF</option>
+              <option value="ddp">Flete / DDP</option>
+            </select>
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Descripción concepto adicional"
+            ayuda="Explica el concepto para la planilla."
+          >
+            <input
+              style={campo}
+              value={
+                formulario.concepto_adicional_descripcion ||
+                ""
+              }
+              onChange={e =>
+                actualizar({
+                  concepto_adicional_descripcion:
+                    e.target.value
+                })
+              }
+            />
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Flete CIF unitario"
+            ayuda="Opcional. Si está vacío se usa la logística calculada para exportación."
+          >
+            <input
+              style={campo}
+              type="number"
+              min="0"
+              step="0.01"
+              value={formulario.flete_cif_unitario || ""}
+              onChange={e =>
+                actualizar({
+                  flete_cif_unitario: e.target.value
+                })
+              }
+            />
+          </CampoConAyuda>
+          <CampoConAyuda
+            etiqueta="Flete DDP unitario"
+            ayuda="Segundo tramo o gasto adicional desde CIF hasta DDP."
+          >
+            <input
+              style={campo}
+              type="number"
+              min="0"
+              step="0.01"
+              value={formulario.flete_ddp_unitario || ""}
+              onChange={e =>
+                actualizar({
+                  flete_ddp_unitario: e.target.value
+                })
+              }
+            />
+          </CampoConAyuda>
+        </div>
+        <textarea
+          style={{
+            ...campo,
+            minHeight: 65,
+            marginTop: 12
+          }}
+          placeholder="Comentarios para la planilla PepsiCo"
+          value={formulario.comentarios_pepsico || ""}
+          onChange={e =>
+            actualizar({
+              comentarios_pepsico: e.target.value
+            })
+          }
+        />
+      </section>
+
+      <section style={cardCotizador}>
+        <div style={franjaCard} />
+        <h3 style={tituloCard}>
           Supuestos comerciales y lead time
         </h3>
         <div style={{
@@ -3590,6 +3961,8 @@ export default function CotizadorTecnicoV2({
                       PRESETS_LOGISTICA_DESTINO[pais] || {};
                     actualizar({
                       pais_destino: pais,
+                      pais_cotizacion:
+                        pais || "Chile",
                       ...preset,
                       ...(pais
                         ? {
@@ -5068,6 +5441,130 @@ export default function CotizadorTecnicoV2({
             ))}
           </div>
         )}
+        {filasPepsicoActuales.length > 0 && (
+          <div style={{
+            marginTop: 16,
+            background: "white",
+            borderRadius: 12,
+            padding: 12,
+            border: "1px solid #93C5FD"
+          }}>
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 10,
+              flexWrap: "wrap"
+            }}>
+              <div>
+                <h4 style={{ margin: 0 }}>
+                  Vista plantilla PepsiCo
+                </h4>
+                <div style={ayudaCampo}>
+                  Una fila por cantidad, en el mismo orden del
+                  Excel solicitado.
+                </div>
+              </div>
+              <button
+                type="button"
+                style={boton}
+                onClick={() =>
+                  descargarFilasPepsico(
+                    filasPepsicoActuales
+                  )
+                }
+              >
+                Descargar esta cotización
+              </button>
+            </div>
+            {filasPepsicoActuales.some(
+              fila => fila.pendientes.length > 0
+            ) && (
+              <div style={{
+                marginTop: 10,
+                padding: 10,
+                borderRadius: 10,
+                background: "#FFF7ED",
+                border: "1px solid #FDBA74",
+                color: "#9A3412",
+                fontWeight: "bold"
+              }}>
+                Hay datos pendientes para la plantilla PepsiCo.
+                La vista permite revisarlos, pero la descarga se
+                bloqueará hasta corregirlos.
+              </div>
+            )}
+            <div style={{
+              overflowX: "auto",
+              marginTop: 12
+            }}>
+              <table style={{
+                borderCollapse: "collapse",
+                minWidth: 6200,
+                fontSize: 12
+              }}>
+                <thead>
+                  <tr>
+                    {ENCABEZADOS_PEPSICO.map((encabezado, indice) => (
+                      <th
+                        key={`${encabezado}_${indice}`}
+                        style={{
+                          background: "#334155",
+                          color: "white",
+                          padding: 7,
+                          minWidth: 125,
+                          border: "1px solid #CBD5E1"
+                        }}
+                      >
+                        {encabezado}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filasPepsicoActuales.map(fila => (
+                    <tr key={fila.clave}>
+                      {filaAValoresPepsico(fila).map(
+                        (valor, indice) => (
+                          <td
+                            key={`${fila.clave}_${indice}`}
+                            style={{
+                              padding: 7,
+                              border: "1px solid #CBD5E1",
+                              textAlign:
+                                typeof valor === "number"
+                                  ? "right"
+                                  : "left",
+                              background:
+                                fila.pendientes.length > 0 &&
+                                indice >= 5 &&
+                                indice <= 20
+                                  ? "#FFF7ED"
+                                  : "white"
+                            }}
+                          >
+                            {typeof valor === "number"
+                              ? indice >= 37
+                                ? formatoPorcentaje(
+                                    valor * 100
+                                  )
+                                : valor.toLocaleString(
+                                    "es-CL",
+                                    {
+                                      maximumFractionDigits: 2
+                                    }
+                                  )
+                              : valor || ""}
+                          </td>
+                        )
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         {(resultados[0]?.detalle_materiales_unitario ||
           resultados[0]?.detalle_materiales)?.length >
           0 && (
@@ -5433,6 +5930,52 @@ export default function CotizadorTecnicoV2({
           </CampoConAyuda>
         </div>
         <div style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 12
+        }}>
+          <button
+            type="button"
+            style={botonSecundario}
+            disabled={clavesFilasPepsicoHistorial.length === 0}
+            onClick={() =>
+              setFilasPepsicoSeleccionadas(
+                clavesFilasPepsicoHistorial
+              )
+            }
+          >
+            Seleccionar cantidades filtradas
+          </button>
+          <button
+            type="button"
+            style={botonSecundario}
+            onClick={() =>
+              setFilasPepsicoSeleccionadas([])
+            }
+          >
+            Limpiar selección
+          </button>
+          <button
+            type="button"
+            style={boton}
+            disabled={
+              filasPepsicoSeleccionadas.length === 0
+            }
+            onClick={() =>
+              descargarFilasPepsico(
+                crearFilasPepsico(
+                  historial,
+                  filasPepsicoSeleccionadas
+                )
+              )
+            }
+          >
+            Descargar Excel PepsiCo (
+            {filasPepsicoSeleccionadas.length})
+          </button>
+        </div>
+        <div style={{
           color: "#64748B",
           marginBottom: 12
         }}>
@@ -5487,6 +6030,56 @@ export default function CotizadorTecnicoV2({
                   días
                 </div>
               )}
+              <div style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                marginTop: 8
+              }}>
+                {(item.resultados || []).map(resultado => {
+                  const clave = claveFilaPepsico(
+                    item.id,
+                    resultado.cantidad
+                  );
+                  const seleccionado =
+                    filasPepsicoSeleccionadas.includes(
+                      clave
+                    );
+
+                  return (
+                    <label
+                      key={clave}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "6px 9px",
+                        borderRadius: 9,
+                        border: seleccionado
+                          ? "1px solid #2563EB"
+                          : "1px solid #CBD5E1",
+                        background: seleccionado
+                          ? "#EFF6FF"
+                          : "white",
+                        fontWeight: "bold"
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={seleccionado}
+                        onChange={() =>
+                          alternarFilaPepsico(clave)
+                        }
+                      />
+                      PepsiCo {resultado.cantidad} un /{" "}
+                      {item.datos_pepsico?.pais ||
+                        item.supuestos?.exportacion
+                          ?.pais_destino ||
+                        "Chile"}
+                    </label>
+                  );
+                })}
+              </div>
               <div style={{
                 display: "flex",
                 flexWrap: "wrap",
