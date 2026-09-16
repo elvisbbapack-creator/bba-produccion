@@ -252,7 +252,10 @@ export const crearFilaPepsico = ({ cotizacion, resultado }) => {
   if (exw <= 0) {
     pendientes.push("El costo EXW aún no está calculado");
   }
-  const fleteCalculado = pais === "Chile"
+  const usaFleteNacional = (
+    cotizacion?.supuestos?.exportacion?.incoterm || ""
+  ).toUpperCase() === "NACIONAL";
+  const fleteCalculado = pais === "Chile" && !usaFleteNacional
     ? 0
     : numero(resultado?.costo_exportacion_unitario);
   const fleteCif = redondear(

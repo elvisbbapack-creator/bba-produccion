@@ -12,7 +12,11 @@ const redondear = (valor, decimales = 2) => {
 
 export const CONSUMO_TINTA_UV_CMYK_ML_M2 = 12;
 
-const INCOTERMS_CON_FLETE = new Set(["CIP", "DAP"]);
+const INCOTERMS_CON_FLETE = new Set([
+  "CIP",
+  "DAP",
+  "NACIONAL"
+]);
 const INCOTERMS_CON_SEGURO = new Set(["CIP"]);
 const INCOTERMS_CON_EXPORTACION = new Set([
   "FCA",

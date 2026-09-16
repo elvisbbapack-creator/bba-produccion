@@ -3889,7 +3889,9 @@ export default function CotizadorTecnicoV2({
               </div>
             ))}
           </div>
-          {cotizaExportacion && !formulario.pais_destino && (
+          {cotizaExportacion &&
+            incotermSeleccionado !== "NACIONAL" &&
+            !formulario.pais_destino && (
             <div role="alert" style={{
               marginTop: 12,
               padding: 11,
@@ -4413,14 +4415,20 @@ export default function CotizadorTecnicoV2({
                 const incoterm = e.target.value;
                 actualizar({
                   incoterm,
-                  ...(incoterm !== "EXW"
+                  ...(incoterm !== "EXW" &&
+                    incoterm !== "NACIONAL"
                     ? {
                         moneda: "USD",
                         tipo_cambio_clp_usd:
                           formulario.tipo_cambio_clp_usd ||
                           TIPO_CAMBIO_CLP_USD_FALLBACK
                       }
-                    : {})
+                    : incoterm === "NACIONAL"
+                      ? {
+                          moneda: "CLP",
+                          pais_destino: "Chile"
+                        }
+                      : {})
                 });
               }}
             >
@@ -4435,6 +4443,9 @@ export default function CotizadorTecnicoV2({
               </option>
               <option value="DAP">
                 DAP / Entregado en destino
+              </option>
+              <option value="NACIONAL">
+                Flete nacional Chile
               </option>
             </select>
           </CampoConAyuda>
@@ -4564,6 +4575,7 @@ export default function CotizadorTecnicoV2({
                   }}
                 >
                   <option value="">Sin destino</option>
+                  <option value="Chile">Chile</option>
                   <option value="Argentina">Argentina</option>
                   <option value="Uruguay">Uruguay</option>
                   <option value="Paraguay">Paraguay</option>
