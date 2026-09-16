@@ -837,9 +837,10 @@ const esPlegadoraNeumatica = proceso => {
   );
 
   return (
-    texto.includes("doblez") &&
     texto.includes("plegadora") &&
-    texto.includes("neumatica")
+    (texto.includes("neumatica") ||
+      texto.includes("hidraulica") ||
+      texto.includes("hidarulica"))
   );
 };
 
@@ -5259,7 +5260,7 @@ export default function CotizadorTecnicoV2({
                     Doblez CNC 3D
                   </option>
                   <option value="doblez_plegadora_neumatica">
-                    Doblez / Plegadora Neumática
+                    Doblez / Plegadora Neumática o Hidráulica
                   </option>
                   <option value="corte_cnc_recto">
                     Corte CNC Recto
