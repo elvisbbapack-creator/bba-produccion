@@ -459,6 +459,24 @@ const extraerDimensionesPlancha = expresion => {
   };
 };
 
+const extraerPerimetroLaserExplicito = expresion => {
+  const texto = (expresion || "")
+    .toString()
+    .replace(/\s+/g, "")
+    .replace(/,/g, ".");
+  const coincidencia = texto.match(
+    /^\(\((.+)\*2\)\+\((.+)\*2\)\)\*([0-9]+(?:\.[0-9]+)?)$/
+  );
+
+  if (!coincidencia) return null;
+
+  return {
+    ladoA: evaluarExpresionNumerica(coincidencia[1]),
+    ladoB: evaluarExpresionNumerica(coincidencia[2]),
+    multiplicador: Number(coincidencia[3])
+  };
+};
+
 const extraerFormulaLaserPerforado = expresion => {
   const texto = (expresion || "")
     .toString()
@@ -1161,7 +1179,8 @@ export const analizarFormulaProceso = ({
 
   const dimensionesLaser =
     tipoFormula === "laser_metros_minuto"
-      ? extraerDimensionesPlancha(texto)
+      ? extraerDimensionesPlancha(texto) ||
+        extraerPerimetroLaserExplicito(texto)
       : null;
   const perforadoLaser =
     tipoFormula === "laser_metros_minuto"

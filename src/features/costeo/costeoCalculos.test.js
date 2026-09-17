@@ -22,6 +22,24 @@ test("normaliza escalas de cotizacion", () => {
   ).toEqual([10, 50, 100]);
 });
 
+test("interpreta formula explicita de perimetro para laser", () => {
+  const resultado = analizarFormulaProceso({
+    tipoFormula: "laser_metros_minuto",
+    expresion: "((1005*2)+(245*2))*1",
+    unidadExpresion: "mm",
+    metrosPorMinuto: 8,
+    segundosPorCorte: 0.5
+  });
+
+  expect(resultado).toMatchObject({
+    valido: true,
+    metros_totales: 2.5,
+    piezas: 1,
+    cortes: 4,
+    longitud_por_pieza: 2500
+  });
+});
+
 test("calcula el desarrollo y costo de una caja corrugada", () => {
   const resultado = calcularCajaCorrugada({
     largo_mm: 400,

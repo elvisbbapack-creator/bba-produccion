@@ -800,12 +800,31 @@ const camposLaserDesdeMaterial = (
     material,
     estacion
   );
+  const ancho = Number(material?.ancho_pieza);
+  const alto = Number(material?.alto_pieza);
+  const piezas = Math.max(
+    Math.round(
+      Number(
+        material?.piezas_por_producto ||
+        material?.subproductos ||
+        1
+      )
+    ),
+    1
+  );
+  const formulaPerimetro =
+    ancho > 0 && alto > 0
+      ? `((${ancho}*2)+(${alto}*2))*${piezas}`
+      : "";
 
   return {
     ...camposFormulaDesdeMaterial(
       material,
       indiceMaterial
     ),
+    ...(formulaPerimetro
+      ? { formula_tiempo: formulaPerimetro }
+      : {}),
     ...(velocidad > 0
       ? {
           metros_por_minuto: velocidad,
