@@ -1944,6 +1944,9 @@ export default function CotizadorTecnicoV2({
   const paisesPepsicoVista = [
     ...new Set(filasPepsicoVista.map(fila => fila.pais))
   ];
+  const mostrarVistaPepsico = Boolean(
+    (formulario.nombre_producto || "").trim()
+  ) && filasPepsicoVista.length > 0;
   const logisticaBase =
     resultadoBase?.logistica_exportacion || {};
   const destinosExportacionSeleccionados = useMemo(
@@ -6331,7 +6334,7 @@ export default function CotizadorTecnicoV2({
             ))}
           </div>
         )}
-        {filasPepsicoVista.length > 0 && (
+        {mostrarVistaPepsico && (
           <div style={{
             marginTop: 16,
             background: "white",
