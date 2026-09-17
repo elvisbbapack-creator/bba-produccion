@@ -630,12 +630,29 @@ const camposFormulaDesdeMaterial = (
 const aplicacionCorteLaserMaterial = material => {
   const aplicacion =
     material?.aplicacion_corte_laser;
+  const textoMaterial = normalizarComparacion(
+    [material?.codigo, material?.nombre]
+      .filter(Boolean)
+      .join(" ")
+  );
+  const esPlanchaCo2 =
+    /(^|\s)pai(\s|$)/.test(textoMaterial) ||
+    textoMaterial.includes("acrilico") ||
+    /(^|\s)mdf(\s|$)/.test(textoMaterial);
 
   if (
     Object.values(APLICACIONES_CORTE_LASER).includes(
       aplicacion
-    )
+    ) && aplicacion !== APLICACIONES_CORTE_LASER.NO_APLICA
   ) {
+    return aplicacion;
+  }
+
+  if (esPlanchaCo2) {
+    return APLICACIONES_CORTE_LASER.CO2;
+  }
+
+  if (aplicacion === APLICACIONES_CORTE_LASER.NO_APLICA) {
     return aplicacion;
   }
 
@@ -5371,7 +5388,9 @@ export default function CotizadorTecnicoV2({
                             ? "Seleccionar MP Alambre con fórmula"
                             : esFormulaCortePrensa
                               ? "Seleccionar MP Tubo con fórmula"
-                              : "Seleccionar plancha compatible con fórmula"}
+                              : tipoLaserEstacion(proceso) === APLICACIONES_CORTE_LASER.CO2
+                                ? "Seleccionar MP PAI, Acrílico o MDF con fórmula"
+                                : "Seleccionar plancha compatible con fórmula"}
                         </option>
                         {materialesFormulaProceso.map(
                           (material, materialIndice) => (
