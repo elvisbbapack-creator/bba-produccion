@@ -1938,6 +1938,12 @@ export default function CotizadorTecnicoV2({
       ]),
     [editandoId, formulario, resultados]
   );
+  const filasPepsicoVista = formulario.cotizacion_multipais
+    ? filasPepsicoMultipais
+    : filasPepsicoActuales;
+  const paisesPepsicoVista = [
+    ...new Set(filasPepsicoVista.map(fila => fila.pais))
+  ];
   const logisticaBase =
     resultadoBase?.logistica_exportacion || {};
   const destinosExportacionSeleccionados = useMemo(
@@ -6325,7 +6331,7 @@ export default function CotizadorTecnicoV2({
             ))}
           </div>
         )}
-        {filasPepsicoActuales.length > 0 && (
+        {filasPepsicoVista.length > 0 && (
           <div style={{
             marginTop: 16,
             background: "white",
@@ -6345,8 +6351,9 @@ export default function CotizadorTecnicoV2({
                   Vista plantilla PepsiCo
                 </h4>
                 <div style={ayudaCampo}>
-                  Una fila por cantidad, en el mismo orden del
-                  Excel solicitado.
+                  {formulario.cotizacion_multipais
+                    ? `${paisesPepsicoVista.length} países activos · ${filasPepsicoVista.length} escenarios · mismas filas y columnas de la descarga.`
+                    : "Una fila por cantidad, en el mismo orden del Excel solicitado."}
                 </div>
               </div>
               <button
@@ -6354,14 +6361,16 @@ export default function CotizadorTecnicoV2({
                 style={boton}
                 onClick={() =>
                   descargarFilasPepsico(
-                    filasPepsicoActuales
+                    filasPepsicoVista
                   )
                 }
               >
-                Descargar esta cotización
+                {formulario.cotizacion_multipais
+                  ? "Descargar plantilla multipaís"
+                  : "Descargar esta cotización"}
               </button>
             </div>
-            {filasPepsicoActuales.some(
+            {filasPepsicoVista.some(
               fila => fila.pendientes.length > 0
             ) && (
               <div style={{
@@ -6376,6 +6385,20 @@ export default function CotizadorTecnicoV2({
                 Hay datos pendientes para la plantilla PepsiCo.
                 La vista permite revisarlos, pero la descarga se
                 bloqueará hasta corregirlos.
+                <ul style={{ marginBottom: 0 }}>
+                  {filasPepsicoVista
+                    .flatMap(fila =>
+                      fila.pendientes.map(pendiente =>
+                        `${fila.pais} · ${fila.cantidad}: ${pendiente}`
+                      )
+                    )
+                    .filter((mensaje, indice, lista) =>
+                      lista.indexOf(mensaje) === indice
+                    )
+                    .map(mensaje => (
+                      <li key={mensaje}>{mensaje}</li>
+                    ))}
+                </ul>
               </div>
             )}
             <div style={{
@@ -6406,7 +6429,7 @@ export default function CotizadorTecnicoV2({
                   </tr>
                 </thead>
                 <tbody>
-                  {filasPepsicoActuales.map(fila => (
+                  {filasPepsicoVista.map(fila => (
                     <tr key={fila.clave}>
                       {filaAValoresPepsico(fila).map(
                         (valor, indice) => (
