@@ -1083,9 +1083,10 @@ const valoresFormulaSoldaduraMultipunto = proceso => ({
   segundos_por_ciclo_multipunto:
     proceso?.tipo_formula_tiempo ===
       "soldadura_multipunto" &&
-    Number(proceso?.segundos_por_ciclo_multipunto) > 0
+    Number(proceso?.segundos_por_ciclo_multipunto) > 0 &&
+    Number(proceso?.segundos_por_ciclo_multipunto) !== 150
       ? proceso.segundos_por_ciclo_multipunto
-      : 150,
+      : 1.5,
   segundos_carga_retiro_multipunto:
     proceso?.tipo_formula_tiempo ===
       "soldadura_multipunto" &&
@@ -1095,7 +1096,14 @@ const valoresFormulaSoldaduraMultipunto = proceso => ({
   segundos_por_metro: 0,
   segundos_por_doblez: 0,
   segundos_por_corte: 0,
-  unidades_por_hora: 0
+  unidades_por_hora: 0,
+  eficiencia_esperada:
+    proceso?.tipo_formula_tiempo ===
+      "soldadura_multipunto" &&
+    Number(proceso?.eficiencia_esperada) > 0 &&
+    Number(proceso?.eficiencia_esperada) !== 75
+      ? proceso.eficiencia_esperada
+      : 72
 });
 
 const valoresPorTipoFormula = (
@@ -1141,6 +1149,20 @@ const valoresPorTipoFormula = (
 };
 
 const aplicarFormulaTiempoProceso = proceso => {
+  const esMultipunto =
+    proceso.tipo_formula_tiempo ===
+    "soldadura_multipunto";
+  const segundosCicloMultipunto =
+    esMultipunto &&
+    Number(proceso.segundos_por_ciclo_multipunto) === 150
+      ? 1.5
+      : proceso.segundos_por_ciclo_multipunto || 1.5;
+  const eficienciaMultipunto =
+    esMultipunto &&
+    (!Number(proceso.eficiencia_esperada) ||
+      Number(proceso.eficiencia_esperada) === 75)
+      ? 72
+      : proceso.eficiencia_esperada;
   const analisis = analizarFormulaProceso({
     tipoFormula: proceso.tipo_formula_tiempo,
     expresion: proceso.formula_tiempo,
@@ -1168,7 +1190,7 @@ const aplicarFormulaTiempoProceso = proceso => {
     puntosPorCicloMultipunto:
       proceso.puntos_por_ciclo_multipunto || 3,
     segundosPorCicloMultipunto:
-      proceso.segundos_por_ciclo_multipunto || 150,
+      segundosCicloMultipunto,
     segundosCargaRetiroMultipunto:
       proceso.segundos_carga_retiro_multipunto ?? 8
   });
@@ -1195,6 +1217,14 @@ const aplicarFormulaTiempoProceso = proceso => {
 
   return {
     ...proceso,
+    ...(esMultipunto
+      ? {
+          segundos_por_ciclo_multipunto:
+            segundosCicloMultipunto,
+          eficiencia_esperada:
+            eficienciaMultipunto
+        }
+      : {}),
     ...(analisis.valido
       ? {
           unidades_por_hora:
@@ -1255,7 +1285,7 @@ const procesoVacio = {
   golpes_calculados: 0,
   metros_por_minuto: 0,
   puntos_por_ciclo_multipunto: 3,
-  segundos_por_ciclo_multipunto: 150,
+  segundos_por_ciclo_multipunto: 1.5,
   segundos_carga_retiro_multipunto: 8,
   puntos_mig: 0,
   cordones_simples: 0,

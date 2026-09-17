@@ -71,6 +71,26 @@ test("calcula Soldadora Multipunto redondeando ciclos por cada malla", () => {
   });
 });
 
+test("usa el ciclo real calibrado de Multipunto para una bandeja de 75 puntos", () => {
+  const resultado = analizarFormulaProceso({
+    tipoFormula: "soldadura_multipunto",
+    expresion: "(15*5)*1"
+  });
+
+  expect(resultado).toMatchObject({
+    valido: true,
+    segundos_por_producto: 45.5,
+    unidades_por_hora: 79.120879,
+    golpes: 25,
+    detalle_tiempo: {
+      intersecciones_por_malla: 75,
+      ciclos_por_malla: 25,
+      segundos_ciclo: 1.5,
+      segundos_carga_retiro: 8
+    }
+  });
+});
+
 test("calcula el desarrollo y costo de una caja corrugada", () => {
   const resultado = calcularCajaCorrugada({
     largo_mm: 400,

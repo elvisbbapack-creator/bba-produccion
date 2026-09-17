@@ -985,7 +985,7 @@ export const PARAMETROS_SOLDADURA_MIG = {
 
 export const PARAMETROS_SOLDADURA_MULTIPUNTO = {
   puntos_por_ciclo: 3,
-  segundos_por_ciclo: 150,
+  segundos_por_ciclo: 1.5,
   segundos_carga_retiro: 8
 };
 
@@ -1004,7 +1004,7 @@ export const analizarFormulaProceso = ({
   segundosPorCordonSimple = 12,
   segundosPorCordonPerimetral = 45,
   puntosPorCicloMultipunto = 3,
-  segundosPorCicloMultipunto = 150,
+  segundosPorCicloMultipunto = 1.5,
   segundosCargaRetiroMultipunto = 8
 } = {}) => {
   const texto = (expresion || "").toString().trim();
