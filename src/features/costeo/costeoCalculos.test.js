@@ -91,6 +91,49 @@ test("usa el ciclo real calibrado de Multipunto para una bandeja de 75 puntos", 
   });
 });
 
+test("calcula capacidad de Impresora CP UV con separación y giro", () => {
+  const resultado = analizarFormulaProceso({
+    tipoFormula: "impresion_uv_cama",
+    largoCamaImpresionMm: 2450,
+    anchoCamaImpresionMm: 1250,
+    separacionImpresionMm: 15,
+    camasImpresionPorHora: 4,
+    largoPiezaImpresionMm: 610,
+    anchoPiezaImpresionMm: 400,
+    piezasImpresionPorProducto: 2
+  });
+
+  expect(resultado).toMatchObject({
+    valido: true,
+    segundos_por_producto: 180,
+    unidades_por_hora: 20,
+    piezas: 2,
+    detalle_tiempo: {
+      piezas_por_cama: 10,
+      columnas: 5,
+      filas: 2,
+      orientacion: "girada",
+      capacidad_normal: 9,
+      capacidad_girada: 10,
+      productos_por_cama: 5,
+      separacion_mm: 15,
+      camas_por_hora: 4
+    }
+  });
+});
+
+test("rechaza PAI que no entra en la cama de Impresora CP UV", () => {
+  const resultado = analizarFormulaProceso({
+    tipoFormula: "impresion_uv_cama",
+    largoPiezaImpresionMm: 2500,
+    anchoPiezaImpresionMm: 1300,
+    piezasImpresionPorProducto: 1
+  });
+
+  expect(resultado.valido).toBe(false);
+  expect(resultado.error).toContain("no entra");
+});
+
 test("calcula el desarrollo y costo de una caja corrugada", () => {
   const resultado = calcularCajaCorrugada({
     largo_mm: 400,

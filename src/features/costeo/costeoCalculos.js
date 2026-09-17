@@ -989,6 +989,13 @@ export const PARAMETROS_SOLDADURA_MULTIPUNTO = {
   segundos_carga_retiro: 8
 };
 
+export const PARAMETROS_IMPRESION_CP_UV = {
+  largo_cama_mm: 2450,
+  ancho_cama_mm: 1250,
+  separacion_mm: 15,
+  camas_por_hora: 4
+};
+
 export const analizarFormulaProceso = ({
   tipoFormula = "",
   expresion = "",
@@ -1005,7 +1012,14 @@ export const analizarFormulaProceso = ({
   segundosPorCordonPerimetral = 45,
   puntosPorCicloMultipunto = 3,
   segundosPorCicloMultipunto = 1.5,
-  segundosCargaRetiroMultipunto = 8
+  segundosCargaRetiroMultipunto = 8,
+  largoCamaImpresionMm = 2450,
+  anchoCamaImpresionMm = 1250,
+  separacionImpresionMm = 15,
+  camasImpresionPorHora = 4,
+  largoPiezaImpresionMm = 0,
+  anchoPiezaImpresionMm = 0,
+  piezasImpresionPorProducto = 0
 } = {}) => {
   const texto = (expresion || "").toString().trim();
   const formulaSoportada = [
@@ -1015,7 +1029,8 @@ export const analizarFormulaProceso = ({
     "corte_prensa",
     "laser_metros_minuto",
     "soldadura_mig",
-    "soldadura_multipunto"
+    "soldadura_multipunto",
+    "impresion_uv_cama"
   ].includes(tipoFormula);
 
   if (!formulaSoportada) {
@@ -1210,6 +1225,127 @@ export const analizarFormulaProceso = ({
           "Usa el formato (horizontales*verticales)*mallas. Ej: (26*7)*7."
       };
     }
+  }
+
+  if (tipoFormula === "impresion_uv_cama") {
+    const largoCama = numero(largoCamaImpresionMm);
+    const anchoCama = numero(anchoCamaImpresionMm);
+    const separacion = Math.max(
+      numero(separacionImpresionMm),
+      0
+    );
+    const camasHora = numero(camasImpresionPorHora);
+    const largoPieza = numero(largoPiezaImpresionMm);
+    const anchoPieza = numero(anchoPiezaImpresionMm);
+    const piezasProducto = numero(
+      piezasImpresionPorProducto
+    );
+
+    if (
+      largoCama <= 0 ||
+      anchoCama <= 0 ||
+      camasHora <= 0 ||
+      largoPieza <= 0 ||
+      anchoPieza <= 0 ||
+      piezasProducto <= 0
+    ) {
+      return {
+        valido: false,
+        segundos_por_producto: 0,
+        unidades_por_hora: 0,
+        metros_totales: 0,
+        piezas: 0,
+        cortes: 0,
+        golpes: 0,
+        error:
+          "Selecciona una MP PAI con largo, ancho y piezas por producto válidos."
+      };
+    }
+
+    const capacidadOrientacion = (
+      piezaLargo,
+      piezaAncho
+    ) => {
+      const columnas = Math.floor(
+        (largoCama + separacion) /
+          (piezaLargo + separacion)
+      );
+      const filas = Math.floor(
+        (anchoCama + separacion) /
+          (piezaAncho + separacion)
+      );
+
+      return {
+        columnas: Math.max(columnas, 0),
+        filas: Math.max(filas, 0),
+        piezas: Math.max(columnas, 0) *
+          Math.max(filas, 0)
+      };
+    };
+    const normal = capacidadOrientacion(
+      largoPieza,
+      anchoPieza
+    );
+    const rotada = capacidadOrientacion(
+      anchoPieza,
+      largoPieza
+    );
+    const mejor =
+      rotada.piezas > normal.piezas
+        ? { ...rotada, orientacion: "girada" }
+        : { ...normal, orientacion: "normal" };
+
+    if (mejor.piezas <= 0) {
+      return {
+        valido: false,
+        segundos_por_producto: 0,
+        unidades_por_hora: 0,
+        metros_totales: 0,
+        piezas: 0,
+        cortes: 0,
+        golpes: 0,
+        error:
+          `La pieza ${largoPieza} × ${anchoPieza} mm no entra en la cama ${largoCama} × ${anchoCama} mm, ni girada.`
+      };
+    }
+
+    const productosPorCama =
+      mejor.piezas / piezasProducto;
+    const unidadesHora = productosPorCama * camasHora;
+    const segundosPorProducto = 3600 / unidadesHora;
+
+    return {
+      valido: true,
+      segundos_por_producto: redondear(
+        segundosPorProducto,
+        4
+      ),
+      unidades_por_hora: redondear(unidadesHora, 6),
+      metros_totales: 0,
+      piezas: piezasProducto,
+      cortes: 0,
+      golpes: 0,
+      detalle_tiempo: {
+        largo_cama_mm: largoCama,
+        ancho_cama_mm: anchoCama,
+        separacion_mm: separacion,
+        camas_por_hora: camasHora,
+        largo_pieza_mm: largoPieza,
+        ancho_pieza_mm: anchoPieza,
+        piezas_por_producto: piezasProducto,
+        piezas_por_cama: mejor.piezas,
+        columnas: mejor.columnas,
+        filas: mejor.filas,
+        orientacion: mejor.orientacion,
+        capacidad_normal: normal.piezas,
+        capacidad_girada: rotada.piezas,
+        productos_por_cama: redondear(
+          productosPorCama,
+          6
+        )
+      },
+      error: ""
+    };
   }
 
   if (tipoFormula === "doblez_plegadora_neumatica") {

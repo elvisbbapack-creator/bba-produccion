@@ -952,6 +952,24 @@ const esSoldadoraMultipunto = proceso => {
   );
 };
 
+const esImpresoraCpUv = proceso => {
+  const texto = normalizarComparacion(
+    [
+      proceso?.proceso_nombre,
+      proceso?.estacion_nombre,
+      proceso?.proceso_codigo,
+      proceso?.estacion_codigo
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    texto.includes("impresion") &&
+    (texto.includes("cp uv") || texto.includes("uv"))
+  );
+};
+
 const valoresFormulaDoblezCnc = proceso => ({
   tipo_formula_tiempo: "doblez_cnc_3d",
   formula_material_indice: "",
@@ -1106,6 +1124,66 @@ const valoresFormulaSoldaduraMultipunto = proceso => ({
       : 72
 });
 
+const valoresFormulaImpresionCpUv = proceso => ({
+  tipo_formula_tiempo: "impresion_uv_cama",
+  formula_tiempo: "impresion_uv_cama",
+  formula_material_indice: "",
+  formula_material_id: "",
+  formula_material_codigo: "",
+  formula_material_nombre: "",
+  unidad_formula_tiempo: "mm",
+  largo_cama_impresion_mm:
+    proceso?.largo_cama_impresion_mm || 2450,
+  ancho_cama_impresion_mm:
+    proceso?.ancho_cama_impresion_mm || 1250,
+  separacion_impresion_mm:
+    proceso?.separacion_impresion_mm ?? 15,
+  camas_impresion_por_hora:
+    proceso?.camas_impresion_por_hora || 4,
+  largo_pieza_impresion_mm: 0,
+  ancho_pieza_impresion_mm: 0,
+  piezas_impresion_por_producto: 0,
+  segundos_por_metro: 0,
+  segundos_por_doblez: 0,
+  segundos_por_corte: 0,
+  unidades_por_hora: 0,
+  // Las 4 camas/hora informadas ya son rendimiento real medido;
+  // no corresponde volver a descontar eficiencia.
+  eficiencia_esperada: 100
+});
+
+const camposImpresionDesdeMaterial = (
+  material,
+  indiceMaterial
+) =>
+  material
+    ? {
+        formula_material_indice:
+          indiceMaterial.toString(),
+        formula_material_id: material.id || "",
+        formula_material_codigo:
+          material.codigo || "",
+        formula_material_nombre:
+          material.nombre || "",
+        largo_pieza_impresion_mm:
+          Number(material.ancho_pieza) || 0,
+        ancho_pieza_impresion_mm:
+          Number(material.alto_pieza) || 0,
+        piezas_impresion_por_producto:
+          Number(material.piezas_por_producto) ||
+          Number(material.subproductos) ||
+          1
+      }
+    : {
+        formula_material_indice: "",
+        formula_material_id: "",
+        formula_material_codigo: "",
+        formula_material_nombre: "",
+        largo_pieza_impresion_mm: 0,
+        ancho_pieza_impresion_mm: 0,
+        piezas_impresion_por_producto: 0
+      };
+
 const valoresPorTipoFormula = (
   tipoFormula,
   proceso
@@ -1136,6 +1214,10 @@ const valoresPorTipoFormula = (
 
   if (tipoFormula === "soldadura_multipunto") {
     return valoresFormulaSoldaduraMultipunto(proceso);
+  }
+
+  if (tipoFormula === "impresion_uv_cama") {
+    return valoresFormulaImpresionCpUv(proceso);
   }
 
   return {
@@ -1192,7 +1274,21 @@ const aplicarFormulaTiempoProceso = proceso => {
     segundosPorCicloMultipunto:
       segundosCicloMultipunto,
     segundosCargaRetiroMultipunto:
-      proceso.segundos_carga_retiro_multipunto ?? 8
+      proceso.segundos_carga_retiro_multipunto ?? 8,
+    largoCamaImpresionMm:
+      proceso.largo_cama_impresion_mm || 2450,
+    anchoCamaImpresionMm:
+      proceso.ancho_cama_impresion_mm || 1250,
+    separacionImpresionMm:
+      proceso.separacion_impresion_mm ?? 15,
+    camasImpresionPorHora:
+      proceso.camas_impresion_por_hora || 4,
+    largoPiezaImpresionMm:
+      proceso.largo_pieza_impresion_mm || 0,
+    anchoPiezaImpresionMm:
+      proceso.ancho_pieza_impresion_mm || 0,
+    piezasImpresionPorProducto:
+      proceso.piezas_impresion_por_producto || 0
   });
 
   if (
@@ -1287,6 +1383,13 @@ const procesoVacio = {
   puntos_por_ciclo_multipunto: 3,
   segundos_por_ciclo_multipunto: 1.5,
   segundos_carga_retiro_multipunto: 8,
+  largo_cama_impresion_mm: 2450,
+  ancho_cama_impresion_mm: 1250,
+  separacion_impresion_mm: 15,
+  camas_impresion_por_hora: 4,
+  largo_pieza_impresion_mm: 0,
+  ancho_pieza_impresion_mm: 0,
+  piezas_impresion_por_producto: 0,
   puntos_mig: 0,
   cordones_simples: 0,
   cordones_perimetrales: 0,
@@ -2970,6 +3073,8 @@ export default function CotizadorTecnicoV2({
       materialesLaserCompatibles[0];
     const indiceMaterialPlanchaLaf =
       materialPlanchaLaf ? 0 : "";
+    const materialPaiImpresion =
+      materialesPaiConFormula[0]?.material;
     const datosBase = {
       ...procesoActual,
       proceso_codigo:
@@ -2996,6 +3101,16 @@ export default function CotizadorTecnicoV2({
           ? valoresFormulaCorteCncRecto(procesoActual)
           : esCortePrensa(estacion)
             ? valoresFormulaCortePrensa(procesoActual)
+            : esImpresoraCpUv(estacion)
+              ? {
+                  ...valoresFormulaImpresionCpUv(
+                    procesoActual
+                  ),
+                  ...camposImpresionDesdeMaterial(
+                    materialPaiImpresion,
+                    materialPaiImpresion ? 0 : ""
+                  )
+                }
             : esLaserCorte(estacion)
               ? {
                   ...valoresFormulaLaser(
@@ -5287,8 +5402,15 @@ export default function CotizadorTecnicoV2({
           const esFormulaSoldaduraMultipunto =
             proceso.tipo_formula_tiempo ===
             "soldadura_multipunto";
+          const esFormulaImpresionCpUv =
+            proceso.tipo_formula_tiempo ===
+            "impresion_uv_cama";
           const materialesFormulaProceso =
-            esFormulaDoblezCnc ||
+            esFormulaImpresionCpUv
+              ? materialesPaiConFormula.map(
+                  ({ material }) => material
+                )
+              : esFormulaDoblezCnc ||
             esFormulaCorteCncRecto
               ? materialesConFormulaAlambre
                 : esFormulaCortePrensa
@@ -5428,6 +5550,9 @@ export default function CotizadorTecnicoV2({
                   <option value="soldadura_multipunto">
                     SPunto / Soldadora Multipunto
                   </option>
+                  <option value="impresion_uv_cama">
+                    Impresión / Impresora CP UV
+                  </option>
                 </select>
               </CampoConAyuda>
               {[
@@ -5437,17 +5562,21 @@ export default function CotizadorTecnicoV2({
                 "corte_prensa",
                 "laser_metros_minuto",
                 "soldadura_mig",
-                "soldadura_multipunto"
+                "soldadura_multipunto",
+                "impresion_uv_cama"
               ].includes(proceso.tipo_formula_tiempo) && (
                 <>
                   {(esFormulaDoblezCnc ||
                     esFormulaCorteCncRecto ||
                     esFormulaCortePrensa ||
-                    esFormulaLaser) && (
+                    esFormulaLaser ||
+                    esFormulaImpresionCpUv) && (
                     <CampoConAyuda
                       etiqueta="Usar fórmula desde material"
                       ayuda={
-                        esFormulaDoblezCnc ||
+                        esFormulaImpresionCpUv
+                          ? "Toma largo, ancho y cantidad de piezas desde una MP PAI para calcular el aprovechamiento de la cama de impresión."
+                          : esFormulaDoblezCnc ||
                         esFormulaCorteCncRecto
                           ? "Reutiliza la fórmula del MP Alambre ya ingresada en Materiales estimados para calcular avance, dobleces y cortes."
                           : esFormulaCortePrensa
@@ -5473,7 +5602,12 @@ export default function CotizadorTecnicoV2({
                                   )
                                 ];
                           const camposFormula =
-                            esFormulaLaser
+                            esFormulaImpresionCpUv
+                              ? camposImpresionDesdeMaterial(
+                                  material,
+                                  materialIndice
+                                )
+                            : esFormulaLaser
                               ? camposLaserDesdeMaterial(
                                   material,
                                   materialIndice,
@@ -5512,7 +5646,9 @@ export default function CotizadorTecnicoV2({
                         }}
                       >
                         <option value="">
-                          {esFormulaDoblezCnc ||
+                          {esFormulaImpresionCpUv
+                            ? "Seleccionar MP PAI con fórmula"
+                            : esFormulaDoblezCnc ||
                           esFormulaCorteCncRecto
                             ? "Seleccionar MP Alambre con fórmula"
                             : esFormulaCortePrensa
@@ -5541,7 +5677,8 @@ export default function CotizadorTecnicoV2({
                       </select>
                     </CampoConAyuda>
                   )}
-                  {!esFormulaSoldaduraMig && (
+                  {!esFormulaSoldaduraMig &&
+                  !esFormulaImpresionCpUv && (
                     <>
                       <CampoConAyuda
                         etiqueta={
@@ -5797,6 +5934,57 @@ export default function CotizadorTecnicoV2({
                       />
                     </CampoConAyuda>
                   ))}
+                  {esFormulaImpresionCpUv && [
+                    {
+                      clave: "largo_cama_impresion_mm",
+                      etiqueta: "Largo cama (mm)"
+                    },
+                    {
+                      clave: "ancho_cama_impresion_mm",
+                      etiqueta: "Ancho cama (mm)"
+                    },
+                    {
+                      clave: "separacion_impresion_mm",
+                      etiqueta: "Separación piezas (mm)"
+                    },
+                    {
+                      clave: "camas_impresion_por_hora",
+                      etiqueta: "Camas impresas/hora"
+                    }
+                  ].map(parametro => (
+                    <CampoConAyuda
+                      key={parametro.clave}
+                      etiqueta={parametro.etiqueta}
+                      ayuda="Parámetro técnico editable de la Impresora CP UV."
+                    >
+                      <input
+                        style={campo}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        value={
+                          proceso[parametro.clave] ?? ""
+                        }
+                        onChange={e => {
+                          const actualizado =
+                            aplicarFormulaTiempoProceso({
+                              ...proceso,
+                              [parametro.clave]:
+                                e.target.value
+                            });
+
+                          actualizar({
+                            procesos: actualizarItem(
+                              formulario.procesos,
+                              indice,
+                              actualizado
+                            )
+                          });
+                        }}
+                      />
+                    </CampoConAyuda>
+                  ))}
                   {[
                     ...(proceso.tipo_formula_tiempo ===
                     "laser_metros_minuto"
@@ -5815,6 +6003,8 @@ export default function CotizadorTecnicoV2({
                       "soldadura_mig" ||
                     proceso.tipo_formula_tiempo ===
                       "soldadura_multipunto"
+                    || proceso.tipo_formula_tiempo ===
+                      "impresion_uv_cama"
                       ? []
                       : [{
                           clave: "segundos_por_metro",
@@ -5833,6 +6023,8 @@ export default function CotizadorTecnicoV2({
                     "soldadura_mig" ||
                     proceso.tipo_formula_tiempo ===
                     "soldadura_multipunto" ||
+                    proceso.tipo_formula_tiempo ===
+                    "impresion_uv_cama" ||
                     proceso.tipo_formula_tiempo ===
                     "doblez_plegadora_neumatica"
                       ? []
@@ -5920,6 +6112,9 @@ export default function CotizadorTecnicoV2({
                           : proceso.tipo_formula_tiempo ===
                             "soldadura_multipunto"
                             ? `${proceso.segundos_por_producto || 0} seg/exhibidor | ${proceso.unidades_por_hora || 0} exhibidores/h | ${proceso.formula_tiempo_detalle?.intersecciones_por_malla || 0} puntos/malla × ${proceso.formula_tiempo_detalle?.mallas || 0} mallas = ${proceso.formula_tiempo_detalle?.puntos_totales || 0} puntos | ${proceso.formula_tiempo_detalle?.ciclos_por_malla || 0} ciclos/malla · ${proceso.formula_tiempo_detalle?.ciclos_total || 0} ciclos | ${proceso.formula_tiempo_detalle?.cargas_retiros || 0} cargas/retiros × ${proceso.segundos_carga_retiro_multipunto ?? 8} seg`
+                          : proceso.tipo_formula_tiempo ===
+                            "impresion_uv_cama"
+                            ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} productos/h | Pieza ${proceso.formula_tiempo_detalle?.largo_pieza_mm || 0} × ${proceso.formula_tiempo_detalle?.ancho_pieza_mm || 0} mm | ${proceso.formula_tiempo_detalle?.piezas_por_cama || 0} piezas/cama (${proceso.formula_tiempo_detalle?.columnas || 0} × ${proceso.formula_tiempo_detalle?.filas || 0}, ${proceso.formula_tiempo_detalle?.orientacion || "-"}) | ${proceso.formula_tiempo_detalle?.piezas_por_producto || 0} piezas/producto | Desde ${proceso.formula_material_codigo || "MP PAI"}`
                           : proceso.tipo_formula_tiempo ===
                             "laser_metros_minuto"
                             ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} inicios/cortes | ${proceso.metros_por_minuto || 0} m/min`

@@ -266,6 +266,27 @@ export const prepararCotizacionTecnica = (
       segundos_carga_retiro_multipunto: numero(
         proceso.segundos_carga_retiro_multipunto
       ),
+      largo_cama_impresion_mm: numero(
+        proceso.largo_cama_impresion_mm
+      ),
+      ancho_cama_impresion_mm: numero(
+        proceso.ancho_cama_impresion_mm
+      ),
+      separacion_impresion_mm: numero(
+        proceso.separacion_impresion_mm
+      ),
+      camas_impresion_por_hora: numero(
+        proceso.camas_impresion_por_hora
+      ),
+      largo_pieza_impresion_mm: numero(
+        proceso.largo_pieza_impresion_mm
+      ),
+      ancho_pieza_impresion_mm: numero(
+        proceso.ancho_pieza_impresion_mm
+      ),
+      piezas_impresion_por_producto: numero(
+        proceso.piezas_impresion_por_producto
+      ),
       puntos_mig: numero(proceso.puntos_mig),
       cordones_simples: numero(
         proceso.cordones_simples
