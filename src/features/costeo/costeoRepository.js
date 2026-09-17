@@ -257,6 +257,15 @@ export const prepararCotizacionTecnica = (
       metros_por_minuto: numero(
         proceso.metros_por_minuto
       ),
+      puntos_por_ciclo_multipunto: numero(
+        proceso.puntos_por_ciclo_multipunto
+      ),
+      segundos_por_ciclo_multipunto: numero(
+        proceso.segundos_por_ciclo_multipunto
+      ),
+      segundos_carga_retiro_multipunto: numero(
+        proceso.segundos_carga_retiro_multipunto
+      ),
       puntos_mig: numero(proceso.puntos_mig),
       cordones_simples: numero(
         proceso.cordones_simples

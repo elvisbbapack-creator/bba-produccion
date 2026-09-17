@@ -983,6 +983,12 @@ export const PARAMETROS_SOLDADURA_MIG = {
   segundos_por_cordon_perimetral: 45
 };
 
+export const PARAMETROS_SOLDADURA_MULTIPUNTO = {
+  puntos_por_ciclo: 3,
+  segundos_por_ciclo: 150,
+  segundos_carga_retiro: 8
+};
+
 export const analizarFormulaProceso = ({
   tipoFormula = "",
   expresion = "",
@@ -996,7 +1002,10 @@ export const analizarFormulaProceso = ({
   cordonesPerimetrales = 0,
   segundosPorPuntoMig = 3,
   segundosPorCordonSimple = 12,
-  segundosPorCordonPerimetral = 45
+  segundosPorCordonPerimetral = 45,
+  puntosPorCicloMultipunto = 3,
+  segundosPorCicloMultipunto = 150,
+  segundosCargaRetiroMultipunto = 8
 } = {}) => {
   const texto = (expresion || "").toString().trim();
   const formulaSoportada = [
@@ -1005,7 +1014,8 @@ export const analizarFormulaProceso = ({
     "corte_cnc_recto",
     "corte_prensa",
     "laser_metros_minuto",
-    "soldadura_mig"
+    "soldadura_mig",
+    "soldadura_multipunto"
   ].includes(tipoFormula);
 
   if (!formulaSoportada) {
@@ -1088,6 +1098,118 @@ export const analizarFormulaProceso = ({
       },
       error: ""
     };
+  }
+
+  if (tipoFormula === "soldadura_multipunto") {
+    if (!texto) {
+      return {
+        valido: false,
+        segundos_por_producto: 0,
+        unidades_por_hora: 0,
+        metros_totales: 0,
+        piezas: 0,
+        cortes: 0,
+        golpes: 0,
+        error: ""
+      };
+    }
+
+    try {
+      const { base, multiplicador } =
+        separarMultiplicadorFinal(texto);
+      const interseccionesPorMalla = Math.round(
+        evaluarExpresionNumerica(base)
+      );
+      const mallas = Math.round(numero(multiplicador));
+      const puntosPorCiclo = Math.round(
+        numero(puntosPorCicloMultipunto)
+      );
+      const segundosPorCiclo = numero(
+        segundosPorCicloMultipunto
+      );
+      const segundosCargaRetiro = numero(
+        segundosCargaRetiroMultipunto
+      );
+
+      if (
+        interseccionesPorMalla <= 0 ||
+        mallas <= 0 ||
+        puntosPorCiclo <= 0 ||
+        segundosPorCiclo <= 0 ||
+        segundosCargaRetiro < 0
+      ) {
+        throw new Error("Parámetros inválidos");
+      }
+
+      // Cada malla se carga y descarga por separado. Por eso el
+      // redondeo de bajadas se hace por malla y no sobre el total.
+      const ciclosPorMalla = Math.ceil(
+        interseccionesPorMalla / puntosPorCiclo
+      );
+      const ciclosTotal = ciclosPorMalla * mallas;
+      const puntosTotales =
+        interseccionesPorMalla * mallas;
+      const segundosSoldadura =
+        ciclosTotal * segundosPorCiclo;
+      const segundosManipulacion =
+        mallas * segundosCargaRetiro;
+      const segundosPorProducto =
+        segundosSoldadura + segundosManipulacion;
+
+      return {
+        valido: true,
+        segundos_por_producto: redondear(
+          segundosPorProducto,
+          2
+        ),
+        unidades_por_hora: redondear(
+          3600 / segundosPorProducto,
+          6
+        ),
+        metros_totales: 0,
+        piezas: mallas,
+        cortes: 0,
+        golpes: ciclosTotal,
+        cortes_por_subproducto: 0,
+        subproductos: mallas,
+        fraccion_por_pieza: 0,
+        consumo_pieza_formula: 0,
+        consumo_total_formula: 0,
+        cortes_por_pieza: 0,
+        cortes_por_producto: 0,
+        dobleces_por_producto: 0,
+        dobleces_por_pieza: 0,
+        dobleces_total: 0,
+        longitud_por_pieza: 0,
+        detalle_tiempo: {
+          intersecciones_por_malla:
+            interseccionesPorMalla,
+          mallas,
+          puntos_totales: puntosTotales,
+          puntos_por_ciclo: puntosPorCiclo,
+          ciclos_por_malla: ciclosPorMalla,
+          ciclos_total: ciclosTotal,
+          cargas_retiros: mallas,
+          segundos_ciclo: segundosPorCiclo,
+          segundos_soldadura: segundosSoldadura,
+          segundos_carga_retiro: segundosCargaRetiro,
+          segundos_manipulacion: segundosManipulacion
+        },
+        error: ""
+      };
+    } catch (error) {
+      return {
+        valido: false,
+        segundos_por_producto: 0,
+        unidades_por_hora: 0,
+        metros_totales: 0,
+        piezas: 0,
+        cortes: 0,
+        golpes: 0,
+        error:
+          "Usa el formato (horizontales*verticales)*mallas. Ej: (26*7)*7."
+      };
+    }
   }
 
   if (tipoFormula === "doblez_plegadora_neumatica") {

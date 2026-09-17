@@ -934,6 +934,24 @@ const esSoldaduraMig = proceso => {
   return esEstacionSoldaduraMig(proceso);
 };
 
+const esSoldadoraMultipunto = proceso => {
+  const texto = normalizarComparacion(
+    [
+      proceso?.proceso_nombre,
+      proceso?.estacion_nombre,
+      proceso?.proceso_codigo,
+      proceso?.estacion_codigo
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    texto.includes("multipunto") ||
+    texto.includes("spunto")
+  );
+};
+
 const valoresFormulaDoblezCnc = proceso => ({
   tipo_formula_tiempo: "doblez_cnc_3d",
   formula_material_indice: "",
@@ -1044,6 +1062,42 @@ const valoresFormulaSoldaduraMig = proceso => ({
   segundos_por_corte: 0
 });
 
+const valoresFormulaSoldaduraMultipunto = proceso => ({
+  tipo_formula_tiempo: "soldadura_multipunto",
+  formula_tiempo:
+    proceso?.tipo_formula_tiempo ===
+    "soldadura_multipunto"
+      ? proceso?.formula_tiempo || ""
+      : "",
+  formula_material_indice: "",
+  formula_material_id: "",
+  formula_material_codigo: "",
+  formula_material_nombre: "",
+  unidad_formula_tiempo: "un",
+  puntos_por_ciclo_multipunto:
+    proceso?.tipo_formula_tiempo ===
+      "soldadura_multipunto" &&
+    Number(proceso?.puntos_por_ciclo_multipunto) > 0
+      ? proceso.puntos_por_ciclo_multipunto
+      : 3,
+  segundos_por_ciclo_multipunto:
+    proceso?.tipo_formula_tiempo ===
+      "soldadura_multipunto" &&
+    Number(proceso?.segundos_por_ciclo_multipunto) > 0
+      ? proceso.segundos_por_ciclo_multipunto
+      : 150,
+  segundos_carga_retiro_multipunto:
+    proceso?.tipo_formula_tiempo ===
+      "soldadura_multipunto" &&
+    Number(proceso?.segundos_carga_retiro_multipunto) >= 0
+      ? proceso.segundos_carga_retiro_multipunto
+      : 8,
+  segundos_por_metro: 0,
+  segundos_por_doblez: 0,
+  segundos_por_corte: 0,
+  unidades_por_hora: 0
+});
+
 const valoresPorTipoFormula = (
   tipoFormula,
   proceso
@@ -1070,6 +1124,10 @@ const valoresPorTipoFormula = (
 
   if (tipoFormula === "soldadura_mig") {
     return valoresFormulaSoldaduraMig(proceso);
+  }
+
+  if (tipoFormula === "soldadura_multipunto") {
+    return valoresFormulaSoldaduraMultipunto(proceso);
   }
 
   return {
@@ -1106,7 +1164,13 @@ const aplicarFormulaTiempoProceso = proceso => {
     segundosPorCordonSimple:
       proceso.segundos_por_cordon_simple || 12,
     segundosPorCordonPerimetral:
-      proceso.segundos_por_cordon_perimetral || 45
+      proceso.segundos_por_cordon_perimetral || 45,
+    puntosPorCicloMultipunto:
+      proceso.puntos_por_ciclo_multipunto || 3,
+    segundosPorCicloMultipunto:
+      proceso.segundos_por_ciclo_multipunto || 150,
+    segundosCargaRetiroMultipunto:
+      proceso.segundos_carga_retiro_multipunto ?? 8
   });
 
   if (
@@ -1143,7 +1207,9 @@ const aplicarFormulaTiempoProceso = proceso => {
           cortes_calculados: analisis.cortes,
           golpes_calculados:
             proceso.tipo_formula_tiempo ===
-            "corte_prensa"
+              "corte_prensa" ||
+            proceso.tipo_formula_tiempo ===
+              "soldadura_multipunto"
               ? analisis.golpes || analisis.cortes
               : 0,
           dobleces_por_pieza:
@@ -1188,6 +1254,9 @@ const procesoVacio = {
   cortes_calculados: 0,
   golpes_calculados: 0,
   metros_por_minuto: 0,
+  puntos_por_ciclo_multipunto: 3,
+  segundos_por_ciclo_multipunto: 150,
+  segundos_carga_retiro_multipunto: 8,
   puntos_mig: 0,
   cordones_simples: 0,
   cordones_perimetrales: 0,
@@ -2909,6 +2978,10 @@ export default function CotizadorTecnicoV2({
                     procesoActual
                   )
                 }
+              : esSoldadoraMultipunto(estacion)
+                ? valoresFormulaSoldaduraMultipunto(
+                    procesoActual
+                  )
               : esSoldaduraMig(estacion)
                 ? valoresFormulaSoldaduraMig(
                     procesoActual
@@ -5181,6 +5254,9 @@ export default function CotizadorTecnicoV2({
           const esFormulaSoldaduraMig =
             proceso.tipo_formula_tiempo ===
             "soldadura_mig";
+          const esFormulaSoldaduraMultipunto =
+            proceso.tipo_formula_tiempo ===
+            "soldadura_multipunto";
           const materialesFormulaProceso =
             esFormulaDoblezCnc ||
             esFormulaCorteCncRecto
@@ -5319,6 +5395,9 @@ export default function CotizadorTecnicoV2({
                   <option value="soldadura_mig">
                     Soldadura MIG
                   </option>
+                  <option value="soldadura_multipunto">
+                    SPunto / Soldadora Multipunto
+                  </option>
                 </select>
               </CampoConAyuda>
               {[
@@ -5327,7 +5406,8 @@ export default function CotizadorTecnicoV2({
                 "corte_cnc_recto",
                 "corte_prensa",
                 "laser_metros_minuto",
-                "soldadura_mig"
+                "soldadura_mig",
+                "soldadura_multipunto"
               ].includes(proceso.tipo_formula_tiempo) && (
                 <>
                   {(esFormulaDoblezCnc ||
@@ -5438,6 +5518,8 @@ export default function CotizadorTecnicoV2({
                           proceso.tipo_formula_tiempo ===
                           "doblez_plegadora_neumatica"
                             ? "Cantidad de dobleces por exhibidor"
+                            : esFormulaSoldaduraMultipunto
+                              ? "Fórmula de mallas"
                             : proceso.tipo_formula_tiempo ===
                           "corte_prensa"
                             ? "Fórmula golpes"
@@ -5450,6 +5532,8 @@ export default function CotizadorTecnicoV2({
                           proceso.tipo_formula_tiempo ===
                           "doblez_plegadora_neumatica"
                             ? "Dato variable según el modelo del exhibidor. Debe completarse para calcular el tiempo."
+                            : esFormulaSoldaduraMultipunto
+                              ? "Formato: (alambres horizontales*alambres verticales)*cantidad de mallas. Ej: (26*7)*7 calcula 182 intersecciones por malla y 7 mallas."
                             : proceso.tipo_formula_tiempo ===
                           "corte_prensa"
                             ? "Ej: (131+360+71)*1. Cada medida del tubo equivale a un golpe/corte de prensa."
@@ -5476,6 +5560,8 @@ export default function CotizadorTecnicoV2({
                             proceso.tipo_formula_tiempo ===
                             "doblez_plegadora_neumatica"
                               ? "Pendiente por completar"
+                              : esFormulaSoldaduraMultipunto
+                                ? "Ej: (26*7)*7"
                               : "Ej: (100+50+20)*4"
                           }
                           value={
@@ -5513,7 +5599,8 @@ export default function CotizadorTecnicoV2({
                         )}
                       </CampoConAyuda>
                       {proceso.tipo_formula_tiempo !==
-                        "doblez_plegadora_neumatica" && (
+                        "doblez_plegadora_neumatica" &&
+                      !esFormulaSoldaduraMultipunto && (
                       <CampoConAyuda
                         etiqueta="Unidad fórmula"
                         ayuda="Unidad usada en la fórmula. Normalmente mm para alambre."
@@ -5633,6 +5720,53 @@ export default function CotizadorTecnicoV2({
                         )}
                     </CampoConAyuda>
                   ))}
+                  {esFormulaSoldaduraMultipunto && [
+                    {
+                      clave: "puntos_por_ciclo_multipunto",
+                      etiqueta: "Puntos por bajada"
+                    },
+                    {
+                      clave: "segundos_por_ciclo_multipunto",
+                      etiqueta: "Seg/ciclo pistón"
+                    },
+                    {
+                      clave: "segundos_carga_retiro_multipunto",
+                      etiqueta: "Seg carga y retiro/malla"
+                    }
+                  ].map(parametro => (
+                    <CampoConAyuda
+                      key={parametro.clave}
+                      etiqueta={parametro.etiqueta}
+                      ayuda="Estándar de la Soldadora Multipunto; se puede ajustar si cambia la medición real."
+                    >
+                      <input
+                        style={campo}
+                        type="number"
+                        inputMode="decimal"
+                        step="0.01"
+                        min="0"
+                        value={
+                          proceso[parametro.clave] ?? ""
+                        }
+                        onChange={e => {
+                          const actualizado =
+                            aplicarFormulaTiempoProceso({
+                              ...proceso,
+                              [parametro.clave]:
+                                e.target.value
+                            });
+
+                          actualizar({
+                            procesos: actualizarItem(
+                              formulario.procesos,
+                              indice,
+                              actualizado
+                            )
+                          });
+                        }}
+                      />
+                    </CampoConAyuda>
+                  ))}
                   {[
                     ...(proceso.tipo_formula_tiempo ===
                     "laser_metros_minuto"
@@ -5648,7 +5782,9 @@ export default function CotizadorTecnicoV2({
                     proceso.tipo_formula_tiempo ===
                       "laser_metros_minuto" ||
                     proceso.tipo_formula_tiempo ===
-                      "soldadura_mig"
+                      "soldadura_mig" ||
+                    proceso.tipo_formula_tiempo ===
+                      "soldadura_multipunto"
                       ? []
                       : [{
                           clave: "segundos_por_metro",
@@ -5665,6 +5801,8 @@ export default function CotizadorTecnicoV2({
                       : []),
                     ...(proceso.tipo_formula_tiempo ===
                     "soldadura_mig" ||
+                    proceso.tipo_formula_tiempo ===
+                    "soldadura_multipunto" ||
                     proceso.tipo_formula_tiempo ===
                     "doblez_plegadora_neumatica"
                       ? []
@@ -5749,6 +5887,9 @@ export default function CotizadorTecnicoV2({
                           : proceso.tipo_formula_tiempo ===
                             "soldadura_mig"
                             ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | Puntos: ${proceso.puntos_mig || 0} | Cordones simples: ${proceso.cordones_simples || 0} | Perimetrales: ${proceso.cordones_perimetrales || 0}${Number(proceso.cordones_simples || 0) > 0 && Number(proceso.cordones_perimetrales || 0) === 0 ? " | Revisar: si son cordones alrededor de una pieza, podrían ser perimetrales." : ""}`
+                          : proceso.tipo_formula_tiempo ===
+                            "soldadura_multipunto"
+                            ? `${proceso.segundos_por_producto || 0} seg/exhibidor | ${proceso.unidades_por_hora || 0} exhibidores/h | ${proceso.formula_tiempo_detalle?.intersecciones_por_malla || 0} puntos/malla × ${proceso.formula_tiempo_detalle?.mallas || 0} mallas = ${proceso.formula_tiempo_detalle?.puntos_totales || 0} puntos | ${proceso.formula_tiempo_detalle?.ciclos_por_malla || 0} ciclos/malla · ${proceso.formula_tiempo_detalle?.ciclos_total || 0} ciclos | ${proceso.formula_tiempo_detalle?.cargas_retiros || 0} cargas/retiros × ${proceso.segundos_carga_retiro_multipunto ?? 8} seg`
                           : proceso.tipo_formula_tiempo ===
                             "laser_metros_minuto"
                             ? `${proceso.segundos_por_producto || 0} seg/producto | ${proceso.unidades_por_hora || 0} un/h | ${proceso.metros_totales_calculados || 0} m | ${proceso.cortes_calculados || 0} inicios/cortes | ${proceso.metros_por_minuto || 0} m/min`

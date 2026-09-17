@@ -40,6 +40,37 @@ test("interpreta formula explicita de perimetro para laser", () => {
   });
 });
 
+test("calcula Soldadora Multipunto redondeando ciclos por cada malla", () => {
+  const resultado = analizarFormulaProceso({
+    tipoFormula: "soldadura_multipunto",
+    expresion: "(26*7)*7",
+    puntosPorCicloMultipunto: 3,
+    segundosPorCicloMultipunto: 150,
+    segundosCargaRetiroMultipunto: 8
+  });
+
+  expect(resultado).toMatchObject({
+    valido: true,
+    segundos_por_producto: 64106,
+    unidades_por_hora: 0.056157,
+    piezas: 7,
+    golpes: 427,
+    detalle_tiempo: {
+      intersecciones_por_malla: 182,
+      mallas: 7,
+      puntos_totales: 1274,
+      puntos_por_ciclo: 3,
+      ciclos_por_malla: 61,
+      ciclos_total: 427,
+      cargas_retiros: 7,
+      segundos_ciclo: 150,
+      segundos_soldadura: 64050,
+      segundos_carga_retiro: 8,
+      segundos_manipulacion: 56
+    }
+  });
+});
+
 test("calcula el desarrollo y costo de una caja corrugada", () => {
   const resultado = calcularCajaCorrugada({
     largo_mm: 400,
