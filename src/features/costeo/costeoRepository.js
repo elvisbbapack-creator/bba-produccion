@@ -239,6 +239,12 @@ export const prepararCotizacionTecnica = (
   });
   const procesos = normalizarLista(datos.procesos)
     .map(proceso => ({
+      origen_automatico: limpiarTexto(
+        proceso.origen_automatico
+      ),
+      origen_material_clave: limpiarTexto(
+        proceso.origen_material_clave
+      ),
       proceso_codigo: limpiarTexto(
         proceso.proceso_codigo
       ),

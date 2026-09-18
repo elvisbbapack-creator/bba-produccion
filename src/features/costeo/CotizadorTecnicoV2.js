@@ -69,7 +69,8 @@ import {
 } from "./escenariosMultipais";
 import {
   FORMATOS_EXHIBIDOR,
-  obtenerRecomendacionFormato
+  obtenerRecomendacionFormato,
+  obtenerUnidadesHoraPorFormato
 } from "./formatosExhibidor";
 
 const campo = {
@@ -1051,6 +1052,34 @@ const esCortePrensa = proceso => {
     texto.includes("prensa")
   );
 };
+
+const esMpTubo = material => {
+  const texto = normalizarComparacion(
+    [material?.codigo, material?.nombre]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+  return (
+    (material?.tipo_linea || "material") === "material" &&
+    texto.includes("tubo")
+  );
+};
+
+const ORIGEN_CORTE_PRENSA_TUBO =
+  "mp_tubo_corte_prensa";
+const ORIGEN_CORTE_CNC_ALAMBRE =
+  "mp_alambre_corte_cnc_recto";
+const ORIGEN_DOBLEZ_CNC_ALAMBRE =
+  "mp_alambre_doblez_cnc_3d";
+const ORIGEN_LASER_FIBRA_LAF =
+  "mp_plancha_laf_laser_fibra";
+const ORIGEN_LASER_CO2_PLANCHA =
+  "mp_plancha_laser_co2";
+const ORIGEN_IMPRESION_CP_UV_PAI =
+  "mp_pai_impresion_cp_uv";
+const ORIGEN_PROCESOS_METALICOS_FORMATO =
+  "mp_alambre_tubo_procesos_formato";
 
 const esLaserCorte = proceso => {
   const texto = normalizarComparacion(
@@ -3197,7 +3226,7 @@ export default function CotizadorTecnicoV2({
     });
   };
 
-  const obtenerAbsorcionOperativa = estacion => {
+  const obtenerAbsorcionOperativa = useCallback(estacion => {
     const costoOperativo = costosOperativos.find(
       item =>
         item.planta_id === formulario.planta_id &&
@@ -3215,7 +3244,11 @@ export default function CotizadorTecnicoV2({
       );
 
     return absorcion?.porcentaje_absorcion || 0;
-  };
+  }, [
+    costosOperativos,
+    formulario.costo_operativo_config_id,
+    formulario.planta_id
+  ]);
 
   const buscarCostoCompatible = useCallback((
     costos,
@@ -3344,6 +3377,929 @@ export default function CotizadorTecnicoV2({
   }, [
     completarCostosBasePendientes,
     costosBaseEstacion.length
+  ]);
+
+  useEffect(() => {
+    const estacionCortePrensa =
+      estacionesCatalogo.find(esCortePrensa);
+
+    if (!estacionCortePrensa) return;
+
+    setFormulario(actual => {
+      const materialesFormulaCortes =
+        actual.materiales.filter(material =>
+          (material.tipo_linea || "material") ===
+            "material" &&
+          material.expresion_consumo &&
+          obtenerTipoLecturaConsumoMaterial(material) ===
+            TIPOS_LECTURA_CONSUMO.CORTES_LINEALES
+        );
+      const fuentes = materialesFormulaCortes
+        .map((material, indiceFormula) => ({
+          material: aplicarExpresionConsumo(material),
+          indiceFormula
+        }))
+        .filter(({ material }) =>
+          esMpTubo(material) &&
+          !material.expresion_consumo_error
+        )
+        .map(({ material, indiceFormula }) => ({
+          material,
+          indiceFormula,
+          clave: `${material.material_id || material.codigo || "tubo"}:${indiceFormula}`
+        }));
+      const procesosManuales = actual.procesos.filter(
+        proceso =>
+          proceso.origen_automatico !==
+          ORIGEN_CORTE_PRENSA_TUBO
+      );
+      const procesosAutomaticosActuales =
+        actual.procesos.filter(
+          proceso =>
+            proceso.origen_automatico ===
+            ORIGEN_CORTE_PRENSA_TUBO
+        );
+      const costoBase = buscarCostoBaseEstacion(
+        estacionCortePrensa
+      );
+      const porcentajeCostoOperativo =
+        obtenerAbsorcionOperativa(estacionCortePrensa);
+      const procesosAutomaticos = fuentes
+        .filter(({ material }) =>
+          !procesosManuales.some(proceso =>
+            esCortePrensa(proceso) &&
+            proceso.formula_tiempo ===
+              material.expresion_consumo &&
+            (proceso.formula_material_id ===
+              material.material_id ||
+              proceso.formula_material_codigo ===
+                material.codigo)
+          )
+        )
+        .map(({ material, indiceFormula, clave }) => {
+          const existente =
+            procesosAutomaticosActuales.find(
+              proceso =>
+                proceso.origen_material_clave === clave
+            );
+          const base = {
+            ...procesoVacio,
+            ...existente,
+            ...valoresFormulaCortePrensa(
+              existente || procesoVacio
+            ),
+            ...camposFormulaDesdeMaterial(
+              material,
+              indiceFormula
+            ),
+            origen_automatico:
+              ORIGEN_CORTE_PRENSA_TUBO,
+            origen_material_clave: clave,
+            proceso_codigo:
+              estacionCortePrensa.proceso_codigo || "",
+            proceso_nombre:
+              estacionCortePrensa.proceso_nombre ||
+              "Corte",
+            estacion_codigo:
+              estacionCortePrensa.estacion_codigo || "",
+            estacion_nombre:
+              estacionCortePrensa.estacion_nombre ||
+              "Prensa",
+            porcentaje_costo_operativo:
+              porcentajeCostoOperativo,
+            costo_operativo_origen:
+              porcentajeCostoOperativo > 0
+                ? "costos_operativos_planta"
+                : "manual",
+            horas_setup:
+              Number(existente?.horas_setup) > 0
+                ? existente.horas_setup
+                : 2,
+            ...(camposDesdeCostoBase(costoBase) || {})
+          };
+
+          return aplicarFormulaTiempoProceso(base);
+        });
+      const procesos = [
+        ...procesosManuales,
+        ...procesosAutomaticos
+      ];
+
+      return JSON.stringify(procesos) ===
+        JSON.stringify(actual.procesos)
+        ? actual
+        : { ...actual, procesos };
+    });
+  }, [
+    buscarCostoBaseEstacion,
+    estacionesCatalogo,
+    formulario.materiales,
+    formulario.planta_id,
+    costosBaseEstacion,
+    costosOperativos,
+    obtenerAbsorcionOperativa
+  ]);
+
+  useEffect(() => {
+    const estacionCorteCnc =
+      estacionesCatalogo.find(esCorteCncRecto);
+
+    if (!estacionCorteCnc) return;
+
+    setFormulario(actual => {
+      const materialesFormulaAlambre =
+        actual.materiales.filter(material =>
+          (material.tipo_linea || "material") ===
+            "material" &&
+          (material.codigo || "")
+            .toString()
+            .toUpperCase()
+            .startsWith("MP") &&
+          material.expresion_consumo &&
+          obtenerTipoLecturaConsumoMaterial(material) ===
+            TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO
+        );
+      const fuentes = materialesFormulaAlambre
+        .map((material, indiceFormula) => ({
+          material: aplicarExpresionConsumo(material),
+          indiceFormula
+        }))
+        .filter(({ material }) =>
+          !material.expresion_consumo.includes("+") &&
+          !material.expresion_consumo_error
+        )
+        .map(({ material, indiceFormula }) => ({
+          material,
+          indiceFormula,
+          clave: `${material.material_id || material.codigo || "alambre"}:${indiceFormula}`
+        }));
+      const procesosManuales = actual.procesos.filter(
+        proceso =>
+          proceso.origen_automatico !==
+          ORIGEN_CORTE_CNC_ALAMBRE
+      );
+      const procesosAutomaticosActuales =
+        actual.procesos.filter(
+          proceso =>
+            proceso.origen_automatico ===
+            ORIGEN_CORTE_CNC_ALAMBRE
+        );
+      const costoBase = buscarCostoBaseEstacion(
+        estacionCorteCnc
+      );
+      const porcentajeCostoOperativo =
+        obtenerAbsorcionOperativa(estacionCorteCnc);
+      const procesosAutomaticos = fuentes
+        .filter(({ material }) =>
+          !procesosManuales.some(proceso =>
+            esCorteCncRecto(proceso) &&
+            proceso.formula_tiempo ===
+              material.expresion_consumo &&
+            (proceso.formula_material_id ===
+              material.material_id ||
+              proceso.formula_material_codigo ===
+                material.codigo)
+          )
+        )
+        .map(({ material, indiceFormula, clave }) => {
+          const existente =
+            procesosAutomaticosActuales.find(
+              proceso =>
+                proceso.origen_material_clave === clave
+            );
+          const base = {
+            ...procesoVacio,
+            ...existente,
+            ...valoresFormulaCorteCncRecto(
+              existente || procesoVacio
+            ),
+            ...camposFormulaDesdeMaterial(
+              material,
+              indiceFormula
+            ),
+            origen_automatico:
+              ORIGEN_CORTE_CNC_ALAMBRE,
+            origen_material_clave: clave,
+            proceso_codigo:
+              estacionCorteCnc.proceso_codigo || "",
+            proceso_nombre:
+              estacionCorteCnc.proceso_nombre ||
+              "Corte",
+            estacion_codigo:
+              estacionCorteCnc.estacion_codigo || "",
+            estacion_nombre:
+              estacionCorteCnc.estacion_nombre ||
+              "CNC Recto",
+            porcentaje_costo_operativo:
+              porcentajeCostoOperativo,
+            costo_operativo_origen:
+              porcentajeCostoOperativo > 0
+                ? "costos_operativos_planta"
+                : "manual",
+            horas_setup:
+              Number(existente?.horas_setup) > 0
+                ? existente.horas_setup
+                : 2,
+            ...(camposDesdeCostoBase(costoBase) || {})
+          };
+
+          return aplicarFormulaTiempoProceso(base);
+        });
+      const procesos = [
+        ...procesosManuales,
+        ...procesosAutomaticos
+      ];
+
+      return JSON.stringify(procesos) ===
+        JSON.stringify(actual.procesos)
+        ? actual
+        : { ...actual, procesos };
+    });
+  }, [
+    buscarCostoBaseEstacion,
+    estacionesCatalogo,
+    formulario.materiales,
+    formulario.planta_id,
+    costosBaseEstacion,
+    costosOperativos,
+    obtenerAbsorcionOperativa
+  ]);
+
+  useEffect(() => {
+    const estacionDoblezCnc =
+      estacionesCatalogo.find(esDoblezCnc3d);
+
+    if (!estacionDoblezCnc) return;
+
+    setFormulario(actual => {
+      const materialesFormulaAlambre =
+        actual.materiales.filter(material =>
+          (material.tipo_linea || "material") ===
+            "material" &&
+          (material.codigo || "")
+            .toString()
+            .toUpperCase()
+            .startsWith("MP") &&
+          material.expresion_consumo &&
+          obtenerTipoLecturaConsumoMaterial(material) ===
+            TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO
+        );
+      const fuentes = materialesFormulaAlambre
+        .map((material, indiceFormula) => ({
+          material: aplicarExpresionConsumo(material),
+          indiceFormula
+        }))
+        .filter(({ material }) =>
+          material.expresion_consumo.includes("+") &&
+          !material.expresion_consumo_error
+        )
+        .map(({ material, indiceFormula }) => ({
+          material,
+          indiceFormula,
+          clave: `${material.material_id || material.codigo || "alambre"}:${indiceFormula}`
+        }));
+      const procesosManuales = actual.procesos.filter(
+        proceso =>
+          proceso.origen_automatico !==
+          ORIGEN_DOBLEZ_CNC_ALAMBRE
+      );
+      const procesosAutomaticosActuales =
+        actual.procesos.filter(
+          proceso =>
+            proceso.origen_automatico ===
+            ORIGEN_DOBLEZ_CNC_ALAMBRE
+        );
+      const costoBase = buscarCostoBaseEstacion(
+        estacionDoblezCnc
+      );
+      const porcentajeCostoOperativo =
+        obtenerAbsorcionOperativa(estacionDoblezCnc);
+      const procesosAutomaticos = fuentes
+        .filter(({ material }) =>
+          !procesosManuales.some(proceso =>
+            esDoblezCnc3d(proceso) &&
+            proceso.formula_tiempo ===
+              material.expresion_consumo &&
+            (proceso.formula_material_id ===
+              material.material_id ||
+              proceso.formula_material_codigo ===
+                material.codigo)
+          )
+        )
+        .map(({ material, indiceFormula, clave }) => {
+          const existente =
+            procesosAutomaticosActuales.find(
+              proceso =>
+                proceso.origen_material_clave === clave
+            );
+          const base = {
+            ...procesoVacio,
+            ...existente,
+            ...valoresFormulaDoblezCnc(
+              existente || procesoVacio
+            ),
+            ...camposFormulaDesdeMaterial(
+              material,
+              indiceFormula
+            ),
+            origen_automatico:
+              ORIGEN_DOBLEZ_CNC_ALAMBRE,
+            origen_material_clave: clave,
+            proceso_codigo:
+              estacionDoblezCnc.proceso_codigo || "",
+            proceso_nombre:
+              estacionDoblezCnc.proceso_nombre ||
+              "Doblez",
+            estacion_codigo:
+              estacionDoblezCnc.estacion_codigo || "",
+            estacion_nombre:
+              estacionDoblezCnc.estacion_nombre ||
+              "CNC 3D",
+            porcentaje_costo_operativo:
+              porcentajeCostoOperativo,
+            costo_operativo_origen:
+              porcentajeCostoOperativo > 0
+                ? "costos_operativos_planta"
+                : "manual",
+            horas_setup:
+              Number(existente?.horas_setup) > 0
+                ? existente.horas_setup
+                : 2,
+            ...(camposDesdeCostoBase(costoBase) || {})
+          };
+
+          return aplicarFormulaTiempoProceso(base);
+        });
+      const procesos = [
+        ...procesosManuales,
+        ...procesosAutomaticos
+      ];
+
+      return JSON.stringify(procesos) ===
+        JSON.stringify(actual.procesos)
+        ? actual
+        : { ...actual, procesos };
+    });
+  }, [
+    buscarCostoBaseEstacion,
+    estacionesCatalogo,
+    formulario.materiales,
+    formulario.planta_id,
+    costosBaseEstacion,
+    costosOperativos,
+    obtenerAbsorcionOperativa
+  ]);
+
+  useEffect(() => {
+    const estacionesLaserFibra = estacionesCatalogo.filter(
+      estacion =>
+        esLaserCorte(estacion) &&
+        tipoLaserEstacion(estacion) ===
+          APLICACIONES_CORTE_LASER.FIBRA
+    );
+    const estacionLaserFibra =
+      estacionesLaserFibra.find(estacion =>
+        normalizarComparacion(
+          `${estacion.proceso_nombre || ""} ${estacion.estacion_nombre || ""}`
+        ).includes("fibra")
+      ) || estacionesLaserFibra[0];
+
+    if (!estacionLaserFibra) return;
+
+    setFormulario(actual => {
+      const fuentes = actual.materiales
+        .filter(material => {
+          const tipoLectura =
+            obtenerTipoLecturaConsumoMaterial(material);
+
+          return (
+            (material.tipo_linea || "material") ===
+              "material" &&
+            material.expresion_consumo &&
+            [
+              TIPOS_LECTURA_CONSUMO.PLANCHA_LAF,
+              TIPOS_LECTURA_CONSUMO.PLANCHA_1220X2440,
+              TIPOS_LECTURA_CONSUMO.PLANCHA_1520X2440,
+              TIPOS_LECTURA_CONSUMO.PLANCHA_1220X1220
+            ].includes(tipoLectura) &&
+            materialCompatibleConLaser(
+              material,
+              estacionLaserFibra
+            )
+          );
+        })
+        .map((material, indiceFormula) => ({
+          material: aplicarExpresionConsumo(material),
+          indiceFormula
+        }))
+        .filter(({ material }) =>
+          !material.expresion_consumo_error
+        )
+        .map(({ material, indiceFormula }) => ({
+          material,
+          indiceFormula,
+          clave: `${material.material_id || material.codigo || "laf"}:${indiceFormula}`
+        }));
+      const procesosManuales = actual.procesos.filter(
+        proceso =>
+          proceso.origen_automatico !==
+          ORIGEN_LASER_FIBRA_LAF
+      );
+      const procesosAutomaticosActuales =
+        actual.procesos.filter(
+          proceso =>
+            proceso.origen_automatico ===
+            ORIGEN_LASER_FIBRA_LAF
+        );
+      const costoBase = buscarCostoBaseEstacion(
+        estacionLaserFibra
+      );
+      const porcentajeCostoOperativo =
+        obtenerAbsorcionOperativa(estacionLaserFibra);
+      const procesosAutomaticos = fuentes
+        .filter(({ material }) =>
+          !procesosManuales.some(proceso =>
+            esLaserCorte(proceso) &&
+            tipoLaserEstacion(proceso) ===
+              APLICACIONES_CORTE_LASER.FIBRA &&
+            (proceso.formula_material_id ===
+              material.material_id ||
+              proceso.formula_material_codigo ===
+                material.codigo)
+          )
+        )
+        .map(({ material, indiceFormula, clave }) => {
+          const existente =
+            procesosAutomaticosActuales.find(
+              proceso =>
+                proceso.origen_material_clave === clave
+            );
+          const base = {
+            ...procesoVacio,
+            ...existente,
+            ...valoresFormulaLaser(
+              existente || procesoVacio
+            ),
+            ...camposLaserDesdeMaterial(
+              material,
+              indiceFormula,
+              estacionLaserFibra,
+              existente || procesoVacio
+            ),
+            origen_automatico:
+              ORIGEN_LASER_FIBRA_LAF,
+            origen_material_clave: clave,
+            proceso_codigo:
+              estacionLaserFibra.proceso_codigo || "",
+            proceso_nombre:
+              estacionLaserFibra.proceso_nombre ||
+              "Corte Láser",
+            estacion_codigo:
+              estacionLaserFibra.estacion_codigo || "",
+            estacion_nombre:
+              estacionLaserFibra.estacion_nombre ||
+              "Láser Fibra",
+            porcentaje_costo_operativo:
+              porcentajeCostoOperativo,
+            costo_operativo_origen:
+              porcentajeCostoOperativo > 0
+                ? "costos_operativos_planta"
+                : "manual",
+            horas_setup:
+              Number(existente?.horas_setup) > 0
+                ? existente.horas_setup
+                : 2,
+            ...(camposDesdeCostoBase(costoBase) || {})
+          };
+
+          return aplicarFormulaTiempoProceso(base);
+        });
+      const procesos = [
+        ...procesosManuales,
+        ...procesosAutomaticos
+      ];
+
+      return JSON.stringify(procesos) ===
+        JSON.stringify(actual.procesos)
+        ? actual
+        : { ...actual, procesos };
+    });
+  }, [
+    buscarCostoBaseEstacion,
+    estacionesCatalogo,
+    formulario.materiales,
+    formulario.planta_id,
+    costosBaseEstacion,
+    costosOperativos,
+    obtenerAbsorcionOperativa
+  ]);
+
+  useEffect(() => {
+    const estacionesLaserCo2 = estacionesCatalogo.filter(
+      estacion =>
+        esLaserCorte(estacion) &&
+        tipoLaserEstacion(estacion) ===
+          APLICACIONES_CORTE_LASER.CO2
+    );
+    const estacionLaserCo2 =
+      estacionesLaserCo2.find(estacion =>
+        normalizarComparacion(
+          `${estacion.proceso_nombre || ""} ${estacion.estacion_nombre || ""}`
+        ).includes("co2")
+      ) || estacionesLaserCo2[0];
+
+    if (!estacionLaserCo2) return;
+
+    setFormulario(actual => {
+      const fuentes = actual.materiales
+        .filter(material => {
+          const tipoLectura =
+            obtenerTipoLecturaConsumoMaterial(material);
+          const codigo = (material.codigo || "")
+            .toString()
+            .trim()
+            .toUpperCase();
+
+          return (
+            codigo !== "MP0011" &&
+            (material.tipo_linea || "material") ===
+              "material" &&
+            material.expresion_consumo &&
+            [
+              TIPOS_LECTURA_CONSUMO.PLANCHA_LAF,
+              TIPOS_LECTURA_CONSUMO.PLANCHA_1220X2440,
+              TIPOS_LECTURA_CONSUMO.PLANCHA_1520X2440,
+              TIPOS_LECTURA_CONSUMO.PLANCHA_1220X1220
+            ].includes(tipoLectura) &&
+            materialCompatibleConLaser(
+              material,
+              estacionLaserCo2
+            )
+          );
+        })
+        .map((material, indiceFormula) => ({
+          material: aplicarExpresionConsumo(material),
+          indiceFormula
+        }))
+        .filter(({ material }) =>
+          !material.expresion_consumo_error
+        )
+        .map(({ material, indiceFormula }) => ({
+          material,
+          indiceFormula,
+          clave: `${material.material_id || material.codigo || "co2"}:${indiceFormula}`
+        }));
+      const procesosManuales = actual.procesos.filter(
+        proceso =>
+          proceso.origen_automatico !==
+          ORIGEN_LASER_CO2_PLANCHA
+      );
+      const procesosAutomaticosActuales =
+        actual.procesos.filter(
+          proceso =>
+            proceso.origen_automatico ===
+            ORIGEN_LASER_CO2_PLANCHA
+        );
+      const costoBase = buscarCostoBaseEstacion(
+        estacionLaserCo2
+      );
+      const porcentajeCostoOperativo =
+        obtenerAbsorcionOperativa(estacionLaserCo2);
+      const procesosAutomaticos = fuentes
+        .filter(({ material }) =>
+          !procesosManuales.some(proceso =>
+            esLaserCorte(proceso) &&
+            tipoLaserEstacion(proceso) ===
+              APLICACIONES_CORTE_LASER.CO2 &&
+            (proceso.formula_material_id ===
+              material.material_id ||
+              proceso.formula_material_codigo ===
+                material.codigo)
+          )
+        )
+        .map(({ material, indiceFormula, clave }) => {
+          const existente =
+            procesosAutomaticosActuales.find(
+              proceso =>
+                proceso.origen_material_clave === clave
+            );
+          const base = {
+            ...procesoVacio,
+            ...existente,
+            ...valoresFormulaLaser(
+              existente || procesoVacio
+            ),
+            ...camposLaserDesdeMaterial(
+              material,
+              indiceFormula,
+              estacionLaserCo2,
+              existente || procesoVacio
+            ),
+            origen_automatico:
+              ORIGEN_LASER_CO2_PLANCHA,
+            origen_material_clave: clave,
+            proceso_codigo:
+              estacionLaserCo2.proceso_codigo || "",
+            proceso_nombre:
+              estacionLaserCo2.proceso_nombre ||
+              "Corte Láser",
+            estacion_codigo:
+              estacionLaserCo2.estacion_codigo || "",
+            estacion_nombre:
+              estacionLaserCo2.estacion_nombre ||
+              "Láser CO2",
+            porcentaje_costo_operativo:
+              porcentajeCostoOperativo,
+            costo_operativo_origen:
+              porcentajeCostoOperativo > 0
+                ? "costos_operativos_planta"
+                : "manual",
+            horas_setup:
+              Number(existente?.horas_setup) > 0
+                ? existente.horas_setup
+                : 2,
+            ...(camposDesdeCostoBase(costoBase) || {})
+          };
+
+          return aplicarFormulaTiempoProceso(base);
+        });
+      const procesos = [
+        ...procesosManuales,
+        ...procesosAutomaticos
+      ];
+
+      return JSON.stringify(procesos) ===
+        JSON.stringify(actual.procesos)
+        ? actual
+        : { ...actual, procesos };
+    });
+  }, [
+    buscarCostoBaseEstacion,
+    estacionesCatalogo,
+    formulario.materiales,
+    formulario.planta_id,
+    costosBaseEstacion,
+    costosOperativos,
+    obtenerAbsorcionOperativa
+  ]);
+
+  useEffect(() => {
+    const estacionImpresion =
+      estacionesCatalogo.find(esImpresoraCpUv);
+
+    if (!estacionImpresion) return;
+
+    setFormulario(actual => {
+      const fuentes = actual.materiales
+        .map(material =>
+          aplicarExpresionConsumo(material)
+        )
+        .filter(material =>
+          esPlanchaPaiConFormula(material) &&
+          !material.expresion_consumo_error &&
+          Number(material.ancho_pieza) > 0 &&
+          Number(material.alto_pieza) > 0
+        )
+        .map((material, indiceFormula) => ({
+          material,
+          indiceFormula,
+          clave: `${material.material_id || material.codigo || "pai"}:${indiceFormula}`
+        }));
+      const procesosManuales = actual.procesos.filter(
+        proceso =>
+          proceso.origen_automatico !==
+          ORIGEN_IMPRESION_CP_UV_PAI
+      );
+      const procesosAutomaticosActuales =
+        actual.procesos.filter(
+          proceso =>
+            proceso.origen_automatico ===
+            ORIGEN_IMPRESION_CP_UV_PAI
+        );
+      const costoBase = buscarCostoBaseEstacion(
+        estacionImpresion
+      );
+      const porcentajeCostoOperativo =
+        obtenerAbsorcionOperativa(estacionImpresion);
+      const procesosAutomaticos = fuentes
+        .filter(({ material }) =>
+          !procesosManuales.some(proceso =>
+            esImpresoraCpUv(proceso) &&
+            (proceso.formula_material_id ===
+              (material.id || material.material_id) ||
+              proceso.formula_material_codigo ===
+                material.codigo)
+          )
+        )
+        .map(({ material, indiceFormula, clave }) => {
+          const existente =
+            procesosAutomaticosActuales.find(
+              proceso =>
+                proceso.origen_material_clave === clave
+            );
+          const base = {
+            ...procesoVacio,
+            ...existente,
+            ...valoresFormulaImpresionCpUv(
+              existente || procesoVacio
+            ),
+            ...camposImpresionDesdeMaterial(
+              material,
+              indiceFormula
+            ),
+            origen_automatico:
+              ORIGEN_IMPRESION_CP_UV_PAI,
+            origen_material_clave: clave,
+            proceso_codigo:
+              estacionImpresion.proceso_codigo || "",
+            proceso_nombre:
+              estacionImpresion.proceso_nombre ||
+              "Impresión",
+            estacion_codigo:
+              estacionImpresion.estacion_codigo || "",
+            estacion_nombre:
+              estacionImpresion.estacion_nombre ||
+              "Impresora CP UV",
+            porcentaje_costo_operativo:
+              porcentajeCostoOperativo,
+            costo_operativo_origen:
+              porcentajeCostoOperativo > 0
+                ? "costos_operativos_planta"
+                : "manual",
+            horas_setup:
+              Number(existente?.horas_setup) > 0
+                ? existente.horas_setup
+                : 2,
+            ...(camposDesdeCostoBase(costoBase) || {})
+          };
+
+          return aplicarFormulaTiempoProceso(base);
+        });
+      const procesos = [
+        ...procesosManuales,
+        ...procesosAutomaticos
+      ];
+
+      return JSON.stringify(procesos) ===
+        JSON.stringify(actual.procesos)
+        ? actual
+        : { ...actual, procesos };
+    });
+  }, [
+    buscarCostoBaseEstacion,
+    estacionesCatalogo,
+    formulario.materiales,
+    formulario.planta_id,
+    costosBaseEstacion,
+    costosOperativos,
+    obtenerAbsorcionOperativa
+  ]);
+
+  useEffect(() => {
+    const tieneMetal = formulario.materiales.some(material => {
+      const texto = normalizarComparacion(
+        `${material.codigo || ""} ${material.nombre || ""}`
+      );
+
+      return (
+        (material.tipo_linea || "material") ===
+          "material" &&
+        (texto.includes("alambre") ||
+          texto.includes("tubo"))
+      );
+    });
+    const unidadesPorHora =
+      obtenerUnidadesHoraPorFormato(
+        formulario.formato_exhibidor
+      );
+    const especificaciones = [
+      {
+        clave: "esmerilado",
+        proceso: "Esmerilado",
+        estacion: "Esmerilado",
+        coincide: texto => texto.includes("esmeril")
+      },
+      {
+        clave: "lavado",
+        proceso: "Lavado",
+        estacion: "Lavado",
+        coincide: texto => texto.includes("lavado")
+      },
+      {
+        clave: "pintura",
+        proceso: "Pintura",
+        estacion: "Pintura",
+        coincide: texto => texto.includes("pintura")
+      },
+      {
+        clave: "empacado",
+        proceso: "Empacado",
+        estacion: "Empacado",
+        coincide: texto =>
+          texto.includes("empacad") ||
+          texto.includes("empaque") ||
+          texto.includes("embalaje")
+      }
+    ];
+
+    setFormulario(actual => {
+      const procesosManuales = actual.procesos.filter(
+        proceso =>
+          proceso.origen_automatico !==
+          ORIGEN_PROCESOS_METALICOS_FORMATO
+      );
+      const procesosAutomaticosActuales =
+        actual.procesos.filter(
+          proceso =>
+            proceso.origen_automatico ===
+            ORIGEN_PROCESOS_METALICOS_FORMATO
+        );
+      const procesosAutomaticos = !tieneMetal
+        ? []
+        : especificaciones
+            .filter(especificacion =>
+              !procesosManuales.some(proceso =>
+                especificacion.coincide(
+                  normalizarComparacion(
+                    `${proceso.proceso_nombre || ""} ${proceso.estacion_nombre || ""}`
+                  )
+                )
+              )
+            )
+            .map(especificacion => {
+              const estacionCatalogo =
+                estacionesCatalogo.find(estacion =>
+                  especificacion.coincide(
+                    normalizarComparacion(
+                      `${estacion.proceso_nombre || ""} ${estacion.estacion_nombre || ""}`
+                    )
+                  )
+                );
+              const estacion = estacionCatalogo || {
+                proceso_nombre: especificacion.proceso,
+                estacion_nombre: especificacion.estacion
+              };
+              const existente =
+                procesosAutomaticosActuales.find(
+                  proceso =>
+                    proceso.origen_material_clave ===
+                    especificacion.clave
+                );
+              const costoBase = buscarCostoBaseEstacion(
+                estacion
+              );
+              const porcentajeCostoOperativo =
+                obtenerAbsorcionOperativa(estacion);
+
+              return aplicarFormulaTiempoProceso({
+                ...procesoVacio,
+                ...existente,
+                origen_automatico:
+                  ORIGEN_PROCESOS_METALICOS_FORMATO,
+                origen_material_clave:
+                  especificacion.clave,
+                proceso_codigo:
+                  estacion.proceso_codigo || "",
+                proceso_nombre:
+                  estacion.proceso_nombre ||
+                  especificacion.proceso,
+                estacion_codigo:
+                  estacion.estacion_codigo || "",
+                estacion_nombre:
+                  estacion.estacion_nombre ||
+                  especificacion.estacion,
+                unidades_por_hora: unidadesPorHora,
+                horas_setup:
+                  Number(existente?.horas_setup) > 0
+                    ? existente.horas_setup
+                    : 2,
+                porcentaje_costo_operativo:
+                  porcentajeCostoOperativo,
+                costo_operativo_origen:
+                  porcentajeCostoOperativo > 0
+                    ? "costos_operativos_planta"
+                    : "manual",
+                ...(camposDesdeCostoBase(costoBase) || {})
+              });
+            });
+      const procesos = [
+        ...procesosManuales,
+        ...procesosAutomaticos
+      ];
+
+      return JSON.stringify(procesos) ===
+        JSON.stringify(actual.procesos)
+        ? actual
+        : { ...actual, procesos };
+    });
+  }, [
+    buscarCostoBaseEstacion,
+    estacionesCatalogo,
+    formulario.formato_exhibidor,
+    formulario.materiales,
+    costosBaseEstacion,
+    costosOperativos,
+    obtenerAbsorcionOperativa
   ]);
 
   const seleccionarEstacion = (
@@ -5994,6 +6950,76 @@ export default function CotizadorTecnicoV2({
                   {proceso.proceso_nombre || proceso.proceso_codigo || "Proceso"} ·{" "}
                   {proceso.estacion_nombre || "Sin estación"}
                 </span>
+                {proceso.origen_automatico ===
+                  ORIGEN_CORTE_PRENSA_TUBO && (
+                  <span style={{
+                    color: "#1D4ED8",
+                    fontSize: 12,
+                    fontWeight: "bold"
+                  }}>
+                    Automático desde MP Tubo {proceso.formula_material_codigo || ""}
+                  </span>
+                )}
+                {proceso.origen_automatico ===
+                  ORIGEN_CORTE_CNC_ALAMBRE && (
+                  <span style={{
+                    color: "#1D4ED8",
+                    fontSize: 12,
+                    fontWeight: "bold"
+                  }}>
+                    Automático desde MP Alambre {proceso.formula_material_codigo || ""}
+                  </span>
+                )}
+                {proceso.origen_automatico ===
+                  ORIGEN_DOBLEZ_CNC_ALAMBRE && (
+                  <span style={{
+                    color: "#1D4ED8",
+                    fontSize: 12,
+                    fontWeight: "bold"
+                  }}>
+                    Doblez automático desde MP Alambre {proceso.formula_material_codigo || ""}
+                  </span>
+                )}
+                {proceso.origen_automatico ===
+                  ORIGEN_LASER_FIBRA_LAF && (
+                  <span style={{
+                    color: "#1D4ED8",
+                    fontSize: 12,
+                    fontWeight: "bold"
+                  }}>
+                    Láser Fibra automático desde {proceso.formula_material_codigo || "Plancha LAF"}
+                  </span>
+                )}
+                {proceso.origen_automatico ===
+                  ORIGEN_LASER_CO2_PLANCHA && (
+                  <span style={{
+                    color: "#1D4ED8",
+                    fontSize: 12,
+                    fontWeight: "bold"
+                  }}>
+                    Láser CO₂ automático desde {proceso.formula_material_codigo || "plancha"}
+                  </span>
+                )}
+                {proceso.origen_automatico ===
+                  ORIGEN_IMPRESION_CP_UV_PAI && (
+                  <span style={{
+                    color: "#1D4ED8",
+                    fontSize: 12,
+                    fontWeight: "bold"
+                  }}>
+                    Impresión CP UV automática desde {proceso.formula_material_codigo || "MP PAI"}
+                  </span>
+                )}
+                {proceso.origen_automatico ===
+                  ORIGEN_PROCESOS_METALICOS_FORMATO && (
+                  <span style={{
+                    color: "#1D4ED8",
+                    fontSize: 12,
+                    fontWeight: "bold"
+                  }}>
+                    Automático por formato · {proceso.unidades_por_hora || 0} un/h
+                  </span>
+                )}
                 <span style={{
                   color: faltaCostoHora ? "#C2410C" : "#475569",
                   fontSize: 13

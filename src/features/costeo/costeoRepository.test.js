@@ -22,6 +22,174 @@ describe("costeoRepository", () => {
       .toEqual([2, 2, 3]);
   });
 
+  it("conserva el origen automático del Corte Prensa desde MP Tubo", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Exhibidor tubular",
+        escalas: "100",
+        materiales: [],
+        procesos: [{
+          origen_automatico: "mp_tubo_corte_prensa",
+          origen_material_clave: "mp-tubo:0",
+          proceso_nombre: "Corte",
+          estacion_nombre: "Prensa",
+          tipo_formula_tiempo: "corte_prensa",
+          formula_tiempo: "(131+360+71)*2",
+          horas_setup: 2
+        }]
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.procesos[0]).toMatchObject({
+      origen_automatico: "mp_tubo_corte_prensa",
+      origen_material_clave: "mp-tubo:0",
+      horas_setup: 2
+    });
+  });
+
+  it("conserva el origen automático del Corte CNC Recto desde MP Alambre", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Malla de alambre",
+        escalas: "100",
+        materiales: [],
+        procesos: [{
+          origen_automatico: "mp_alambre_corte_cnc_recto",
+          origen_material_clave: "mp-alambre:0",
+          proceso_nombre: "Corte",
+          estacion_nombre: "CNC Recto",
+          tipo_formula_tiempo: "corte_cnc_recto",
+          formula_tiempo: "(605*15)*3",
+          horas_setup: 2
+        }]
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.procesos[0]).toMatchObject({
+      origen_automatico: "mp_alambre_corte_cnc_recto",
+      origen_material_clave: "mp-alambre:0",
+      formula_tiempo: "(605*15)*3",
+      horas_setup: 2
+    });
+  });
+
+  it("conserva el origen automático del Doblez CNC 3D desde MP Alambre", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Alambre doblado",
+        escalas: "100",
+        materiales: [],
+        procesos: [{
+          origen_automatico: "mp_alambre_doblez_cnc_3d",
+          origen_material_clave: "mp-alambre:1",
+          proceso_nombre: "Doblez",
+          estacion_nombre: "CNC 3D",
+          tipo_formula_tiempo: "doblez_cnc_3d",
+          formula_tiempo:
+            "(15+14+132+604+132+14+15)*4",
+          horas_setup: 2
+        }]
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.procesos[0]).toMatchObject({
+      origen_automatico: "mp_alambre_doblez_cnc_3d",
+      origen_material_clave: "mp-alambre:1",
+      formula_tiempo:
+        "(15+14+132+604+132+14+15)*4",
+      horas_setup: 2
+    });
+  });
+
+  it("conserva el origen automático del Láser Fibra desde Plancha LAF", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Pieza metálica",
+        escalas: "100",
+        materiales: [],
+        procesos: [{
+          origen_automatico: "mp_plancha_laf_laser_fibra",
+          origen_material_clave: "mp-laf:0",
+          proceso_nombre: "Corte Láser",
+          estacion_nombre: "Láser Fibra",
+          tipo_formula_tiempo: "laser_metros_minuto",
+          formula_tiempo: "(100+250+100)*4",
+          metros_por_minuto: 8,
+          horas_setup: 2
+        }]
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.procesos[0]).toMatchObject({
+      origen_automatico: "mp_plancha_laf_laser_fibra",
+      origen_material_clave: "mp-laf:0",
+      tipo_formula_tiempo: "laser_metros_minuto",
+      horas_setup: 2
+    });
+  });
+
+  it("conserva el origen automático del Láser CO2 desde una plancha compatible", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Pieza gráfica",
+        escalas: "100",
+        materiales: [],
+        procesos: [{
+          origen_automatico: "mp_plancha_laser_co2",
+          origen_material_clave: "mp-pai:0",
+          proceso_nombre: "Corte Láser",
+          estacion_nombre: "Láser CO2",
+          tipo_formula_tiempo: "laser_metros_minuto",
+          formula_tiempo: "((1005*2)+(245*2))*1",
+          metros_por_minuto: 8,
+          horas_setup: 2
+        }]
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.procesos[0]).toMatchObject({
+      origen_automatico: "mp_plancha_laser_co2",
+      origen_material_clave: "mp-pai:0",
+      tipo_formula_tiempo: "laser_metros_minuto",
+      horas_setup: 2
+    });
+  });
+
+  it("conserva el origen automático de Impresión CP UV desde MP PAI", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Gráfica PAI",
+        escalas: "100",
+        materiales: [],
+        procesos: [{
+          origen_automatico: "mp_pai_impresion_cp_uv",
+          origen_material_clave: "mp-pai:0",
+          proceso_nombre: "Impresión",
+          estacion_nombre: "Impresora CP UV",
+          tipo_formula_tiempo: "impresion_uv_cama",
+          formula_tiempo: "impresion_uv_cama",
+          largo_pieza_impresion_mm: 1005,
+          ancho_pieza_impresion_mm: 245,
+          piezas_impresion_por_producto: 1,
+          horas_setup: 2
+        }]
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.procesos[0]).toMatchObject({
+      origen_automatico: "mp_pai_impresion_cp_uv",
+      origen_material_clave: "mp-pai:0",
+      tipo_formula_tiempo: "impresion_uv_cama",
+      horas_setup: 2
+    });
+  });
+
   it("conserva el formato del exhibidor y el origen del consumo recomendado", () => {
     const cotizacion = prepararCotizacionTecnica(
       {

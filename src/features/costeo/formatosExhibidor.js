@@ -34,6 +34,17 @@ export const CONSUMOS_POR_FORMATO = {
   }
 };
 
+export const UNIDADES_HORA_PROCESOS_POR_FORMATO = {
+  grande: 10,
+  mediano: 20,
+  pequeno: 30,
+  sobremesa: 40,
+  ganchera: 80
+};
+
+export const obtenerUnidadesHoraPorFormato = formato =>
+  UNIDADES_HORA_PROCESOS_POR_FORMATO[formato] || 0;
+
 export const identificarConsumoPorFormato = material => {
   const texto = normalizar(
     `${material?.codigo || ""} ${material?.nombre || ""}`

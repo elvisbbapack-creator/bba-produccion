@@ -1,5 +1,6 @@
 import {
-  obtenerRecomendacionFormato
+  obtenerRecomendacionFormato,
+  obtenerUnidadesHoraPorFormato
 } from "./formatosExhibidor";
 
 const casos = [
@@ -25,4 +26,11 @@ test("no propone consumo para materiales sin regla", () => {
       "grande"
     )
   ).toBeNull();
+});
+
+test("propone las unidades por hora de los procesos según formato", () => {
+  expect(formatos.map(obtenerUnidadesHoraPorFormato))
+    .toEqual([10, 20, 30, 40, 80]);
+  expect(obtenerUnidadesHoraPorFormato(""))
+    .toBe(0);
 });
