@@ -409,7 +409,7 @@ const esMaterialCajaCorrugada = material => {
   );
   return (
     texto.includes("mp0048") ||
-    texto.includes("carton corrugado 20c")
+    texto.includes("carton corrugado")
   );
 };
 
@@ -2844,7 +2844,9 @@ export default function CotizadorTecnicoV2({
       tipo_linea:
         materialActual?.tipo_linea || "material",
       categoria_pepsico:
-        materialActual?.categoria_pepsico || "",
+        esCajaCorrugada
+          ? "empaque"
+          : materialActual?.categoria_pepsico || "",
       material_id: materialId,
       codigo: material?.codigo || "",
       nombre: material?.nombre || "",
@@ -3738,10 +3740,13 @@ export default function CotizadorTecnicoV2({
               <select
                 style={campo}
                 value={
-                  material.categoria_pepsico ||
-                  inferirCategoriaPepsico(material) ||
-                  ""
+                  esCajaCorrugada
+                    ? "empaque"
+                    : material.categoria_pepsico ||
+                      inferirCategoriaPepsico(material) ||
+                      ""
                 }
+                disabled={esCajaCorrugada}
                 onChange={e =>
                   actualizar({
                     materiales: actualizarItem(
@@ -3767,6 +3772,15 @@ export default function CotizadorTecnicoV2({
                   </option>
                 ))}
               </select>
+              {esCajaCorrugada && (
+                <div style={{
+                  color: "#166534",
+                  fontSize: 12,
+                  marginTop: 4
+                }}>
+                  Asignación automática: todo Cartón Corrugado se informa como Empaque.
+                </div>
+              )}
             </CampoConAyuda>
             <CampoConAyuda
               etiqueta="Compra mínima"

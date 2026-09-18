@@ -91,14 +91,19 @@ export const ENCABEZADOS_PEPSICO = [
 ];
 
 export const inferirCategoriaPepsico = material => {
-  if (material?.categoria_pepsico) {
-    return material.categoria_pepsico;
-  }
-
   const texto = normalizar([
     material?.codigo,
     material?.nombre
   ].filter(Boolean).join(" "));
+
+  if (
+    texto.includes("mp0048") ||
+    texto.includes("carton corrugado")
+  ) return "empaque";
+
+  if (material?.categoria_pepsico) {
+    return material.categoria_pepsico;
+  }
 
   if (texto.includes("alambre")) return "alambre";
   if (texto.includes("tubo")) return "tubo";
@@ -115,6 +120,7 @@ export const inferirCategoriaPepsico = material => {
   if (
     texto.includes("empaque") ||
     texto.includes("caja") ||
+    texto.includes("carton corrugado") ||
     texto.includes("embalaje") ||
     texto.includes("pallet") ||
     texto.includes("sum0016") ||

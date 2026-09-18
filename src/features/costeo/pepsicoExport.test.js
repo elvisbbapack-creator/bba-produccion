@@ -3,6 +3,7 @@ import {
   crearFilaPepsico,
   crearFilasPepsico,
   crearLibroPepsico,
+  inferirCategoriaPepsico,
   obtenerMonedaPais
 } from "./pepsicoExport";
 
@@ -41,6 +42,16 @@ const cotizacionBase = {
     }
   ]
 };
+
+test("clasifica cualquier carton corrugado como empaque", () => {
+  expect(
+    inferirCategoriaPepsico({
+      codigo: "MP0099",
+      nombre: "Cartón Corrugado doble onda",
+      categoria_pepsico: "lamina"
+    })
+  ).toBe("empaque");
+});
 
 test("arma una fila PepsiCo por cantidad y reconcilia EXW", () => {
   const fila = crearFilaPepsico({

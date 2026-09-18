@@ -8,6 +8,27 @@ import {
 } from "./costeoCalculos";
 
 describe("costeoRepository", () => {
+  it("guarda todo carton corrugado en la categoria PepsiCo Empaque", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Prueba empaque",
+        escalas: "1",
+        materiales: [
+          {
+            codigo: "MP0099",
+            nombre: "Cartón Corrugado 30 BC",
+            categoria_pepsico: "lamina"
+          }
+        ],
+        procesos: []
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.materiales[0].categoria_pepsico)
+      .toBe("empaque");
+  });
+
   it("conserva escenarios multipaís sin duplicar la base técnica", () => {
     const cotizacion = prepararCotizacionTecnica(
       {

@@ -22,6 +22,12 @@ const COLECCION = "cotizaciones_tecnicas";
 const limpiarTexto = valor =>
   (valor || "").toString().trim();
 
+const normalizarTextoComparacion = valor =>
+  limpiarTexto(valor)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
 const numero = valor => {
   const convertido = Number(valor);
   return Number.isFinite(convertido)
@@ -84,13 +90,19 @@ export const prepararCotizacionTecnica = (
       expresionConsumo &&
       (numero(material.piezas_por_plancha) > 0 ||
         numero(material.fraccion_por_pieza) > 0);
+    const textoMaterial = normalizarTextoComparacion(
+      `${material.codigo || ""} ${material.nombre || ""}`
+    );
+    const esCartonCorrugado =
+      textoMaterial.includes("mp0048") ||
+      textoMaterial.includes("carton corrugado");
 
     return {
       tipo_linea:
         limpiarTexto(material.tipo_linea) || "material",
-      categoria_pepsico: limpiarTexto(
-        material.categoria_pepsico
-      ),
+      categoria_pepsico: esCartonCorrugado
+        ? "empaque"
+        : limpiarTexto(material.categoria_pepsico),
       material_id: material.material_id || "",
       codigo: limpiarTexto(material.codigo),
       nombre: limpiarTexto(material.nombre),
