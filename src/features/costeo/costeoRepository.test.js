@@ -1,4 +1,5 @@
 import {
+  aFormularioCotizacionTecnica,
   prepararCotizacionTecnica
 } from "./costeoRepository";
 import {
@@ -8,6 +9,19 @@ import {
 } from "./costeoCalculos";
 
 describe("costeoRepository", () => {
+  it("propone 2 horas de setup en procesos guardados sin setup positivo", () => {
+    const formulario = aFormularioCotizacionTecnica({
+      procesos: [
+        { proceso_nombre: "Corte", horas_setup: 0 },
+        { proceso_nombre: "Soldadura" },
+        { proceso_nombre: "Pintura", horas_setup: 3 }
+      ]
+    });
+
+    expect(formulario.procesos.map(proceso => proceso.horas_setup))
+      .toEqual([2, 2, 3]);
+  });
+
   it("conserva el formato del exhibidor y el origen del consumo recomendado", () => {
     const cotizacion = prepararCotizacionTecnica(
       {

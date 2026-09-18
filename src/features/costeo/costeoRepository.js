@@ -817,7 +817,13 @@ export const aFormularioCotizacionTecnica = (
     ? cotizacion.materiales
     : [],
   procesos: Array.isArray(cotizacion.procesos)
-    ? cotizacion.procesos
+    ? cotizacion.procesos.map(proceso => ({
+        ...proceso,
+        horas_setup:
+          numero(proceso.horas_setup) > 0
+            ? proceso.horas_setup
+            : 2
+      }))
     : []
 });
 

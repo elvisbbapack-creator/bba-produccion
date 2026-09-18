@@ -3390,6 +3390,10 @@ export default function CotizadorTecnicoV2({
         : null;
     const datosBase = {
       ...procesoActual,
+      horas_setup:
+        Number(procesoActual.horas_setup) > 0
+          ? procesoActual.horas_setup
+          : 2,
       proceso_codigo:
         estacion?.proceso_codigo || "",
       proceso_nombre:
