@@ -403,9 +403,14 @@ const extraerFormulaAlambreConCortesYSubproductos =
       .toString()
       .replace(/\s+/g, "")
       .replace(/,/g, ".");
-    const coincidencia = texto.match(
+    const coincidenciaDoble = texto.match(
       /^\(\((.+)\)\*([0-9]+(?:\.[0-9]+)?)\)\*([0-9]+(?:\.[0-9]+)?)$/
     );
+    const coincidenciaSimple = texto.match(
+      /^\((.+)\*([0-9]+(?:\.[0-9]+)?)\)\*([0-9]+(?:\.[0-9]+)?)$/
+    );
+    const coincidencia =
+      coincidenciaDoble || coincidenciaSimple;
 
     if (!coincidencia) {
       return null;

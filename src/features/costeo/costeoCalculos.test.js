@@ -91,6 +91,45 @@ test("usa el ciclo real calibrado de Multipunto para una bandeja de 75 puntos", 
   });
 });
 
+test("interpreta cantidad de alambres y mallas desde formula de MP Alambre", () => {
+  const resultado = analizarExpresionConsumoMaterial({
+    expresion: "(605*15)*3",
+    unidadExpresion: "mm",
+    unidadMaterial: "metro",
+    tipoLectura: TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO
+  });
+
+  expect(resultado).toMatchObject({
+    valido: true,
+    consumo_unitario: 27.225,
+    cortes_por_subproducto: 15,
+    subproductos: 3,
+    cortes_por_producto: 45,
+    dobleces_por_pieza: 0,
+    dobleces_por_producto: 0,
+    longitud_por_pieza: 605
+  });
+});
+
+test("cuenta dobleces de alambre por cada pieza", () => {
+  const resultado = analizarExpresionConsumoMaterial({
+    expresion: "(25+564+25)*6",
+    unidadExpresion: "mm",
+    unidadMaterial: "metro",
+    tipoLectura: TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO
+  });
+
+  expect(resultado).toMatchObject({
+    valido: true,
+    consumo_unitario: 3.684,
+    piezas: 6,
+    cortes_por_producto: 6,
+    dobleces_por_pieza: 2,
+    dobleces_por_producto: 12,
+    longitud_por_pieza: 614
+  });
+});
+
 test("calcula capacidad de Impresora CP UV con separación y giro", () => {
   const resultado = analizarFormulaProceso({
     tipoFormula: "impresion_uv_cama",

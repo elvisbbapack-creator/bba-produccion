@@ -343,6 +343,8 @@ const materialVacio = {
   unidad: "un",
   expresion_consumo: "",
   unidad_expresion_consumo: "mm",
+  uso_alambre: "",
+  modelo_alambre: "",
   piezas_calculadas: 0,
   cortes_calculados: 0,
   cortes_por_subproducto: 0,
@@ -417,6 +419,113 @@ const esSuministroPallet = material => {
   );
   return texto.includes("sum0016") || texto.includes("sum0038");
 };
+
+const esMaterialAlambre = material =>
+  obtenerTipoLecturaConsumoMaterial(material) ===
+  TIPOS_LECTURA_CONSUMO.ALAMBRE_DOBLADO;
+
+const obtenerDatosMallaAlambre = material => {
+  if (!esMaterialAlambre(material)) return null;
+
+  const expresion = (material.expresion_consumo || "")
+    .toString()
+    .replace(/\s+/g, "")
+    .replace(/,/g, ".");
+  const explicitaDoble = expresion.match(
+    /^\(\((.+)\)\*([0-9]+(?:\.[0-9]+)?)\)\*([0-9]+(?:\.[0-9]+)?)$/
+  );
+  const explicitaSimple = expresion.match(
+    /^\((.+)\*([0-9]+(?:\.[0-9]+)?)\)\*([0-9]+(?:\.[0-9]+)?)$/
+  );
+  const explicita = explicitaDoble || explicitaSimple;
+  const lectura = aplicarExpresionConsumo(material);
+
+  if (lectura.expresion_consumo_error) return null;
+
+  const alambresPorMalla = explicita
+    ? Math.round(Number(explicita[2]))
+    : Math.round(Number(lectura.cortes_por_producto));
+  const mallas = explicita
+    ? Math.round(Number(explicita[3]))
+    : 1;
+
+  if (alambresPorMalla <= 0 || mallas <= 0) return null;
+
+  return {
+    material,
+    alambresPorMalla,
+    mallas
+  };
+};
+
+const crearPropuestasMultipunto = materiales => {
+  const grupos = new Map();
+
+  (materiales || []).forEach((material, indice) => {
+    const uso = material.uso_alambre || "";
+    const modelo = material.modelo_alambre || "";
+    if (!uso || uso === "otro" || !modelo) return;
+
+    const datos = obtenerDatosMallaAlambre(material);
+    if (!datos) return;
+
+    const clave = `${uso}__${modelo}`;
+    if (!grupos.has(clave)) grupos.set(clave, []);
+    grupos.get(clave).push({ ...datos, indice });
+  });
+
+  return [...grupos.entries()]
+    .filter(([, lineas]) => lineas.length >= 2)
+    .map(([clave, lineas]) => {
+      const [alambreA, alambreB] = lineas;
+      const cantidadesMalla = [
+        alambreA.mallas,
+        alambreB.mallas
+      ];
+      const mallas = cantidadesMalla[0] === cantidadesMalla[1]
+        ? cantidadesMalla[0]
+        : Math.max(...cantidadesMalla);
+      const [uso, modelo] = clave.split("__");
+
+      return {
+        clave,
+        uso,
+        modelo,
+        alambreA,
+        alambreB,
+        mallas,
+        formula: `(${alambreA.alambresPorMalla}*${alambreB.alambresPorMalla})*${mallas}`,
+        advertenciaMallas:
+          cantidadesMalla[0] !== cantidadesMalla[1]
+      };
+    });
+};
+
+const etiquetaUsoAlambre = uso =>
+  ({
+    malla_bandeja: "Malla Bandeja",
+    malla_lateral: "Malla Lateral",
+    otro: "Otro"
+  })[uso] || uso || "Malla";
+
+const camposMultipuntoDesdePropuesta = propuesta =>
+  propuesta
+    ? {
+        formula_tiempo: propuesta.formula,
+        formula_malla_clave: propuesta.clave,
+        formula_malla_uso: propuesta.uso,
+        formula_malla_modelo: propuesta.modelo,
+        formula_material_codigo: [
+          propuesta.alambreA.material.codigo,
+          propuesta.alambreB.material.codigo
+        ]
+          .filter(Boolean)
+          .join(" + "),
+        formula_material_nombre: `${etiquetaUsoAlambre(
+          propuesta.uso
+        )} · Modelo ${propuesta.modelo}`
+      }
+    : {};
 
 const obtenerTipoLecturaConsumoMaterial = material => {
   const texto = normalizarComparacion(
@@ -863,7 +972,9 @@ const esDoblezCnc3d = proceso => {
   return (
     texto.includes("doblez") &&
     (texto.includes("cnc 3d") ||
-      texto.includes("3d"))
+      texto.includes("3d") ||
+      texto.includes("cnc 2d") ||
+      texto.includes("2d"))
   );
 };
 
@@ -1375,6 +1486,9 @@ const procesoVacio = {
   formula_material_id: "",
   formula_material_codigo: "",
   formula_material_nombre: "",
+  formula_malla_clave: "",
+  formula_malla_uso: "",
+  formula_malla_modelo: "",
   unidad_formula_tiempo: "mm",
   segundos_por_metro: 5,
   segundos_por_doblez: 3,
@@ -2534,6 +2648,19 @@ export default function CotizadorTecnicoV2({
     [formulario.materiales]
   );
 
+  const propuestasMultipunto = useMemo(
+    () => crearPropuestasMultipunto(formulario.materiales),
+    [formulario.materiales]
+  );
+
+  const propuestasMultipuntoValidas = useMemo(
+    () =>
+      propuestasMultipunto.filter(
+        propuesta => !propuesta.advertenciaMallas
+      ),
+    [propuestasMultipunto]
+  );
+
   const materialesConFormulaPlanchaLaser = useMemo(
     () =>
       formulario.materiales.filter(
@@ -2730,6 +2857,12 @@ export default function CotizadorTecnicoV2({
       unidad_expresion_consumo:
         materialActual?.unidad_expresion_consumo ||
         "mm",
+      uso_alambre: mismoMaterialActual
+        ? materialActual?.uso_alambre || ""
+        : "",
+      modelo_alambre: mismoMaterialActual
+        ? materialActual?.modelo_alambre || ""
+        : "",
       consumo_unitario: esPallet
         ? 1
         : mismoMaterialActual
@@ -3147,6 +3280,19 @@ export default function CotizadorTecnicoV2({
       materialPlanchaLaf ? 0 : "";
     const materialPaiImpresion =
       materialesPaiConFormula[0]?.material;
+    const propuestaMultipunto =
+      propuestasMultipuntoValidas.length === 1
+        ? propuestasMultipuntoValidas[0]
+        : null;
+    const alambresConDoblez =
+      materialesConFormulaAlambre.filter(material => {
+        const lectura = aplicarExpresionConsumo(material);
+        return Number(lectura.dobleces_por_producto) > 0;
+      });
+    const alambreDoblez =
+      alambresConDoblez.length === 1
+        ? alambresConDoblez[0]
+        : null;
     const datosBase = {
       ...procesoActual,
       proceso_codigo:
@@ -3164,7 +3310,17 @@ export default function CotizadorTecnicoV2({
           ? "costos_operativos_planta"
           : "manual",
     ...(esDoblezCnc3d(estacion)
-        ? valoresFormulaDoblezCnc(procesoActual)
+        ? {
+            ...valoresFormulaDoblezCnc(procesoActual),
+            ...camposFormulaDesdeMaterial(
+              alambreDoblez,
+              alambreDoblez
+                ? materialesConFormulaAlambre.indexOf(
+                    alambreDoblez
+                  )
+                : ""
+            )
+          }
         : esPlegadoraNeumatica(estacion)
           ? valoresFormulaPlegadoraNeumatica(
               procesoActual
@@ -3196,9 +3352,14 @@ export default function CotizadorTecnicoV2({
                   )
                 }
               : esSoldadoraMultipunto(estacion)
-                ? valoresFormulaSoldaduraMultipunto(
-                    procesoActual
-                  )
+                ? {
+                    ...valoresFormulaSoldaduraMultipunto(
+                      procesoActual
+                    ),
+                    ...camposMultipuntoDesdePropuesta(
+                      propuestaMultipunto
+                    )
+                  }
               : esSoldaduraMig(estacion)
                 ? valoresFormulaSoldaduraMig(
                     procesoActual
@@ -3855,6 +4016,74 @@ export default function CotizadorTecnicoV2({
                     </div>
                   </div>
                 )}
+                {lecturaAlambre && (
+                  <div style={{
+                    gridColumn: "1 / -1",
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fit, minmax(190px, 1fr))",
+                    gap: 10,
+                    padding: 12,
+                    borderRadius: 12,
+                    background: "#EFF6FF",
+                    border: "1px solid #93C5FD"
+                  }}>
+                    <CampoConAyuda
+                      etiqueta="Uso del alambre"
+                      ayuda="Agrupa los dos alambres que forman una misma malla. Las líneas con igual Uso y Modelo propondrán sus intersecciones a Soldadura Multipunto."
+                    >
+                      <select
+                        style={campo}
+                        value={material.uso_alambre || ""}
+                        onChange={e =>
+                          actualizar({
+                            materiales: actualizarItem(
+                              formulario.materiales,
+                              indice,
+                              {
+                                ...material,
+                                uso_alambre: e.target.value
+                              }
+                            )
+                          })
+                        }
+                      >
+                        <option value="">Seleccionar uso</option>
+                        <option value="malla_bandeja">Malla Bandeja</option>
+                        <option value="malla_lateral">Malla Lateral</option>
+                        <option value="otro">Otro</option>
+                      </select>
+                    </CampoConAyuda>
+                    <CampoConAyuda
+                      etiqueta="Modelo"
+                      ayuda="Identifica la malla dentro del exhibidor. Ejemplo: los dos alambres de Malla Bandeja, Modelo 1 deben llevar la misma selección."
+                    >
+                      <select
+                        style={campo}
+                        value={material.modelo_alambre || ""}
+                        onChange={e =>
+                          actualizar({
+                            materiales: actualizarItem(
+                              formulario.materiales,
+                              indice,
+                              {
+                                ...material,
+                                modelo_alambre: e.target.value
+                              }
+                            )
+                          })
+                        }
+                      >
+                        <option value="">Seleccionar modelo</option>
+                        {[1, 2, 3, 4].map(modelo => (
+                          <option key={modelo} value={modelo}>
+                            Modelo {modelo}
+                          </option>
+                        ))}
+                      </select>
+                    </CampoConAyuda>
+                  </div>
+                )}
                 {!esCajaCorrugada && <CampoConAyuda
                   etiqueta="Fórmula consumo"
                   ayuda={
@@ -3863,7 +4092,7 @@ export default function CotizadorTecnicoV2({
                       : lecturaPlancha
                         ? "Opcional. Ej: ((61+607+61)(61+445+61))*1. Cada grupo interno es un lado de la pieza en mm; el multiplicador es cuántas piezas lleva el producto."
                       : lecturaAlambre
-                        ? "Opcional. Ej: (12+117+360+117+12)*2. La suma es una pieza doblada; el multiplicador es la cantidad de piezas del producto."
+                        ? "Ej: (605*15)*3 significa 15 alambres rectos de 605 mm en cada una de 3 mallas. Ej: (25+564+25)*6 significa 6 piezas de 614 mm y 2 dobleces por pieza."
                       : "Opcional. Ej: (131+360+71)*1. Cada valor es un corte en mm; el multiplicador es la cantidad de subproductos."
                   }
                 >
@@ -3876,7 +4105,7 @@ export default function CotizadorTecnicoV2({
                         : lecturaPlancha
                           ? "Ej: ((61+607+61)(61+445+61))*1"
                         : lecturaAlambre
-                          ? "Ej: (12+117+360+117+12)*2"
+                          ? "Ej: (605*15)*3 o (25+564+25)*6"
                         : "Ej: (131+360+71)*1"
                     }
                     value={
@@ -5601,7 +5830,14 @@ export default function CotizadorTecnicoV2({
                       ...valoresPorTipoFormula(
                         tipoFormula,
                         proceso
-                      )
+                      ),
+                      ...(tipoFormula ===
+                        "soldadura_multipunto" &&
+                      propuestasMultipuntoValidas.length === 1
+                        ? camposMultipuntoDesdePropuesta(
+                            propuestasMultipuntoValidas[0]
+                          )
+                        : {})
                     };
                     const costoBase =
                       buscarCostoBaseEstacion(base);
@@ -5626,7 +5862,7 @@ export default function CotizadorTecnicoV2({
                     Sin fórmula técnica
                   </option>
                   <option value="doblez_cnc_3d">
-                    Doblez CNC 3D
+                    Doblez CNC 2D / 3D
                   </option>
                   <option value="doblez_plegadora_neumatica">
                     Doblez / Plegadora Neumática o Hidráulica
@@ -5662,6 +5898,67 @@ export default function CotizadorTecnicoV2({
                 "impresion_uv_cama"
               ].includes(proceso.tipo_formula_tiempo) && (
                 <>
+                  {esFormulaSoldaduraMultipunto &&
+                    propuestasMultipunto.length > 0 && (
+                    <CampoConAyuda
+                      etiqueta="Proponer desde MP Alambre"
+                      ayuda="Cruza la cantidad de alambres de dos líneas que tengan el mismo Uso y Modelo. Solo se aplica automáticamente cuando ambas indican igual cantidad de mallas."
+                    >
+                      <select
+                        style={campo}
+                        value={proceso.formula_malla_clave || ""}
+                        onChange={e => {
+                          const propuesta =
+                            propuestasMultipuntoValidas.find(
+                              item => item.clave === e.target.value
+                            );
+                          const actualizado =
+                            aplicarFormulaTiempoProceso({
+                              ...proceso,
+                              ...camposMultipuntoDesdePropuesta(
+                                propuesta
+                              ),
+                              ...(!propuesta
+                                ? {
+                                    formula_malla_clave: "",
+                                    formula_malla_uso: "",
+                                    formula_malla_modelo: ""
+                                  }
+                                : {})
+                            });
+
+                          actualizar({
+                            procesos: actualizarItem(
+                              formulario.procesos,
+                              indice,
+                              actualizado
+                            )
+                          });
+                        }}
+                      >
+                        <option value="">Seleccionar malla asociada</option>
+                        {propuestasMultipuntoValidas.map(propuesta => (
+                          <option
+                            key={propuesta.clave}
+                            value={propuesta.clave}
+                          >
+                            {etiquetaUsoAlambre(propuesta.uso)} · Modelo {propuesta.modelo} | {propuesta.alambreA.alambresPorMalla} × {propuesta.alambreB.alambresPorMalla} × {propuesta.mallas} malla(s)
+                          </option>
+                        ))}
+                      </select>
+                      {propuestasMultipunto.some(
+                        propuesta => propuesta.advertenciaMallas
+                      ) && (
+                        <div style={{
+                          color: "#B45309",
+                          fontSize: 12,
+                          marginTop: 4
+                        }}>
+                          Hay una asociación cuyos dos alambres indican distinta cantidad de mallas. Corrige el último multiplicador de ambas fórmulas para habilitarla.
+                        </div>
+                      )}
+                    </CampoConAyuda>
+                  )}
                   {(esFormulaDoblezCnc ||
                     esFormulaCorteCncRecto ||
                     esFormulaCortePrensa ||
@@ -5839,7 +6136,10 @@ export default function CotizadorTecnicoV2({
                                 formula_material_indice: "",
                                 formula_material_id: "",
                                 formula_material_codigo: "",
-                                formula_material_nombre: ""
+                                formula_material_nombre: "",
+                                formula_malla_clave: "",
+                                formula_malla_uso: "",
+                                formula_malla_modelo: ""
                               });
 
                             actualizar({

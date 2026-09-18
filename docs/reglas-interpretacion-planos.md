@@ -21,3 +21,11 @@ Estas reglas convierten decisiones de negocio repetibles en criterios verificabl
 
 - Mantener la cotización con confianza baja mientras falten materiales, suministros o procesos estructurales del plano.
 - No inventar el costo de una etiqueta ni de otro insumo ausente del catálogo. Primero debe existir un ítem con unidad y precio vigentes.
+
+## MP Alambre, mallas y procesos
+
+- Cada línea de MP Alambre puede clasificarse por **Uso** (`Malla Bandeja`, `Malla Lateral` u `Otro`) y por **Modelo** (`1` a `4`).
+- Dos líneas de alambre con el mismo Uso y Modelo representan las dos direcciones de una malla. Sus cantidades de alambres se multiplican para proponer las intersecciones a **Soldadura Multipunto**.
+- La expresión `(605*15)*3` significa: alambre recto de 605 mm, 15 alambres por malla y 3 mallas o bandejas por exhibidor.
+- La expresión `(25+564+25)*6` significa: 6 piezas de 614 mm; cada pieza tiene 2 dobleces. Los signos `+` separan tramos y cada unión entre tramos cuenta como un doblez para **Doblado 2D o 3D**.
+- La propuesta de Multipunto usa `(alambres A*alambres B)*cantidad de mallas`. Si las dos MP asociadas declaran distinta cantidad de mallas, el cotizador debe advertirlo y exigir corrección antes de aplicar la propuesta.

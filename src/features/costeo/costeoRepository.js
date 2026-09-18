@@ -100,6 +100,10 @@ export const prepararCotizacionTecnica = (
         limpiarTexto(
           material.unidad_expresion_consumo
         ) || "mm",
+      uso_alambre: limpiarTexto(material.uso_alambre),
+      modelo_alambre: limpiarTexto(
+        material.modelo_alambre
+      ),
       piezas_calculadas: numero(
         material.piezas_calculadas
       ),
@@ -250,6 +254,15 @@ export const prepararCotizacionTecnica = (
       ),
       formula_material_nombre: limpiarTexto(
         proceso.formula_material_nombre
+      ),
+      formula_malla_clave: limpiarTexto(
+        proceso.formula_malla_clave
+      ),
+      formula_malla_uso: limpiarTexto(
+        proceso.formula_malla_uso
+      ),
+      formula_malla_modelo: limpiarTexto(
+        proceso.formula_malla_modelo
       ),
       unidad_formula_tiempo:
         limpiarTexto(
