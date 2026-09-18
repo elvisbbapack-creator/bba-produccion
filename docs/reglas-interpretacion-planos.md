@@ -36,3 +36,8 @@ Estas reglas convierten decisiones de negocio repetibles en criterios verificabl
 - El formato técnico se selecciona en Producto prototipo: Grande, Mediano, Pequeño, Sobremesa o Ganchera.
 - La selección propone consumos unitarios editables para Pintura Negra Electrostática, Alambre MIG, Gas recarga 45 kg y Gas Mezcla Argomix 10 m³.
 - Una edición manual del consumo prevalece sobre cambios posteriores del formato. La recomendación debe indicar visualmente su origen.
+
+## Film stretch por pallet
+
+- El suministro **Fillm Stretch Manual 50 cm x 20mic (F20-C)** consume por defecto **0,34 rollos por cada pallet palletizado**.
+- La cantidad sugerida se calcula por escala como `pallets necesarios × 0,34`. El factor queda visible y editable en la línea del suministro.

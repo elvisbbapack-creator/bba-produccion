@@ -33,6 +33,7 @@ import {
   CONSUMO_TINTA_UV_CMYK_ML_M2,
   TIPOS_LECTURA_CONSUMO,
   TIPO_FORMULA_CAJA_CORRUGADA,
+  TIPO_FORMULA_FILM_PALLET,
   TIPO_FORMULA_PALLET
 } from "./costeoCalculos";
 import {
@@ -398,6 +399,7 @@ const materialVacio = {
   pallet_ancho_mm: 1000,
   pallet_peso_kg: 20,
   pallets_adicionales: 0,
+  film_rollos_por_pallet: 0.34,
   proveedor_id: "",
   proveedor_codigo: "",
   proveedor: "",
@@ -425,6 +427,19 @@ const esSuministroPallet = material => {
     `${material?.codigo || ""} ${material?.nombre || ""}`
   );
   return texto.includes("sum0016") || texto.includes("sum0038");
+};
+
+const esSuministroFilmStretch = material => {
+  const texto = normalizarComparacion(
+    `${material?.codigo || ""} ${material?.nombre || ""}`
+  );
+  return (
+    material?.tipo_formula_consumo ===
+      TIPO_FORMULA_FILM_PALLET ||
+    texto.includes("f20-c") ||
+    texto.includes("fillm stretch manual 50 cm x 20mic") ||
+    texto.includes("film stretch manual 50 cm x 20mic")
+  );
 };
 
 const esMaterialAlambre = material =>
@@ -2162,6 +2177,14 @@ export default function CotizadorTecnicoV2({
         ) {
           return { ...material, pallet_cajas: valor };
         }
+        if (esSuministroFilmStretch(material)) {
+          if (clave === "unidades_por_caja") {
+            return { ...material, caja_unidades: valor };
+          }
+          if (clave === "cajas_por_pallet") {
+            return { ...material, pallet_cajas: valor };
+          }
+        }
         return material;
       });
 
@@ -2883,6 +2906,7 @@ export default function CotizadorTecnicoV2({
       material
     );
     const esPallet = esSuministroPallet(material);
+    const esFilmStretch = esSuministroFilmStretch(material);
     const recomendacionFormato =
       obtenerRecomendacionFormato(
         material,
@@ -2916,6 +2940,8 @@ export default function CotizadorTecnicoV2({
         : "",
       consumo_unitario: esPallet
         ? 1
+        : esFilmStretch
+          ? 0.34
         : mismoMaterialActual
           ? materialActual?.consumo_unitario || 1
           : recomendacionFormato?.consumo ?? 1,
@@ -2975,6 +3001,8 @@ export default function CotizadorTecnicoV2({
         ? TIPO_FORMULA_CAJA_CORRUGADA
         : esPallet
           ? TIPO_FORMULA_PALLET
+        : esFilmStretch
+          ? TIPO_FORMULA_FILM_PALLET
         : mismoMaterialActual
           ? materialActual?.tipo_formula_consumo || ""
           : "",
@@ -3021,13 +3049,15 @@ export default function CotizadorTecnicoV2({
         ? materialActual?.caja_unidades || 1
         : esCajaCorrugada
           ? Number(formulario.unidades_por_caja) || 1
+          : esFilmStretch
+            ? Number(formulario.unidades_por_caja) || 1
           : 1,
       caja_etiquetas: mismoMaterialActual
         ? materialActual?.caja_etiquetas ?? 4
         : 4,
       pallet_cajas: mismoMaterialActual
         ? materialActual?.pallet_cajas || 1
-        : esPallet
+        : esPallet || esFilmStretch
           ? Number(formulario.cajas_por_pallet) || 1
           : 1,
       pallet_largo_mm: mismoMaterialActual
@@ -3042,6 +3072,9 @@ export default function CotizadorTecnicoV2({
       pallets_adicionales: mismoMaterialActual
         ? materialActual?.pallets_adicionales || 0
         : 0,
+      film_rollos_por_pallet: mismoMaterialActual
+        ? materialActual?.film_rollos_por_pallet || 0.34
+        : 0.34,
       minimo_compra:
         minimoCompra ||
         (mismoMaterialActual
@@ -3628,6 +3661,9 @@ export default function CotizadorTecnicoV2({
           const esPallet =
             tipoLinea === "suministro" &&
             esSuministroPallet(material);
+          const esFilmStretch =
+            tipoLinea === "suministro" &&
+            esSuministroFilmStretch(material);
           const lecturaCaja = esCajaCorrugada
             ? calcularCajaCorrugada({
                 largo_mm: material.caja_largo_mm,
@@ -3698,6 +3734,26 @@ export default function CotizadorTecnicoV2({
                     1 / (unidadesPorCaja * cajasPorPallet),
                   peso_kg_por_unidad:
                     Number(actualizado.pallet_peso_kg) || 0,
+                  politica_minimo_compra: "consumo_real"
+                }
+              )
+            });
+          };
+          const actualizarFilmStretch = cambios => {
+            actualizar({
+              materiales: actualizarItem(
+                formulario.materiales,
+                indice,
+                {
+                  ...cambios,
+                  unidad: "un",
+                  tipo_formula_consumo:
+                    TIPO_FORMULA_FILM_PALLET,
+                  consumo_unitario:
+                    Number(
+                      cambios.film_rollos_por_pallet ??
+                        material.film_rollos_por_pallet
+                    ) || 0.34,
                   politica_minimo_compra: "consumo_real"
                 }
               )
@@ -4025,6 +4081,47 @@ export default function CotizadorTecnicoV2({
                 </div>
               </div>
             )}
+            {esFilmStretch && (
+              <div style={{
+                gridColumn: "1 / -1",
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fit, minmax(190px, 1fr))",
+                gap: 10,
+                padding: 12,
+                borderRadius: 12,
+                background: "#EFF6FF",
+                border: "1px solid #93C5FD"
+              }}>
+                <CampoConAyuda
+                  etiqueta="Rollos de film por pallet"
+                  ayuda="Regla BBA: cada pallet palletizado consume 0,34 rollos. El valor es editable."
+                >
+                  <input
+                    style={campo}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={material.film_rollos_por_pallet ?? 0.34}
+                    onChange={e =>
+                      actualizarFilmStretch({
+                        film_rollos_por_pallet: e.target.value
+                      })
+                    }
+                  />
+                </CampoConAyuda>
+                <div style={{
+                  ...campo,
+                  background: "white",
+                  color: "#1E40AF",
+                  fontWeight: "bold",
+                  lineHeight: 1.5
+                }}>
+                  Propuesta: pallets necesarios × {material.film_rollos_por_pallet ?? 0.34} rollos.<br />
+                  La cantidad total se calcula por cada escala cotizada.
+                </div>
+              </div>
+            )}
             {tipoLinea === "material" && (
               <>
                 {esCajaCorrugada && (
@@ -4284,7 +4381,12 @@ export default function CotizadorTecnicoV2({
                     "consumo_unitario",
                     "minimo_compra",
                     "peso_kg_por_unidad"
-                  ].includes(campoConfig.clave)
+                    ].includes(campoConfig.clave)
+                ) &&
+                !(
+                  esFilmStretch &&
+                  ["unidad", "consumo_unitario", "minimo_compra"]
+                    .includes(campoConfig.clave)
                 )
             ).map(campoConfig => (
               <CampoConAyuda

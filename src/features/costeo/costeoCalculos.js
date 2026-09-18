@@ -1720,6 +1720,8 @@ export const prepararEscalas = valor => {
 export const TIPO_FORMULA_CAJA_CORRUGADA =
   "caja_corrugada_m2";
 export const TIPO_FORMULA_PALLET = "pallet_por_cajas";
+export const TIPO_FORMULA_FILM_PALLET =
+  "film_stretch_por_pallet";
 
 const normalizarCodigoMaterial = material =>
   `${material?.codigo || ""} ${material?.nombre || ""}`
@@ -1730,7 +1732,10 @@ const normalizarCodigoMaterial = material =>
 const esCajaCorrugada = material =>
   material?.tipo_formula_consumo ===
     TIPO_FORMULA_CAJA_CORRUGADA ||
-  normalizarCodigoMaterial(material).includes("mp0048");
+  normalizarCodigoMaterial(material).includes("mp0048") ||
+  normalizarCodigoMaterial(material).includes(
+    "carton corrugado"
+  );
 
 const esPallet = material => {
   const texto = normalizarCodigoMaterial(material);
@@ -1738,6 +1743,15 @@ const esPallet = material => {
     TIPO_FORMULA_PALLET ||
     texto.includes("sum0016") ||
     texto.includes("sum0038");
+};
+
+const esFilmStretchPallet = material => {
+  const texto = normalizarCodigoMaterial(material);
+  return material?.tipo_formula_consumo ===
+    TIPO_FORMULA_FILM_PALLET ||
+    texto.includes("f20-c") ||
+    texto.includes("fillm stretch manual 50 cm x 20mic") ||
+    texto.includes("film stretch manual 50 cm x 20mic");
 };
 
 export const calcularCajaCorrugada = ({
@@ -1861,6 +1875,62 @@ const calcularUsoMaterial = (
       }
     };
   }
+  if (esFilmStretchPallet(material)) {
+    const cajaMaterial = materiales.find(esCajaCorrugada);
+    const palletMaterial = materiales.find(esPallet);
+    const unidadesPorCaja = Math.max(
+      Math.round(numero(
+        cajaMaterial?.caja_unidades || material.caja_unidades
+      )),
+      1
+    );
+    const cajas = Math.ceil(
+      Math.max(numero(cantidad), 0) / unidadesPorCaja
+    );
+    const cajasPorPallet = Math.max(
+      Math.round(numero(
+        palletMaterial?.pallet_cajas || material.pallet_cajas
+      )),
+      1
+    );
+    const palletsBase = cajas > 0
+      ? Math.ceil(cajas / cajasPorPallet)
+      : 0;
+    const palletsAdicionales = Math.max(
+      Math.round(numero(
+        palletMaterial?.pallets_adicionales ??
+          material.pallets_adicionales
+      )),
+      0
+    );
+    const pallets = palletsBase > 0
+      ? palletsBase + palletsAdicionales
+      : 0;
+    const rollosPorPallet = Math.max(
+      numero(material.film_rollos_por_pallet) || 0.34,
+      0
+    );
+    const rollos = redondear(
+      pallets * rollosPorPallet,
+      6
+    );
+
+    return {
+      consumo: rollosPorPallet,
+      requerido: rollos,
+      compra: rollos,
+      caja: null,
+      pallet: null,
+      film: {
+        cajas_necesarias: cajas,
+        cajas_por_pallet: cajasPorPallet,
+        pallets_necesarios: pallets,
+        pallets_adicionales: palletsAdicionales,
+        rollos_por_pallet: rollosPorPallet,
+        rollos_necesarios: rollos
+      }
+    };
+  }
 
   const consumo = numero(material.consumo_unitario);
   const minimoCompra = numero(material.minimo_compra);
@@ -1907,10 +1977,11 @@ export const calcularDetalleMaterialesCotizacion = (
       requerido,
       compra,
       caja,
-      pallet
+      pallet,
+      film
     } = calcularUsoMaterial(material, cantidad, materiales);
     const costo = compra * precio;
-    const pesoNeto = (pallet
+    const pesoNeto = (pallet || film
       ? compra
       : caja
       ? caja.area_sin_merma_m2
@@ -1963,6 +2034,7 @@ export const calcularDetalleMaterialesCotizacion = (
       ),
       caja_corrugada: caja,
       pallet: pallet || null,
+      film_stretch: film || null,
       politica_minimo_compra:
         material.politica_minimo_compra ||
         "cobrar_minimo"

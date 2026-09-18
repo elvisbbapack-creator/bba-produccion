@@ -226,6 +226,8 @@ export const prepararCotizacionTecnica = (
         Math.round(numero(material.pallets_adicionales)),
         0
       ),
+      film_rollos_por_pallet:
+        numero(material.film_rollos_por_pallet) || 0.34,
       costo_origen: limpiarTexto(material.costo_origen),
       minimo_compra: numero(material.minimo_compra),
       politica_minimo_compra:

@@ -10,6 +10,7 @@ import {
   prepararEscalas,
   TIPOS_LECTURA_CONSUMO,
   TIPO_FORMULA_CAJA_CORRUGADA,
+  TIPO_FORMULA_FILM_PALLET,
   TIPO_FORMULA_PALLET
 } from "./costeoCalculos";
 import {
@@ -263,6 +264,45 @@ test("calcula pallets completos desde las cajas requeridas", () => {
 
   // 1.770 productos / 10 = 177 cajas; 177 / 12 = 15 pallets.
   expect(calcularCostoMateriales(materiales, 1770)).toBe(225000);
+});
+
+test("propone 0.34 rollos de film por cada pallet requerido", () => {
+  const materiales = [
+    {
+      codigo: "MP0048",
+      tipo_formula_consumo: TIPO_FORMULA_CAJA_CORRUGADA,
+      caja_largo_mm: 400,
+      caja_ancho_mm: 300,
+      caja_alto_mm: 250,
+      caja_unidades: 10,
+      costo_unitario: 0
+    },
+    {
+      codigo: "SUM0016",
+      tipo_formula_consumo: TIPO_FORMULA_PALLET,
+      pallet_cajas: 12,
+      costo_unitario: 0
+    },
+    {
+      codigo: "F20-C",
+      nombre: "Fillm Stretch Manual 50 cm x 20mic (F20-C)",
+      tipo_formula_consumo: TIPO_FORMULA_FILM_PALLET,
+      film_rollos_por_pallet: 0.34,
+      costo_unitario: 10000
+    }
+  ];
+  const detalleFilm = calcularDetalleMaterialesCotizacion(
+    materiales,
+    1770
+  )[2];
+
+  expect(detalleFilm.film_stretch).toMatchObject({
+    pallets_necesarios: 15,
+    rollos_por_pallet: 0.34,
+    rollos_necesarios: 5.1
+  });
+  expect(detalleFilm.cantidad_comprada).toBe(5.1);
+  expect(detalleFilm.costo_material).toBe(51000);
 });
 
 test("limita los camiones por posiciones de pallet", () => {
