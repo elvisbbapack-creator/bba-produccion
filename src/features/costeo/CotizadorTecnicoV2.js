@@ -251,9 +251,13 @@ const estadoInicial = {
   pais_destino: "",
   modalidad_carga: "auto",
   unidades_por_caja: 1,
+  largo_caja_mm: 0,
+  ancho_caja_mm: 0,
+  alto_caja_mm: 0,
   largo_caja_cm: 0,
   ancho_caja_cm: 0,
   alto_caja_cm: 0,
+  cajas_por_pallet: 1,
   factor_estiba: 1,
   capacidad_camion_m3: 90,
   capacidad_camion_kg: 25000,
@@ -379,6 +383,7 @@ const materialVacio = {
   caja_alto_mm: 0,
   caja_pestana_mm: 40,
   caja_unidades: 1,
+  caja_etiquetas: 4,
   pallet_cajas: 1,
   pallet_largo_mm: 1200,
   pallet_ancho_mm: 1000,
@@ -1963,6 +1968,55 @@ export default function CotizadorTecnicoV2({
     setError("");
   };
 
+  const actualizarEmpaqueLogistico = (clave, valor) => {
+    setFormulario(actual => {
+      const cambios = { [clave]: valor };
+      const numeroValor = Number(valor) || 0;
+
+      if (clave === "largo_caja_mm") {
+        cambios.largo_caja_cm = numeroValor / 10;
+      }
+      if (clave === "ancho_caja_mm") {
+        cambios.ancho_caja_cm = numeroValor / 10;
+      }
+      if (clave === "alto_caja_mm") {
+        cambios.alto_caja_cm = numeroValor / 10;
+      }
+
+      const materiales = (actual.materiales || []).map(material => {
+        if (esMaterialCajaCorrugada(material)) {
+          if (clave === "largo_caja_mm") {
+            return { ...material, caja_largo_mm: valor };
+          }
+          if (clave === "ancho_caja_mm") {
+            return { ...material, caja_ancho_mm: valor };
+          }
+          if (clave === "alto_caja_mm") {
+            return { ...material, caja_alto_mm: valor };
+          }
+          if (clave === "unidades_por_caja") {
+            return { ...material, caja_unidades: valor };
+          }
+        }
+        if (
+          esSuministroPallet(material) &&
+          clave === "cajas_por_pallet"
+        ) {
+          return { ...material, pallet_cajas: valor };
+        }
+        return material;
+      });
+
+      return {
+        ...actual,
+        ...cambios,
+        materiales
+      };
+    });
+    setMensaje("");
+    setError("");
+  };
+
   const actualizarEscenarioPais = (pais, cambios) => {
     actualizar({
       escenarios_pais: normalizarEscenariosPais(
@@ -2007,6 +2061,8 @@ export default function CotizadorTecnicoV2({
           modalidad_carga: formulario.modalidad_carga,
           unidades_por_caja:
             formulario.unidades_por_caja,
+          cajas_por_pallet:
+            formulario.cajas_por_pallet,
           largo_caja_cm: formulario.largo_caja_cm,
           ancho_caja_cm: formulario.ancho_caja_cm,
           alto_caja_cm: formulario.alto_caja_cm,
@@ -2067,6 +2123,7 @@ export default function CotizadorTecnicoV2({
           exportacionBase: {
             modalidad_carga: formulario.modalidad_carga,
             unidades_por_caja: formulario.unidades_por_caja,
+            cajas_por_pallet: formulario.cajas_por_pallet,
             largo_caja_cm: formulario.largo_caja_cm,
             ancho_caja_cm: formulario.ancho_caja_cm,
             alto_caja_cm: formulario.alto_caja_cm,
@@ -2221,6 +2278,8 @@ export default function CotizadorTecnicoV2({
                 formulario.modalidad_carga || "auto",
               unidades_por_caja:
                 formulario.unidades_por_caja,
+              cajas_por_pallet:
+                formulario.cajas_por_pallet,
               largo_caja_cm: formulario.largo_caja_cm,
               ancho_caja_cm: formulario.ancho_caja_cm,
               alto_caja_cm: formulario.alto_caja_cm,
@@ -2750,22 +2809,35 @@ export default function CotizadorTecnicoV2({
         : 0,
       caja_largo_mm: mismoMaterialActual
         ? materialActual?.caja_largo_mm || 0
-        : 0,
+        : esCajaCorrugada
+          ? Number(formulario.largo_caja_mm) || 0
+          : 0,
       caja_ancho_mm: mismoMaterialActual
         ? materialActual?.caja_ancho_mm || 0
-        : 0,
+        : esCajaCorrugada
+          ? Number(formulario.ancho_caja_mm) || 0
+          : 0,
       caja_alto_mm: mismoMaterialActual
         ? materialActual?.caja_alto_mm || 0
-        : 0,
+        : esCajaCorrugada
+          ? Number(formulario.alto_caja_mm) || 0
+          : 0,
       caja_pestana_mm: mismoMaterialActual
         ? materialActual?.caja_pestana_mm ?? 40
         : 40,
       caja_unidades: mismoMaterialActual
         ? materialActual?.caja_unidades || 1
-        : 1,
+        : esCajaCorrugada
+          ? Number(formulario.unidades_por_caja) || 1
+          : 1,
+      caja_etiquetas: mismoMaterialActual
+        ? materialActual?.caja_etiquetas ?? 4
+        : 4,
       pallet_cajas: mismoMaterialActual
         ? materialActual?.pallet_cajas || 1
-        : 1,
+        : esPallet
+          ? Number(formulario.cajas_por_pallet) || 1
+          : 1,
       pallet_largo_mm: mismoMaterialActual
         ? materialActual?.pallet_largo_mm || 1200
         : 1200,
@@ -3740,14 +3812,17 @@ export default function CotizadorTecnicoV2({
                       ["caja_ancho_mm", "Ancho caja (mm)", 1],
                       ["caja_alto_mm", "Alto caja (mm)", 1],
                       ["caja_pestana_mm", "Pestaña (mm)", 1],
-                      ["caja_unidades", "Unidades por caja", 1]
+                      ["caja_unidades", "Unidades por caja", 1],
+                      ["caja_etiquetas", "Etiquetas por caja", 0]
                     ].map(([clave, etiqueta, minimo]) => (
                       <CampoConAyuda
                         key={clave}
                         etiqueta={etiqueta}
                         ayuda={clave === "caja_unidades"
                           ? "Productos que caben dentro de una caja master."
-                          : "Medida tomada del plano en milímetros."}
+                          : clave === "caja_etiquetas"
+                            ? "Estándar BBA: 4 etiquetas por caja para todos los clientes."
+                            : "Medida tomada del plano en milímetros."}
                       >
                         <input
                           style={campo}
@@ -4968,25 +5043,31 @@ export default function CotizadorTecnicoV2({
                   clave: "unidades_por_caja",
                   etiqueta: "Unid. por caja",
                   ayuda:
-                    "Cuántos productos entran en una caja o paquete logístico."
+                    "Cuántos productos entran en una caja. Alimenta la propuesta de MP Cartón Corrugado."
                 },
                 {
-                  clave: "largo_caja_cm",
-                  etiqueta: "Largo caja cm",
+                  clave: "largo_caja_mm",
+                  etiqueta: "Largo exterior caja (mm)",
                   ayuda:
-                    "Medida exterior de la caja embalada."
+                    "Medida exterior en milímetros. Alimenta la propuesta de MP Cartón Corrugado."
                 },
                 {
-                  clave: "ancho_caja_cm",
-                  etiqueta: "Ancho caja cm",
+                  clave: "ancho_caja_mm",
+                  etiqueta: "Ancho exterior caja (mm)",
                   ayuda:
-                    "Medida exterior de la caja embalada."
+                    "Medida exterior en milímetros. Alimenta la propuesta de MP Cartón Corrugado."
                 },
                 {
-                  clave: "alto_caja_cm",
-                  etiqueta: "Alto caja cm",
+                  clave: "alto_caja_mm",
+                  etiqueta: "Alto exterior caja (mm)",
                   ayuda:
-                    "Medida exterior de la caja embalada."
+                    "Medida exterior en milímetros. Alimenta la propuesta de MP Cartón Corrugado."
+                },
+                {
+                  clave: "cajas_por_pallet",
+                  etiqueta: "Cajas planificadas por pallet",
+                  ayuda:
+                    "Alimenta la propuesta de pallets necesarios cuando agregas SUM0016 o SUM0038."
                 },
                 {
                   clave: "factor_estiba",
@@ -5081,12 +5162,27 @@ export default function CotizadorTecnicoV2({
                     value={
                       formulario[campoConfig.clave] || ""
                     }
-                    onChange={e =>
-                      actualizar({
-                        [campoConfig.clave]:
+                    onChange={e => {
+                      const clavesEmpaque = [
+                        "unidades_por_caja",
+                        "largo_caja_mm",
+                        "ancho_caja_mm",
+                        "alto_caja_mm",
+                        "cajas_por_pallet"
+                      ];
+                      if (clavesEmpaque.includes(
+                        campoConfig.clave
+                      )) {
+                        actualizarEmpaqueLogistico(
+                          campoConfig.clave,
                           e.target.value
-                      })
-                    }
+                        );
+                        return;
+                      }
+                      actualizar({
+                        [campoConfig.clave]: e.target.value
+                      });
+                    }}
                   />
                 </CampoConAyuda>
               ))}

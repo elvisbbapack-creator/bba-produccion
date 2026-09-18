@@ -186,6 +186,10 @@ export const prepararCotizacionTecnica = (
         Math.round(numero(material.caja_unidades)),
         1
       ),
+      caja_etiquetas: Math.max(
+        Math.round(numero(material.caja_etiquetas ?? 4)),
+        0
+      ),
       pallet_cajas: Math.max(
         Math.round(numero(material.pallet_cajas)),
         1
@@ -417,9 +421,16 @@ export const prepararCotizacionTecnica = (
       unidades_por_caja: numero(
         datos.unidades_por_caja
       ),
+      largo_caja_mm: numero(datos.largo_caja_mm),
+      ancho_caja_mm: numero(datos.ancho_caja_mm),
+      alto_caja_mm: numero(datos.alto_caja_mm),
       largo_caja_cm: numero(datos.largo_caja_cm),
       ancho_caja_cm: numero(datos.ancho_caja_cm),
       alto_caja_cm: numero(datos.alto_caja_cm),
+      cajas_por_pallet: Math.max(
+        Math.round(numero(datos.cajas_por_pallet)),
+        1
+      ),
       factor_estiba: numero(datos.factor_estiba) || 1,
       capacidad_camion_m3: numero(
         datos.capacidad_camion_m3
@@ -690,6 +701,21 @@ export const aFormularioCotizacionTecnica = (
   unidades_por_caja:
     cotizacion.supuestos?.exportacion
       ?.unidades_por_caja ?? 1,
+  largo_caja_mm:
+    cotizacion.supuestos?.exportacion?.largo_caja_mm ??
+    numero(
+      cotizacion.supuestos?.exportacion?.largo_caja_cm
+    ) * 10,
+  ancho_caja_mm:
+    cotizacion.supuestos?.exportacion?.ancho_caja_mm ??
+    numero(
+      cotizacion.supuestos?.exportacion?.ancho_caja_cm
+    ) * 10,
+  alto_caja_mm:
+    cotizacion.supuestos?.exportacion?.alto_caja_mm ??
+    numero(
+      cotizacion.supuestos?.exportacion?.alto_caja_cm
+    ) * 10,
   largo_caja_cm:
     cotizacion.supuestos?.exportacion
       ?.largo_caja_cm ?? 0,
@@ -698,6 +724,9 @@ export const aFormularioCotizacionTecnica = (
       ?.ancho_caja_cm ?? 0,
   alto_caja_cm:
     cotizacion.supuestos?.exportacion?.alto_caja_cm ?? 0,
+  cajas_por_pallet:
+    cotizacion.supuestos?.exportacion?.cajas_por_pallet ??
+    1,
   factor_estiba:
     cotizacion.supuestos?.exportacion?.factor_estiba ??
     1,
