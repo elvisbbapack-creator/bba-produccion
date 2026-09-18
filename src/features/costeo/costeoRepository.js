@@ -162,6 +162,12 @@ export const prepararCotizacionTecnica = (
       consumo_unitario: numero(
         material.consumo_unitario
       ),
+      consumo_formato_origen: limpiarTexto(
+        material.consumo_formato_origen
+      ),
+      consumo_formato_clave: limpiarTexto(
+        material.consumo_formato_clave
+      ),
       merma_porcentaje: numero(
         material.merma_porcentaje
       ),
@@ -525,6 +531,15 @@ export const prepararCotizacionTecnica = (
     cliente_codigo: limpiarTexto(datos.cliente_codigo),
     cliente: limpiarTexto(datos.cliente),
     nombre_producto: nombre,
+    formato_exhibidor: [
+      "grande",
+      "mediano",
+      "pequeno",
+      "sobremesa",
+      "ganchera"
+    ].includes(datos.formato_exhibidor)
+      ? datos.formato_exhibidor
+      : "",
     version: limpiarTexto(datos.version) || "V1",
     estado:
       ESTADOS_COTIZACION.includes(datos.estado)
@@ -643,6 +658,8 @@ export const aFormularioCotizacionTecnica = (
   cliente_codigo: cotizacion.cliente_codigo || "",
   nombre_producto:
     cotizacion.nombre_producto || "",
+  formato_exhibidor:
+    cotizacion.formato_exhibidor || "",
   version: cotizacion.version || "V1",
   planta_id: cotizacion.planta_id || "chile",
   estado: cotizacion.estado || "borrador",

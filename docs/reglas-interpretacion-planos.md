@@ -30,3 +30,9 @@ Estas reglas convierten decisiones de negocio repetibles en criterios verificabl
 - La expresión `(605*15)*3` significa: alambre recto de 605 mm, 15 alambres por malla y 3 mallas o bandejas por exhibidor.
 - La expresión `(25+564+25)*6` significa: 6 piezas de 614 mm; cada pieza tiene 2 dobleces. Los signos `+` separan tramos y cada unión entre tramos cuenta como un doblez para **Doblado 2D o 3D**.
 - La propuesta de Multipunto usa `(alambres A*alambres B)*cantidad de mallas`. Si las dos MP asociadas declaran distinta cantidad de mallas, el cotizador debe advertirlo y exigir corrección antes de aplicar la propuesta.
+
+## Formato del exhibidor y consumos recomendados
+
+- El formato técnico se selecciona en Producto prototipo: Grande, Mediano, Pequeño, Sobremesa o Ganchera.
+- La selección propone consumos unitarios editables para Pintura Negra Electrostática, Alambre MIG, Gas recarga 45 kg y Gas Mezcla Argomix 10 m³.
+- Una edición manual del consumo prevalece sobre cambios posteriores del formato. La recomendación debe indicar visualmente su origen.

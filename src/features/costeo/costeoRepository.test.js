@@ -8,6 +8,34 @@ import {
 } from "./costeoCalculos";
 
 describe("costeoRepository", () => {
+  it("conserva el formato del exhibidor y el origen del consumo recomendado", () => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Exhibidor grande",
+        formato_exhibidor: "grande",
+        escalas: "10",
+        materiales: [
+          {
+            codigo: "SUM-PINTURA",
+            nombre: "Pintura Negra Electrostática x 1 Kilo",
+            consumo_unitario: 1,
+            consumo_formato_origen: "formato_exhibidor",
+            consumo_formato_clave: "pintura_negra_electrostatica"
+          }
+        ],
+        procesos: []
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.formato_exhibidor).toBe("grande");
+    expect(cotizacion.materiales[0]).toMatchObject({
+      consumo_unitario: 1,
+      consumo_formato_origen: "formato_exhibidor",
+      consumo_formato_clave: "pintura_negra_electrostatica"
+    });
+  });
+
   it("guarda todo carton corrugado en la categoria PepsiCo Empaque", () => {
     const cotizacion = prepararCotizacionTecnica(
       {

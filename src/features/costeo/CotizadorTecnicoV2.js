@@ -65,6 +65,10 @@ import {
   crearEscenariosPaisIniciales,
   normalizarEscenariosPais
 } from "./escenariosMultipais";
+import {
+  FORMATOS_EXHIBIDOR,
+  obtenerRecomendacionFormato
+} from "./formatosExhibidor";
 
 const campo = {
   width: "100%",
@@ -213,6 +217,7 @@ const estadoInicial = {
   cliente_codigo: "",
   cliente: "",
   nombre_producto: "",
+  formato_exhibidor: "",
   version: "V1",
   planta_id: "chile",
   estado: "borrador",
@@ -367,6 +372,8 @@ const materialVacio = {
   fraccion_plancha: "",
   piezas_por_producto: 0,
   consumo_unitario: 1,
+  consumo_formato_origen: "",
+  consumo_formato_clave: "",
   merma_porcentaje: 5,
   costo_unitario: 0,
   minimo_compra: 0,
@@ -2082,6 +2089,43 @@ export default function CotizadorTecnicoV2({
     setError("");
   };
 
+  const actualizarFormatoExhibidor = formato => {
+    setFormulario(actual => ({
+      ...actual,
+      formato_exhibidor: formato,
+      materiales: (actual.materiales || []).map(material => {
+        if (
+          !formato &&
+          material.consumo_formato_origen ===
+            "formato_exhibidor"
+        ) {
+          return {
+            ...material,
+            consumo_formato_origen: "",
+            consumo_formato_clave: ""
+          };
+        }
+        const recomendacion = obtenerRecomendacionFormato(
+          material,
+          formato
+        );
+        if (
+          !recomendacion ||
+          material.consumo_formato_origen === "manual"
+        ) return material;
+
+        return {
+          ...material,
+          consumo_unitario: recomendacion.consumo,
+          consumo_formato_origen: "formato_exhibidor",
+          consumo_formato_clave: recomendacion.clave
+        };
+      })
+    }));
+    setMensaje("");
+    setError("");
+  };
+
   const actualizarEmpaqueLogistico = (clave, valor) => {
     setFormulario(actual => {
       const cambios = { [clave]: valor };
@@ -2839,6 +2883,11 @@ export default function CotizadorTecnicoV2({
       material
     );
     const esPallet = esSuministroPallet(material);
+    const recomendacionFormato =
+      obtenerRecomendacionFormato(
+        material,
+        formulario.formato_exhibidor
+      );
 
     return {
       tipo_linea:
@@ -2869,7 +2918,15 @@ export default function CotizadorTecnicoV2({
         ? 1
         : mismoMaterialActual
           ? materialActual?.consumo_unitario || 1
-          : 1,
+          : recomendacionFormato?.consumo ?? 1,
+      consumo_formato_origen: mismoMaterialActual
+        ? materialActual?.consumo_formato_origen || ""
+        : recomendacionFormato
+          ? "formato_exhibidor"
+          : "",
+      consumo_formato_clave: mismoMaterialActual
+        ? materialActual?.consumo_formato_clave || ""
+        : recomendacionFormato?.clave || "",
       merma_porcentaje: mismoMaterialActual
         ? materialActual?.merma_porcentaje ?? 5
         : 5,
@@ -4272,6 +4329,13 @@ export default function CotizadorTecnicoV2({
                     const cambiosMaterial = {
                       [campoConfig.clave]:
                         e.target.value,
+                      ...(campoConfig.clave ===
+                      "consumo_unitario"
+                        ? {
+                            consumo_formato_origen:
+                              "manual"
+                          }
+                        : {}),
                       ...(campoConfig.clave === "proveedor"
                         ? {
                             proveedor_id: "",
@@ -4330,6 +4394,21 @@ export default function CotizadorTecnicoV2({
                     });
                   }}
                 />
+                {campoConfig.clave ===
+                  "consumo_unitario" &&
+                  material.consumo_formato_origen ===
+                    "formato_exhibidor" && (
+                  <div style={{
+                    color: "#166534",
+                    fontSize: 12,
+                    marginTop: 4
+                  }}>
+                    Recomendación editable por formato: {FORMATOS_EXHIBIDOR.find(
+                      ([valor]) =>
+                        valor === formulario.formato_exhibidor
+                    )?.[1] || formulario.formato_exhibidor}.
+                  </div>
+                )}
               </CampoConAyuda>
             ))}
           </div>
@@ -4543,6 +4622,25 @@ export default function CotizadorTecnicoV2({
               })
             }
           />
+          <CampoConAyuda
+            etiqueta="Formato del exhibidor"
+            ayuda="Propone consumos editables de pintura negra, alambre MIG y gases según la tabla técnica."
+          >
+            <select
+              style={campo}
+              value={formulario.formato_exhibidor || ""}
+              onChange={e =>
+                actualizarFormatoExhibidor(e.target.value)
+              }
+            >
+              <option value="">Sin definir</option>
+              {FORMATOS_EXHIBIDOR.map(([valor, etiqueta]) => (
+                <option key={valor} value={valor}>
+                  {etiqueta}
+                </option>
+              ))}
+            </select>
+          </CampoConAyuda>
           <input
             style={campo}
             placeholder="Versión"
