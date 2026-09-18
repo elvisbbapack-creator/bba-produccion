@@ -57,6 +57,32 @@ describe("costeoRepository", () => {
       .toBe("empaque");
   });
 
+  it.each([
+    ["SUM Fillm Stretch Manual 50 cm x 20mic (F20-C)", "empaque"],
+    ["SUM Gas Recarga 45 kg", "herramentales"],
+    ["SUM Alambre Mig Soldadura", "herramentales"],
+    ["SUM Gas Mezcla Argomix 10m3", "herramentales"]
+  ])("guarda %s en la categoria PepsiCo obligatoria", (nombre, categoria) => {
+    const cotizacion = prepararCotizacionTecnica(
+      {
+        nombre_producto: "Prueba categoria PepsiCo",
+        escalas: "1",
+        materiales: [
+          {
+            codigo: "SUM-TEST",
+            nombre,
+            categoria_pepsico: "accesorios"
+          }
+        ],
+        procesos: []
+      },
+      { empresa_id: "bba", planta_ids: ["chile"] }
+    );
+
+    expect(cotizacion.materiales[0].categoria_pepsico)
+      .toBe(categoria);
+  });
+
   it("conserva escenarios multipaís sin duplicar la base técnica", () => {
     const cotizacion = prepararCotizacionTecnica(
       {

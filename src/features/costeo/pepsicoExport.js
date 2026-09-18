@@ -91,6 +91,11 @@ export const ENCABEZADOS_PEPSICO = [
 ];
 
 export const inferirCategoriaPepsico = material => {
+  const categoriaObligatoria = obtenerCategoriaPepsicoObligatoria(
+    material
+  );
+  if (categoriaObligatoria) return categoriaObligatoria;
+
   const texto = normalizar([
     material?.codigo,
     material?.nombre
@@ -128,6 +133,30 @@ export const inferirCategoriaPepsico = material => {
   ) return "empaque";
   if (texto.includes("lamina") || texto.includes("plancha") || texto.includes("laf")) return "lamina";
   if ((material?.tipo_linea || "material") === "suministro") return "accesorios";
+  return "";
+};
+
+export const obtenerCategoriaPepsicoObligatoria = material => {
+  const texto = normalizar([
+    material?.codigo,
+    material?.nombre
+  ].filter(Boolean).join(" "));
+
+  if (
+    texto.includes("mp0048") ||
+    texto.includes("carton corrugado") ||
+    texto.includes("f20-c") ||
+    texto.includes("fillm stretch") ||
+    texto.includes("film stretch")
+  ) return "empaque";
+
+  if (
+    (texto.includes("gas recarga") && texto.includes("45 kg")) ||
+    texto.includes("alambre mig") ||
+    texto.includes("gas mezcla argomix") ||
+    texto.includes("argomix")
+  ) return "herramentales";
+
   return "";
 };
 

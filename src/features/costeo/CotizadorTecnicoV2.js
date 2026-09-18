@@ -59,7 +59,8 @@ import {
   crearFilasPepsico,
   descargarExcelPepsico,
   filaAValoresPepsico,
-  inferirCategoriaPepsico
+  inferirCategoriaPepsico,
+  obtenerCategoriaPepsicoObligatoria
 } from "./pepsicoExport";
 import {
   calcularEscenariosMultipais,
@@ -1546,7 +1547,7 @@ const procesoVacio = {
   costo_hora: 0,
   porcentaje_costo_operativo: 0,
   costo_operativo_origen: "",
-  horas_setup: 0,
+  horas_setup: 2,
   observacion: ""
 };
 
@@ -2907,6 +2908,8 @@ export default function CotizadorTecnicoV2({
     );
     const esPallet = esSuministroPallet(material);
     const esFilmStretch = esSuministroFilmStretch(material);
+    const categoriaPepsicoObligatoria =
+      obtenerCategoriaPepsicoObligatoria(material);
     const recomendacionFormato =
       obtenerRecomendacionFormato(
         material,
@@ -2917,8 +2920,8 @@ export default function CotizadorTecnicoV2({
       tipo_linea:
         materialActual?.tipo_linea || "material",
       categoria_pepsico:
-        esCajaCorrugada
-          ? "empaque"
+        categoriaPepsicoObligatoria
+          ? categoriaPepsicoObligatoria
           : materialActual?.categoria_pepsico || "",
       material_id: materialId,
       codigo: material?.codigo || "",
@@ -3664,6 +3667,8 @@ export default function CotizadorTecnicoV2({
           const esFilmStretch =
             tipoLinea === "suministro" &&
             esSuministroFilmStretch(material);
+          const categoriaPepsicoObligatoria =
+            obtenerCategoriaPepsicoObligatoria(material);
           const lecturaCaja = esCajaCorrugada
             ? calcularCajaCorrugada({
                 largo_mm: material.caja_largo_mm,
@@ -3853,13 +3858,13 @@ export default function CotizadorTecnicoV2({
               <select
                 style={campo}
                 value={
-                  esCajaCorrugada
-                    ? "empaque"
+                  categoriaPepsicoObligatoria
+                    ? categoriaPepsicoObligatoria
                     : material.categoria_pepsico ||
                       inferirCategoriaPepsico(material) ||
                       ""
                 }
-                disabled={esCajaCorrugada}
+                disabled={Boolean(categoriaPepsicoObligatoria)}
                 onChange={e =>
                   actualizar({
                     materiales: actualizarItem(

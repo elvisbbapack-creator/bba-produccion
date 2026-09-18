@@ -4,6 +4,7 @@ import {
   crearFilasPepsico,
   crearLibroPepsico,
   inferirCategoriaPepsico,
+  obtenerCategoriaPepsicoObligatoria,
   obtenerMonedaPais
 } from "./pepsicoExport";
 
@@ -51,6 +52,23 @@ test("clasifica cualquier carton corrugado como empaque", () => {
       categoria_pepsico: "lamina"
     })
   ).toBe("empaque");
+});
+
+test.each([
+  ["SUM Fillm Stretch Manual 50 cm x 20mic (F20-C)", "empaque"],
+  ["SUM Gas Recarga 45 kg", "herramentales"],
+  ["SUM Alambre Mig Soldadura", "herramentales"],
+  ["SUM Gas Mezcla Argomix 10m3", "herramentales"]
+])("fuerza la categoria PepsiCo de %s", (nombre, categoria) => {
+  const material = {
+    codigo: "SUM-TEST",
+    nombre,
+    categoria_pepsico: "accesorios"
+  };
+
+  expect(obtenerCategoriaPepsicoObligatoria(material))
+    .toBe(categoria);
+  expect(inferirCategoriaPepsico(material)).toBe(categoria);
 });
 
 test("arma una fila PepsiCo por cantidad y reconcilia EXW", () => {
